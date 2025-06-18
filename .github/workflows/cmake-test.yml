@@ -149,11 +149,13 @@ jobs:
       run: sudo apt-get install -yq libfftw3-dev pkg-config
 
     - name: build pcms
+      run: |
+        cmake -S ${{ runner.temp}} -B ${{runner.temp}}/build
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'pcms'
-        repo-path: 'SCOREC/pcms'
-        repo-ref: ''
+        repo-path: 'Sichao25/pcms'
+        repo-ref: 'yus/compiler_warning_test'
         cache: false
         options: '-DCMAKE_BUILD_TYPE=Release
                   -DCMAKE_C_COMPILER=`which mpicc`
