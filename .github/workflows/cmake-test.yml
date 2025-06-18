@@ -149,8 +149,6 @@ jobs:
       run: sudo apt-get install -yq libfftw3-dev pkg-config
 
     - name: build pcms
-      run: |
-        cmake -S ${{ runner.temp}} -B ${{runner.temp}}/build
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'pcms'
