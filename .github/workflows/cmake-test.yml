@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - develop
+      - yus/compiler_warning_test
   pull_request:
     branches:
       - main
