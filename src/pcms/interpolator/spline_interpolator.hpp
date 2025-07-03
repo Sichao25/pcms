@@ -51,10 +51,10 @@ void SplineInterpolator<T, MemorySpace>::splinck(Rank1View<const T, MemorySpace>
 
     if (inx <= 1) return;
 
-    double dxavg = (x[inx - 1] - x[0]) / inx;
+    double dxavg = (x[inx - 1] - x[0]) / (inx - 1);
     double zeps = std::abs(ztol * dxavg);
 
-    for (int ix = 0; ix < inx; ++ix) {
+    for (int ix = 1; ix < inx; ++ix) {
         double zdiffx = x[ix] - x[ix - 1];
         if (zdiffx <= 0.0) {
             throw std::runtime_error("Not strictly ascending");
@@ -639,7 +639,7 @@ void CubicSplineInterpolator<T, MemorySpace>::v_spline(const int& k_bc1, const i
                     t = f(3, i - 1) / f(1, i - 1);
                 }
 
-                if ((i == imin) && (imin == 1)) {
+                if ((i == imin + 1) && (imin == 1)) {
                     f(1, i) -= t * (f(3, i - 1) - f(3, i - 2));
                 } else {
                     f(1, i) -= t * f(3, i - 1);
@@ -1338,6 +1338,777 @@ void CubicSplineInterpolator<T, MemorySpace>::evspline(double xget,
     // Evaluate spline at the point
     fvspline(ict, 1, 1, fval, i, xparam, hx, hxi, f, nx);
 }
+
+
+template <typename T, typename MemorySpace>
+class BiCubicSplineInterpolator: public CubicSplineInterpolator<T, MemorySpace> {
+public:
+
+    BiCubicSplineInterpolator() = default;
+    void bcspline(
+        Rank1View<const T, MemorySpace>x,             // size: inx
+        int inx,
+        Rank1View<const T, MemorySpace> th,            // size: inth
+        int inth,
+        Rank4View<T, MemorySpace> fspl, // [4, 4, inf3, inth]
+        int inf3,
+        int ibcxmin,
+        Rank1View<T, MemorySpace> bcxmin,        // size: inth (used if ibcxmin = 1 or 2)
+        int ibcxmax,
+        Rank1View<T, MemorySpace> bcxmax,        // size: inth (used if ibcxmax = 1 or 2)
+        int ibcthmin,
+        Rank1View<T, MemorySpace> bcthmin,       // size: inx (used if ibcthmin = 1 or 2)
+        int ibcthmax,
+        Rank1View<T, MemorySpace> bcthmax,       // size: inx (used if ibcthmax = 1 or 2)
+        Rank1View<T, MemorySpace> wk,                  // size: nwk
+        int nwk,
+        int& ilinx,                           // output: 1 if x is evenly spaced
+        int& ilinth,                          // output: 1 if th is evenly spaced
+        int& ier                              // output: error code
+    );
+
+    static void bcspeval(double xget, double yget,
+              const std::vector<int>& iselect,
+              Rank2View<double, HostMemorySpace> fval,
+              Rank1View<const double, HostMemorySpace> x, int nx,
+              Rank1View<const double, HostMemorySpace> y, int ny,
+              int ilinx, int iliny,
+              Rank4View<double, HostMemorySpace> f,
+              int inf3, int& ier);
+
+    static void bcspevxy(
+        double xget, double yget,
+        Rank1View<const double, HostMemorySpace> x, int nx,
+        Rank1View<const double, HostMemorySpace> y, int ny,
+        int ilinx, int iliny,
+        int& i, int& j,
+        double& dx, double& dy,
+        int& ier
+    );
+
+    static void bcspevfn(
+        const std::vector<int>& ict,             // Selector array for which derivatives to compute
+        int ivec,                     // Number of vector points
+        int ivd,                      // First dimension of fval (≥ ivec)
+        Rank2View<T, MemorySpace> fval,                 // Output array: size [ivd, *] (flattened)
+        std::vector<int>& iv,                // Grid cell indices in x direction
+        std::vector<int>& jv,                // Grid cell indices in y direction
+        std::vector<double>& dxv,            // x displacements within cells
+        std::vector<double>& dyv,            // y displacements within cells
+        Rank4View<T, MemorySpace> f,              // Bicubic spline coefficients [4, 4, inf3, ny] (flattened)
+        int inf3,                     // 3rd dimension of f
+        int ny                        // Number of y points (4th dim of f)
+    );
+
+
+};
+
+template <typename T, typename MemorySpace>
+void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
+    Rank1View<const T, MemorySpace>x,             // size: inx
+    int inx,
+    Rank1View<const T, MemorySpace> th,            // size: inth
+    int inth,
+    Rank4View<T, MemorySpace> fspl, // [4, 4, inf3, inth]
+    int inf3,
+    int ibcxmin,
+    Rank1View<T, MemorySpace> bcxmin,        // size: inth (used if ibcxmin = 1 or 2)
+    int ibcxmax,
+    Rank1View<T, MemorySpace> bcxmax,        // size: inth (used if ibcxmax = 1 or 2)
+    int ibcthmin,
+    Rank1View<T, MemorySpace> bcthmin,       // size: inx (used if ibcthmin = 1 or 2)
+    int ibcthmax,
+    Rank1View<T, MemorySpace> bcthmax,       // size: inx (used if ibcthmax = 1 or 2)
+    Rank1View<T, MemorySpace> wk,                  // size: nwk
+    int nwk,
+    int& ilinx,                           // output: 1 if x is evenly spaced
+    int& ilinth,                          // output: 1 if th is evenly spaced
+    int& ier                              // output: error code
+) {
+    int iflg2 = 0;
+    std::vector<int> iselect1(10, 0); // Size 10, all initialized to 0
+    std::vector<int> iselect2(10, 0); // Size 10, all initialized to 0
+    std::vector<double> zcur_vec(3, 0.0); // Size 1, initialized to 0.0
+
+    if (ibcthmin != -1) {
+        if (ibcthmin == 1 || ibcthmin == 2) {
+            for (int ix = 0; ix < inx; ++ix) {
+                if (bcthmin[ix] != 0.0) {
+                    iflg2 = 1;
+                    break;
+                }
+            }
+        }
+        if (ibcthmax == 1 || ibcthmax == 2) {
+            for (int ix = 0; ix < inx; ++ix) {
+                if (bcthmax[ix] != 0.0) {
+                    iflg2 = 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    ier = 0;
+    int itest = 5 * std::max(inx, inth);
+    if (iflg2 == 1) {
+        itest += 4 * inx * inth;
+    }
+
+    if (nwk < itest) {
+        std::cerr << " bcspline:  workspace too small:\n"
+                << "  user supplied:  nwk=" << nwk
+                << "; need at least:  " << itest << "\n"
+                << "  nwk=4*nx*ny +5*max(nx,ny) will work for any user\n"
+                << "  choice of bdy conditions.\n";
+        return;
+    }
+
+    if (inx < 2) {
+        std::cerr << " bcspline:  at least 2 x points required.\n";
+        return;
+    }
+
+    if (inth < 2) {
+        std::cerr << " bcspline:  need at least 2 theta points.\n";
+        return;
+    }
+
+    // Check boundary condition values
+    ibc_ck(ibcxmin, "bcspline", "xmin", -1, 7, ier);
+    if (ibcxmin >= 0) ibc_ck(ibcxmax, "bcspline", "xmax", 0, 7, ier);
+    ibc_ck(ibcthmin, "bcspline", "thmin", -1, 7, ier);
+    if (ibcthmin >= 0) ibc_ck(ibcthmax, "bcspline", "thmax", 0, 7, ier);
+
+    // Check x vector spacing
+    int ierx = 0;
+    CubicSplineInterpolator<T, MemorySpace>::splinck(x, 1.0e-3);
+    if (ierx != 0) ier = 2;
+    if (ier == 2) {
+        std::cerr << " bcspline:  x axis not strict ascending\n";
+        return;
+    }
+
+    // Check th vector spacing
+    int ierth = 0;
+    CubicSplineInterpolator<T, MemorySpace>::splinck(th, 1.0e-3);
+    if (ierth != 0) ier = 3;
+    if (ier == 3) {
+        std::cerr << " bcspline:  th axis not strict ascending\n";
+        return;
+    }
+
+    if (ier != 0) return;
+
+    double xo2 = 0.5;
+    double xo6 = 1.0 / 6.0;
+
+    // Spline in x-direction
+    int inxo = 4 * (inx - 1);
+
+    // TODO: use reshape to replace temp reshape, will be better if we can get rid of wk
+    // auto f_x = Rank2View<double, HostMemorySpace>(wk.data_handle(), 4, inx);
+    // auto wk_x = Rank1View<double, HostMemorySpace>(wk.data_handle() + 4 * inx, inx);
+    // auto f_th = Rank2View<double, HostMemorySpace>(wk.data_handle(), 4, inth);
+    // auto wk_th = Rank1View<double, HostMemorySpace>(wk.data_handle() + 4 * inx + 4 * inth, inth);
+
+    for (int ith = 0; ith < inth; ++ith) {
+        // Copy function into workspace
+        for (int ix = 0; ix < inx; ++ix) {
+            wk[4 * ix] = fspl(0, 0, ix, ith); // fspl(1,1,ix,ith)
+        }
+
+        // Boundary condition at xmin
+        if (ibcxmin == 1) {
+            wk[1] = bcxmin[ith];
+        } else if (ibcxmin == 2) {
+            wk[2] = bcxmin[ith];
+        }
+
+        // Boundary condition at xmax
+        if (ibcxmax == 1) {
+            wk[inxo + 1] = bcxmax[ith];
+        } else if (ibcxmax == 2) {
+            wk[inxo + 2] = bcxmax[ith];
+        }
+
+        // TODO: temp solution for reshape
+        std::vector<T> f_x_vec(4 * inx);
+        auto f_x = Rank2View<T, MemorySpace>(f_x_vec.data(), 4, inx);
+        std::vector<T> wk_x_vec(inx);
+        auto wk_x = Rank1View<T, MemorySpace>(wk_x_vec.data(), inx);
+        for (int ix = 0; ix < inx; ++ix) {
+            for (int ic = 0; ic < 4; ++ic) {
+                f_x(ic, ix) = wk.data_handle()[4 * ix + ic]; // f_x(ic, ix) = wk[4*ix + ic]
+            }
+        }
+
+        // Call v_spline
+        BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, f_x, wk_x);
+
+        // TODO: temp solution for reshape
+        for (int ix = 0; ix < inx; ++ix) {
+            for (int ic = 0; ic < 4; ++ic) {
+                wk[4 * ix + ic] = f_x.data_handle()[ic * 10 + ix]; // wk[4*ix + ic] = f_x(ic, ix)
+            }
+        }
+
+        // Copy coefficients out
+        for (int ix = 0; ix < inx; ++ix) {
+            std::cout << "fspl(1, 0, ix, ith): " << fspl(1, 0, ix, ith) << "wk[4 * ix + 1]" << wk[4 * ix + 1] << ith << std::endl;
+            fspl(1, 0, ix, ith) = wk[4 * ix + 1];               // fspl(2,1,...)
+            std::cout << "fspl(1, 0, ix, ith): " << fspl(1, 0, ix, ith) << ith << std::endl;
+            fspl(2, 0, ix, ith) = wk[4 * ix + 2] * xo2;          // fspl(3,1,...)
+            fspl(3, 0, ix, ith) = wk[4 * ix + 3] * xo6;          // fspl(4,1,...)
+        }
+    }
+
+    // Spline in theta direction
+    int intho = 4 * (inth - 1);
+
+    for (int ix = 0; ix < inx; ++ix) {
+        // Spline each x coefficient
+        for (int ic = 0; ic < 4; ++ic) {
+            // Copy ordinates into workspace
+            for (int ith = 0; ith < inth; ++ith) {
+                wk[4 * ith] = fspl(ic, 0, ix, ith); // fspl(ic,1,ix,ith)
+            }
+
+            // Set linear BCs initially
+            wk[1] = 0.0;
+            wk[2] = 0.0;
+            wk[intho + 1] = 0.0;
+            wk[intho + 2] = 0.0;
+
+            // Adjust BC flags if needed
+            int ibcthmina = ibcthmin;
+            int ibcthmaxa = ibcthmax;
+            if (iflg2 == 1) {
+                if (ibcthmin == 1 || ibcthmin == 2) ibcthmina = 0;
+                if (ibcthmax == 1 || ibcthmax == 2) ibcthmaxa = 0;
+            }
+
+            // TODO: temp solution for reshape
+            std::vector<T> f_th_vec(4 * inth);
+            auto f_th = Rank2View<T, MemorySpace>(f_th_vec.data(), 4, inth);
+            std::vector<T> wk_th_vec(inth);
+            auto wk_th = Rank1View<T, MemorySpace>(wk_th_vec.data(), inth);
+
+            for (int ith = 0; ith < inth; ++ith) {
+                for (int ic2 = 0; ic2 < 4; ++ic2) {
+                    f_th(ic2, ith) = wk.data_handle()[4 * ith + ic2]; // f_th(ic2, ith) = wk[4*ith + ic2]
+                }
+            }
+
+            // Call v_spline
+            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmina, ibcthmaxa, inth, th, f_th, wk_th);
+
+            // TODO: temp solution for reshape
+            for (int ith = 0; ith < inth; ++ith) {
+                for (int ic2 = 0; ic2 < 4; ++ic2) {
+                    wk[4 * ith + ic2] = f_th.data_handle()[ic2 * 10 + ith]; // wk[4*ith + ic2] = f_th(ic2, ith)
+                }
+            }
+
+            // Copy coefficients out
+            for (int ith = 0; ith < inth; ++ith) {
+                fspl(ic, 1, ix, ith) = wk[4 * ith + 1];              // fspl(ic,2,...)
+                fspl(ic, 2, ix, ith) = wk[4 * ith + 2] * xo2;         // fspl(ic,3,...)
+                fspl(ic, 3, ix, ith) = wk[4 * ith + 3] * xo6;         // fspl(ic,4,...)
+            }
+        }
+    }
+
+    if (iflg2 == 1) {
+        int iasc = 0;                      // Workspace base for correction splines
+        int iinc = 4 * inth;             // Spacing between correction splines
+        int iawk = iasc + 4 * inth * inx;
+
+        double zhxn = x[inx - 1] - x[inx - 2];
+        int jx = inx - 2;
+        double zhth = th[inth - 1] - th[inth - 2];
+        int jth = inth - 2;
+
+        for (int ii=0; ii < 10; ++ii) {
+            iselect1[ii] = 0;
+            iselect2[ii] = 0;
+        }
+
+        if (ibcthmin == 1) iselect1[2] = 1;
+        if (ibcthmin == 2) iselect1[4] = 1;
+        if (ibcthmax == 1) iselect2[2] = 1;
+        if (ibcthmax == 2) iselect2[4] = 1;
+
+        for (int ix = 0; ix < inx; ++ix) {
+            double zdiff1 = 0.0, zdiff2 = 0.0;
+
+            if (ibcthmin == 1) {
+                zcur_vec[0] = (ix < inx - 1) ? fspl(0, 1, ix, 0)
+                                        : fspl(0, 1, jx, 0) + zhxn * (fspl(1, 1, jx, 0) + zhxn * (fspl(2, 1, jx, 0) + zhxn * fspl(3, 1, jx, 0)));
+                zdiff1 = bcthmin[ix] - zcur_vec[0];
+            } else if (ibcthmin == 2) {
+                zcur_vec[0] = (ix < inx - 1) ? 2.0 * fspl(0, 2, ix, 0)
+                                        : 2.0 * (fspl(0, 2, jx, 0) + zhxn * (fspl(1, 2, jx, 0) + zhxn * (fspl(2, 2, jx, 0) + zhxn * fspl(3, 2, jx, 0))));
+                zdiff1 = bcthmin[ix] - zcur_vec[0];
+            }
+
+            auto zcur = Rank2View<double, HostMemorySpace>(zcur_vec.data(), 1, 3);
+            if (ibcthmax == 1) {
+                if (ix < inx - 1) {
+                    zcur(0, 0) = fspl(0, 1, ix, jth) + zhth * (2.0 * fspl(0, 2, ix, jth) + zhth * 3.0 * fspl(0, 3, ix, jth));
+                } else {
+                    // TODO: check if this is correct
+                    BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+                    if (ier != 0) return;
+                }
+                zdiff2 = bcthmax[ix] - zcur(0, 0);
+            } else if (ibcthmax == 2) {
+                if (ix < inx - 1) {
+                    zcur(0, 0) = 2.0 * fspl(0, 2, ix, jth) + 6.0 * zhth * fspl(0, 3, ix, jth);
+                } else {
+                    // TODO: check if this is correct
+                    BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+                    if (ier != 0) return;
+                }
+                zdiff2 = bcthmax[ix] - zcur(0, 0);
+            }
+
+            int iadr = iasc + ix * iinc;
+            for (int ith = 0; ith < inth; ++ith)
+                wk[iadr + 4 * ith] = 0.0;
+
+            wk[iadr + 1] = 0.0;
+            wk[iadr + 2] = 0.0;
+            wk[iadr + intho + 1] = 0.0;
+            wk[iadr + intho + 2] = 0.0;
+
+            if (ibcthmin == 1) wk[iadr + 1] = zdiff1;
+            else if (ibcthmin == 2) wk[iadr + 2] = zdiff1;
+
+            if (ibcthmax == 1) wk[iadr + intho + 1] = zdiff2;
+            else if (ibcthmax == 2) wk[iadr + intho + 2] = zdiff2;
+
+            // auto f_iadr = Rank2View<double, HostMemorySpace>(wk.data_handle() + iadr, 4, inth);
+            // auto wk_iawk = Rank1View<double, HostMemorySpace>(wk.data_handle() + iawk + 4 * inth, nwk - iawk - 4 * inth);
+            std::vector<T> f_iadr_vec(4 * inth);
+            auto f_iadr = Rank2View<double, HostMemorySpace>(f_iadr_vec.data(), 4, inth);
+            std::vector<T> wk_iawk_vec(inth);
+            auto wk_iawk = Rank1View<double, HostMemorySpace>(wk_iawk_vec.data(), inth);
+
+            // TODO: temp solution for reshape
+            for (int ith = 0; ith < inth; ++ith) {
+                for (int ic = 0; ic < 4; ++ic) {
+                    f_iadr(ic, ith) = wk.data_handle()[iadr + 4 * ith + ic]; // f_iadr(ic, ith) = wk[iadr + 4*ith + ic]
+                }
+            }
+            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmin, ibcthmax, inth, th, f_iadr, wk_iawk);
+
+            // TODO: temp solution for reshape
+            for (int ith = 0; ith < inth; ++ith) {
+                for (int ic = 0; ic < 4; ++ic) {
+                    wk[iadr + 4 * ith + ic] = f_iadr.data_handle()[ic * 10 + ith]; // wk[iadr + 4*ith + ic] = f_iadr(ic, ith)
+                }  
+            }
+        }
+
+        for (int ix = 0; ix < inx; ++ix) {
+            int iadr = iasc + ix * iinc;
+            for (int ith = 0; ith < inth - 1; ++ith) {
+                wk[iadr + 4 * ith + 2] *= xo2;
+                wk[iadr + 4 * ith + 3] *= xo6;
+                if (ix < inx - 1) {
+                    fspl(0, 1, ix, ith) += wk[iadr + 4 * ith + 1];
+                    fspl(0, 2, ix, ith) += wk[iadr + 4 * ith + 2];
+                    fspl(0, 3, ix, ith) += wk[iadr + 4 * ith + 3];
+                }
+            }
+        }
+
+        int ia5w = iawk + 4 * inx;
+
+        for (int ith = 0; ith < inth - 1; ++ith) {
+            for (int ic = 1; ic < 4; ++ic) {
+                for (int ix = 0; ix < inx; ++ix) {
+                    int iaspl = iasc + iinc * ix;
+                    wk[iawk + 4 * ix] = wk[iaspl + 4 * ith + ic];
+                }
+                wk[iawk + 1] = 0.0;
+                wk[iawk + 2] = 0.0;
+                wk[iawk + inxo + 1] = 0.0;
+                wk[iawk + inxo + 2] = 0.0;
+                
+                // auto f_iawk = Rank2View<double, HostMemorySpace>(wk.data_handle() + iawk, 4, inx);
+                // auto wk_ia5w = Rank1View<double, HostMemorySpace>(wk.data_handle() + ia5w + 4 * inx, nwk - ia5w - 4 * inx);
+                std::vector<T> f_iawk_vec(4 * inx);
+                auto f_iawk = Rank2View<double, HostMemorySpace>(f_iawk_vec.data(), 4, inx);
+                std::vector<T> wk_ia5w_vec(inx);
+                auto wk_ia5w = Rank1View<double, HostMemorySpace>(wk_ia5w_vec.data(), inx);
+
+                // TODO: temp solution for reshape
+                for (int ix = 0; ix < inx; ++ix) {
+                    for (int ic = 0; ic < 4; ++ic) {
+                        f_iawk(ic, ix) = wk.data_handle()[iawk + 4 * ix + ic]; // f_iawk(ic, ix) = wk[iawk + 4*ix + ic]
+                    }
+                }
+                BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, f_iawk, wk_ia5w);
+
+                // TODO: temp solution for reshape
+                for (int ix = 0; ix < inx; ++ix) {
+                    for (int ic = 0; ic < 4; ++ic) {
+                        wk[iawk + 4 * ix + ic] = f_iawk.data_handle()[ic * 10 + ix]; // wk[iawk + 4*ix + ic] = f_iawk(ic, ix)
+                    }
+                }
+
+                for (int ix = 0; ix < inx - 1; ++ix) {
+                    fspl(1, ic, ix, ith) += wk[iawk + 4 * ix + 1];
+                    fspl(2, ic, ix, ith) += wk[iawk + 4 * ix + 2] * xo2;
+                    fspl(3, ic, ix, ith) += wk[iawk + 4 * ix + 3] * xo6;
+                }
+            }
+        }
+    }
+}
+
+template <typename T, typename MemorySpace>
+void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(double xget, double yget,
+              const std::vector<int>& iselect,
+              Rank2View<double, HostMemorySpace> fval,
+              Rank1View<const double, HostMemorySpace> x, int nx,
+              Rank1View<const double, HostMemorySpace> y, int ny,
+              int ilinx, int iliny,
+              Rank4View<double, HostMemorySpace> f,
+              int inf3, int& ier) {
+    int i = 0;
+    int j = 0;
+    double dx = 0.0;
+    double dy = 0.0;
+
+    // Range finding
+    bcspevxy(xget, yget, x, nx, y, ny, ilinx, iliny, i, j, dx, dy, ier);
+    if (ier != 0) return;
+    std::vector<int> i_vec(1, i); 
+    std::vector<int> j_vec(1, j);
+    std::vector<double> dx_vec(1, dx);
+    std::vector<double> dy_vec(1, dy);
+
+    // Evaluate spline function
+    bcspevfn(iselect, 1, 1, fval, i_vec, j_vec, dx_vec, dy_vec, f, inf3, ny);
+}
+
+template <typename T, typename MemorySpace>
+void BiCubicSplineInterpolator<T, MemorySpace>::bcspevxy(
+    double xget, double yget,
+    Rank1View<const double, HostMemorySpace> x, int nx,
+    Rank1View<const double, HostMemorySpace> y, int ny,
+    int ilinx, int iliny,
+    int& i, int& j,
+    double& dx, double& dy,
+    int& ier
+) {
+    int nxm = nx - 1;
+    int nym = ny - 1;
+    int ii, jj;
+
+    ier = 0;
+    double zxget = xget;
+    double zyget = yget;
+
+    if ((xget < x[0]) || (xget > x[nx - 1])) {
+        double zxtol = 4.0e-7 * std::max(std::abs(x[0]), std::abs(x[nx - 1]));
+        if ((xget < x[0] - zxtol) || (xget > x[nx - 1] + zxtol)) {
+            ier = 1;
+            std::cerr << "bcspeval: xget=" << xget << " out of range " << x[0] << " to " << x[nx - 1] << "\n";
+        } else {
+            if ((xget < x[0] - 0.5 * zxtol) || (xget > x[nx - 1] + 0.5 * zxtol)) {
+                std::cerr << "bcspeval: xget=" << xget << " beyond range " << x[0] << " to " << x[nx - 1] << " (fixup applied)\n";
+            }
+            zxget = (xget < x[0]) ? x[0] : x[nx - 1];
+        }
+    }
+
+    if ((yget < y[0]) || (yget > y[ny - 1])) {
+        double zytol = 4.0e-7 * std::max(std::abs(y[0]), std::abs(y[ny - 1]));
+        if ((yget < y[0] - zytol) || (yget > y[ny - 1] + zytol)) {
+            ier = 1;
+            std::cerr << "bcspeval: yget=" << yget << " out of range " << y[0] << " to " << y[ny - 1] << "\n";
+        } else {
+            if ((yget < y[0] - 0.5 * zytol) || (yget > y[ny - 1] + 0.5 * zytol)) {
+                std::cerr << "bcspeval: yget=" << yget << " beyond range " << y[0] << " to " << y[ny - 1] << " (fixup applied)\n";
+            }
+            zyget = (yget < y[0]) ? y[0] : y[ny - 1];
+        }
+    }
+
+    if (ier != 0) return;
+
+    ii = static_cast<int>(nxm * (zxget - x[0]) / (x[nx - 1] - x[0]));
+    i = std::min(nxm - 2, ii);
+    if (zxget < x[i]) {
+        i--;
+    } else if (zxget > x[i + 1]) {
+        i++;
+    }
+
+    jj = static_cast<int>(nym * (zyget - y[0]) / (y[ny - 1] - y[0]));
+    j = std::min(nym - 2, jj);
+    if (zyget < y[j]) {
+        j--;
+    } else if (zyget > y[j + 1]) {
+        j++;
+    }
+    
+    dx = zxget - x[i];
+    dy = zyget - y[j];
+}
+
+template <typename T, typename MemorySpace>
+void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
+    const std::vector<int>& ict,             // Selector array for which derivatives to compute
+    int ivec,                     // Number of vector points
+    int ivd,                      // First dimension of fval (≥ ivec)
+    Rank2View<T, MemorySpace> fval,                 // Output array: size [ivd, *] (flattened)
+    std::vector<int>& iv,                // Grid cell indices in x direction
+    std::vector<int>& jv,                // Grid cell indices in y direction
+    std::vector<double>& dxv,            // x displacements within cells
+    std::vector<double>& dyv,            // y displacements within cells
+    Rank4View<T, MemorySpace> f,              // Bicubic spline coefficients [4, 4, inf3, ny] (flattened)
+    int inf3,                     // 3rd dimension of f
+    int ny                        // Number of y points (4th dim of f)
+){
+    int iaval = 0; // Index for fval
+    if (ict[0] <= 2) {
+        if ((ict[0] > 0) || (ict[0] == -1)) {
+            // Evaluate f
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v];
+                int j = jv[v];
+                double dx = dxv[v];
+                double dy = dyv[v];
+                // std::cout << f(0, 0, i, j) << " " << f(0, 1, i, j) << " "
+                //           << f(0, 2, i, j) << " " << f(0, 3, i, j) << "\n";
+                // std::cout << f(1, 0, i, j) << " " << f(1, 1, i, j) << " "
+                //           << f(1, 2, i, j) << " " << f(1, 3, i, j) << "\n";
+                // std::cout << f(2, 0, i, j) << " " << f(2, 1, i, j) << " "
+                //           << f(2, 2, i, j) << " " << f(2, 3, i, j) << "\n";
+                // std::cout << f(3, 0, i, j) << " " << f(3, 1, i, j) << " "
+                //           << f(3, 2, i, j) << " " << f(3, 3, i, j) << "\n";
+                fval(v, iaval - 1) =
+                    f(0, 0, i, j) + dy * (f(0, 1, i, j) + dy * (f(0, 2, i, j) + dy * f(0, 3, i, j))) +
+                    dx * (f(1, 0, i, j) + dy * (f(1, 1, i, j) + dy * (f(1, 2, i, j) + dy * f(1, 3, i, j))) +
+                    dx * (f(2, 0, i, j) + dy * (f(2, 1, i, j) + dy * (f(2, 2, i, j) + dy * f(2, 3, i, j))) +
+                    dx * (f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j))))));
+            }
+        }
+
+        if ((ict[1] > 0) && (ict[0] != -1)) {
+            // Evaluate df/dx
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v];
+                int j = jv[v];
+                double dx = dxv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    f(1, 0, i, j) + dy * (f(1, 1, i, j) + dy * (f(1, 2, i, j) + dy * f(1, 3, i, j))) +
+                    2.0 * dx * (
+                        f(2, 0, i, j) + dy * (f(2, 1, i, j) + dy * (f(2, 2, i, j) + dy * f(2, 3, i, j))) +
+                        1.5 * dx * (
+                            f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j)))));
+            }
+        }
+
+        if ((ict[2] > 0) && (ict[0] != -1)) {
+            // Evaluate df/dy
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v];
+                int j = jv[v];
+                double dx = dxv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    f(0, 1, i, j) + dy * (2.0 * f(0, 2, i, j) + dy * 3.0 * f(0, 3, i, j)) +
+                    dx * (f(1, 1, i, j) + dy * (2.0 * f(1, 2, i, j) + dy * 3.0 * f(1, 3, i, j)) +
+                    dx * (f(2, 1, i, j) + dy * (2.0 * f(2, 2, i, j) + dy * 3.0 * f(2, 3, i, j)) +
+                    dx * (f(3, 1, i, j) + dy * (2.0 * f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j)))));
+            }
+        }
+
+        if ((ict[3] > 0) || (ict[0] == -1)) {
+            // Evaluate d2f/dx2
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v];
+                int j = jv[v];
+                double dx = dxv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    2.0 * (f(2, 0, i, j) + dy * (f(2, 1, i, j) + dy * (f(2, 2, i, j) + dy * f(2, 3, i, j)))) +
+                    6.0 * dx * (f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j))));
+            }
+        }
+
+        if ((ict[4] > 0) || (ict[0] == -1)) {
+            // Evaluate d2f/dy2
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v];
+                int j = jv[v];
+                double dx = dxv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    2.0 * f(0, 2, i, j) + 6.0 * dy * f(0, 3, i, j) +
+                    dx * (2.0 * f(1, 2, i, j) + 6.0 * dy * f(1, 3, i, j) +
+                    dx * (2.0 * f(2, 2, i, j) + 6.0 * dy * f(2, 3, i, j) +
+                    dx * (2.0 * f(3, 2, i, j) + 6.0 * dy * f(3, 3, i, j))));
+            }
+        }
+
+        if ((ict[5] > 0) && (ict[0] != -1)) {
+            // Evaluate d2f/dxdy
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v];
+                int j = jv[v];
+                double dx = dxv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    f(1, 1, i, j) + dy * (2.0 * f(1, 2, i, j) + dy * 3.0 * f(1, 3, i, j)) +
+                    2.0 * dx * (f(2, 1, i, j) + dy * (2.0 * f(2, 2, i, j) + dy * 3.0 * f(2, 3, i, j)) +
+                    1.5 * dx * (f(3, 1, i, j) + dy * (2.0 * f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j))));
+            }
+        }
+
+        if (ict[0] == -1) {
+            // Evaluate d4f/dx2dy2
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v];
+                int j = jv[v];
+                double dx = dxv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    4.0 * f(2, 2, i, j) + 12.0 * dy * f(2, 3, i, j) +
+                    dx * (12.0 * f(3, 2, i, j) + 36.0 * dy * f(3, 3, i, j));
+            }
+        }
+    } else if (ict[0] == 3) {
+        if (ict[1] == 1) {
+            // d³f/dx³ (not continuous)
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    6.0 * (f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j))));
+            }
+        }
+
+        if (ict[2] == 1) {
+            // d³f/dx²dy
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dx = dxv[v], dy = dyv[v];
+                fval(v, iaval - 1) =
+                    2.0 * (f(2, 1, i, j) + dy * (2.0 * f(2, 2, i, j) + dy * 3.0 * f(2, 3, i, j))) +
+                    6.0 * dx * (f(3, 1, i, j) + dy * (2.0 * f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j)));
+            }
+        }
+
+        if (ict[3] == 1) {
+            // d³f/dxdy²
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dx = dxv[v], dy = dyv[v];
+                fval(v, iaval - 1) =
+                    2.0 * f(1, 2, i, j) + 6.0 * dy * f(1, 3, i, j) +
+                    2.0 * dx * (
+                        2.0 * f(2, 2, i, j) + 6.0 * dy * f(2, 3, i, j) +
+                        1.5 * dx * (2.0 * f(3, 2, i, j) + 6.0 * dy * f(3, 3, i, j)));
+            }
+        }
+
+        if (ict[4] == 1) {
+            // d³f/dy³ (not continuous)
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dx = dxv[v];
+                fval(v, iaval - 1) =
+                    6.0 * (f(0, 3, i, j) + dx * (f(1, 3, i, j) + dx * (f(2, 3, i, j) + dx * f(3, 3, i, j))));
+            }
+        }
+
+    } else if (ict[0] == 4) {
+        if (ict[1] == 1) {
+            // d⁴f/dx³dy
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    6.0 * (f(3, 1, i, j) + dy * 2.0 * (f(3, 2, i, j) + dy * 1.5 * f(3, 3, i, j)));
+            }
+        }
+
+        if (ict[2] == 1) {
+            // d⁴f/dx²dy²
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dx = dxv[v], dy = dyv[v];
+                fval(v, iaval - 1) =
+                    4.0 * f(2, 2, i, j) + 12.0 * dy * f(2, 3, i, j) +
+                    dx * (12.0 * f(3, 2, i, j) + 36.0 * dy * f(3, 3, i, j));
+            }
+        }
+
+        if (ict[3] == 1) {
+            // d⁴f/dxdy³ (not continuous)
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dx = dxv[v];
+                fval(v, iaval - 1) =
+                    6.0 * (f(1, 3, i, j) + 2.0 * dx * (f(2, 3, i, j) + 1.5 * dx * f(3, 3, i, j)));
+            }
+        }
+
+    } else if (ict[0] == 5) {
+        if (ict[1] == 1) {
+            // d⁵f/dx³dy² (not continuous)
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dy = dyv[v];
+                fval(v, iaval - 1) =
+                    12.0 * (f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j));
+            }
+        }
+
+        if (ict[2] == 1) {
+            // d⁵f/dx²dy³ (not continuous)
+            iaval++;
+            for (int v = 0; v < ivec; ++v) {
+                int i = iv[v], j = jv[v];
+                double dx = dxv[v];
+                fval(v, iaval - 1) =
+                    12.0 * (f(2, 3, i, j) + dx * 3.0 * f(3, 3, i, j));
+            }
+        }
+
+    } else if (ict[0] == 6) {
+        // d⁶f/dx³dy³ (not continuous)
+        iaval++;
+        for (int v = 0; v < ivec; ++v) {
+            int i = iv[v], j = jv[v];
+            fval(v, iaval - 1) = 36.0 * f(3, 3, i, j);
+        }
+    }
+}// end bcspevfn
+
 
 
 } //namespace pcms
