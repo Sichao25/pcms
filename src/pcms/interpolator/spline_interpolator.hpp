@@ -176,7 +176,7 @@ public:
     void cspeval(double xget, const std::vector<int>& iselect,
         Rank2View<T, MemorySpace> fval,
         Rank1View<const T, MemorySpace> x, int nx,
-        Rank2View<T, MemorySpace> f);
+        Rank2View<T, MemorySpace> f, int& ier);
     
     void cspevx(double xget, Rank1View<const T, MemorySpace> x, const int& nx,
         int& i, double& dx, int& ier);
@@ -186,7 +186,8 @@ public:
         Rank2View<T, MemorySpace> fval,
         Rank1View<const T, MemorySpace> x,
         int& nx,
-        Rank2View<T, MemorySpace> f
+        Rank2View<T, MemorySpace> f,
+        int& ier
     );
     
     void herm1x(double xget,
@@ -1047,10 +1048,10 @@ template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::cspeval(double xget, const std::vector<int>& iselect,
              Rank2View<T, MemorySpace> fval,
              Rank1View<const T, MemorySpace> x, int nx,
-             Rank2View<T, MemorySpace> f) {
+             Rank2View<T, MemorySpace> f,
+             int& ier) {
     std::vector<int> ia(1, 0);
     std::vector<double> dxa(1, 0);
-    int ier = 0;
     cspevx(xget, x, nx, ia[0], dxa[0], ier);
     if (ier != 0) {
         std::cerr << "cspeval: error in cspevx, ier = " << ier << std::endl;
@@ -1321,9 +1322,9 @@ void CubicSplineInterpolator<T, MemorySpace>::evspline(double xget,
         Rank2View<T, MemorySpace> fval,
         Rank1View<const T, MemorySpace> x,
         int& nx,
-        Rank2View<T, MemorySpace> f // shape: [2, nx]
+        Rank2View<T, MemorySpace> f, // shape: [2, nx]
+        int& ier
     ) {
-    int ier = 0;
 
     // Initialize output zone info
     std::vector<int> i(1, 0);
@@ -1599,9 +1600,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
 
         // Copy coefficients out
         for (int ix = 0; ix < inx; ++ix) {
-            std::cout << "fspl(1, 0, ix, ith): " << fspl(1, 0, ix, ith) << "wk[4 * ix + 1]" << wk[4 * ix + 1] << ith << std::endl;
             fspl(1, 0, ix, ith) = wk[4 * ix + 1];               // fspl(2,1,...)
-            std::cout << "fspl(1, 0, ix, ith): " << fspl(1, 0, ix, ith) << ith << std::endl;
             fspl(2, 0, ix, ith) = wk[4 * ix + 2] * xo2;          // fspl(3,1,...)
             fspl(3, 0, ix, ith) = wk[4 * ix + 3] * xo6;          // fspl(4,1,...)
         }
