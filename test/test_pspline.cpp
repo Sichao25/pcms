@@ -281,8 +281,7 @@ void compare(const std::string& slbl,
              Rank1View<double, HostMemorySpace> fxtest,
              Rank1View<double, HostMemorySpace> thtest,
              Rank1View<double, HostMemorySpace> fthtest,
-             int ntest,
-             Rank2View<double, HostMemorySpace> wk) {
+             int ntest) {
 
 
     std::vector<int> isel(10, 0);
@@ -362,12 +361,23 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,Rank1View<double, HostMe
     int nbc = 1;
     int ilinx = 0;
     int ilinth = 0;
-    std::vector<double> wk_vec(64000);
-    auto wk = Rank1View<double, HostMemorySpace>(wk_vec.data(), 64000);
+    std::vector<double> wk_vec(440);
+    auto wk = Rank1View<double, HostMemorySpace>(wk_vec.data(), 440);
     
     BiCubicSplineInterpolator<double, HostMemorySpace> interpolator;
 
     bset(fx, nx, fth, nth, bcx1, bcx2, bcth1, bcth2);
+
+    std::array<double, 40> fspl_x_arr;
+    auto fspl_x = Rank2View<double, HostMemorySpace>(fspl_x_arr.data(), 4, 10);
+    std::array<double, 40> fspl_th_arr;
+    auto fspl_th = Rank2View<double, HostMemorySpace>(fspl_th_arr.data(), 4, 10);
+    std::array<double, 10> wk_x_arr;
+    auto wk_x = Rank1View<double, HostMemorySpace>(wk_x_arr.data(), 10);
+    std::array<double, 10> wk_th_arr;
+    auto wk_th = Rank1View<double, HostMemorySpace>(wk_th_arr.data(), 10);
+    std::array<double, 400> fspl_l_th_arr;
+    auto fspl_l_th = Rank2View<double, HostMemorySpace>(fspl_l_th_arr.data(), 40, 10);
 
     interpolator.bcspline(x, nx, th, nth, f, nx,
             nbc, bcx1, nbc, bcx2,
@@ -378,10 +388,8 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,Rank1View<double, HostMe
         return;
     }
 
-    auto wk_reshaped = Rank2View<double, HostMemorySpace>(wk.data_handle(), 200, 200);
-
     compare("bcspline", x, nx, th, nth, f, fh, flin, ilinx, ilinth,
-            xtest, fxtest, thtest, fthtest, ntest, wk_reshaped);
+            xtest, fxtest, thtest, fthtest, ntest);
 
     for (int ith = 0; ith < nth; ++ith) {
         for (int ix = 0; ix < nx; ++ix) {
@@ -395,7 +403,7 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,Rank1View<double, HostMe
             ilinx, ilinth, ier);
 
     compare("mkbicub", x, nx, th, nth, f, fh, flin, ilinx, ilinth,
-            xtest, fxtest, thtest, fthtest, ntest, wk_reshaped);
+            xtest, fxtest, thtest, fthtest, ntest);
 
 }
 

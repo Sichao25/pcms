@@ -1474,6 +1474,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     std::vector<int> iselect1(10, 0); // Size 10, all initialized to 0
     std::vector<int> iselect2(10, 0); // Size 10, all initialized to 0
     std::vector<double> zcur_vec(3, 0.0); // Size 1, initialized to 0.0
+    auto fspl_x = Rank2View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth, 4, inx);
+    auto fspl_th = Rank2View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth, 4, inth);
+    auto fspl_l_th = Rank2View<T, MemorySpace>(wk.data_handle(), 4 * inx, inth);
+    auto wk_x = Rank1View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth + 4 * inx, inx);
+    auto wk_th = Rank1View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth + 4 * inth, inth);
 
     if (ibcthmin != -1) {
         if (ibcthmin == 1 || ibcthmin == 2) {
@@ -1551,58 +1556,34 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     // Spline in x-direction
     int inxo = 4 * (inx - 1);
 
-    // TODO: use reshape to replace temp reshape, will be better if we can get rid of wk
-    // auto f_x = Rank2View<double, HostMemorySpace>(wk.data_handle(), 4, inx);
-    // auto wk_x = Rank1View<double, HostMemorySpace>(wk.data_handle() + 4 * inx, inx);
-    // auto f_th = Rank2View<double, HostMemorySpace>(wk.data_handle(), 4, inth);
-    // auto wk_th = Rank1View<double, HostMemorySpace>(wk.data_handle() + 4 * inx + 4 * inth, inth);
-
     for (int ith = 0; ith < inth; ++ith) {
         // Copy function into workspace
         for (int ix = 0; ix < inx; ++ix) {
-            wk[4 * ix] = fspl(0, 0, ix, ith); // fspl(1,1,ix,ith)
+            fspl_x(0, ix) = fspl(0, 0, ix, ith); // fspl(1,1,ix,ith)
         }
 
         // Boundary condition at xmin
         if (ibcxmin == 1) {
-            wk[1] = bcxmin[ith];
+            fspl_x(1, 0) = bcxmin[ith];
         } else if (ibcxmin == 2) {
-            wk[2] = bcxmin[ith];
+            fspl_x(2, 0) = bcxmin[ith];
         }
 
         // Boundary condition at xmax
         if (ibcxmax == 1) {
-            wk[inxo + 1] = bcxmax[ith];
+            fspl_x(1, inx - 1) = bcxmax[ith];
         } else if (ibcxmax == 2) {
-            wk[inxo + 2] = bcxmax[ith];
-        }
-
-        // TODO: temp solution for reshape
-        std::vector<T> f_x_vec(4 * inx);
-        auto f_x = Rank2View<T, MemorySpace>(f_x_vec.data(), 4, inx);
-        std::vector<T> wk_x_vec(inx);
-        auto wk_x = Rank1View<T, MemorySpace>(wk_x_vec.data(), inx);
-        for (int ix = 0; ix < inx; ++ix) {
-            for (int ic = 0; ic < 4; ++ic) {
-                f_x(ic, ix) = wk.data_handle()[4 * ix + ic]; // f_x(ic, ix) = wk[4*ix + ic]
-            }
+            fspl_x(2, inx - 1) = bcxmax[ith];
         }
 
         // Call v_spline
-        BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, f_x, wk_x);
-
-        // TODO: temp solution for reshape
-        for (int ix = 0; ix < inx; ++ix) {
-            for (int ic = 0; ic < 4; ++ic) {
-                wk[4 * ix + ic] = f_x.data_handle()[ic * 10 + ix]; // wk[4*ix + ic] = f_x(ic, ix)
-            }
-        }
+        BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, fspl_x, wk_x);
 
         // Copy coefficients out
         for (int ix = 0; ix < inx; ++ix) {
-            fspl(1, 0, ix, ith) = wk[4 * ix + 1];               // fspl(2,1,...)
-            fspl(2, 0, ix, ith) = wk[4 * ix + 2] * xo2;          // fspl(3,1,...)
-            fspl(3, 0, ix, ith) = wk[4 * ix + 3] * xo6;          // fspl(4,1,...)
+            fspl(1, 0, ix, ith) = fspl_x(1, ix);               // fspl(2,1,...)
+            fspl(2, 0, ix, ith) = fspl_x(2, ix) * xo2;          // fspl(3,1,...)
+            fspl(3, 0, ix, ith) = fspl_x(3, ix) * xo6;          // fspl(4,1,...)
         }
     }
 
@@ -1614,14 +1595,14 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
         for (int ic = 0; ic < 4; ++ic) {
             // Copy ordinates into workspace
             for (int ith = 0; ith < inth; ++ith) {
-                wk[4 * ith] = fspl(ic, 0, ix, ith); // fspl(ic,1,ix,ith)
+                fspl_th(0, ith) = fspl(ic, 0, ix, ith); // fspl(ic,1,ix,ith)
             }
 
             // Set linear BCs initially
-            wk[1] = 0.0;
-            wk[2] = 0.0;
-            wk[intho + 1] = 0.0;
-            wk[intho + 2] = 0.0;
+            fspl_th(1, 0) = 0.0;
+            fspl_th(2, 0) = 0.0;
+            fspl_th(1, inth - 1) = 0.0;
+            fspl_th(2, inth - 1) = 0.0;
 
             // Adjust BC flags if needed
             int ibcthmina = ibcthmin;
@@ -1631,33 +1612,14 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
                 if (ibcthmax == 1 || ibcthmax == 2) ibcthmaxa = 0;
             }
 
-            // TODO: temp solution for reshape
-            std::vector<T> f_th_vec(4 * inth);
-            auto f_th = Rank2View<T, MemorySpace>(f_th_vec.data(), 4, inth);
-            std::vector<T> wk_th_vec(inth);
-            auto wk_th = Rank1View<T, MemorySpace>(wk_th_vec.data(), inth);
-
-            for (int ith = 0; ith < inth; ++ith) {
-                for (int ic2 = 0; ic2 < 4; ++ic2) {
-                    f_th(ic2, ith) = wk.data_handle()[4 * ith + ic2]; // f_th(ic2, ith) = wk[4*ith + ic2]
-                }
-            }
-
             // Call v_spline
-            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmina, ibcthmaxa, inth, th, f_th, wk_th);
-
-            // TODO: temp solution for reshape
-            for (int ith = 0; ith < inth; ++ith) {
-                for (int ic2 = 0; ic2 < 4; ++ic2) {
-                    wk[4 * ith + ic2] = f_th.data_handle()[ic2 * 10 + ith]; // wk[4*ith + ic2] = f_th(ic2, ith)
-                }
-            }
+            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmina, ibcthmaxa, inth, th, fspl_th, wk_th);
 
             // Copy coefficients out
             for (int ith = 0; ith < inth; ++ith) {
-                fspl(ic, 1, ix, ith) = wk[4 * ith + 1];              // fspl(ic,2,...)
-                fspl(ic, 2, ix, ith) = wk[4 * ith + 2] * xo2;         // fspl(ic,3,...)
-                fspl(ic, 3, ix, ith) = wk[4 * ith + 3] * xo6;         // fspl(ic,4,...)
+                fspl(ic, 1, ix, ith) = fspl_th(1, ith);              // fspl(ic,2,...)
+                fspl(ic, 2, ix, ith) = fspl_th(2, ith) * xo2;         // fspl(ic,3,...)
+                fspl(ic, 3, ix, ith) = fspl_th(3, ith) * xo6;         // fspl(ic,4,...)
             }
         }
     }
@@ -1718,51 +1680,33 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
 
             int iadr = iasc + ix * iinc;
             for (int ith = 0; ith < inth; ++ith)
-                wk[iadr + 4 * ith] = 0.0;
+                fspl_l_th(ix * 4, ith) = 0.0;
 
-            wk[iadr + 1] = 0.0;
-            wk[iadr + 2] = 0.0;
-            wk[iadr + intho + 1] = 0.0;
-            wk[iadr + intho + 2] = 0.0;
+            fspl_l_th(1 + ix * 4, 0) = 0.0;
+            fspl_l_th(2 + ix * 4, 0) = 0.0;
+            fspl_l_th(1 + ix * 4, inth - 1) = 0.0;
+            fspl_l_th(2 + ix * 4, inth - 1) = 0.0;
 
-            if (ibcthmin == 1) wk[iadr + 1] = zdiff1;
-            else if (ibcthmin == 2) wk[iadr + 2] = zdiff1;
+            if (ibcthmin == 1) fspl_l_th(1 + ix * 4, 0) = zdiff1;
+            else if (ibcthmin == 2) fspl_l_th(2 + ix * 4, 0) = zdiff1;
 
-            if (ibcthmax == 1) wk[iadr + intho + 1] = zdiff2;
-            else if (ibcthmax == 2) wk[iadr + intho + 2] = zdiff2;
+            if (ibcthmax == 1) fspl_l_th(1 + ix * 4, inth - 1) = zdiff2;
+            else if (ibcthmax == 2) fspl_l_th(2 + ix * 4, inth - 1) = zdiff2;
 
-            // auto f_iadr = Rank2View<double, HostMemorySpace>(wk.data_handle() + iadr, 4, inth);
-            // auto wk_iawk = Rank1View<double, HostMemorySpace>(wk.data_handle() + iawk + 4 * inth, nwk - iawk - 4 * inth);
-            std::vector<T> f_iadr_vec(4 * inth);
-            auto f_iadr = Rank2View<double, HostMemorySpace>(f_iadr_vec.data(), 4, inth);
-            std::vector<T> wk_iawk_vec(inth);
-            auto wk_iawk = Rank1View<double, HostMemorySpace>(wk_iawk_vec.data(), inth);
+            auto fspl_s_th = Rank2View<double, HostMemorySpace>(fspl_l_th.data_handle() + iadr, 4, inth);
+            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmin, ibcthmax, inth, th, fspl_s_th, wk_th);
 
-            // TODO: temp solution for reshape
-            for (int ith = 0; ith < inth; ++ith) {
-                for (int ic = 0; ic < 4; ++ic) {
-                    f_iadr(ic, ith) = wk.data_handle()[iadr + 4 * ith + ic]; // f_iadr(ic, ith) = wk[iadr + 4*ith + ic]
-                }
-            }
-            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmin, ibcthmax, inth, th, f_iadr, wk_iawk);
-
-            // TODO: temp solution for reshape
-            for (int ith = 0; ith < inth; ++ith) {
-                for (int ic = 0; ic < 4; ++ic) {
-                    wk[iadr + 4 * ith + ic] = f_iadr.data_handle()[ic * 10 + ith]; // wk[iadr + 4*ith + ic] = f_iadr(ic, ith)
-                }  
-            }
         }
 
         for (int ix = 0; ix < inx; ++ix) {
             int iadr = iasc + ix * iinc;
             for (int ith = 0; ith < inth - 1; ++ith) {
-                wk[iadr + 4 * ith + 2] *= xo2;
-                wk[iadr + 4 * ith + 3] *= xo6;
+                fspl_l_th(2 + ix * 4, ith) *= xo2;
+                fspl_l_th(3 + ix * 4, ith) *= xo6;
                 if (ix < inx - 1) {
-                    fspl(0, 1, ix, ith) += wk[iadr + 4 * ith + 1];
-                    fspl(0, 2, ix, ith) += wk[iadr + 4 * ith + 2];
-                    fspl(0, 3, ix, ith) += wk[iadr + 4 * ith + 3];
+                    fspl(0, 1, ix, ith) += fspl_l_th(1 + ix * 4, ith);
+                    fspl(0, 2, ix, ith) += fspl_l_th(2 + ix * 4, ith);
+                    fspl(0, 3, ix, ith) += fspl_l_th(3 + ix * 4, ith);
                 }
             }
         }
@@ -1773,39 +1717,19 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
             for (int ic = 1; ic < 4; ++ic) {
                 for (int ix = 0; ix < inx; ++ix) {
                     int iaspl = iasc + iinc * ix;
-                    wk[iawk + 4 * ix] = wk[iaspl + 4 * ith + ic];
+                    fspl_x(0, ix) = fspl_l_th(ic + ix * 4, ith);
                 }
-                wk[iawk + 1] = 0.0;
-                wk[iawk + 2] = 0.0;
-                wk[iawk + inxo + 1] = 0.0;
-                wk[iawk + inxo + 2] = 0.0;
+                fspl_x(1, 0) = 0.0;
+                fspl_x(2, 0) = 0.0;
+                fspl_x(1, inx - 1) = 0.0;
+                fspl_x(2, inx - 1) = 0.0;
                 
-                // auto f_iawk = Rank2View<double, HostMemorySpace>(wk.data_handle() + iawk, 4, inx);
-                // auto wk_ia5w = Rank1View<double, HostMemorySpace>(wk.data_handle() + ia5w + 4 * inx, nwk - ia5w - 4 * inx);
-                std::vector<T> f_iawk_vec(4 * inx);
-                auto f_iawk = Rank2View<double, HostMemorySpace>(f_iawk_vec.data(), 4, inx);
-                std::vector<T> wk_ia5w_vec(inx);
-                auto wk_ia5w = Rank1View<double, HostMemorySpace>(wk_ia5w_vec.data(), inx);
-
-                // TODO: temp solution for reshape
-                for (int ix = 0; ix < inx; ++ix) {
-                    for (int ic = 0; ic < 4; ++ic) {
-                        f_iawk(ic, ix) = wk.data_handle()[iawk + 4 * ix + ic]; // f_iawk(ic, ix) = wk[iawk + 4*ix + ic]
-                    }
-                }
-                BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, f_iawk, wk_ia5w);
-
-                // TODO: temp solution for reshape
-                for (int ix = 0; ix < inx; ++ix) {
-                    for (int ic = 0; ic < 4; ++ic) {
-                        wk[iawk + 4 * ix + ic] = f_iawk.data_handle()[ic * 10 + ix]; // wk[iawk + 4*ix + ic] = f_iawk(ic, ix)
-                    }
-                }
+                BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, fspl_x, wk_x);
 
                 for (int ix = 0; ix < inx - 1; ++ix) {
-                    fspl(1, ic, ix, ith) += wk[iawk + 4 * ix + 1];
-                    fspl(2, ic, ix, ith) += wk[iawk + 4 * ix + 2] * xo2;
-                    fspl(3, ic, ix, ith) += wk[iawk + 4 * ix + 3] * xo6;
+                    fspl(1, ic, ix, ith) += fspl_x(1, ix);
+                    fspl(2, ic, ix, ith) += fspl_x(2, ix) * xo2;
+                    fspl(3, ic, ix, ith) += fspl_x(3, ix) * xo6;
                 }
             }
         }
