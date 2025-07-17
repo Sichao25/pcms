@@ -43,6 +43,7 @@ class SplineInterpolator {
 public:
     SplineInterpolator() = default;
     void splinck(Rank1View<const T, MemorySpace> x, const double& ztol);
+    using execution_space = typename MemorySpace::execution_space;
 };
 
 template <typename T, typename MemorySpace>
@@ -78,7 +79,12 @@ public:
 
     CubicSplineInterpolator() = default;
 
-    void cspline(Rank1View<const T, MemorySpace> x, int& nx, Rank2View<T, MemorySpace> fspl, const int& ibcxmin,
+    using typename SplineInterpolator<T, MemorySpace>::execution_space;
+
+    Rank2View<T, MemorySpace> fspl_;
+    Rank2View<T, MemorySpace> fs2_;
+
+    void cspline(Rank1View<const T, MemorySpace> x, const int& nx, Rank2View<T, MemorySpace> fspl, const int& ibcxmin,
         const double& bcxmin, const int& ibcxmax, const double& bcxmax,
         Rank1View<T, MemorySpace> wk, const int& iwk);
 
@@ -110,8 +116,7 @@ public:
 
     void cspevfn(const std::vector<int>& selector, const int& ivec, const int& ivd,
         Rank2View<T, MemorySpace> fval,
-        std::vector<int>& iv, std::vector<double>& dxv,
-        Rank2View<T, MemorySpace> f, int nx
+        std::vector<int>& iv, std::vector<double>& dxv, int nx
     );
 
     void spgrid(
@@ -140,7 +145,7 @@ public:
 
     void mkspline(
         Rank1View<const T, MemorySpace> x,
-        int& nx,
+        const int& nx,
         Rank2View<T, MemorySpace> fspl,
         Rank2View<T, MemorySpace> fspl4,
         const int& ibcxmin,
@@ -163,7 +168,6 @@ public:
         const std::vector<double>& xparam,
         const std::vector<double>& hx,
         const std::vector<double>& hxi,
-        Rank2View<T, MemorySpace> fin,
         int nx);
 
     void gridspline(Rank1View<const T, MemorySpace> x_newgrid, int nx_new,
@@ -204,7 +208,7 @@ public:
 
 
 template <typename T, typename MemorySpace>
-void CubicSplineInterpolator<T, MemorySpace>::cspline(Rank1View<const T, MemorySpace> x, int& nx, Rank2View<T, MemorySpace> fspl, const int& ibcxmin,
+void CubicSplineInterpolator<T, MemorySpace>::cspline(Rank1View<const T, MemorySpace> x, const int& nx, Rank2View<T, MemorySpace> fspl, const int& ibcxmin,
     const double& bcxmin, const int& ibcxmax, const double& bcxmax, Rank1View<T, MemorySpace> wk, const int& iwk) {
     if (x.extent(0) < 2) {
         throw std::invalid_argument("Cubic spline requires at least 2 points in each dimension.");
@@ -226,10 +230,16 @@ void CubicSplineInterpolator<T, MemorySpace>::cspline(Rank1View<const T, MemoryS
         fspl(2, nx - 1) = bcxmax;
     }
     v_spline(ibcxmin,ibcxmax,nx,x,fspl,wk);
+    // Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(0, nx), KOKKOS_LAMBDA (const int i) {
+    //     fspl(2, i) = half * fspl(2, i);
+    //     fspl(3, i) = sixth * fspl(3, i);
+    // });
     for (int i = 0; i < nx; ++i) {
         fspl(2, i) = half * fspl(2, i);
         fspl(3, i) = sixth * fspl(3, i);
     }
+
+    fspl_ = fspl;
 }
 
 template <typename T, typename MemorySpace>
@@ -533,12 +543,23 @@ void CubicSplineInterpolator<T, MemorySpace>::v_spline(const int& k_bc1, const i
         f(3, 0) = x[1] - x[0];
         f(2, 1) = (f(0, 1) - f(0, 0)) / f(3, 0);
 
+        // TODO: check if Kokkos do improves performance
         for (int i = 1; i < n - 1; ++i) {
             f(3, i) = x[i + 1] - x[i];
             f(1, i) = 2.0 * (f(3, i - 1) + f(3, i));
             f(2, i + 1) = (f(0, i + 1) - f(0, i)) / f(3, i);
             f(2, i) = f(2, i + 1) - f(2, i);
         }
+        // Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(1, n - 1), KOKKOS_LAMBDA (const int i) {
+        //     f(3, i) = x[i + 1] - x[i];
+        // });
+        // Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(1, n - 1), KOKKOS_LAMBDA (const int i) {
+        //     f(1, i) = 2.0 * (f(3, i - 1) + f(3, i));
+        //     f(2, i + 1) = (f(0, i + 1) - f(0, i)) / f(3, i);
+        // });
+        // for (int i = 1; i < n - 1; ++i) {
+        //     f(2, i) = f(2, i + 1) - f(2, i);
+        // }
 
         double elem21 = f(3, 0);
         double elemnn1 = f(3, n - 2);
@@ -678,6 +699,14 @@ void CubicSplineInterpolator<T, MemorySpace>::v_spline(const int& k_bc1, const i
             f(2, i) *= 6.0;
             f(3, i) *= 6.0;
         }
+        // Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(0, n - 1), KOKKOS_LAMBDA (const int i) {
+        //     f(1, i) = (f(0, i + 1) - f(0, i)) / f(3, i) - f(3, i) * (f(2, i + 1) + 2.0 * f(2, i));
+        //     f(3, i) = (f(2, i + 1) - f(2, i)) / f(3, i);
+        // });
+        // Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(0, n - 1), KOKKOS_LAMBDA (const int i) {
+        //     f(2, i) *= 6.0;
+        //     f(3, i) *= 6.0;
+        // });
 
         if (i_bc1 == -1) {
             f(1, n - 1) = f(1, 0);
@@ -734,7 +763,7 @@ void CubicSplineInterpolator<T, MemorySpace>::spvec(
     xlookup(ivec, xvec, nx, xpkg, 1, iv, dxv, dhv, dhiv, iwarn);
 
     // Vectorized spline evaluation
-    cspevfn(selector, ivec, ivd, fval, iv, dxv, fspl, nx);
+    cspevfn(selector, ivec, ivd, fval, iv, dxv, nx);
 } // end spvec
 
 template <typename T, typename MemorySpace>
@@ -836,7 +865,6 @@ void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
     Rank2View<T, MemorySpace> fval,
     std::vector<int>& iv,
     std::vector<double>& dxv,
-    Rank2View<T, MemorySpace> f,
     int nx
 ) {
 
@@ -847,7 +875,7 @@ void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
         iaval++;
         for (int v = 0; v < ivec; ++v) {
             int i = iv[v];
-            fval(v, iaval - 1) = 6.0 * f(3, i);
+            fval(v, iaval - 1) = 6.0 * fspl_(3, i);
         }
     } else {
         if (selector[0] > 0) {
@@ -856,7 +884,7 @@ void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
             for (int v = 0; v < ivec; ++v) {
                 int i = iv[v];
                 double dx = dxv[v];
-                fval(v, iaval - 1) = f(0, i) + dx * (f(1, i) + dx * (f(2, i) + dx * f(3, i)));
+                fval(v, iaval - 1) = fspl_(0, i) + dx * (fspl_(1, i) + dx * (fspl_(2, i) + dx * fspl_(3, i)));
             }
         }
 
@@ -866,7 +894,7 @@ void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
             for (int v = 0; v < ivec; ++v) {
                 int i = iv[v];
                 double dx = dxv[v];
-                fval(v, iaval - 1) = f(1, i) + dx * (2.0 * f(2, i) + dx * 3.0 * f(3, i));
+                fval(v, iaval - 1) = fspl_(1, i) + dx * (2.0 * fspl_(2, i) + dx * 3.0 * fspl_(3, i));
             }
         }
 
@@ -876,7 +904,7 @@ void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
             for (int v = 0; v < ivec; ++v) {
                 int i = iv[v];
                 double dx = dxv[v];
-                fval(v, iaval - 1) = 2.0 * f(2, i) + dx * 6.0 * f(3, i);
+                fval(v, iaval - 1) = 2.0 * fspl_(2, i) + dx * 6.0 * fspl_(3, i);
             }
         }
     }
@@ -1058,7 +1086,7 @@ void CubicSplineInterpolator<T, MemorySpace>::cspeval(double xget, const std::ve
         return;
     }
 
-    cspevfn(iselect, 1, 1, fval, ia, dxa, f, nx);
+    cspevfn(iselect, 1, 1, fval, ia, dxa, nx);
 }
 
 template <typename T, typename MemorySpace>
@@ -1113,7 +1141,7 @@ void ibc_ck(int ibc, const std::string& slbl, const std::string& xlbl,
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::mkspline(
     Rank1View<const T, MemorySpace> x,
-    int& nx,
+    const int& nx,
     Rank2View<T, MemorySpace> fspl,
     Rank2View<T, MemorySpace> fspl4,
     const int& ibcxmin,
@@ -1126,9 +1154,13 @@ void CubicSplineInterpolator<T, MemorySpace>::mkspline(
 
     // Copy f data to fspl4 and zero out second derivative output
     for (int i = 0; i < nx; ++i) {
-        fspl4(0, i) = fspl(0, i); // f(1,*) → fspl4(1,*)
-        fspl(1, i) = 0.0;         // f(2,*) = 0.0 initially
+        fspl4(0, i) = fspl(0, i);
+        fspl(1, i) = 0.0;
     }
+    // Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(0, nx), KOKKOS_LAMBDA(const int i) {
+    //     fspl4(0, i) = fspl(0, i);
+    //     fspl(1, i) = 0.0;
+    // });
 
     int inwk = nx;
 
@@ -1136,11 +1168,17 @@ void CubicSplineInterpolator<T, MemorySpace>::mkspline(
     cspline(x, nx, fspl4, ibcxmin, bcxmin, ibcxmax, bcxmax, wk, inwk);
     
     for (int i = 0; i < nx - 1; ++i) {
-        fspl(1, i) = 2.0 * fspl4(2, i); // fspl(2,*) = 2 * fspl4(3,*)
+        fspl(1, i) = 2.0 * fspl4(2, i);
     }
+    // Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(0, nx - 1), KOKKOS_LAMBDA(const int i) {
+    //     fspl(1, i) = 2.0 * fspl4(2, i);
+    // });
+
     fspl(1, nx - 1) = 2.0 * fspl4(2, nx - 2) +
                         (x[nx - 1] - x[nx - 2]) * 6.0 * fspl4(3, nx - 2);
+
     
+    fs2_ = fspl;
 }
 
 template <typename T, typename MemorySpace>
@@ -1174,7 +1212,7 @@ void CubicSplineInterpolator<T, MemorySpace>::vecspline(const std::vector<int>& 
     xlookup(ivec, xvec, nx, xpkg, 2, iv, dxn, h, hi, iwarn);
 
     // Call vectorized spline evaluation
-    fvspline(selector, ivec, ivd, fval, iv, dxn, h, hi, fspl, nx);
+    fvspline(selector, ivec, ivd, fval, iv, dxn, h, hi, nx);
 }
 
 template <typename T, typename MemorySpace>
@@ -1184,7 +1222,6 @@ void CubicSplineInterpolator<T, MemorySpace>::fvspline(const std::vector<int>& s
               const std::vector<double>& xparam,
               const std::vector<double>& hx,
               const std::vector<double>& hxi,
-              Rank2View<T, MemorySpace> fin,
               int nx)
 {
     const double sixth = 1.0 / 6.0;
@@ -1205,8 +1242,8 @@ void CubicSplineInterpolator<T, MemorySpace>::fvspline(const std::vector<int>& s
                 double cxi = xpi * (xpi2 - 1.0);
                 double hx2 = hx[v] * hx[v];
 
-                double sum = xpi * fin(0, i) + xp * fin(0, i + 1);
-                sum += sixth * hx2 * (cxi * fin(1, i) + cx * fin(1, i + 1));
+                double sum = xpi * fs2_(0, i) + xp * fs2_(0, i + 1);
+                sum += sixth * hx2 * (cxi * fs2_(1, i) + cx * fs2_(1, i + 1));
 
                 fval(v, iadr - 1) = sum; // zero-based indexing
             }
@@ -1225,8 +1262,8 @@ void CubicSplineInterpolator<T, MemorySpace>::fvspline(const std::vector<int>& s
                 double cxd = 3.0 * xp2 - 1.0;
                 double cxdi = -3.0 * xpi2 + 1.0;
 
-                double sum = hxi[v] * (fin(0, i + 1) - fin(0, i));
-                sum += sixth * hx[v] * (cxdi * fin(1, i) + cxd * fin(1, i + 1));
+                double sum = hxi[v] * (fs2_(0, i + 1) - fs2_(0, i));
+                sum += sixth * hx[v] * (cxdi * fs2_(1, i) + cxd * fs2_(1, i + 1));
 
                 fval(v, iadr - 1) = sum;
             }
@@ -1240,7 +1277,7 @@ void CubicSplineInterpolator<T, MemorySpace>::fvspline(const std::vector<int>& s
                 double xp = xparam[v];
                 double xpi = 1.0 - xp;
 
-                double sum = xpi * fin(1, i) + xp * fin(1, i + 1);
+                double sum = xpi * fs2_(1, i) + xp * fs2_(1, i + 1);
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -1250,7 +1287,7 @@ void CubicSplineInterpolator<T, MemorySpace>::fvspline(const std::vector<int>& s
         iadr = 1;
         for (int v = 0; v < ivec; ++v) {
             int i = ii[v];
-            fval(v, iadr - 1) = hxi[v] * (fin(1, i + 1) - fin(1, i));
+            fval(v, iadr - 1) = hxi[v] * (fs2_(1, i + 1) - fs2_(1, i));
         }
     }
 }
@@ -1337,13 +1374,18 @@ void CubicSplineInterpolator<T, MemorySpace>::evspline(double xget,
     if (ier != 0) return;
 
     // Evaluate spline at the point
-    fvspline(ict, 1, 1, fval, i, xparam, hx, hxi, f, nx);
+    fvspline(ict, 1, 1, fval, i, xparam, hx, hxi, nx);
 }
 
 
 template <typename T, typename MemorySpace>
 class BiCubicSplineInterpolator: public CubicSplineInterpolator<T, MemorySpace> {
 public:
+    using typename SplineInterpolator<T, MemorySpace>::execution_space;
+    using member_type = typename Kokkos::TeamPolicy<>::member_type;
+
+    Rank4View<T, MemorySpace> fspl_;
+    Rank3View<T, MemorySpace> f_;
 
     BiCubicSplineInterpolator() = default;
     void bcspline(
@@ -1364,11 +1406,10 @@ public:
         Rank1View<T, MemorySpace> wk,                  // size: nwk
         int nwk,
         int& ilinx,                           // output: 1 if x is evenly spaced
-        int& ilinth,                          // output: 1 if th is evenly spaced
-        int& ier                              // output: error code
+        int& ilinth                          // output: 1 if th is evenly spaced
     );
 
-    static void bcspeval(double xget, double yget,
+    void bcspeval(double xget, double yget,
               const std::vector<int>& iselect,
               Rank2View<double, HostMemorySpace> fval,
               Rank1View<const double, HostMemorySpace> x, int nx,
@@ -1377,7 +1418,7 @@ public:
               Rank4View<double, HostMemorySpace> f,
               int inf3, int& ier);
 
-    static void bcspevxy(
+    void bcspevxy(
         double xget, double yget,
         Rank1View<const double, HostMemorySpace> x, int nx,
         Rank1View<const double, HostMemorySpace> y, int ny,
@@ -1387,7 +1428,7 @@ public:
         int& ier
     );
 
-    static void bcspevfn(
+    void bcspevfn(
         const std::vector<int>& ict,             // Selector array for which derivatives to compute
         int ivec,                     // Number of vector points
         int ivd,                      // First dimension of fval (≥ ivec)
@@ -1396,7 +1437,6 @@ public:
         std::vector<int>& jv,                // Grid cell indices in y direction
         std::vector<double>& dxv,            // x displacements within cells
         std::vector<double>& dyv,            // y displacements within cells
-        Rank4View<T, MemorySpace> f,              // Bicubic spline coefficients [4, 4, inf3, ny] (flattened)
         int inf3,                     // 3rd dimension of f
         int ny                        // Number of y points (4th dim of f)
     );
@@ -1412,7 +1452,7 @@ public:
         int& ilinx, int& iliny, int& ier
     );
 
-    static void herm2xy(double xget, double yget,
+    void herm2xy(double xget, double yget,
                     Rank1View<const T, MemorySpace> x,
                     int& nx,
                     Rank1View<const T, MemorySpace> y,
@@ -1424,7 +1464,7 @@ public:
                     double& hy, double& hyi,
                     int& ier);
 
-    static void fvbicub(const std::vector<int>& ict, int ivec, int ivecd,
+    void fvbicub(const std::vector<int>& ict, int ivec, int ivecd,
                     Rank2View<T, MemorySpace> fval,
                     const std::vector<int>& ii,
                     const std::vector<int>& jj,
@@ -1433,10 +1473,9 @@ public:
                     const std::vector<double>& hx,
                     const std::vector<double>& hxi,
                     const std::vector<double>& hy,
-                    const std::vector<double>& hyi,
-                    Rank3View<T, MemorySpace> fin);
+                    const std::vector<double>& hyi);
     
-    static void evbicub(double xget, double yget,
+    void evbicub(double xget, double yget,
         Rank1View<const T, MemorySpace> x, int nx,
         Rank1View<const T, MemorySpace> y, int ny,
         int ilinx, int iliny,
@@ -1467,18 +1506,16 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     Rank1View<T, MemorySpace> wk,                  // size: nwk
     int nwk,
     int& ilinx,                           // output: 1 if x is evenly spaced
-    int& ilinth,                          // output: 1 if th is evenly spaced
-    int& ier                              // output: error code
+    int& ilinth                          // output: 1 if th is evenly spaced
 ) {
     int iflg2 = 0;
     std::vector<int> iselect1(10, 0); // Size 10, all initialized to 0
     std::vector<int> iselect2(10, 0); // Size 10, all initialized to 0
-    std::vector<double> zcur_vec(3, 0.0); // Size 1, initialized to 0.0
-    auto fspl_x = Rank2View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth, 4, inx);
-    auto fspl_th = Rank2View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth, 4, inth);
+
+    auto fspl_l_x = Rank2View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth, 4 * inx, inth);
+    auto wk_l = Rank1View<T, MemorySpace>(wk.data_handle() + 2 * 4 * inx * inth, inx * inth);
     auto fspl_l_th = Rank2View<T, MemorySpace>(wk.data_handle(), 4 * inx, inth);
-    auto wk_x = Rank1View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth + 4 * inx, inx);
-    auto wk_th = Rank1View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth + 4 * inth, inth);
+   
 
     if (ibcthmin != -1) {
         if (ibcthmin == 1 || ibcthmin == 2) {
@@ -1499,7 +1536,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
         }
     }
 
-    ier = 0;
+    int ier_tmp = 0;
     int itest = 5 * std::max(inx, inth);
     if (iflg2 == 1) {
         itest += 4 * inx * inth;
@@ -1525,16 +1562,16 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     }
 
     // Check boundary condition values
-    ibc_ck(ibcxmin, "bcspline", "xmin", -1, 7, ier);
-    if (ibcxmin >= 0) ibc_ck(ibcxmax, "bcspline", "xmax", 0, 7, ier);
-    ibc_ck(ibcthmin, "bcspline", "thmin", -1, 7, ier);
-    if (ibcthmin >= 0) ibc_ck(ibcthmax, "bcspline", "thmax", 0, 7, ier);
+    ibc_ck(ibcxmin, "bcspline", "xmin", -1, 7, ier_tmp);
+    if (ibcxmin >= 0) ibc_ck(ibcxmax, "bcspline", "xmax", 0, 7, ier_tmp);
+    ibc_ck(ibcthmin, "bcspline", "thmin", -1, 7, ier_tmp);
+    if (ibcthmin >= 0) ibc_ck(ibcthmax, "bcspline", "thmax", 0, 7, ier_tmp);
 
     // Check x vector spacing
     int ierx = 0;
     CubicSplineInterpolator<T, MemorySpace>::splinck(x, 1.0e-3);
-    if (ierx != 0) ier = 2;
-    if (ier == 2) {
+    if (ierx != 0) ier_tmp = 2;
+    if (ier_tmp == 2) {
         std::cerr << " bcspline:  x axis not strict ascending\n";
         return;
     }
@@ -1542,13 +1579,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     // Check th vector spacing
     int ierth = 0;
     CubicSplineInterpolator<T, MemorySpace>::splinck(th, 1.0e-3);
-    if (ierth != 0) ier = 3;
-    if (ier == 3) {
+    if (ierth != 0) ier_tmp = 3;
+    if (ier_tmp == 3) {
         std::cerr << " bcspline:  th axis not strict ascending\n";
         return;
     }
-
-    if (ier != 0) return;
 
     double xo2 = 0.5;
     double xo6 = 1.0 / 6.0;
@@ -1556,73 +1591,144 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     // Spline in x-direction
     int inxo = 4 * (inx - 1);
 
-    for (int ith = 0; ith < inth; ++ith) {
-        // Copy function into workspace
-        for (int ix = 0; ix < inx; ++ix) {
-            fspl_x(0, ix) = fspl(0, 0, ix, ith); // fspl(1,1,ix,ith)
-        }
+    // for (int ith = 0; ith < inth; ++ith) {
+    //     // Copy function into workspace
+    //     for (int ix = 0; ix < inx; ++ix) {
+    //         fspl_x(0, ix) = fspl(0, 0, ix, ith); // fspl(1,1,ix,ith)
+    //     }
 
-        // Boundary condition at xmin
-        if (ibcxmin == 1) {
-            fspl_x(1, 0) = bcxmin[ith];
-        } else if (ibcxmin == 2) {
-            fspl_x(2, 0) = bcxmin[ith];
-        }
+    //     // Boundary condition at xmin
+    //     if (ibcxmin == 1) {
+    //         fspl_x(1, 0) = bcxmin[ith];
+    //     } else if (ibcxmin == 2) {
+    //         fspl_x(2, 0) = bcxmin[ith];
+    //     }
 
-        // Boundary condition at xmax
-        if (ibcxmax == 1) {
-            fspl_x(1, inx - 1) = bcxmax[ith];
-        } else if (ibcxmax == 2) {
-            fspl_x(2, inx - 1) = bcxmax[ith];
-        }
+    //     // Boundary condition at xmax
+    //     if (ibcxmax == 1) {
+    //         fspl_x(1, inx - 1) = bcxmax[ith];
+    //     } else if (ibcxmax == 2) {
+    //         fspl_x(2, inx - 1) = bcxmax[ith];
+    //     }
 
-        // Call v_spline
-        BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, fspl_x, wk_x);
+    //     // Call v_spline
+    //     BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, fspl_x, wk_x);
 
-        // Copy coefficients out
-        for (int ix = 0; ix < inx; ++ix) {
-            fspl(1, 0, ix, ith) = fspl_x(1, ix);               // fspl(2,1,...)
-            fspl(2, 0, ix, ith) = fspl_x(2, ix) * xo2;          // fspl(3,1,...)
-            fspl(3, 0, ix, ith) = fspl_x(3, ix) * xo6;          // fspl(4,1,...)
+    //     // Copy coefficients out
+    //     for (int ix = 0; ix < inx; ++ix) {
+    //         fspl(1, 0, ix, ith) = fspl_x(1, ix);               // fspl(2,1,...)
+    //         fspl(2, 0, ix, ith) = fspl_x(2, ix) * xo2;          // fspl(3,1,...)
+    //         fspl(3, 0, ix, ith) = fspl_x(3, ix) * xo6;          // fspl(4,1,...)
+    //     }
+    // }
+
+    Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(inth, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+        const int ith = team.league_rank();
+
+        auto fspl_x_view = Rank2View<T, MemorySpace>(fspl_l_x.data_handle() + 4 * inx * ith, 4, inx);
+        auto wk_x_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + ith * inx, inx);
+
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, inx), KOKKOS_LAMBDA(int ix) {
+            fspl_x_view(0, ix) = fspl(0, 0, ix, ith);
+        });
+
+        if (team.team_rank() == 0) {
+            if (ibcxmin == 1)
+                fspl_x_view(1, 0) = bcxmin[ith];
+            else if (ibcxmin == 2)
+                fspl_x_view(2, 0) = bcxmin[ith];
+
+            if (ibcxmax == 1)
+                fspl_x_view(1, inx - 1) = bcxmax[ith];
+            else if (ibcxmax == 2)
+                fspl_x_view(2, inx - 1) = bcxmax[ith];
+
+
+            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(
+                ibcxmin, ibcxmax, inx, x, fspl_x_view, wk_x_view);
         }
-    }
+        
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, inx), KOKKOS_LAMBDA(int ix) {
+            fspl(1, 0, ix, ith) = fspl_x_view(1, ix);
+            fspl(2, 0, ix, ith) = fspl_x_view(2, ix) * xo2;
+            fspl(3, 0, ix, ith) = fspl_x_view(3, ix) * xo6;
+        });
+    });
 
     // Spline in theta direction
     int intho = 4 * (inth - 1);
 
-    for (int ix = 0; ix < inx; ++ix) {
-        // Spline each x coefficient
+    // for (int ix = 0; ix < inx; ++ix) {
+    //     // Spline each x coefficient
+    //     for (int ic = 0; ic < 4; ++ic) {
+    //         // Copy ordinates into workspace
+    //         for (int ith = 0; ith < inth; ++ith) {
+    //             fspl_th(0, ith) = fspl(ic, 0, ix, ith); // fspl(ic,1,ix,ith)
+    //         }
+
+    //         // Set linear BCs initially
+    //         fspl_th(1, 0) = 0.0;
+    //         fspl_th(2, 0) = 0.0;
+    //         fspl_th(1, inth - 1) = 0.0;
+    //         fspl_th(2, inth - 1) = 0.0;
+
+    //         // Adjust BC flags if needed
+    //         int ibcthmina = ibcthmin;
+    //         int ibcthmaxa = ibcthmax;
+    //         if (iflg2 == 1) {
+    //             if (ibcthmin == 1 || ibcthmin == 2) ibcthmina = 0;
+    //             if (ibcthmax == 1 || ibcthmax == 2) ibcthmaxa = 0;
+    //         }
+
+    //         // Call v_spline
+    //         BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmina, ibcthmaxa, inth, th, fspl_th, wk_th);
+
+    //         // Copy coefficients out
+    //         for (int ith = 0; ith < inth; ++ith) {
+    //             fspl(ic, 1, ix, ith) = fspl_th(1, ith);              // fspl(ic,2,...)
+    //             fspl(ic, 2, ix, ith) = fspl_th(2, ith) * xo2;         // fspl(ic,3,...)
+    //             fspl(ic, 3, ix, ith) = fspl_th(3, ith) * xo6;         // fspl(ic,4,...)
+    //         }
+    //     }
+    // }
+    Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(inx, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+        const int ix = team.league_rank();
+
+        auto fspl_th_view = Rank2View<T, MemorySpace>(fspl_l_th.data_handle() + 4 * ix * inth, 4, inth);
+        auto wk_th_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + ix * inth, inth);
+
         for (int ic = 0; ic < 4; ++ic) {
-            // Copy ordinates into workspace
-            for (int ith = 0; ith < inth; ++ith) {
-                fspl_th(0, ith) = fspl(ic, 0, ix, ith); // fspl(ic,1,ix,ith)
-            }
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, inth), KOKKOS_LAMBDA(int ith) {
+                fspl_th_view(0, ith) = fspl(ic, 0, ix, ith);
+            });
 
             // Set linear BCs initially
-            fspl_th(1, 0) = 0.0;
-            fspl_th(2, 0) = 0.0;
-            fspl_th(1, inth - 1) = 0.0;
-            fspl_th(2, inth - 1) = 0.0;
+            if (team.team_rank() == 0) {
+                fspl_th_view(1, 0) = 0.0;
+                fspl_th_view(2, 0) = 0.0;
+                fspl_th_view(1, inth - 1) = 0.0;
+                fspl_th_view(2, inth - 1) = 0.0;
 
-            // Adjust BC flags if needed
-            int ibcthmina = ibcthmin;
-            int ibcthmaxa = ibcthmax;
-            if (iflg2 == 1) {
-                if (ibcthmin == 1 || ibcthmin == 2) ibcthmina = 0;
-                if (ibcthmax == 1 || ibcthmax == 2) ibcthmaxa = 0;
+                int ibcthmina = ibcthmin;
+                int ibcthmaxa = ibcthmax;
+                if (iflg2 == 1) {
+                    if (ibcthmin == 1 || ibcthmin == 2) ibcthmina = 0;
+                    if (ibcthmax == 1 || ibcthmax == 2) ibcthmaxa = 0;
+                }
+
+                BiCubicSplineInterpolator<T, MemorySpace>::v_spline(
+                    ibcthmina, ibcthmaxa, inth, th, fspl_th_view, wk_th_view);
             }
 
-            // Call v_spline
-            BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmina, ibcthmaxa, inth, th, fspl_th, wk_th);
-
-            // Copy coefficients out
-            for (int ith = 0; ith < inth; ++ith) {
-                fspl(ic, 1, ix, ith) = fspl_th(1, ith);              // fspl(ic,2,...)
-                fspl(ic, 2, ix, ith) = fspl_th(2, ith) * xo2;         // fspl(ic,3,...)
-                fspl(ic, 3, ix, ith) = fspl_th(3, ith) * xo6;         // fspl(ic,4,...)
-            }
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, inth), KOKKOS_LAMBDA(int ith) {
+                fspl(ic, 1, ix, ith) = fspl_th_view(1, ith);
+                fspl(ic, 2, ix, ith) = fspl_th_view(2, ith) * xo2;
+                fspl(ic, 3, ix, ith) = fspl_th_view(3, ith) * xo6;
+            });
         }
-    }
+    });
+
+    fspl_ = fspl;
 
     if (iflg2 == 1) {
         int iasc = 0;                      // Workspace base for correction splines
@@ -1644,8 +1750,66 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
         if (ibcthmax == 1) iselect2[2] = 1;
         if (ibcthmax == 2) iselect2[4] = 1;
 
-        for (int ix = 0; ix < inx; ++ix) {
+        // for (int ix = 0; ix < inx; ++ix) {
+        //     double zdiff1 = 0.0, zdiff2 = 0.0;
+
+        //     if (ibcthmin == 1) {
+        //         zcur_vec[0] = (ix < inx - 1) ? fspl(0, 1, ix, 0)
+        //                                 : fspl(0, 1, jx, 0) + zhxn * (fspl(1, 1, jx, 0) + zhxn * (fspl(2, 1, jx, 0) + zhxn * fspl(3, 1, jx, 0)));
+        //         zdiff1 = bcthmin[ix] - zcur_vec[0];
+        //     } else if (ibcthmin == 2) {
+        //         zcur_vec[0] = (ix < inx - 1) ? 2.0 * fspl(0, 2, ix, 0)
+        //                                 : 2.0 * (fspl(0, 2, jx, 0) + zhxn * (fspl(1, 2, jx, 0) + zhxn * (fspl(2, 2, jx, 0) + zhxn * fspl(3, 2, jx, 0))));
+        //         zdiff1 = bcthmin[ix] - zcur_vec[0];
+        //     }
+
+        //     auto zcur = Rank2View<double, HostMemorySpace>(zcur_vec.data(), 1, 3);
+        //     if (ibcthmax == 1) {
+        //         if (ix < inx - 1) {
+        //             zcur(0, 0) = fspl(0, 1, ix, jth) + zhth * (2.0 * fspl(0, 2, ix, jth) + zhth * 3.0 * fspl(0, 3, ix, jth));
+        //         } else {
+        //             // TODO: check if this is correct
+        //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+        //             if (ier != 0) return;
+        //         }
+        //         zdiff2 = bcthmax[ix] - zcur(0, 0);
+        //     } else if (ibcthmax == 2) {
+        //         if (ix < inx - 1) {
+        //             zcur(0, 0) = 2.0 * fspl(0, 2, ix, jth) + 6.0 * zhth * fspl(0, 3, ix, jth);
+        //         } else {
+        //             // TODO: check if this is correct
+        //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+        //             if (ier != 0) return;
+        //         }
+        //         zdiff2 = bcthmax[ix] - zcur(0, 0);
+        //     }
+
+        //     int iadr = iasc + ix * iinc;
+        //     for (int ith = 0; ith < inth; ++ith)
+        //         fspl_l_th(ix * 4, ith) = 0.0;
+
+        //     fspl_l_th(1 + ix * 4, 0) = 0.0;
+        //     fspl_l_th(2 + ix * 4, 0) = 0.0;
+        //     fspl_l_th(1 + ix * 4, inth - 1) = 0.0;
+        //     fspl_l_th(2 + ix * 4, inth - 1) = 0.0;
+
+        //     if (ibcthmin == 1) fspl_l_th(1 + ix * 4, 0) = zdiff1;
+        //     else if (ibcthmin == 2) fspl_l_th(2 + ix * 4, 0) = zdiff1;
+
+        //     if (ibcthmax == 1) fspl_l_th(1 + ix * 4, inth - 1) = zdiff2;
+        //     else if (ibcthmax == 2) fspl_l_th(2 + ix * 4, inth - 1) = zdiff2;
+
+        //     auto fspl_s_th = Rank2View<double, HostMemorySpace>(fspl_l_th.data_handle() + iadr, 4, inth);
+        //     BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmin, ibcthmax, inth, th, fspl_s_th, wk_th);
+
+        // }
+
+        Kokkos::parallel_for(Kokkos::RangePolicy<execution_space>(0, inx), KOKKOS_LAMBDA(const int ix) {
+
+            int ier = 0;
+            std::vector<double> zcur_vec(3, 0.0);
             double zdiff1 = 0.0, zdiff2 = 0.0;
+            auto wk_th = Rank1View<T, MemorySpace>(wk_l.data_handle(), inth);
 
             if (ibcthmin == 1) {
                 zcur_vec[0] = (ix < inx - 1) ? fspl(0, 1, ix, 0)
@@ -1663,7 +1827,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
                     zcur(0, 0) = fspl(0, 1, ix, jth) + zhth * (2.0 * fspl(0, 2, ix, jth) + zhth * 3.0 * fspl(0, 3, ix, jth));
                 } else {
                     // TODO: check if this is correct
-                    BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+                    bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
                     if (ier != 0) return;
                 }
                 zdiff2 = bcthmax[ix] - zcur(0, 0);
@@ -1672,7 +1836,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
                     zcur(0, 0) = 2.0 * fspl(0, 2, ix, jth) + 6.0 * zhth * fspl(0, 3, ix, jth);
                 } else {
                     // TODO: check if this is correct
-                    BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+                    bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
                     if (ier != 0) return;
                 }
                 zdiff2 = bcthmax[ix] - zcur(0, 0);
@@ -1695,45 +1859,88 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
 
             auto fspl_s_th = Rank2View<double, HostMemorySpace>(fspl_l_th.data_handle() + iadr, 4, inth);
             BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcthmin, ibcthmax, inth, th, fspl_s_th, wk_th);
+            
+        });
 
-        }
+        // for (int ix = 0; ix < inx; ++ix) {
+        //     int iadr = iasc + ix * iinc;
+        //     for (int ith = 0; ith < inth - 1; ++ith) {
+        //         fspl_l_th(2 + ix * 4, ith) *= xo2;
+        //         fspl_l_th(3 + ix * 4, ith) *= xo6;
+        //         if (ix < inx - 1) {
+        //             fspl(0, 1, ix, ith) += fspl_l_th(1 + ix * 4, ith);
+        //             fspl(0, 2, ix, ith) += fspl_l_th(2 + ix * 4, ith);
+        //             fspl(0, 3, ix, ith) += fspl_l_th(3 + ix * 4, ith);
+        //         }
+        //     }
+        // }
 
-        for (int ix = 0; ix < inx; ++ix) {
-            int iadr = iasc + ix * iinc;
-            for (int ith = 0; ith < inth - 1; ++ith) {
-                fspl_l_th(2 + ix * 4, ith) *= xo2;
-                fspl_l_th(3 + ix * 4, ith) *= xo6;
-                if (ix < inx - 1) {
-                    fspl(0, 1, ix, ith) += fspl_l_th(1 + ix * 4, ith);
-                    fspl(0, 2, ix, ith) += fspl_l_th(2 + ix * 4, ith);
-                    fspl(0, 3, ix, ith) += fspl_l_th(3 + ix * 4, ith);
-                }
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {inx, inth - 1}), KOKKOS_LAMBDA(const int ix, const int ith) {
+
+            // Multiply local coefficients
+            fspl_l_th(2 + ix * 4, ith) *= xo2;
+            fspl_l_th(3 + ix * 4, ith) *= xo6;
+
+            // Conditional accumulation into global fspl
+            if (ix < inx - 1) {
+                fspl(0, 1, ix, ith) += fspl_l_th(1 + ix * 4, ith);
+                fspl(0, 2, ix, ith) += fspl_l_th(2 + ix * 4, ith);
+                fspl(0, 3, ix, ith) += fspl_l_th(3 + ix * 4, ith);
             }
-        }
+        });
 
         int ia5w = iawk + 4 * inx;
 
-        for (int ith = 0; ith < inth - 1; ++ith) {
-            for (int ic = 1; ic < 4; ++ic) {
-                for (int ix = 0; ix < inx; ++ix) {
-                    int iaspl = iasc + iinc * ix;
-                    fspl_x(0, ix) = fspl_l_th(ic + ix * 4, ith);
-                }
-                fspl_x(1, 0) = 0.0;
-                fspl_x(2, 0) = 0.0;
-                fspl_x(1, inx - 1) = 0.0;
-                fspl_x(2, inx - 1) = 0.0;
+        // for (int ith = 0; ith < inth - 1; ++ith) {
+        //     for (int ic = 1; ic < 4; ++ic) {
+        //         for (int ix = 0; ix < inx; ++ix) {
+        //             int iaspl = iasc + iinc * ix;
+        //             fspl_x(0, ix) = fspl_l_th(ic + ix * 4, ith);
+        //         }
+        //         fspl_x(1, 0) = 0.0;
+        //         fspl_x(2, 0) = 0.0;
+        //         fspl_x(1, inx - 1) = 0.0;
+        //         fspl_x(2, inx - 1) = 0.0;
                 
-                BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, fspl_x, wk_x);
+        //         BiCubicSplineInterpolator<T, MemorySpace>::v_spline(ibcxmin, ibcxmax, inx, x, fspl_x, wk_x);
 
-                for (int ix = 0; ix < inx - 1; ++ix) {
-                    fspl(1, ic, ix, ith) += fspl_x(1, ix);
-                    fspl(2, ic, ix, ith) += fspl_x(2, ix) * xo2;
-                    fspl(3, ic, ix, ith) += fspl_x(3, ix) * xo6;
+        //         for (int ix = 0; ix < inx - 1; ++ix) {
+        //             fspl(1, ic, ix, ith) += fspl_x(1, ix);
+        //             fspl(2, ic, ix, ith) += fspl_x(2, ix) * xo2;
+        //             fspl(3, ic, ix, ith) += fspl_x(3, ix) * xo6;
+        //         }
+        //     }
+        // }
+        Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(inth - 1, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+            const int ith = team.league_rank();
+
+            auto fspl_x_view = Rank2View<T, MemorySpace>(fspl_l_x.data_handle() + 4 * inx * ith, 4, inx);
+            auto wk_x_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + ith * inx, inx);
+
+            for (int ic = 1; ic < 4; ++ic) {
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team, inx), KOKKOS_LAMBDA(int ix) {
+                    fspl_x_view(0, ix) = fspl_l_th(ic + ix * 4, ith);
+                });
+
+                if (team.team_rank() == 0) {
+                    fspl_x_view(1, 0) = 0.0;
+                    fspl_x_view(2, 0) = 0.0;
+                    fspl_x_view(1, inx - 1) = 0.0;
+                    fspl_x_view(2, inx - 1) = 0.0;
+
+                    BiCubicSplineInterpolator<T, MemorySpace>::v_spline(
+                        ibcxmin, ibcxmax, inx, x, fspl_x_view, wk_x_view);
                 }
+
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team, inx - 1), KOKKOS_LAMBDA(int ix) {
+                    fspl(1, ic, ix, ith) += fspl_x_view(1, ix);
+                    fspl(2, ic, ix, ith) += fspl_x_view(2, ix) * xo2;
+                    fspl(3, ic, ix, ith) += fspl_x_view(3, ix) * xo6;
+                });
             }
-        }
+        });
     }
+    fspl_ = fspl;
 }
 
 template <typename T, typename MemorySpace>
@@ -1759,7 +1966,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(double xget, double yge
     std::vector<double> dy_vec(1, dy);
 
     // Evaluate spline function
-    bcspevfn(iselect, 1, 1, fval, i_vec, j_vec, dx_vec, dy_vec, f, inf3, ny);
+    bcspevfn(iselect, 1, 1, fval, i_vec, j_vec, dx_vec, dy_vec, inf3, ny);
 }
 
 template <typename T, typename MemorySpace>
@@ -1838,7 +2045,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
     std::vector<int>& jv,                // Grid cell indices in y direction
     std::vector<double>& dxv,            // x displacements within cells
     std::vector<double>& dyv,            // y displacements within cells
-    Rank4View<T, MemorySpace> f,              // Bicubic spline coefficients [4, 4, inf3, ny] (flattened)
     int inf3,                     // 3rd dimension of f
     int ny                        // Number of y points (4th dim of f)
 ){
@@ -1853,10 +2059,10 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 double dx = dxv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    f(0, 0, i, j) + dy * (f(0, 1, i, j) + dy * (f(0, 2, i, j) + dy * f(0, 3, i, j))) +
-                    dx * (f(1, 0, i, j) + dy * (f(1, 1, i, j) + dy * (f(1, 2, i, j) + dy * f(1, 3, i, j))) +
-                    dx * (f(2, 0, i, j) + dy * (f(2, 1, i, j) + dy * (f(2, 2, i, j) + dy * f(2, 3, i, j))) +
-                    dx * (f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j))))));
+                    fspl_(0, 0, i, j) + dy * (fspl_(0, 1, i, j) + dy * (fspl_(0, 2, i, j) + dy * fspl_(0, 3, i, j))) +
+                    dx * (fspl_(1, 0, i, j) + dy * (fspl_(1, 1, i, j) + dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
+                    dx * (fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
+                    dx * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))))));
             }
         }
 
@@ -1869,11 +2075,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 double dx = dxv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    f(1, 0, i, j) + dy * (f(1, 1, i, j) + dy * (f(1, 2, i, j) + dy * f(1, 3, i, j))) +
+                    fspl_(1, 0, i, j) + dy * (fspl_(1, 1, i, j) + dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
                     2.0 * dx * (
-                        f(2, 0, i, j) + dy * (f(2, 1, i, j) + dy * (f(2, 2, i, j) + dy * f(2, 3, i, j))) +
+                        fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
                         1.5 * dx * (
-                            f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j)))));
+                            fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j)))));
             }
         }
 
@@ -1886,10 +2092,10 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 double dx = dxv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    f(0, 1, i, j) + dy * (2.0 * f(0, 2, i, j) + dy * 3.0 * f(0, 3, i, j)) +
-                    dx * (f(1, 1, i, j) + dy * (2.0 * f(1, 2, i, j) + dy * 3.0 * f(1, 3, i, j)) +
-                    dx * (f(2, 1, i, j) + dy * (2.0 * f(2, 2, i, j) + dy * 3.0 * f(2, 3, i, j)) +
-                    dx * (f(3, 1, i, j) + dy * (2.0 * f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j)))));
+                    fspl_(0, 1, i, j) + dy * (2.0 * fspl_(0, 2, i, j) + dy * 3.0 * fspl_(0, 3, i, j)) +
+                    dx * (fspl_(1, 1, i, j) + dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
+                    dx * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j)) +
+                    dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j)))));
             }
         }
 
@@ -1902,8 +2108,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 double dx = dxv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    2.0 * (f(2, 0, i, j) + dy * (f(2, 1, i, j) + dy * (f(2, 2, i, j) + dy * f(2, 3, i, j)))) +
-                    6.0 * dx * (f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j))));
+                    2.0 * (fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j)))) +
+                    6.0 * dx * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
             }
         }
 
@@ -1916,10 +2122,10 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 double dx = dxv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    2.0 * f(0, 2, i, j) + 6.0 * dy * f(0, 3, i, j) +
-                    dx * (2.0 * f(1, 2, i, j) + 6.0 * dy * f(1, 3, i, j) +
-                    dx * (2.0 * f(2, 2, i, j) + 6.0 * dy * f(2, 3, i, j) +
-                    dx * (2.0 * f(3, 2, i, j) + 6.0 * dy * f(3, 3, i, j))));
+                    2.0 * fspl_(0, 2, i, j) + 6.0 * dy * fspl_(0, 3, i, j) +
+                    dx * (2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
+                    dx * (2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
+                    dx * (2.0 * fspl_(3, 2, i, j) + 6.0 * dy * fspl_(3, 3, i, j))));
             }
         }
 
@@ -1932,9 +2138,9 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 double dx = dxv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    f(1, 1, i, j) + dy * (2.0 * f(1, 2, i, j) + dy * 3.0 * f(1, 3, i, j)) +
-                    2.0 * dx * (f(2, 1, i, j) + dy * (2.0 * f(2, 2, i, j) + dy * 3.0 * f(2, 3, i, j)) +
-                    1.5 * dx * (f(3, 1, i, j) + dy * (2.0 * f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j))));
+                    fspl_(1, 1, i, j) + dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
+                    2.0 * dx * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j)) +
+                    1.5 * dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j))));
             }
         }
 
@@ -1947,8 +2153,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 double dx = dxv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    4.0 * f(2, 2, i, j) + 12.0 * dy * f(2, 3, i, j) +
-                    dx * (12.0 * f(3, 2, i, j) + 36.0 * dy * f(3, 3, i, j));
+                    4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
+                    dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
             }
         }
     } else if (ict[0] == 3) {
@@ -1959,7 +2165,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    6.0 * (f(3, 0, i, j) + dy * (f(3, 1, i, j) + dy * (f(3, 2, i, j) + dy * f(3, 3, i, j))));
+                    6.0 * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
             }
         }
 
@@ -1970,8 +2176,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dx = dxv[v], dy = dyv[v];
                 fval(v, iaval - 1) =
-                    2.0 * (f(2, 1, i, j) + dy * (2.0 * f(2, 2, i, j) + dy * 3.0 * f(2, 3, i, j))) +
-                    6.0 * dx * (f(3, 1, i, j) + dy * (2.0 * f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j)));
+                    2.0 * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j))) +
+                    6.0 * dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j)));
             }
         }
 
@@ -1982,10 +2188,10 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dx = dxv[v], dy = dyv[v];
                 fval(v, iaval - 1) =
-                    2.0 * f(1, 2, i, j) + 6.0 * dy * f(1, 3, i, j) +
+                    2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
                     2.0 * dx * (
-                        2.0 * f(2, 2, i, j) + 6.0 * dy * f(2, 3, i, j) +
-                        1.5 * dx * (2.0 * f(3, 2, i, j) + 6.0 * dy * f(3, 3, i, j)));
+                        2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
+                        1.5 * dx * (2.0 * fspl_(3, 2, i, j) + 6.0 * dy * fspl_(3, 3, i, j)));
             }
         }
 
@@ -1996,7 +2202,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dx = dxv[v];
                 fval(v, iaval - 1) =
-                    6.0 * (f(0, 3, i, j) + dx * (f(1, 3, i, j) + dx * (f(2, 3, i, j) + dx * f(3, 3, i, j))));
+                    6.0 * (fspl_(0, 3, i, j) + dx * (fspl_(1, 3, i, j) + dx * (fspl_(2, 3, i, j) + dx * fspl_(3, 3, i, j))));
             }
         }
 
@@ -2008,7 +2214,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    6.0 * (f(3, 1, i, j) + dy * 2.0 * (f(3, 2, i, j) + dy * 1.5 * f(3, 3, i, j)));
+                    6.0 * (fspl_(3, 1, i, j) + dy * 2.0 * (fspl_(3, 2, i, j) + dy * 1.5 * fspl_(3, 3, i, j)));
             }
         }
 
@@ -2019,8 +2225,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dx = dxv[v], dy = dyv[v];
                 fval(v, iaval - 1) =
-                    4.0 * f(2, 2, i, j) + 12.0 * dy * f(2, 3, i, j) +
-                    dx * (12.0 * f(3, 2, i, j) + 36.0 * dy * f(3, 3, i, j));
+                    4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
+                    dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
             }
         }
 
@@ -2031,7 +2237,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dx = dxv[v];
                 fval(v, iaval - 1) =
-                    6.0 * (f(1, 3, i, j) + 2.0 * dx * (f(2, 3, i, j) + 1.5 * dx * f(3, 3, i, j)));
+                    6.0 * (fspl_(1, 3, i, j) + 2.0 * dx * (fspl_(2, 3, i, j) + 1.5 * dx * fspl_(3, 3, i, j)));
             }
         }
 
@@ -2043,7 +2249,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dy = dyv[v];
                 fval(v, iaval - 1) =
-                    12.0 * (f(3, 2, i, j) + dy * 3.0 * f(3, 3, i, j));
+                    12.0 * (fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j));
             }
         }
 
@@ -2054,7 +2260,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
                 int i = iv[v], j = jv[v];
                 double dx = dxv[v];
                 fval(v, iaval - 1) =
-                    12.0 * (f(2, 3, i, j) + dx * 3.0 * f(3, 3, i, j));
+                    12.0 * (fspl_(2, 3, i, j) + dx * 3.0 * fspl_(3, 3, i, j));
             }
         }
 
@@ -2063,7 +2269,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
         iaval++;
         for (int v = 0; v < ivec; ++v) {
             int i = iv[v], j = jv[v];
-            fval(v, iaval - 1) = 36.0 * f(3, 3, i, j);
+            fval(v, iaval - 1) = 36.0 * fspl_(3, 3, i, j);
         }
     }
 }// end bcspevfn
@@ -2107,114 +2313,253 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
     CubicSplineInterpolator<T, MemorySpace>::splinck(x, 1.0e-3);
     CubicSplineInterpolator<T, MemorySpace>::splinck(y, 1.0e-3);
 
-    std::vector<T> fwk_x_vec(2 * nx);
-    auto fwk_x = Rank2View<T, MemorySpace>(fwk_x_vec.data(), 2, nx);
-    std::vector<T> fwk4_x_vec(4 * nx);
-    auto fwk4_x = Rank2View<T, MemorySpace>(fwk4_x_vec.data(), 4, nx);
-    std::vector<T> fwk_y_vec(2 * ny);
-    auto fwk_y = Rank2View<T, MemorySpace>(fwk_y_vec.data(), 2, ny);
-    std::vector<T> fwk4_y_vec(4 * ny);
-    auto fwk4_y = Rank2View<T, MemorySpace>(fwk4_y_vec.data(), 4, ny);
-    std::vector<T> wk_x_vec(nx);
-    auto wk_x = Rank1View<T, MemorySpace>(wk_x_vec.data(), nx);
-    std::vector<T> wk_y_vec(ny);
-    auto wk_y = Rank1View<T, MemorySpace>(wk_y_vec.data(), ny);
+    std::vector<T> fspl_l_x_vec(4 * nx * ny);
+    auto fspl_l_x = Rank2View<T, MemorySpace>(fspl_l_x_vec.data(), 2 * ny, nx);
+    std::vector<T> fspl_l_y_vec(4 * ny * nx);
+    auto fspl_l_y = Rank2View<T, MemorySpace>(fspl_l_y_vec.data(), 2 * nx, ny);
+    std::vector<T> wk_l_vec(nx * ny);
+    auto wk_l = Rank2View<T, MemorySpace>(wk_l_vec.data(), ny, nx);
+    std::vector<T> fwk4_l_x_vec(4 * nx * ny);
+    auto fwk4_l_x = Rank2View<T, MemorySpace>(fwk4_l_x_vec.data(), 4 * ny, nx);
 
-    double zbcmin = 0.0, zbcmax = 0.0;
 
-    // Compute fxx
-    for (int iy = 0; iy < ny; ++iy) {
-        for (int ix = 0; ix < nx; ++ix)
-            fwk_x(0, ix) = f(0, ix, iy);
+    // // Compute fxx
+    // for (int iy = 0; iy < ny; ++iy) {
+    //     for (int ix = 0; ix < nx; ++ix)
+    //         fwk_x(0, ix) = f(0, ix, iy);
 
-        if (ibcxmin == 1 || ibcxmin == 2) zbcmin = bcxmin[iy];
-        if (ibcxmax == 1 || ibcxmax == 2) zbcmax = bcxmax[iy];
+    //     if (ibcxmin == 1 || ibcxmin == 2) zbcmin = bcxmin[iy];
+    //     if (ibcxmax == 1 || ibcxmax == 2) zbcmax = bcxmax[iy];
 
-        CubicSplineInterpolator<T, MemorySpace>::mkspline(x, nx, fwk_x, fwk4_x, ibcxmin, zbcmin, ibcxmax, zbcmax, wk_x);
-        if (ier != 0) return;
+    //     CubicSplineInterpolator<T, MemorySpace>::mkspline(x, nx, fwk_x, fwk4_x, ibcxmin, zbcmin, ibcxmax, zbcmax, wk_x);
+    //     if (ier != 0) return;
 
-        for (int ix = 0; ix < nx; ++ix)
-            f(1, ix, iy) = fwk_x(1, ix);
-    }
+    //     for (int ix = 0; ix < nx; ++ix)
+    //         f(1, ix, iy) = fwk_x(1, ix);
+    // }
+    Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(ny, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+        const int iy = team.league_rank();
+        double zbcmin = 0.0, zbcmax = 0.0;
 
-    zbcmin = 0.0;
-    zbcmax = 0.0;
-    int ibcmin = ibcymin, ibcmax = ibcymax;
-    // Compute fyy
-    for (int ix = 0; ix < nx; ++ix) {
-        for (int iy = 0; iy < ny; ++iy)
-            fwk_y(0, iy) = f(0, ix, iy);
+        auto fwk_x_view = Rank2View<T, MemorySpace>(fspl_l_x.data_handle() + 2 * nx * iy, 2, nx);
+        auto wk_x_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + nx * iy, nx);
+        auto fwk4_x_view = Rank2View<T, MemorySpace>(fwk4_l_x.data_handle() + 4 * nx * iy, 4, nx);
 
-        if (iflg2 == 1) {
-            if (ibcymin == 1 || ibcymin == 2) ibcmin = 0;
-            if (ibcymax == 1 || ibcymax == 2) ibcmax = 0;
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, nx), KOKKOS_LAMBDA(int ix) {
+            fwk_x_view(0, ix) = f(0, ix, iy);
+        });
+
+        if (team.team_rank() == 0) {
+            if (ibcxmin == 1 || ibcxmin == 2) zbcmin = bcxmin[iy];
+            if (ibcxmax == 1 || ibcxmax == 2) zbcmax = bcxmax[iy];
+
+            CubicSplineInterpolator<T, MemorySpace>::mkspline(x, nx, fwk_x_view, fwk4_x_view, ibcxmin, zbcmin, ibcxmax, zbcmax, wk_x_view);
+            if (ier != 0) return;
         }
 
-        CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y, fwk4_y, ibcmin, 0.0, ibcmax, 0.0, wk_y);
-        if (ier != 0) return;
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, nx), KOKKOS_LAMBDA(int ix) {
+            f(1, ix, iy) = fwk_x_view(1, ix);
+        });
+    });
 
-        for (int iy = 0; iy < ny; ++iy)
-            f(2, ix, iy) = fwk_y(1, iy);
-    }
+    // double zbcmin = 0.0, zbcmax = 0.0;
+    // int ibcmin = ibcymin, ibcmax = ibcymax;
+    // // Compute fyy
+    // for (int ix = 0; ix < nx; ++ix) {
+    //     for (int iy = 0; iy < ny; ++iy)
+    //         fwk_y(0, iy) = f(0, ix, iy);
 
-    zbcmin = 0.0;
-    zbcmax = 0.0;
-    ibcmin = ibcymin;
-    ibcmax = ibcymax;
-    // Compute fxxyy
-    for (int ix = 0; ix < nx; ++ix) {
-        for (int iy = 0; iy < ny; ++iy)
-            fwk_y(0, iy) = f(1, ix, iy);
+    //     if (iflg2 == 1) {
+    //         if (ibcymin == 1 || ibcymin == 2) ibcmin = 0;
+    //         if (ibcymax == 1 || ibcymax == 2) ibcmax = 0;
+    //     }
 
-        if (iflg2 == 1) {
-            if (ibcymin == 1 || ibcymin == 2) ibcmin = 0;
-            if (ibcymax == 1 || ibcymax == 2) ibcmax = 0;
+    //     CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y, fwk4_y, ibcmin, 0.0, ibcmax, 0.0, wk_y);
+    //     if (ier != 0) return;
+
+    //     for (int iy = 0; iy < ny; ++iy)
+    //         f(2, ix, iy) = fwk_y(1, iy);
+    // }
+    Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+        const int ix = team.league_rank();
+        double zbcmin = 0.0, zbcmax = 0.0;
+        int ibcmin = ibcymin, ibcmax = ibcymax;
+
+        auto fwk_y_view = Rank2View<T, MemorySpace>(fspl_l_x.data_handle() + 2 * ny * ix, 2, ny);
+        auto wk_y_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + ny * ix, ny);
+        auto fwk4_y_view = Rank2View<T, MemorySpace>(fwk4_l_x.data_handle() + 4 * ny * ix, 4, ny);
+
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, ny), KOKKOS_LAMBDA(int iy) {
+            fwk_y_view(0, iy) = f(0, ix, iy);
+        });
+
+        if (team.team_rank() == 0) {
+            if (iflg2 == 1) {
+                if (ibcymin == 1 || ibcymin == 2) ibcmin = 0;
+                if (ibcymax == 1 || ibcymax == 2) ibcmax = 0;
+            }
+
+            CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y_view, fwk4_y_view, ibcmin, 0.0, ibcmax, 0.0, wk_y_view);
+            if (ier != 0) return;
         }
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, ny), KOKKOS_LAMBDA(int iy) {
+            f(2, ix, iy) = fwk_y_view(1, iy);
+        });
+    });
 
-        CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y, fwk4_y, ibcmin, 0.0, ibcmax, 0.0, wk_y);
-        if (ier != 0) return;
+    // int zbcmin = 0.0;
+    // int zbcmax = 0.0;
+    // double ibcmin = ibcymin;
+    // double ibcmax = ibcymax;
+    // // Compute fxxyy
+    // for (int ix = 0; ix < nx; ++ix) {
+    //     for (int iy = 0; iy < ny; ++iy)
+    //         fwk_y(0, iy) = f(1, ix, iy);
 
-        for (int iy = 0; iy < ny; ++iy)
-            f(3, ix, iy) = fwk_y(1, iy);
-    }
+    //     if (iflg2 == 1) {
+    //         if (ibcymin == 1 || ibcymin == 2) ibcmin = 0;
+    //         if (ibcymax == 1 || ibcymax == 2) ibcmax = 0;
+    //     }
+
+    //     CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y, fwk4_y, ibcmin, 0.0, ibcmax, 0.0, wk_y);
+    //     if (ier != 0) return;
+
+    //     for (int iy = 0; iy < ny; ++iy)
+    //         f(3, ix, iy) = fwk_y(1, iy);
+    // }
+
+    Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+        const int ix = team.league_rank();
+        double zbcmin = 0.0, zbcmax = 0.0;
+        int ibcmin = ibcymin, ibcmax = ibcymax;
+
+        auto fwk_y_view = Rank2View<T, MemorySpace>(fspl_l_x.data_handle() + 2 * ny * ix, 2, ny);
+        auto wk_y_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + ny * ix, ny);
+        auto fwk4_y_view = Rank2View<T, MemorySpace>(fwk4_l_x.data_handle() + 4 * ny * ix, 4, ny);
+
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, ny), KOKKOS_LAMBDA(int iy) {
+            fwk_y_view(0, iy) = f(1, ix, iy);
+        });
+
+        if (team.team_rank() == 0) {
+            if (iflg2 == 1) {
+                if (ibcymin == 1 || ibcymin == 2) ibcmin = 0;
+                if (ibcymax == 1 || ibcymax == 2) ibcmax = 0;
+            }
+
+            CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y_view, fwk4_y_view, ibcmin, 0.0, ibcmax, 0.0, wk_y_view);
+            if (ier != 0) return;
+        }
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, ny), KOKKOS_LAMBDA(int iy) {
+            f(3, ix, iy) = fwk_y_view(1, iy);
+        });
+    });
+
+    int zbcmin = 0.0;
+    int zbcmax = 0.0;
 
     // Correct for inhomogeneous boundary conditions if needed
     if (iflg2 == 1) {
-        std::vector<std::vector<std::vector<T>>> fcorr(2, std::vector<std::vector<T>>(nx, std::vector<T>(ny, 0.0)));
-        std::vector<T> zdiff(2, 0.0);
+        std::vector<T> fcorr_arr(2 * nx * ny);
+        auto fcorr = Rank3View<T, MemorySpace>(fcorr_arr.data(), 2, nx, ny);
 
-        for (int ix = 0; ix < nx; ++ix) {
-            zdiff[0] = (ibcymin == 1) ? (bcymin[ix] - ((f(0, ix, 1) - f(0, ix, 0)) / (y[1] - y[0]) + (y[1] - y[0]) * (-2.0 * f(2, ix, 0) - f(2, ix, 1)) / 6.0)) :
-                        ((ibcymin == 2) ? bcymin[ix] - f(2, ix, 0) : 0.0);
+        // T zdiff1 = 0.0, zdiff2 = 0.0;
+        // for (int ix = 0; ix < nx; ++ix) {
+        //     zdiff1 = (ibcymin == 1) ? (bcymin[ix] - ((f(0, ix, 1) - f(0, ix, 0)) / (y[1] - y[0]) + (y[1] - y[0]) * (-2.0 * f(2, ix, 0) - f(2, ix, 1)) / 6.0)) :
+        //                 ((ibcymin == 2) ? bcymin[ix] - f(2, ix, 0) : 0.0);
 
-            zdiff[1] = (ibcymax == 1) ? (bcymax[ix] - ((f(0, ix, ny-1) - f(0, ix, ny-2)) / (y[ny-1] - y[ny-2]) + (y[ny-1] - y[ny-2]) * (2.0 * f(2, ix, ny-1) + f(2, ix, ny-2)) / 6.0)) :
-                        ((ibcymax == 2) ? bcymax[ix] - f(2, ix, ny-1) : 0.0);
+        //     zdiff2 = (ibcymax == 1) ? (bcymax[ix] - ((f(0, ix, ny-1) - f(0, ix, ny-2)) / (y[ny-1] - y[ny-2]) + (y[ny-1] - y[ny-2]) * (2.0 * f(2, ix, ny-1) + f(2, ix, ny-2)) / 6.0)) :
+        //                 ((ibcymax == 2) ? bcymax[ix] - f(2, ix, ny-1) : 0.0);
 
-            for (int iy = 0; iy < ny; ++iy) {
-                fwk_y(0, iy) = 0.0;
+        //     for (int iy = 0; iy < ny; ++iy) {
+        //         fwk_y(0, iy) = 0.0;
+        //     }
+        //     CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y, fwk4_y, ibcymin, zdiff1, ibcymax, zdiff2, wk_y);
+        //     if (ier != 0) return;
+        //     for (int iy = 0; iy < ny; ++iy)
+        //         fcorr(0, ix, iy) = fwk_y(1, iy);
+        // }
+        Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+            const int ix = team.league_rank();
+            double zdiff1 = 0.0, zdiff2 = 0.0;
+
+            auto fwk_y_view = Rank2View<T, MemorySpace>(fspl_l_x.data_handle() + 2 * ny * ix, 2, ny);
+            auto wk_y_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + ny * ix, ny);
+            auto fwk4_y_view = Rank2View<T, MemorySpace>(fwk4_l_x.data_handle() + 4 * ny * ix, 4, ny);
+
+            if (team.team_rank() == 0) {
+                if (ibcymin == 1) {
+                    zdiff1 = bcymin[ix] - ((f(0, ix, 1) - f(0, ix, 0)) / (y[1] - y[0]) + (y[1] - y[0]) * (-2.0 * f(2, ix, 0) - f(2, ix, 1)) / 6.0);
+                } else if (ibcymin == 2) {
+                    zdiff1 = bcymin[ix] - f(2, ix, 0);
+                } else {
+                    zdiff1 = 0.0;
+                }
+
+                if (ibcymax == 1) {
+                    zdiff2 = bcymax[ix] - ((f(0, ix, ny-1) - f(0, ix, ny-2)) / (y[ny-1] - y[ny-2]) + (y[ny-1] - y[ny-2]) * (2.0 * f(2, ix, ny-1) + f(2, ix, ny-2)) / 6.0);
+                } else if (ibcymax == 2) {
+                    zdiff2 = bcymax[ix] - f(2, ix, ny-1);
+                } else {
+                    zdiff2 = 0.0;
+                }
             }
-            CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y, fwk4_y, ibcymin, zdiff[0], ibcymax, zdiff[1], wk_y);
-            if (ier != 0) return;
-            for (int iy = 0; iy < ny; ++iy)
-                fcorr[0][ix][iy] = fwk_y(1, iy);
-        }
+            
 
-        zbcmin=0;
-        zbcmax=0;
-        for (int iy = 0; iy < ny; ++iy) {
-            for (int ix = 0; ix < nx; ++ix)
-                fwk_x(0, ix) = fcorr[0][ix][iy];
-            CubicSplineInterpolator<T, MemorySpace>::mkspline(x, nx, fwk_x, fwk4_x, ibcxmin, 0.0, ibcxmax, 0.0, wk_x);
-            if (ier != 0) return;
-            for (int ix = 0; ix < nx; ++ix)
-                fcorr[1][ix][iy] = fwk_x(1, ix);
-        }
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, ny), KOKKOS_LAMBDA(int iy) {
+                fwk_y_view(0, iy) = 0.0;
+            });
+            if (team.team_rank() == 0) {
+                CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y_view, fwk4_y_view, ibcymin, zdiff1, ibcymax, zdiff2, wk_y_view);
+                if (ier != 0) return;
+            }
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, ny), KOKKOS_LAMBDA(int iy) {
+                fcorr(0, ix, iy) = fwk_y_view(1, iy);
+            });
+        });
 
-        for (int c = 0; c < 2; ++c)
-            for (int ix = 0; ix < nx; ++ix)
-                for (int iy = 0; iy < ny; ++iy)
-                    f(c + 2, ix, iy) += fcorr[c][ix][iy];
+
+        // zbcmin=0;
+        // zbcmax=0;
+        // for (int iy = 0; iy < ny; ++iy) {
+        //     for (int ix = 0; ix < nx; ++ix)
+        //         fwk_x(0, ix) = fcorr[0][ix][iy];
+        //     CubicSplineInterpolator<T, MemorySpace>::mkspline(x, nx, fwk_x, fwk4_x, ibcxmin, 0.0, ibcxmax, 0.0, wk_x);
+        //     if (ier != 0) return;
+        //     for (int ix = 0; ix < nx; ++ix)
+        //         fcorr[1][ix][iy] = fwk_x(1, ix);
+        // }
+        Kokkos::parallel_for(Kokkos::TeamPolicy<execution_space>(ny, Kokkos::AUTO), KOKKOS_LAMBDA(const member_type& team) {
+            const int iy = team.league_rank();
+            auto fwk_x_view = Rank2View<T, MemorySpace>(fspl_l_x.data_handle() + 2 * nx * iy, 2, nx);
+            auto wk_x_view = Rank1View<T, MemorySpace>(wk_l.data_handle() + nx * iy, nx);
+            auto fwk4_x_view = Rank2View<T, MemorySpace>(fwk4_l_x.data_handle() + 4 * nx * iy, 4, nx);
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, nx), KOKKOS_LAMBDA(int ix) {
+                fwk_x_view(0, ix) = fcorr(0, ix, iy);
+            });
+
+            if (team.team_rank() == 0) {
+                CubicSplineInterpolator<T, MemorySpace>::mkspline(x, nx, fwk_x_view, fwk4_x_view, ibcxmin, zbcmin, ibcxmax, zbcmax, wk_x_view);
+                if (ier != 0) return;
+            }
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, nx), KOKKOS_LAMBDA(int ix) {
+                fcorr(1, ix, iy) = fwk_x_view(1, ix);
+            });
+        });
+
+        // for (int c = 0; c < 2; ++c)
+        //     for (int ix = 0; ix < nx; ++ix)
+        //         for (int iy = 0; iy < ny; ++iy)
+        //             f(c + 2, ix, iy) += fcorr[c][ix][iy];
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0,0},{nx, ny}), KOKKOS_LAMBDA (const int ix, const int iy) {
+            f(2, ix, iy) += fcorr(0, ix, iy);
+            f(3, ix, iy) += fcorr(1, ix, iy);
+        });
+        
     }
+    f_ = f; // Store the spline coefficients
 }
 
 template<typename T, typename MemorySpace>
@@ -2331,8 +2676,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                     const std::vector<double>& hx,
                     const std::vector<double>& hxi,
                     const std::vector<double>& hy,
-                    const std::vector<double>& hyi,
-                    Rank3View<T, MemorySpace> fin)
+                    const std::vector<double>& hyi)
 {
     constexpr double sixth = 1.0 / 6.0;
     const double z36th = sixth * sixth;
@@ -2359,17 +2703,17 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cyi = ypi * (ypi2 - 1.0);
                 double hy2 = hy[v] * hy[v];
 
-                double sum = xpi * (ypi * fin(0, i, j)     + yp * fin(0, i, j + 1)) +
-                             xp  * (ypi * fin(0, i + 1, j) + yp * fin(0, i + 1, j + 1));
+                double sum = xpi * (ypi * f_(0, i, j)     + yp * f_(0, i, j + 1)) +
+                             xp  * (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1));
                 sum += sixth * hx2 * (
-                           cxi * (ypi * fin(1, i, j)     + yp * fin(1, i, j + 1)) +
-                           cx  * (ypi * fin(1, i + 1, j) + yp * fin(1, i + 1, j + 1)));
+                           cxi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                           cx  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
                 sum += sixth * hy2 * (
-                           xpi * (cyi * fin(2, i, j)     + cy * fin(2, i, j + 1)) +
-                           xp  * (cyi * fin(2, i + 1, j) + cy * fin(2, i + 1, j + 1)));
+                           xpi * (cyi * f_(2, i, j)     + cy * f_(2, i, j + 1)) +
+                           xp  * (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
                 sum += z36th * hx2 * hy2 * (
-                           cxi * (cyi * fin(3, i, j)     + cy * fin(3, i, j + 1)) +
-                           cx  * (cyi * fin(3, i + 1, j) + cy * fin(3, i + 1, j + 1)));
+                           cxi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                           cx  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2389,17 +2733,17 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cyi = ypi * (ypi2 - 1.0);
                 double hy2 = hy[v] * hy[v];
 
-                double sum = hxi[v] * (-(ypi * fin(0, i, j)     + yp * fin(0, i, j + 1)) +
-                                        (ypi * fin(0, i + 1, j) + yp * fin(0, i + 1, j + 1)));
+                double sum = hxi[v] * (-(ypi * f_(0, i, j)     + yp * f_(0, i, j + 1)) +
+                                        (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1)));
                 sum += sixth * hx[v] * (
-                           cxdi * (ypi * fin(1, i, j)     + yp * fin(1, i, j + 1)) +
-                           cxd  * (ypi * fin(1, i + 1, j) + yp * fin(1, i + 1, j + 1)));
+                           cxdi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                           cxd  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
                 sum += sixth * hxi[v] * hy2 * (
-                           -(cyi * fin(2, i, j)     + cy * fin(2, i, j + 1)) +
-                             (cyi * fin(2, i + 1, j) + cy * fin(2, i + 1, j + 1)));
+                           -(cyi * f_(2, i, j)     + cy * f_(2, i, j + 1)) +
+                             (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
                 sum += z36th * hx[v] * hy2 * (
-                           cxdi * (cyi * fin(3, i, j)     + cy * fin(3, i, j + 1)) +
-                           cxd  * (cyi * fin(3, i + 1, j) + cy * fin(3, i + 1, j + 1)));
+                           cxdi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                           cxd  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2419,17 +2763,17 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cyd  = 3.0 * yp2 - 1.0;
                 double cydi = -3.0 * ypi2 + 1.0;
 
-                double sum = hyi[v] * (xpi * (-fin(0, i, j)     + fin(0, i, j + 1)) +
-                                        xp  * (-fin(0, i + 1, j) + fin(0, i + 1, j + 1)));
+                double sum = hyi[v] * (xpi * (-f_(0, i, j)     + f_(0, i, j + 1)) +
+                                        xp  * (-f_(0, i + 1, j) + f_(0, i + 1, j + 1)));
                 sum += sixth * hx2 * hyi[v] * (
-                           cxi * (-fin(1, i, j)     + fin(1, i, j + 1)) +
-                           cx  * (-fin(1, i + 1, j) + fin(1, i + 1, j + 1)));
+                           cxi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
+                           cx  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
                 sum += sixth * hy[v] * (
-                           xpi * (cydi * fin(2, i, j)     + cyd * fin(2, i, j + 1)) +
-                           xp  * (cydi * fin(2, i + 1, j) + cyd * fin(2, i + 1, j + 1)));
+                           xpi * (cydi * f_(2, i, j)     + cyd * f_(2, i, j + 1)) +
+                           xp  * (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
                 sum += z36th * hx2 * hy[v] * (
-                           cxi * (cydi * fin(3, i, j)     + cyd * fin(3, i, j + 1)) +
-                           cx  * (cydi * fin(3, i + 1, j) + cyd * fin(3, i + 1, j + 1)));
+                           cxi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                           cx  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2446,11 +2790,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cyi = ypi * (ypi2 - 1.0);
                 double hy2 = hy[v] * hy[v];
 
-                double sum = xpi * (ypi * fin(1, i, j)     + yp * fin(1, i, j + 1)) +
-                             xp  * (ypi * fin(1, i + 1, j) + yp * fin(1, i + 1, j + 1));
+                double sum = xpi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                             xp  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1));
                 sum += sixth * hy2 * (
-                           xpi * (cyi * fin(3, i, j)     + cy * fin(3, i, j + 1)) +
-                           xp  * (cyi * fin(3, i + 1, j) + cy * fin(3, i + 1, j + 1)));
+                           xpi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                           xp  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2467,11 +2811,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double hx2 = hx[v] * hx[v];
                 double yp = yparam[v], ypi = 1.0 - yp;
 
-                double sum = xpi * (ypi * fin(2, i, j)     + yp * fin(2, i, j + 1)) +
-                             xp  * (ypi * fin(2, i + 1, j) + yp * fin(2, i + 1, j + 1));
+                double sum = xpi * (ypi * f_(2, i, j)     + yp * f_(2, i, j + 1)) +
+                             xp  * (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1));
                 sum += sixth * hx2 * (
-                           cxi * (ypi * fin(3, i, j)     + yp * fin(3, i, j + 1)) +
-                           cx  * (ypi * fin(3, i + 1, j) + yp * fin(3, i + 1, j + 1)));
+                           cxi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                           cx  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2490,17 +2834,17 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cyd  = 3.0 * yp2 - 1.0;
                 double cydi = -3.0 * ypi2 + 1.0;
 
-                double sum = hxi[v] * hyi[v] * (fin(0, i, j) - fin(0, i, j + 1) -
-                                                fin(0, i + 1, j) + fin(0, i + 1, j + 1));
+                double sum = hxi[v] * hyi[v] * (f_(0, i, j) - f_(0, i, j + 1) -
+                                                f_(0, i + 1, j) + f_(0, i + 1, j + 1));
                 sum += sixth * hx[v] * hyi[v] * (
-                           cxdi * (-fin(1, i, j)     + fin(1, i, j + 1)) +
-                           cxd  * (-fin(1, i + 1, j) + fin(1, i + 1, j + 1)));
+                           cxdi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
+                           cxd  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
                 sum += sixth * hxi[v] * hy[v] * (
-                           -(cydi * fin(2, i, j)     + cyd * fin(2, i, j + 1)) +
-                             (cydi * fin(2, i + 1, j) + cyd * fin(2, i + 1, j + 1)));
+                           -(cydi * f_(2, i, j)     + cyd * f_(2, i, j + 1)) +
+                             (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
                 sum += z36th * hx[v] * hy[v] * (
-                           cxdi * (cydi * fin(3, i, j)     + cyd * fin(3, i, j + 1)) +
-                           cxd  * (cydi * fin(3, i + 1, j) + cyd * fin(3, i + 1, j + 1)));
+                           cxdi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                           cxd  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2520,10 +2864,10 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cy  = yp  * (yp2  - 1.0);
                 double cyi = ypi * (ypi2 - 1.0);
                 double hy2 = hy[v] * hy[v];
-                double sum = hxi[v] * (-(ypi * fin(1, i, j)     + yp * fin(1, i, j + 1)) +
-                                        (ypi * fin(1, i + 1, j) + yp * fin(1, i + 1, j + 1)));
-                sum += sixth * hy2 * hxi[v] * (-(cyi * fin(3, i, j)     + cy * fin(3, i, j + 1)) +
-                                                (cyi * fin(3, i + 1, j) + cy * fin(3, i + 1, j + 1)));
+                double sum = hxi[v] * (-(ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                                        (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
+                sum += sixth * hy2 * hxi[v] * (-(cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                                                (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2538,10 +2882,10 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double yp2 = yp * yp, ypi2 = ypi * ypi;
                 double cyd  = 3.0 * yp2 - 1.0;
                 double cydi = -3.0 * ypi2 + 1.0;
-                double sum = hyi[v] * (xpi * (-fin(1, i, j)     + fin(1, i, j + 1)) +
-                                        xp  * (-fin(1, i + 1, j) + fin(1, i + 1, j + 1)));
-                sum += sixth * hy[v] * (xpi * (cydi * fin(3, i, j)     + cyd * fin(3, i, j + 1)) +
-                                        xp  * (cydi * fin(3, i + 1, j) + cyd * fin(3, i + 1, j + 1)));
+                double sum = hyi[v] * (xpi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
+                                        xp  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
+                sum += sixth * hy[v] * (xpi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                                        xp  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2556,11 +2900,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cxd  = 3.0 * xp2 - 1.0;
                 double cxdi = -3.0 * xpi2 + 1.0;
                 double yp = yparam[v], ypi = 1.0 - yp;
-                double sum = hxi[v] * (-(ypi * fin(2, i, j)     + yp * fin(2, i, j + 1)) +
-                                        (ypi * fin(2, i + 1, j) + yp * fin(2, i + 1, j + 1)));
+                double sum = hxi[v] * (-(ypi * f_(2, i, j)     + yp * f_(2, i, j + 1)) +
+                                        (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1)));
                 sum += sixth * hx[v] * (
-                           cxdi * (ypi * fin(3, i, j)     + yp * fin(3, i, j + 1)) +
-                           cxd  * (ypi * fin(3, i + 1, j) + yp * fin(3, i + 1, j + 1)));
+                           cxdi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                           cxd  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2575,11 +2919,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double cx  = xp  * (xp2  - 1.0);
                 double cxi = xpi * (xpi2 - 1.0);
                 double hx2 = hx[v] * hx[v];
-                double sum = hyi[v] * (xpi * (-fin(2, i, j)     + fin(2, i, j + 1)) +
-                                        xp  * (-fin(2, i + 1, j) + fin(2, i + 1, j + 1)));
+                double sum = hyi[v] * (xpi * (-f_(2, i, j)     + f_(2, i, j + 1)) +
+                                        xp  * (-f_(2, i + 1, j) + f_(2, i + 1, j + 1)));
                 sum += sixth * hx2 * hyi[v] * (
-                           cxi * (-fin(3, i, j)     + fin(3, i, j + 1)) +
-                           cx  * (-fin(3, i + 1, j) + fin(3, i + 1, j + 1)));
+                           cxi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
+                           cx  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2598,10 +2942,10 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double yp2 = yp * yp, ypi2 = ypi * ypi;
                 double cyd  = 3.0 * yp2 - 1.0;
                 double cydi = -3.0 * ypi2 + 1.0;
-                double sum = hxi[v] * hyi[v] * (fin(1, i, j) - fin(1, i, j + 1) -
-                                                  fin(1, i + 1, j) + fin(1, i + 1, j + 1));
-                sum += sixth * hy[v] * hxi[v] * (-(cydi * fin(3, i, j)     + cyd * fin(3, i, j + 1)) +
-                                                  (cydi * fin(3, i + 1, j) + cyd * fin(3, i + 1, j + 1)));
+                double sum = hxi[v] * hyi[v] * (f_(1, i, j) - f_(1, i, j + 1) -
+                                                  f_(1, i + 1, j) + f_(1, i + 1, j + 1));
+                sum += sixth * hy[v] * hxi[v] * (-(cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                                                  (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2613,8 +2957,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 int i = ii[v], j = jj[v];
                 double xp = xparam[v], xpi = 1.0 - xp;
                 double yp = yparam[v], ypi = 1.0 - yp;
-                double sum = xpi * (ypi * fin(3, i, j)     + yp * fin(3, i, j + 1)) +
-                             xp  * (ypi * fin(3, i + 1, j) + yp * fin(3, i + 1, j + 1));
+                double sum = xpi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                             xp  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2628,11 +2972,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
                 double xp2 = xp * xp, xpi2 = xpi * xpi;
                 double cxd  = 3.0 * xp2 - 1.0;
                 double cxdi = -3.0 * xpi2 + 1.0;
-                double sum = hxi[v] * hyi[v] * (fin(2, i, j) - fin(2, i, j + 1) -
-                                                  fin(2, i + 1, j) + fin(2, i + 1, j + 1));
+                double sum = hxi[v] * hyi[v] * (f_(2, i, j) - f_(2, i, j + 1) -
+                                                  f_(2, i + 1, j) + f_(2, i + 1, j + 1));
                 sum += sixth * hx[v] * hyi[v] * (
-                           cxdi * (-fin(3, i, j)     + fin(3, i, j + 1)) +
-                           cxd  * (-fin(3, i + 1, j) + fin(3, i + 1, j + 1)));
+                           cxdi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
+                           cxd  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2648,8 +2992,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
             for (int v = 0; v < ivec; ++v) {
                 int i = ii[v], j = jj[v];
                 double yp = yparam[v], ypi = 1.0 - yp;
-                double sum = hxi[v] * (-(ypi * fin(3, i, j)     + yp * fin(3, i, j + 1)) +
-                                         (ypi * fin(3, i + 1, j) + yp * fin(3, i + 1, j + 1)));
+                double sum = hxi[v] * (-(ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                                         (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2660,8 +3004,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
             for (int v = 0; v < ivec; ++v) {
                 int i = ii[v], j = jj[v];
                 double xp = xparam[v], xpi = 1.0 - xp;
-                double sum = hyi[v] * (xpi * (-fin(3, i, j)     + fin(3, i, j + 1)) +
-                                        xp  * (-fin(3, i + 1, j) + fin(3, i + 1, j + 1)));
+                double sum = hyi[v] * (xpi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
+                                        xp  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
                 fval(v, iadr - 1) = sum;
             }
         }
@@ -2674,8 +3018,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
         iadr++;
         for (int v = 0; v < ivec; ++v) {
             int i = ii[v], j = jj[v];
-            double sum = hxi[v] * hyi[v] * (fin(3, i, j) - fin(3, i, j + 1) -
-                                            fin(3, i + 1, j) + fin(3, i + 1, j + 1));
+            double sum = hxi[v] * hyi[v] * (f_(3, i, j) - f_(3, i, j + 1) -
+                                            f_(3, i + 1, j) + f_(3, i + 1, j + 1));
             fval(v, iadr - 1) = sum;
         }
     }
@@ -2714,8 +3058,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evbicub(double xget, double yget
     // Call fvbicub with scalar-vector interface
     fvbicub(ict, 1, 1,
             fval, ii, jj, xparams, yparams,
-            hxs, hxis, hys, hyis,
-            f);
+            hxs, hxis, hys, hyis);
 }
 
 
