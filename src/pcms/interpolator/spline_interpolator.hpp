@@ -91,32 +91,10 @@ public:
     void v_spline(const int& k_bc1, const int& k_bcn, const int& n, Rank1View<const T, MemorySpace> x,
         Rank2View<T, MemorySpace> f, Rank1View<T, MemorySpace> wk);
 
-    void spvec(
-        const std::vector<int>& selector, // ict[0] = f, ict[1] = df/dx, ict[2] = d²f/dx²
-        const int& ivec, // number of x values
-        Rank1View<const T, MemorySpace> xvec, // input x vector
-        const int& ivd, // output dimension >= ivec
-        Rank2View<T, MemorySpace> fval, // output values: fval(ivec, up to 3)
-        const int& nx, // number of x grid points
-        Rank2View<T, MemorySpace> xpkg, // x package: xpkg(nx, 4)
-        Rank2View<T, MemorySpace> fspl, // spline coefficients: fspl(4, nx)
-        int& iwarn // warning flag
-    );
-
-    void genxpkg(int nx,
-        Rank1View<const T, MemorySpace> x,
-        Rank2View<T, MemorySpace> xpkg,
-        int iper,
-        int imsg,
-        const int& itol,
-        const double& ztol,
-        const int& ialg
-    );
-
 
     void cspevfn(const std::vector<int>& selector, const int& ivec, const int& ivd,
-        Rank2View<T, MemorySpace> fval,
-        std::vector<int>& iv, std::vector<double>& dxv, int nx
+        Rank1View<T, MemorySpace> fval,
+        const int& i, const double& dx, int nx
     );
 
     void spgrid(
@@ -163,11 +141,11 @@ public:
         int& iwarn);
 
     void fvspline(const std::vector<int>& selector, int ivec, int ivecd,
-        Rank2View<T, MemorySpace> fval,
-        const std::vector<int>& ii,
-        const std::vector<double>& xparam,
-        const std::vector<double>& hx,
-        const std::vector<double>& hxi,
+        Rank1View<T, MemorySpace> fval,
+        const int& i,
+        const double& xparam,
+        const double& hx,
+        const double& hxi,
         int nx);
 
     void gridspline(Rank1View<const T, MemorySpace> x_newgrid, int nx_new,
@@ -178,7 +156,7 @@ public:
         int& iwarn);
     
     void cspeval(double xget, const std::vector<int>& iselect,
-        Rank2View<T, MemorySpace> fval,
+        Rank1View<T, MemorySpace> fval,
         Rank1View<const T, MemorySpace> x, int nx,
         Rank2View<T, MemorySpace> f, int& ier);
     
@@ -187,7 +165,7 @@ public:
     
     void evspline(double xget,
         const std::vector<int>& ict,
-        Rank2View<T, MemorySpace> fval,
+        Rank1View<T, MemorySpace> fval,
         Rank1View<const T, MemorySpace> x,
         int& nx,
         Rank2View<T, MemorySpace> f,
@@ -727,144 +705,17 @@ void CubicSplineInterpolator<T, MemorySpace>::v_spline(const int& k_bc1, const i
     }
 } // v_spline
 
-template <typename T, typename MemorySpace>
-void CubicSplineInterpolator<T, MemorySpace>::spvec(
-    const std::vector<int>& selector, // ict[0] = f, ict[1] = df/dx, ict[2] = d²f/dx²
-    const int& ivec, // number of x values
-    Rank1View<const T, MemorySpace> xvec, // input x vector
-    const int& ivd, // output dimension >= ivec
-    Rank2View<T, MemorySpace> fval, // output values: fval(ivec, up to 3)
-    const int& nx, // number of x grid points
-    Rank2View<T, MemorySpace> xpkg, // x package: xpkg(nx, 4)
-    Rank2View<T, MemorySpace> fspl, // spline coefficients: fspl(4, nx)
-    int& iwarn // warning flag
-) {
-    // TODO: Allocate Local variables
-    std::vector<int> iv(ivec, 0);
-    std::vector<double> dxv(ivec, 0.0);
-    std::vector<double> dhv(ivec, 0.0);
-    std::vector<double> dhiv(ivec, 0.0);
-
-    iwarn = 0;
-
-    if (nx < 2) {
-        throw std::runtime_error("nx >= 2 required.");
-    }
-
-    if (ivec <= 0) {
-        throw std::runtime_error("vector dimension > 0 required.");
-    }
-
-    if (ivd < ivec) {
-        throw std::runtime_error("output vector dimension less than input vector dimension.");
-    }
-
-    // Vectorized lookup
-    xlookup(ivec, xvec, nx, xpkg, 1, iv, dxv, dhv, dhiv, iwarn);
-
-    // Vectorized spline evaluation
-    cspevfn(selector, ivec, ivd, fval, iv, dxv, nx);
-} // end spvec
-
-template <typename T, typename MemorySpace>
-void CubicSplineInterpolator<T, MemorySpace>::genxpkg(
-    int nx,
-    Rank1View<const T, MemorySpace> x,
-    Rank2View<T, MemorySpace> xpkg,
-    int iper,
-    int imsg,
-    const int& itol,
-    const double& ztol,
-    const int& ialg
-) {
-    if (nx < 2) {
-        throw std::runtime_error("nx >= 2 required.");
-    }
-
-    int ialgu = ialg;
-    if (ialgu == 0) ialgu = 3;
-    if (std::abs(ialgu) > 3) ialgu = 3;
-
-    double ztolr = (itol == 1) ? std::abs(ztol) : 5.0e-7;
-    double ztola = std::max(std::abs(x[0]), std::abs(x[nx - 1])) * ztolr;
-
-    if (nx >= 3) {
-        xpkg(2, 3) = 0.0;
-    }
-
-    xpkg(1, 3) = (iper == 1) ? 1.0 : 0.0;
-    xpkg(0, 3) = ztola;
-
-    if (imsg != 1) {
-        xpkg(0, 3) = -xpkg(0, 3);
-    }
-
-    xpkg(nx - 1, 1) = (x[nx - 1] - x[0]) / (nx - 1);  // average spacing
-
-    for (int ix = 0; ix < nx; ++ix) {
-        xpkg(ix, 0) = x[ix];
-        if (ix < nx - 1) {
-            if (x[ix + 1] <= x[ix]) {
-                throw std::runtime_error("x axis not strict ascending!");
-            } else {
-                double zh = x[ix + 1] - x[ix];
-                if (nx >= 3 && std::abs(zh - xpkg(nx - 1, 1)) > ztola) {
-                    xpkg(2, 3) = 1.0;
-                }
-                xpkg(ix, 1) = zh;
-                xpkg(ix, 2) = 1.0 / zh;
-            }
-        }
-    }
 
 
-    xpkg(nx - 1, 2) = 1.0 / xpkg(nx - 1, 1);
-
-    if (nx >= 3) {
-        if (xpkg(2, 3) == 0.0) {
-            for (int ix = 0; ix < nx - 2; ++ix) {
-                int ixp = ix + 1;
-                xpkg(ixp, 0) = xpkg(0, 0) + ixp * xpkg(nx - 1, 1);
-            }
-
-            if (nx > 3) {
-                xpkg(3, 3) = (ialgu < 0) ? 1.0 : 0.0;
-            }
-        }
-
-        if (xpkg(2, 3) != 0.0) {
-            xpkg(2, 3) = std::abs(ialgu);
-            if (nx > 3) {
-                xpkg(3, 3) = (ialgu < 0) ? 1.0 : 0.0;
-            }
-
-            if (std::abs(ialgu) == 3) {
-                xpkg(0, 1) = 1.0;
-                double xtest = xpkg(0, 0);
-                int itest = 0;
-
-                for (int i = 1; i < nx - 1; ++i) {
-                    xtest += xpkg(nx - 1, 1);
-                    while (!(xpkg(itest, 0) <= xtest && xtest <= xpkg(itest + 1, 0))) {
-                        ++itest;
-                    }
-                    // TODO: test if the index is correct
-                    xpkg(i, 1) = itest + (xtest - xpkg(itest, 0)) /
-                                        (xpkg(itest + 1, 0) - xpkg(itest, 0));
-                }
-            }
-        }
-    }
-} // end genxpkg
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
     const std::vector<int>& selector,
     const int& ivec,
     const int& ivd,
-    Rank2View<T, MemorySpace> fval,
-    std::vector<int>& iv,
-    std::vector<double>& dxv,
+    Rank1View<T, MemorySpace> fval,
+    const int& i,
+    const double& dx,
     int nx
 ) {
 
@@ -873,39 +724,25 @@ void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
     if (selector[0] == 3) {
         // Third derivative only
         iaval++;
-        for (int v = 0; v < ivec; ++v) {
-            int i = iv[v];
-            fval(v, iaval - 1) = 6.0 * fspl_(3, i);
-        }
+        fval(iaval - 1) = 6.0 * fspl_(3, i);
     } else {
         if (selector[0] > 0) {
             // Evaluate f
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                double dx = dxv[v];
-                fval(v, iaval - 1) = fspl_(0, i) + dx * (fspl_(1, i) + dx * (fspl_(2, i) + dx * fspl_(3, i)));
-            }
+            fval(iaval - 1) = fspl_(0, i) + dx * (fspl_(1, i) + dx * (fspl_(2, i) + dx * fspl_(3, i)));
+            
         }
 
         if (selector[1] > 0) {
             // Evaluate df/dx
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                double dx = dxv[v];
-                fval(v, iaval - 1) = fspl_(1, i) + dx * (2.0 * fspl_(2, i) + dx * 3.0 * fspl_(3, i));
-            }
+            fval(iaval - 1) = fspl_(1, i) + dx * (2.0 * fspl_(2, i) + dx * 3.0 * fspl_(3, i));
         }
 
         if (selector[2] > 0) {
             // Evaluate d2f/dx2
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                double dx = dxv[v];
-                fval(v, iaval - 1) = 2.0 * fspl_(2, i) + dx * 6.0 * fspl_(3, i);
-            }
+            fval(iaval - 1) = 2.0 * fspl_(2, i) + dx * 6.0 * fspl_(3, i);
         }
     }
 } // end cspevfn
@@ -1074,13 +911,13 @@ void CubicSplineInterpolator<T, MemorySpace>::xlookup(
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::cspeval(double xget, const std::vector<int>& iselect,
-             Rank2View<T, MemorySpace> fval,
+             Rank1View<T, MemorySpace> fval,
              Rank1View<const T, MemorySpace> x, int nx,
              Rank2View<T, MemorySpace> f,
              int& ier) {
-    std::vector<int> ia(1, 0);
-    std::vector<double> dxa(1, 0);
-    cspevx(xget, x, nx, ia[0], dxa[0], ier);
+    int ia = 0;
+    double dxa = 0.0;
+    cspevx(xget, x, nx, ia, dxa, ier);
     if (ier != 0) {
         std::cerr << "cspeval: error in cspevx, ier = " << ier << std::endl;
         return;
@@ -1217,11 +1054,11 @@ void CubicSplineInterpolator<T, MemorySpace>::vecspline(const std::vector<int>& 
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::fvspline(const std::vector<int>& selector, int ivec, int ivecd,
-              Rank2View<T, MemorySpace> fval,
-              const std::vector<int>& ii,
-              const std::vector<double>& xparam,
-              const std::vector<double>& hx,
-              const std::vector<double>& hxi,
+              Rank1View<T, MemorySpace> fval,
+              const int& i,
+              const double& xparam,
+              const double& hx,
+              const double& hxi,
               int nx)
 {
     const double sixth = 1.0 / 6.0;
@@ -1231,64 +1068,52 @@ void CubicSplineInterpolator<T, MemorySpace>::fvspline(const std::vector<int>& s
         if (selector[0] == 1) {
             // Function value f(x)
             ++iadr;
-            for (int v = 0; v < ivec; ++v) {
-                //TODO: too much temp varibale created?
-                int i = ii[v];
-                double xp = xparam[v];
-                double xpi = 1.0 - xp;
-                double xp2 = xp * xp;
-                double xpi2 = xpi * xpi;
-                double cx = xp * (xp2 - 1.0);
-                double cxi = xpi * (xpi2 - 1.0);
-                double hx2 = hx[v] * hx[v];
+            //TODO: too much temp varibale created?
+            double xp = xparam;
+            double xpi = 1.0 - xp;
+            double xp2 = xp * xp;
+            double xpi2 = xpi * xpi;
+            double cx = xp * (xp2 - 1.0);
+            double cxi = xpi * (xpi2 - 1.0);
+            double hx2 = hx * hx;
 
-                double sum = xpi * fs2_(0, i) + xp * fs2_(0, i + 1);
-                sum += sixth * hx2 * (cxi * fs2_(1, i) + cx * fs2_(1, i + 1));
+            double sum = xpi * fs2_(0, i) + xp * fs2_(0, i + 1);
+            sum += sixth * hx2 * (cxi * fs2_(1, i) + cx * fs2_(1, i + 1));
 
-                fval(v, iadr - 1) = sum; // zero-based indexing
-            }
+            fval(iadr - 1) = sum; // zero-based indexing
         }
 
         if (selector[1] == 1) {
             // First derivative df/dx
             ++iadr;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v];
-                double xp = xparam[v];
-                double xpi = 1.0 - xp;
-                double xp2 = xp * xp;
-                double xpi2 = xpi * xpi;
+            double xp = xparam;
+            double xpi = 1.0 - xp;
+            double xp2 = xp * xp;
+            double xpi2 = xpi * xpi;
 
-                double cxd = 3.0 * xp2 - 1.0;
-                double cxdi = -3.0 * xpi2 + 1.0;
+            double cxd = 3.0 * xp2 - 1.0;
+            double cxdi = -3.0 * xpi2 + 1.0;
 
-                double sum = hxi[v] * (fs2_(0, i + 1) - fs2_(0, i));
-                sum += sixth * hx[v] * (cxdi * fs2_(1, i) + cxd * fs2_(1, i + 1));
+            double sum = hxi * (fs2_(0, i + 1) - fs2_(0, i));
+            sum += sixth * hx * (cxdi * fs2_(1, i) + cxd * fs2_(1, i + 1));
 
-                fval(v, iadr - 1) = sum;
-            }
+            fval(iadr - 1) = sum;
         }
 
         if (selector[2] == 1) {
             // Second derivative d2f/dx2
             ++iadr;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v];
-                double xp = xparam[v];
-                double xpi = 1.0 - xp;
+            double xp = xparam;
+            double xpi = 1.0 - xp;
 
-                double sum = xpi * fs2_(1, i) + xp * fs2_(1, i + 1);
-                fval(v, iadr - 1) = sum;
-            }
+            double sum = xpi * fs2_(1, i) + xp * fs2_(1, i + 1);
+            fval(iadr - 1) = sum;
         }
 
     } else {
         // Third derivative d3f/dx3
         iadr = 1;
-        for (int v = 0; v < ivec; ++v) {
-            int i = ii[v];
-            fval(v, iadr - 1) = hxi[v] * (fs2_(1, i + 1) - fs2_(1, i));
-        }
+        fval(iadr - 1) = hxi * (fs2_(1, i + 1) - fs2_(1, i));
     }
 }
 
@@ -1356,7 +1181,7 @@ void CubicSplineInterpolator<T, MemorySpace>::herm1x(double xget,
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::evspline(double xget,
         const std::vector<int>& ict,
-        Rank2View<T, MemorySpace> fval,
+        Rank1View<T, MemorySpace> fval,
         Rank1View<const T, MemorySpace> x,
         int& nx,
         Rank2View<T, MemorySpace> f, // shape: [2, nx]
@@ -1364,13 +1189,13 @@ void CubicSplineInterpolator<T, MemorySpace>::evspline(double xget,
     ) {
 
     // Initialize output zone info
-    std::vector<int> i(1, 0);
-    std::vector<double> xparam(1);
-    std::vector<double> hx(1);
-    std::vector<double> hxi(1);
+    int i = 0;
+    double xparam = 0.0;
+    double hx = 0.0;
+    double hxi = 0.0;
 
     // Find the interval containing xget
-    herm1x(xget, x, nx, i[0], xparam[0], hx[0], hxi[0], ier);
+    herm1x(xget, x, nx, i, xparam, hx, hxi, ier);
     if (ier != 0) return;
 
     // Evaluate spline at the point
@@ -1404,17 +1229,14 @@ public:
         int ibcthmax,
         Rank1View<T, MemorySpace> bcthmax,       // size: inx (used if ibcthmax = 1 or 2)
         Rank1View<T, MemorySpace> wk,                  // size: nwk
-        int nwk,
-        int& ilinx,                           // output: 1 if x is evenly spaced
-        int& ilinth                          // output: 1 if th is evenly spaced
+        int nwk
     );
 
     void bcspeval(double xget, double yget,
               const std::vector<int>& iselect,
-              Rank2View<double, HostMemorySpace> fval,
+              Rank1View<double, HostMemorySpace> fval,
               Rank1View<const double, HostMemorySpace> x, int nx,
               Rank1View<const double, HostMemorySpace> y, int ny,
-              int ilinx, int iliny,
               Rank4View<double, HostMemorySpace> f,
               int inf3, int& ier);
 
@@ -1422,7 +1244,6 @@ public:
         double xget, double yget,
         Rank1View<const double, HostMemorySpace> x, int nx,
         Rank1View<const double, HostMemorySpace> y, int ny,
-        int ilinx, int iliny,
         int& i, int& j,
         double& dx, double& dy,
         int& ier
@@ -1432,11 +1253,11 @@ public:
         const std::vector<int>& ict,             // Selector array for which derivatives to compute
         int ivec,                     // Number of vector points
         int ivd,                      // First dimension of fval (≥ ivec)
-        Rank2View<T, MemorySpace> fval,                 // Output array: size [ivd, *] (flattened)
-        std::vector<int>& iv,                // Grid cell indices in x direction
-        std::vector<int>& jv,                // Grid cell indices in y direction
-        std::vector<double>& dxv,            // x displacements within cells
-        std::vector<double>& dyv,            // y displacements within cells
+        Rank1View<T, MemorySpace> fval,                 // Output array: size [ivd, *] (flattened)
+        const int& i,                // Grid cell indices in x direction
+        const int& j,                // Grid cell indices in y direction
+        const double& dx,            // x displacements within cells
+        const double& dy,            // y displacements within cells
         int inf3,                     // 3rd dimension of f
         int ny                        // Number of y points (4th dim of f)
     );
@@ -1457,7 +1278,6 @@ public:
                     int& nx,
                     Rank1View<const T, MemorySpace> y,
                     int& ny,
-                    bool ilinx, bool iliny,
                     int& i, int& j,
                     double& xparam, double& yparam,
                     double& hx, double& hxi,
@@ -1465,24 +1285,23 @@ public:
                     int& ier);
 
     void fvbicub(const std::vector<int>& ict, int ivec, int ivecd,
-                    Rank2View<T, MemorySpace> fval,
-                    const std::vector<int>& ii,
-                    const std::vector<int>& jj,
-                    const std::vector<double>& xparam,
-                    const std::vector<double>& yparam,
-                    const std::vector<double>& hx,
-                    const std::vector<double>& hxi,
-                    const std::vector<double>& hy,
-                    const std::vector<double>& hyi);
+                    Rank1View<T, MemorySpace> fval,
+                    const int& i,
+                    const int& j,
+                    const double& xparam,
+                    const double& yparam,
+                    const double& hx,
+                    const double& hxi,
+                    const double& hy,
+                    const double& hyi);
     
     void evbicub(double xget, double yget,
         Rank1View<const T, MemorySpace> x, int nx,
         Rank1View<const T, MemorySpace> y, int ny,
-        int ilinx, int iliny,
         Rank3View<T, MemorySpace> f, // f[4][inf2][ny]
         int inf2,
         const std::vector<int>& ict,
-        Rank2View<T, MemorySpace> fval, // output (size depends on ict)
+        Rank1View<T, MemorySpace> fval, // output (size depends on ict)
         int& ier);
     
 };
@@ -1504,9 +1323,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     int ibcthmax,
     Rank1View<T, MemorySpace> bcthmax,       // size: inx (used if ibcthmax = 1 or 2)
     Rank1View<T, MemorySpace> wk,                  // size: nwk
-    int nwk,
-    int& ilinx,                           // output: 1 if x is evenly spaced
-    int& ilinth                          // output: 1 if th is evenly spaced
+    int nwk
 ) {
     int iflg2 = 0;
     std::vector<int> iselect1(10, 0); // Size 10, all initialized to 0
@@ -1821,25 +1638,25 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
                 zdiff1 = bcthmin[ix] - zcur_vec[0];
             }
 
-            auto zcur = Rank2View<double, HostMemorySpace>(zcur_vec.data(), 1, 3);
+            auto zcur = Rank1View<double, HostMemorySpace>(zcur_vec.data(), 3);
             if (ibcthmax == 1) {
                 if (ix < inx - 1) {
-                    zcur(0, 0) = fspl(0, 1, ix, jth) + zhth * (2.0 * fspl(0, 2, ix, jth) + zhth * 3.0 * fspl(0, 3, ix, jth));
+                    zcur(0) = fspl(0, 1, ix, jth) + zhth * (2.0 * fspl(0, 2, ix, jth) + zhth * 3.0 * fspl(0, 3, ix, jth));
                 } else {
                     // TODO: check if this is correct
-                    bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+                    bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, fspl, inf3, ier);
                     if (ier != 0) return;
                 }
-                zdiff2 = bcthmax[ix] - zcur(0, 0);
+                zdiff2 = bcthmax[ix] - zcur(0);
             } else if (ibcthmax == 2) {
                 if (ix < inx - 1) {
-                    zcur(0, 0) = 2.0 * fspl(0, 2, ix, jth) + 6.0 * zhth * fspl(0, 3, ix, jth);
+                    zcur(0) = 2.0 * fspl(0, 2, ix, jth) + 6.0 * zhth * fspl(0, 3, ix, jth);
                 } else {
                     // TODO: check if this is correct
-                    bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, ilinx, ilinth, fspl, inf3, ier);
+                    bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, fspl, inf3, ier);
                     if (ier != 0) return;
                 }
-                zdiff2 = bcthmax[ix] - zcur(0, 0);
+                zdiff2 = bcthmax[ix] - zcur(0);
             }
 
             int iadr = iasc + ix * iinc;
@@ -1946,10 +1763,9 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
 template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(double xget, double yget,
               const std::vector<int>& iselect,
-              Rank2View<double, HostMemorySpace> fval,
+              Rank1View<double, HostMemorySpace> fval,
               Rank1View<const double, HostMemorySpace> x, int nx,
               Rank1View<const double, HostMemorySpace> y, int ny,
-              int ilinx, int iliny,
               Rank4View<double, HostMemorySpace> f,
               int inf3, int& ier) {
     int i = 0;
@@ -1958,15 +1774,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(double xget, double yge
     double dy = 0.0;
 
     // Range finding
-    bcspevxy(xget, yget, x, nx, y, ny, ilinx, iliny, i, j, dx, dy, ier);
+    bcspevxy(xget, yget, x, nx, y, ny, i, j, dx, dy, ier);
     if (ier != 0) return;
-    std::vector<int> i_vec(1, i); 
-    std::vector<int> j_vec(1, j);
-    std::vector<double> dx_vec(1, dx);
-    std::vector<double> dy_vec(1, dy);
 
     // Evaluate spline function
-    bcspevfn(iselect, 1, 1, fval, i_vec, j_vec, dx_vec, dy_vec, inf3, ny);
+    bcspevfn(iselect, 1, 1, fval, i, j, dx, dy, inf3, ny);
 }
 
 template <typename T, typename MemorySpace>
@@ -1974,7 +1786,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevxy(
     double xget, double yget,
     Rank1View<const double, HostMemorySpace> x, int nx,
     Rank1View<const double, HostMemorySpace> y, int ny,
-    int ilinx, int iliny,
     int& i, int& j,
     double& dx, double& dy,
     int& ier
@@ -2040,11 +1851,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
     const std::vector<int>& ict,             // Selector array for which derivatives to compute
     int ivec,                     // Number of vector points
     int ivd,                      // First dimension of fval (≥ ivec)
-    Rank2View<T, MemorySpace> fval,                 // Output array: size [ivd, *] (flattened)
-    std::vector<int>& iv,                // Grid cell indices in x direction
-    std::vector<int>& jv,                // Grid cell indices in y direction
-    std::vector<double>& dxv,            // x displacements within cells
-    std::vector<double>& dyv,            // y displacements within cells
+    Rank1View<T, MemorySpace> fval,                 // Output array: size [ivd, *] (flattened)
+    const int& i,                // Grid cell indices in x direction
+    const int& j,                // Grid cell indices in y direction
+    const double& dx,            // x displacements within cells
+    const double& dy,            // y displacements within cells
     int inf3,                     // 3rd dimension of f
     int ny                        // Number of y points (4th dim of f)
 ){
@@ -2053,224 +1864,143 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
         if ((ict[0] > 0) || (ict[0] == -1)) {
             // Evaluate f
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                int j = jv[v];
-                double dx = dxv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    fspl_(0, 0, i, j) + dy * (fspl_(0, 1, i, j) + dy * (fspl_(0, 2, i, j) + dy * fspl_(0, 3, i, j))) +
-                    dx * (fspl_(1, 0, i, j) + dy * (fspl_(1, 1, i, j) + dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
-                    dx * (fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
-                    dx * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))))));
-            }
+            fval(iaval - 1) =
+                fspl_(0, 0, i, j) + dy * (fspl_(0, 1, i, j) + dy * (fspl_(0, 2, i, j) + dy * fspl_(0, 3, i, j))) +
+                dx * (fspl_(1, 0, i, j) + dy * (fspl_(1, 1, i, j) + dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
+                dx * (fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
+                dx * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))))));
         }
 
         if ((ict[1] > 0) && (ict[0] != -1)) {
             // Evaluate df/dx
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                int j = jv[v];
-                double dx = dxv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    fspl_(1, 0, i, j) + dy * (fspl_(1, 1, i, j) + dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
-                    2.0 * dx * (
-                        fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
-                        1.5 * dx * (
-                            fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j)))));
-            }
+            fval(iaval - 1) =
+                fspl_(1, 0, i, j) + dy * (fspl_(1, 1, i, j) + dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
+                2.0 * dx * (
+                    fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
+                    1.5 * dx * (
+                        fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j)))));
         }
 
         if ((ict[2] > 0) && (ict[0] != -1)) {
             // Evaluate df/dy
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                int j = jv[v];
-                double dx = dxv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    fspl_(0, 1, i, j) + dy * (2.0 * fspl_(0, 2, i, j) + dy * 3.0 * fspl_(0, 3, i, j)) +
-                    dx * (fspl_(1, 1, i, j) + dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
-                    dx * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j)) +
-                    dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j)))));
-            }
+            fval(iaval - 1) =
+                fspl_(0, 1, i, j) + dy * (2.0 * fspl_(0, 2, i, j) + dy * 3.0 * fspl_(0, 3, i, j)) +
+                dx * (fspl_(1, 1, i, j) + dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
+                dx * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j)) +
+                dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j)))));
         }
 
         if ((ict[3] > 0) || (ict[0] == -1)) {
             // Evaluate d2f/dx2
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                int j = jv[v];
-                double dx = dxv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    2.0 * (fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j)))) +
-                    6.0 * dx * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
-            }
+            fval(iaval - 1) =
+                2.0 * (fspl_(2, 0, i, j) + dy * (fspl_(2, 1, i, j) + dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j)))) +
+                6.0 * dx * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
         }
 
         if ((ict[4] > 0) || (ict[0] == -1)) {
             // Evaluate d2f/dy2
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                int j = jv[v];
-                double dx = dxv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    2.0 * fspl_(0, 2, i, j) + 6.0 * dy * fspl_(0, 3, i, j) +
-                    dx * (2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
-                    dx * (2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
-                    dx * (2.0 * fspl_(3, 2, i, j) + 6.0 * dy * fspl_(3, 3, i, j))));
-            }
+            fval(iaval - 1) =
+                2.0 * fspl_(0, 2, i, j) + 6.0 * dy * fspl_(0, 3, i, j) +
+                dx * (2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
+                dx * (2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
+                dx * (2.0 * fspl_(3, 2, i, j) + 6.0 * dy * fspl_(3, 3, i, j))));
         }
 
         if ((ict[5] > 0) && (ict[0] != -1)) {
             // Evaluate d2f/dxdy
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                int j = jv[v];
-                double dx = dxv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    fspl_(1, 1, i, j) + dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
-                    2.0 * dx * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j)) +
-                    1.5 * dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j))));
-            }
+            fval(iaval - 1) =
+                fspl_(1, 1, i, j) + dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
+                2.0 * dx * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j)) +
+                1.5 * dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j))));
         }
 
         if (ict[0] == -1) {
             // Evaluate d4f/dx2dy2
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v];
-                int j = jv[v];
-                double dx = dxv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
-                    dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
-            }
+            fval(iaval - 1) =
+                4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
+                dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
         }
     } else if (ict[0] == 3) {
         if (ict[1] == 1) {
             // d³f/dx³ (not continuous)
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    6.0 * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
-            }
+            fval(iaval - 1) =
+                6.0 * (fspl_(3, 0, i, j) + dy * (fspl_(3, 1, i, j) + dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
         }
 
         if (ict[2] == 1) {
             // d³f/dx²dy
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dx = dxv[v], dy = dyv[v];
-                fval(v, iaval - 1) =
-                    2.0 * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j))) +
-                    6.0 * dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j)));
-            }
+            fval(iaval - 1) =
+                2.0 * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j))) +
+                6.0 * dx * (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j)));
         }
 
         if (ict[3] == 1) {
             // d³f/dxdy²
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dx = dxv[v], dy = dyv[v];
-                fval(v, iaval - 1) =
-                    2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
-                    2.0 * dx * (
-                        2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
-                        1.5 * dx * (2.0 * fspl_(3, 2, i, j) + 6.0 * dy * fspl_(3, 3, i, j)));
-            }
+            fval(iaval - 1) =
+                2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
+                2.0 * dx * (
+                    2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
+                    1.5 * dx * (2.0 * fspl_(3, 2, i, j) + 6.0 * dy * fspl_(3, 3, i, j)));
         }
 
         if (ict[4] == 1) {
             // d³f/dy³ (not continuous)
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dx = dxv[v];
-                fval(v, iaval - 1) =
-                    6.0 * (fspl_(0, 3, i, j) + dx * (fspl_(1, 3, i, j) + dx * (fspl_(2, 3, i, j) + dx * fspl_(3, 3, i, j))));
-            }
+            fval(iaval - 1) =
+                6.0 * (fspl_(0, 3, i, j) + dx * (fspl_(1, 3, i, j) + dx * (fspl_(2, 3, i, j) + dx * fspl_(3, 3, i, j))));
         }
 
     } else if (ict[0] == 4) {
         if (ict[1] == 1) {
             // d⁴f/dx³dy
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    6.0 * (fspl_(3, 1, i, j) + dy * 2.0 * (fspl_(3, 2, i, j) + dy * 1.5 * fspl_(3, 3, i, j)));
-            }
+            fval(iaval - 1) =
+                6.0 * (fspl_(3, 1, i, j) + dy * 2.0 * (fspl_(3, 2, i, j) + dy * 1.5 * fspl_(3, 3, i, j)));
         }
 
         if (ict[2] == 1) {
             // d⁴f/dx²dy²
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dx = dxv[v], dy = dyv[v];
-                fval(v, iaval - 1) =
-                    4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
-                    dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
-            }
+            fval(iaval - 1) =
+                4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
+                dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
         }
 
         if (ict[3] == 1) {
             // d⁴f/dxdy³ (not continuous)
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dx = dxv[v];
-                fval(v, iaval - 1) =
-                    6.0 * (fspl_(1, 3, i, j) + 2.0 * dx * (fspl_(2, 3, i, j) + 1.5 * dx * fspl_(3, 3, i, j)));
-            }
+            fval(iaval - 1) =
+                6.0 * (fspl_(1, 3, i, j) + 2.0 * dx * (fspl_(2, 3, i, j) + 1.5 * dx * fspl_(3, 3, i, j)));
         }
 
     } else if (ict[0] == 5) {
         if (ict[1] == 1) {
             // d⁵f/dx³dy² (not continuous)
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dy = dyv[v];
-                fval(v, iaval - 1) =
-                    12.0 * (fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j));
-            }
+            fval(iaval - 1) =
+                12.0 * (fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j));
         }
 
         if (ict[2] == 1) {
             // d⁵f/dx²dy³ (not continuous)
             iaval++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = iv[v], j = jv[v];
-                double dx = dxv[v];
-                fval(v, iaval - 1) =
-                    12.0 * (fspl_(2, 3, i, j) + dx * 3.0 * fspl_(3, 3, i, j));
-            }
+            fval(iaval - 1) =
+                12.0 * (fspl_(2, 3, i, j) + dx * 3.0 * fspl_(3, 3, i, j));
         }
 
     } else if (ict[0] == 6) {
         // d⁶f/dx³dy³ (not continuous)
         iaval++;
-        for (int v = 0; v < ivec; ++v) {
-            int i = iv[v], j = jv[v];
-            fval(v, iaval - 1) = 36.0 * fspl_(3, 3, i, j);
-        }
+        fval(iaval - 1) = 36.0 * fspl_(3, 3, i, j);
     }
 }// end bcspevfn
 
@@ -2568,7 +2298,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(double xget, double yget
                     int& nx,
                     Rank1View<const T, MemorySpace> y,
                     int& ny,
-                    bool ilinx, bool iliny,
                     int& i, int& j,
                     double& xparam, double& yparam,
                     double& hx, double& hxi,
@@ -2580,7 +2309,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(double xget, double yget
     if (nx < 2 || ny < 2)
     {
         ier = 1;
-        std::cerr << "?herm2xy: grid must have at least two points in each direction\n";
+        std::cerr << "herm2xy: grid must have at least two points in each direction\n";
         return;
     }
 
@@ -2601,7 +2330,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(double xget, double yget
     else if (xget < x[0])
     {
         if (xget < x[0] - 0.5 * zxtol || xget > x[nx - 1] + 0.5 * zxtol)
-            std::cerr << "%herm2xy:  xget = " << xget
+            std::cerr << "herm2xy:  xget = " << xget
                       << " beyond range " << x[0] << " to " << x[nx - 1]
                       << " (fixup applied)\n";
         zxget = x[0];
@@ -2609,7 +2338,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(double xget, double yget
     else if (xget > x[nx - 1])
     {
         if (xget < x[0] - 0.5 * zxtol || xget > x[nx - 1] + 0.5 * zxtol)
-            std::cerr << "%herm2xy:  xget = " << xget
+            std::cerr << "herm2xy:  xget = " << xget
                       << " beyond range " << x[0] << " to " << x[nx - 1]
                       << " (fixup applied)\n";
         zxget = x[nx - 1];
@@ -2626,7 +2355,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(double xget, double yget
     else if (yget < y[0])
     {
         if (yget < y[0] - 0.5 * zytol || yget > y[ny - 1] + 0.5 * zytol)
-            std::cerr << "%herm2xy:  yget = " << yget
+            std::cerr << "herm2xy:  yget = " << yget
                       << " beyond range " << y[0] << " to " << y[ny - 1]
                       << " (fixup applied)\n";
         zyget = y[0];
@@ -2634,7 +2363,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(double xget, double yget
     else if (yget > y[ny - 1])
     {
         if (yget < y[0] - 0.5 * zytol || yget > y[ny - 1] + 0.5 * zytol)
-            std::cerr << "%herm2xy:  yget = " << yget
+            std::cerr << "herm2xy:  yget = " << yget
                       << " beyond range " << y[0] << " to " << y[ny - 1]
                       << " (fixup applied)\n";
         zyget = y[ny - 1];
@@ -2668,15 +2397,15 @@ void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(double xget, double yget
 
 template<typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& ict, int ivec, int ivecd,
-                    Rank2View<T, MemorySpace> fval,
-                    const std::vector<int>& ii,
-                    const std::vector<int>& jj,
-                    const std::vector<double>& xparam,
-                    const std::vector<double>& yparam,
-                    const std::vector<double>& hx,
-                    const std::vector<double>& hxi,
-                    const std::vector<double>& hy,
-                    const std::vector<double>& hyi)
+                    Rank1View<T, MemorySpace> fval,
+                    const int& i,
+                    const int& j,
+                    const double& xparam,
+                    const double& yparam,
+                    const double& hx,
+                    const double& hxi,
+                    const double& hy,
+                    const double& hyi)
 {
     constexpr double sixth = 1.0 / 6.0;
     const double z36th = sixth * sixth;
@@ -2689,164 +2418,146 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
         /********** f (function value) **********/
         if (ict[0] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cx  = xp  * (xp2  - 1.0);
-                double cxi = xpi * (xpi2 - 1.0);
-                double hx2 = hx[v] * hx[v];
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cx  = xp  * (xp2  - 1.0);
+            double cxi = xpi * (xpi2 - 1.0);
+            double hx2 = hx * hx;
 
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cy  = yp  * (yp2  - 1.0);
-                double cyi = ypi * (ypi2 - 1.0);
-                double hy2 = hy[v] * hy[v];
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cy  = yp  * (yp2  - 1.0);
+            double cyi = ypi * (ypi2 - 1.0);
+            double hy2 = hy * hy;
 
-                double sum = xpi * (ypi * f_(0, i, j)     + yp * f_(0, i, j + 1)) +
-                             xp  * (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1));
-                sum += sixth * hx2 * (
-                           cxi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
-                           cx  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
-                sum += sixth * hy2 * (
-                           xpi * (cyi * f_(2, i, j)     + cy * f_(2, i, j + 1)) +
-                           xp  * (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
-                sum += z36th * hx2 * hy2 * (
-                           cxi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
-                           cx  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double sum = xpi * (ypi * f_(0, i, j)     + yp * f_(0, i, j + 1)) +
+                            xp  * (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1));
+            sum += sixth * hx2 * (
+                        cxi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                        cx  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
+            sum += sixth * hy2 * (
+                        xpi * (cyi * f_(2, i, j)     + cy * f_(2, i, j + 1)) +
+                        xp  * (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
+            sum += z36th * hx2 * hy2 * (
+                        cxi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                        cx  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** df/dx **********/
         if (ict[1] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cxd  = 3.0 * xp2 - 1.0;
-                double cxdi = -3.0 * xpi2 + 1.0;
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cy  = yp  * (yp2  - 1.0);
-                double cyi = ypi * (ypi2 - 1.0);
-                double hy2 = hy[v] * hy[v];
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cxd  = 3.0 * xp2 - 1.0;
+            double cxdi = -3.0 * xpi2 + 1.0;
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cy  = yp  * (yp2  - 1.0);
+            double cyi = ypi * (ypi2 - 1.0);
+            double hy2 = hy * hy;
 
-                double sum = hxi[v] * (-(ypi * f_(0, i, j)     + yp * f_(0, i, j + 1)) +
-                                        (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1)));
-                sum += sixth * hx[v] * (
-                           cxdi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
-                           cxd  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
-                sum += sixth * hxi[v] * hy2 * (
-                           -(cyi * f_(2, i, j)     + cy * f_(2, i, j + 1)) +
-                             (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
-                sum += z36th * hx[v] * hy2 * (
-                           cxdi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
-                           cxd  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double sum = hxi * (-(ypi * f_(0, i, j)     + yp * f_(0, i, j + 1)) +
+                                    (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1)));
+            sum += sixth * hx * (
+                        cxdi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                        cxd  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
+            sum += sixth * hxi * hy2 * (
+                        -(cyi * f_(2, i, j)     + cy * f_(2, i, j + 1)) +
+                            (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
+            sum += z36th * hx * hy2 * (
+                        cxdi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                        cxd  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** df/dy **********/
         if (ict[2] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cx  = xp  * (xp2  - 1.0);
-                double cxi = xpi * (xpi2 - 1.0);
-                double hx2 = hx[v] * hx[v];
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cyd  = 3.0 * yp2 - 1.0;
-                double cydi = -3.0 * ypi2 + 1.0;
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cx  = xp  * (xp2  - 1.0);
+            double cxi = xpi * (xpi2 - 1.0);
+            double hx2 = hx * hx;
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cyd  = 3.0 * yp2 - 1.0;
+            double cydi = -3.0 * ypi2 + 1.0;
 
-                double sum = hyi[v] * (xpi * (-f_(0, i, j)     + f_(0, i, j + 1)) +
-                                        xp  * (-f_(0, i + 1, j) + f_(0, i + 1, j + 1)));
-                sum += sixth * hx2 * hyi[v] * (
-                           cxi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
-                           cx  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
-                sum += sixth * hy[v] * (
-                           xpi * (cydi * f_(2, i, j)     + cyd * f_(2, i, j + 1)) +
-                           xp  * (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
-                sum += z36th * hx2 * hy[v] * (
-                           cxi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
-                           cx  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double sum = hyi * (xpi * (-f_(0, i, j)     + f_(0, i, j + 1)) +
+                                    xp  * (-f_(0, i + 1, j) + f_(0, i + 1, j + 1)));
+            sum += sixth * hx2 * hyi * (
+                        cxi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
+                        cx  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
+            sum += sixth * hy * (
+                        xpi * (cydi * f_(2, i, j)     + cyd * f_(2, i, j + 1)) +
+                        xp  * (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
+            sum += z36th * hx2 * hy * (
+                        cxi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                        cx  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d²f/dx² **********/
         if (ict[3] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cy  = yp  * (yp2  - 1.0);
-                double cyi = ypi * (ypi2 - 1.0);
-                double hy2 = hy[v] * hy[v];
+            double xp = xparam, xpi = 1.0 - xp;
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cy  = yp  * (yp2  - 1.0);
+            double cyi = ypi * (ypi2 - 1.0);
+            double hy2 = hy * hy;
 
-                double sum = xpi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
-                             xp  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1));
-                sum += sixth * hy2 * (
-                           xpi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
-                           xp  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double sum = xpi * (ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                            xp  * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1));
+            sum += sixth * hy2 * (
+                        xpi * (cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                        xp  * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d²f/dy² **********/
         if (ict[4] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cx  = xp  * (xp2  - 1.0);
-                double cxi = xpi * (xpi2 - 1.0);
-                double hx2 = hx[v] * hx[v];
-                double yp = yparam[v], ypi = 1.0 - yp;
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cx  = xp  * (xp2  - 1.0);
+            double cxi = xpi * (xpi2 - 1.0);
+            double hx2 = hx * hx;
+            double yp = yparam, ypi = 1.0 - yp;
 
-                double sum = xpi * (ypi * f_(2, i, j)     + yp * f_(2, i, j + 1)) +
-                             xp  * (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1));
-                sum += sixth * hx2 * (
-                           cxi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
-                           cx  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double sum = xpi * (ypi * f_(2, i, j)     + yp * f_(2, i, j + 1)) +
+                            xp  * (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1));
+            sum += sixth * hx2 * (
+                        cxi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                        cx  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d²f/dxdy **********/
         if (ict[5] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cxd  = 3.0 * xp2 - 1.0;
-                double cxdi = -3.0 * xpi2 + 1.0;
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cyd  = 3.0 * yp2 - 1.0;
-                double cydi = -3.0 * ypi2 + 1.0;
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cxd  = 3.0 * xp2 - 1.0;
+            double cxdi = -3.0 * xpi2 + 1.0;
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cyd  = 3.0 * yp2 - 1.0;
+            double cydi = -3.0 * ypi2 + 1.0;
 
-                double sum = hxi[v] * hyi[v] * (f_(0, i, j) - f_(0, i, j + 1) -
-                                                f_(0, i + 1, j) + f_(0, i + 1, j + 1));
-                sum += sixth * hx[v] * hyi[v] * (
-                           cxdi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
-                           cxd  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
-                sum += sixth * hxi[v] * hy[v] * (
-                           -(cydi * f_(2, i, j)     + cyd * f_(2, i, j + 1)) +
-                             (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
-                sum += z36th * hx[v] * hy[v] * (
-                           cxdi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
-                           cxd  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double sum = hxi * hyi * (f_(0, i, j) - f_(0, i, j + 1) -
+                                            f_(0, i + 1, j) + f_(0, i + 1, j + 1));
+            sum += sixth * hx * hyi * (
+                        cxdi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
+                        cxd  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
+            sum += sixth * hxi * hy * (
+                        -(cydi * f_(2, i, j)     + cyd * f_(2, i, j + 1)) +
+                            (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
+            sum += z36th * hx * hy * (
+                        cxdi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                        cxd  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
     }
 
@@ -2857,75 +2568,63 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
         /********** d³f/dx³ **********/
         if (ict[1] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cy  = yp  * (yp2  - 1.0);
-                double cyi = ypi * (ypi2 - 1.0);
-                double hy2 = hy[v] * hy[v];
-                double sum = hxi[v] * (-(ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
-                                        (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
-                sum += sixth * hy2 * hxi[v] * (-(cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
-                                                (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cy  = yp  * (yp2  - 1.0);
+            double cyi = ypi * (ypi2 - 1.0);
+            double hy2 = hy * hy;
+            double sum = hxi * (-(ypi * f_(1, i, j)     + yp * f_(1, i, j + 1)) +
+                                    (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
+            sum += sixth * hy2 * hxi * (-(cyi * f_(3, i, j)     + cy * f_(3, i, j + 1)) +
+                                            (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d³f/dx²dy **********/
         if (ict[2] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cyd  = 3.0 * yp2 - 1.0;
-                double cydi = -3.0 * ypi2 + 1.0;
-                double sum = hyi[v] * (xpi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
-                                        xp  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
-                sum += sixth * hy[v] * (xpi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
-                                        xp  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double xp = xparam, xpi = 1.0 - xp;
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cyd  = 3.0 * yp2 - 1.0;
+            double cydi = -3.0 * ypi2 + 1.0;
+            double sum = hyi * (xpi * (-f_(1, i, j)     + f_(1, i, j + 1)) +
+                                    xp  * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
+            sum += sixth * hy * (xpi * (cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                                    xp  * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d³f/dxdy² **********/
         if (ict[3] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cxd  = 3.0 * xp2 - 1.0;
-                double cxdi = -3.0 * xpi2 + 1.0;
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double sum = hxi[v] * (-(ypi * f_(2, i, j)     + yp * f_(2, i, j + 1)) +
-                                        (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1)));
-                sum += sixth * hx[v] * (
-                           cxdi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
-                           cxd  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cxd  = 3.0 * xp2 - 1.0;
+            double cxdi = -3.0 * xpi2 + 1.0;
+            double yp = yparam, ypi = 1.0 - yp;
+            double sum = hxi * (-(ypi * f_(2, i, j)     + yp * f_(2, i, j + 1)) +
+                                    (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1)));
+            sum += sixth * hx * (
+                        cxdi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                        cxd  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d³f/dy³ **********/
         if (ict[4] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cx  = xp  * (xp2  - 1.0);
-                double cxi = xpi * (xpi2 - 1.0);
-                double hx2 = hx[v] * hx[v];
-                double sum = hyi[v] * (xpi * (-f_(2, i, j)     + f_(2, i, j + 1)) +
-                                        xp  * (-f_(2, i + 1, j) + f_(2, i + 1, j + 1)));
-                sum += sixth * hx2 * hyi[v] * (
-                           cxi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
-                           cx  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cx  = xp  * (xp2  - 1.0);
+            double cxi = xpi * (xpi2 - 1.0);
+            double hx2 = hx * hx;
+            double sum = hyi * (xpi * (-f_(2, i, j)     + f_(2, i, j + 1)) +
+                                    xp  * (-f_(2, i + 1, j) + f_(2, i + 1, j + 1)));
+            sum += sixth * hx2 * hyi * (
+                        cxi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
+                        cx  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
     }
 
@@ -2936,49 +2635,40 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
         /********** d⁴f/dx³dy **********/
         if (ict[1] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double yp2 = yp * yp, ypi2 = ypi * ypi;
-                double cyd  = 3.0 * yp2 - 1.0;
-                double cydi = -3.0 * ypi2 + 1.0;
-                double sum = hxi[v] * hyi[v] * (f_(1, i, j) - f_(1, i, j + 1) -
-                                                  f_(1, i + 1, j) + f_(1, i + 1, j + 1));
-                sum += sixth * hy[v] * hxi[v] * (-(cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
-                                                  (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double yp = yparam, ypi = 1.0 - yp;
+            double yp2 = yp * yp, ypi2 = ypi * ypi;
+            double cyd  = 3.0 * yp2 - 1.0;
+            double cydi = -3.0 * ypi2 + 1.0;
+            double sum = hxi * hyi * (f_(1, i, j) - f_(1, i, j + 1) -
+                                                f_(1, i + 1, j) + f_(1, i + 1, j + 1));
+            sum += sixth * hy * hxi * (-(cydi * f_(3, i, j)     + cyd * f_(3, i, j + 1)) +
+                                                (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d⁴f/dx²dy² **********/
         if (ict[2] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double sum = xpi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
-                             xp  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1));
-                fval(v, iadr - 1) = sum;
-            }
+            double xp = xparam, xpi = 1.0 - xp;
+            double yp = yparam, ypi = 1.0 - yp;
+            double sum = xpi * (ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                            xp  * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1));
+            fval(iadr - 1) = sum;
         }
 
         /********** d⁴f/dxdy³ **********/
         if (ict[3] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double xp2 = xp * xp, xpi2 = xpi * xpi;
-                double cxd  = 3.0 * xp2 - 1.0;
-                double cxdi = -3.0 * xpi2 + 1.0;
-                double sum = hxi[v] * hyi[v] * (f_(2, i, j) - f_(2, i, j + 1) -
-                                                  f_(2, i + 1, j) + f_(2, i + 1, j + 1));
-                sum += sixth * hx[v] * hyi[v] * (
-                           cxdi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
-                           cxd  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double xp = xparam, xpi = 1.0 - xp;
+            double xp2 = xp * xp, xpi2 = xpi * xpi;
+            double cxd  = 3.0 * xp2 - 1.0;
+            double cxdi = -3.0 * xpi2 + 1.0;
+            double sum = hxi * hyi * (f_(2, i, j) - f_(2, i, j + 1) -
+                                                f_(2, i + 1, j) + f_(2, i + 1, j + 1));
+            sum += sixth * hx * hyi * (
+                        cxdi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
+                        cxd  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
     }
 
@@ -2989,25 +2679,19 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
         /********** d⁵f/dx³dy² **********/
         if (ict[1] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double yp = yparam[v], ypi = 1.0 - yp;
-                double sum = hxi[v] * (-(ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
-                                         (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double yp = yparam, ypi = 1.0 - yp;
+            double sum = hxi * (-(ypi * f_(3, i, j)     + yp * f_(3, i, j + 1)) +
+                                        (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
 
         /********** d⁵f/dx²dy³ **********/
         if (ict[2] == 1) {
             iadr++;
-            for (int v = 0; v < ivec; ++v) {
-                int i = ii[v], j = jj[v];
-                double xp = xparam[v], xpi = 1.0 - xp;
-                double sum = hyi[v] * (xpi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
-                                        xp  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
-                fval(v, iadr - 1) = sum;
-            }
+            double xp = xparam, xpi = 1.0 - xp;
+            double sum = hyi * (xpi * (-f_(3, i, j)     + f_(3, i, j + 1)) +
+                                    xp  * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
+            fval(iadr - 1) = sum;
         }
     }
 
@@ -3016,12 +2700,9 @@ void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(const std::vector<int>& 
      * ----------------------------------------------------------------*/
     else if (ict[0] == 6) {
         iadr++;
-        for (int v = 0; v < ivec; ++v) {
-            int i = ii[v], j = jj[v];
-            double sum = hxi[v] * hyi[v] * (f_(3, i, j) - f_(3, i, j + 1) -
-                                            f_(3, i + 1, j) + f_(3, i + 1, j + 1));
-            fval(v, iadr - 1) = sum;
-        }
+        double sum = hxi * hyi * (f_(3, i, j) - f_(3, i, j + 1) -
+                                        f_(3, i + 1, j) + f_(3, i + 1, j + 1));
+        fval(iadr - 1) = sum;
     }
 }
 
@@ -3029,11 +2710,10 @@ template<typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::evbicub(double xget, double yget,
              Rank1View<const T, MemorySpace> x, int nx,
              Rank1View<const T, MemorySpace> y, int ny,
-             int ilinx, int iliny,
              Rank3View<T, MemorySpace> f, // f[4][inf2][ny]
              int inf2,
              const std::vector<int>& ict,
-             Rank2View<T, MemorySpace> fval, // output (size depends on ict)
+             Rank1View<T, MemorySpace> fval, // output (size depends on ict)
              int& ier)
 {
     // Local variables
@@ -3043,22 +2723,15 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evbicub(double xget, double yget
     T hxi = 0.0, hyi = 0.0;
 
     // Call herm2xy to locate cell and compute params
-    herm2xy(xget, yget, x, nx, y, ny, ilinx, iliny,
+    herm2xy(xget, yget, x, nx, y, ny,
             i, j, xparam, yparam, hx, hxi, hy, hyi, ier);
 
     if (ier != 0) return;
 
-    // Evaluate spline and derivatives
-    // Wrap scalar values into single-element vectors
-    std::vector<int> ii{ i }, jj{ j };
-    std::vector<T> xparams{ xparam }, yparams{ yparam };
-    std::vector<T> hxs{ hx }, hxis{ hxi };
-    std::vector<T> hys{ hy }, hyis{ hyi };
-
     // Call fvbicub with scalar-vector interface
     fvbicub(ict, 1, 1,
-            fval, ii, jj, xparams, yparams,
-            hxs, hxis, hys, hyis);
+            fval, i, j, xparam, yparam,
+            hx, hxi, hy, hyi);
 }
 
 

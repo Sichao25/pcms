@@ -128,11 +128,11 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x, Rank1View<doubl
 
     CubicSplineInterpolator<double, HostMemorySpace> interpolator; 
 
-    interpolator.genxpkg(ns, x, xpkg, 1, 1, 1, 4.0e-7, 1);
-    if (ierg != 0) {
-        std::cerr << "Error in genxpkg: " << ierg << std::endl;
-        return;
-    }
+    // interpolator.genxpkg(ns, x, xpkg, 1, 1, 1, 4.0e-7, 1);
+    // if (ierg != 0) {
+    //     std::cerr << "Error in genxpkg: " << ierg << std::endl;
+    //     return;
+    // }
 
     int ilinx = 1; // Dummy interpolation lookup table
     int ier = 0;
@@ -146,7 +146,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x, Rank1View<doubl
 
 
     std::array<double, 3> splinv_arr = {0.0, 0.0, 0.0};
-    auto splinv = Rank2View<double, HostMemorySpace>(splinv_arr.data(), 1, 3);
+    auto splinv = Rank1View<double, HostMemorySpace>(splinv_arr.data(), 3);
     double sdif = 0.0;
     double pdif = 0.0;
     double s2dif = 0.0;
@@ -160,7 +160,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x, Rank1View<doubl
         if (ier != 0) {
             ier = 0;
         } else {
-            difabs = std::abs(splinv(0, 0) - ft[i]);
+            difabs = std::abs(splinv(0) - ft[i]);
             sdif = std::max(sdif, difabs);
             sdifr = std::max(sdifr, difabs / ft[i]);
         }
@@ -178,7 +178,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x, Rank1View<doubl
         if (ier != 0) {
             ier = 0;
         } else {
-            difabs = std::abs(splinv(0, 0) - ft[i]);
+            difabs = std::abs(splinv(0) - ft[i]);
             pdif = std::max(pdif, difabs);
             pdifr = std::max(pdifr, difabs / ft[i]);
         }
@@ -195,7 +195,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x, Rank1View<doubl
         if (ier != 0) {
             ier = 0;
         } else {
-            difabs = std::abs(splinv(0, 0) - ft[i]);
+            difabs = std::abs(splinv(0) - ft[i]);
             s2dif = std::max(s2dif, difabs);
             s2difr = std::max(s2difr, difabs / ft[i]);
         }
@@ -306,7 +306,7 @@ void compare(const std::string& slbl,
     int ier;
 
     std::vector<double> fget_vec(10);
-    auto fget = Rank2View<double, HostMemorySpace>(fget_vec.data(), 1, 10);
+    auto fget = Rank1View<double, HostMemorySpace>(fget_vec.data(), 10);
     double zth = 0.0;
     double zx = 0.0;
     double ff = 0.0;
@@ -320,15 +320,15 @@ void compare(const std::string& slbl,
 
             if (iherm == 0) {
                 interpolator.bcspeval(zx,zth,
-                    isel,fget,x,nx,th,nth,ilinx,ilinth,
+                    isel,fget,x,nx,th,nth,
                     f,nx,ier);
             } else if (iherm == 2) {
                 interpolator.evbicub(zx,zth,
-                    x,nx,th,nth,ilinx,ilinth,
+                    x,nx,th,nth,
                     fh,nx,isel,fget,ier);
             }
 
-            double fs = fget(0, 0); // Interpolated value
+            double fs = fget(0); // Interpolated value
             fdif = std::max(fdif, std::abs(ff - fs));
             fdifr = std::max(fdifr, std::abs((ff - fs) / (0.5 * (ff + fs))));
         }
@@ -388,7 +388,7 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,Rank1View<double, HostMe
     interpolator.bcspline(x, nx, th, nth, f, nx,
             nbc, bcx1, nbc, bcx2,
             nbc, bcth1, nbc, bcth2,
-            wk, 15000, ilinx, ilinth);
+            wk, 15000);
     if (ier != 0) {
         std::cerr << " ?? error in pspltest:  dotest2(bcspline)\n";
         return;
