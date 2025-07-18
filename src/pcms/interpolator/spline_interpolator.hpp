@@ -84,15 +84,14 @@ public:
   void cspline(Rank1View<const T, MemorySpace> x, const int &nx,
                Rank2View<T, MemorySpace> fspl, const int &ibcxmin,
                const double &bcxmin, const int &ibcxmax, const double &bcxmax,
-               Rank1View<T, MemorySpace> wk, const int &iwk);
+               Rank1View<T, MemorySpace> wk);
 
   void v_spline(const int &k_bc1, const int &k_bcn, const int &n,
                 Rank1View<const T, MemorySpace> x, Rank2View<T, MemorySpace> f,
                 Rank1View<T, MemorySpace> wk);
 
-  void cspevfn(const std::vector<int> &selector, const int &ivec,
-               const int &ivd, Rank1View<T, MemorySpace> fval, const int &i,
-               const double &dx, int nx);
+  void cspevfn(const std::vector<int> &selector, Rank1View<T, MemorySpace> fval, const int &i,
+               const double &dx);
 
   void spgrid(Rank1View<const T, MemorySpace> &x_newgrid, const int &nx_new,
               Rank2View<T, MemorySpace> &f_new, const int &nx,
@@ -115,10 +114,9 @@ public:
                  Rank2View<T, MemorySpace> xpkg, Rank2View<T, MemorySpace> fspl,
                  int &iwarn);
 
-  void fvspline(const std::vector<int> &selector, int ivec, int ivecd,
+  void fvspline(const std::vector<int> &selector,
                 Rank1View<T, MemorySpace> fval, const int &i,
-                const double &xparam, const double &hx, const double &hxi,
-                int nx);
+                const double &xparam, const double &hx, const double &hxi);
 
   void gridspline(Rank1View<const T, MemorySpace> x_newgrid, int nx_new,
                   Rank2View<T, MemorySpace> f_new, int nx,
@@ -127,8 +125,8 @@ public:
 
   void cspeval(double xget, const std::vector<int> &iselect,
                Rank1View<T, MemorySpace> fval,
-               Rank1View<const T, MemorySpace> x, int nx,
-               Rank2View<T, MemorySpace> f, int &ier);
+               Rank1View<const T, MemorySpace> x, int &nx,
+               int &ier);
 
   void cspevx(double xget, Rank1View<const T, MemorySpace> x, const int &nx,
               int &i, double &dx, int &ier);
@@ -136,7 +134,7 @@ public:
   void evspline(double xget, const std::vector<int> &ict,
                 Rank1View<T, MemorySpace> fval,
                 Rank1View<const T, MemorySpace> x, int &nx,
-                Rank2View<T, MemorySpace> f, int &ier);
+                int &ier);
 
   void herm1x(double xget, Rank1View<const T, MemorySpace> x, const int &nx,
               int &i, double &xparam, double &hx, double &hxi, int &ier);
@@ -147,8 +145,7 @@ template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::cspline(
     Rank1View<const T, MemorySpace> x, const int &nx,
     Rank2View<T, MemorySpace> fspl, const int &ibcxmin, const double &bcxmin,
-    const int &ibcxmax, const double &bcxmax, Rank1View<T, MemorySpace> wk,
-    const int &iwk) {
+    const int &ibcxmax, const double &bcxmax, Rank1View<T, MemorySpace> wk) {
   if (x.extent(0) < 2) {
     throw std::invalid_argument(
         "Cubic spline requires at least 2 points in each dimension.");
@@ -694,8 +691,8 @@ void CubicSplineInterpolator<T, MemorySpace>::v_spline(
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
-    const std::vector<int> &selector, const int &ivec, const int &ivd,
-    Rank1View<T, MemorySpace> fval, const int &i, const double &dx, int nx) {
+    const std::vector<int> &selector,
+    Rank1View<T, MemorySpace> fval, const int &i, const double &dx) {
 
   int iaval = 0;
 
@@ -882,8 +879,8 @@ void CubicSplineInterpolator<T, MemorySpace>::xlookup(
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::cspeval(
     double xget, const std::vector<int> &iselect,
-    Rank1View<T, MemorySpace> fval, Rank1View<const T, MemorySpace> x, int nx,
-    Rank2View<T, MemorySpace> f, int &ier) {
+    Rank1View<T, MemorySpace> fval, Rank1View<const T, MemorySpace> x, int &nx,
+    int &ier) {
   int ia = 0;
   double dxa = 0.0;
   cspevx(xget, x, nx, ia, dxa, ier);
@@ -892,7 +889,7 @@ void CubicSplineInterpolator<T, MemorySpace>::cspeval(
     return;
   }
 
-  cspevfn(iselect, 1, 1, fval, ia, dxa, nx);
+  cspevfn(iselect, fval, ia, dxa);
 }
 
 template <typename T, typename MemorySpace>
@@ -931,9 +928,8 @@ void CubicSplineInterpolator<T, MemorySpace>::cspevx(
 }
 
 void ibc_ck(int ibc, const std::string &slbl, const std::string &xlbl, int imin,
-            int imax, int &ier) {
+            int imax) {
   if (ibc < imin || ibc > imax) {
-    ier = 1;
     std::cerr << " ? " << slbl << " -- ibc" << xlbl << " = " << ibc
               << " out of range " << imin << " to " << imax << std::endl;
   }
@@ -961,7 +957,7 @@ void CubicSplineInterpolator<T, MemorySpace>::mkspline(
   int inwk = nx;
 
   // Call traditional spline generator
-  cspline(x, nx, fspl4, ibcxmin, bcxmin, ibcxmax, bcxmax, wk, inwk);
+  cspline(x, nx, fspl4, ibcxmin, bcxmin, ibcxmax, bcxmax, wk);
 
   for (int i = 0; i < nx - 1; ++i) {
     fspl(1, i) = 2.0 * fspl4(2, i);
@@ -1007,7 +1003,7 @@ void CubicSplineInterpolator<T, MemorySpace>::vecspline(
   xlookup(ivec, xvec, nx, xpkg, 2, iv, dxn, h, hi, iwarn);
 
   // Call vectorized spline evaluation
-  fvspline(selector, ivec, ivd, fval, iv, dxn, h, hi, nx);
+  // fvspline(selector, fval, iv, dxn, h, hi);
 }
 
 // template <typename T, typename MemorySpace>
@@ -1022,9 +1018,9 @@ void CubicSplineInterpolator<T, MemorySpace>::vecspline(
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::fvspline(
-    const std::vector<int> &selector, int ivec, int ivecd,
+    const std::vector<int> &selector,
     Rank1View<T, MemorySpace> fval, const int &i, const double &xparam,
-    const double &hx, const double &hxi, int nx) {
+    const double &hx, const double &hxi) {
   const double sixth = 1.0 / 6.0;
   int iadr = 0;
 
@@ -1136,7 +1132,6 @@ template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::evspline(
     double xget, const std::vector<int> &ict, Rank1View<T, MemorySpace> fval,
     Rank1View<const T, MemorySpace> x, int &nx,
-    Rank2View<T, MemorySpace> f, // shape: [2, nx]
     int &ier) {
 
   // Initialize output zone info
@@ -1151,7 +1146,7 @@ void CubicSplineInterpolator<T, MemorySpace>::evspline(
     return;
 
   // Evaluate spline at the point
-  fvspline(ict, 1, 1, fval, i, xparam, hx, hxi, nx);
+  fvspline(ict, fval, i, xparam, hx, hxi);
 }
 
 template <typename T, typename MemorySpace>
@@ -1168,8 +1163,8 @@ public:
   void bcspline(
       Rank1View<const T, MemorySpace> x,           // size: inx
       int inx, Rank1View<const T, MemorySpace> th, // size: inth
-      int inth, Rank4View<T, MemorySpace> fspl,    // [4, 4, inf3, inth]
-      int inf3, int ibcxmin,
+      int inth, Rank4View<T, MemorySpace> fspl,    // [4, 4, inx, inth]
+      int ibcxmin,
       Rank1View<T, MemorySpace> bcxmin, // size: inth (used if ibcxmin = 1 or 2)
       int ibcxmax,
       Rank1View<T, MemorySpace> bcxmax, // size: inth (used if ibcxmax = 1 or 2)
@@ -1179,14 +1174,14 @@ public:
       int ibcthmax,
       Rank1View<T, MemorySpace>
           bcthmax,                  // size: inx (used if ibcthmax = 1 or 2)
-      Rank1View<T, MemorySpace> wk, // size: nwk
-      int nwk);
+      Rank1View<T, MemorySpace> wk // size: nwk
+      );
 
   void bcspeval(double xget, double yget, const std::vector<int> &iselect,
                 Rank1View<double, HostMemorySpace> fval,
                 Rank1View<const double, HostMemorySpace> x, int nx,
                 Rank1View<const double, HostMemorySpace> y, int ny,
-                Rank4View<double, HostMemorySpace> f, int inf3, int &ier);
+                int &ier);
 
   void bcspevxy(double xget, double yget,
                 Rank1View<const double, HostMemorySpace> x, int nx,
@@ -1196,25 +1191,20 @@ public:
   void bcspevfn(
       const std::vector<int>
           &ict, // Selector array for which derivatives to compute
-      int ivec, // Number of vector points
-      int ivd,  // First dimension of fval (≥ ivec)
       Rank1View<T, MemorySpace> fval, // Output array: size [ivd, *] (flattened)
       const int &i,                   // Grid cell indices in x direction
       const int &j,                   // Grid cell indices in y direction
       const double &dx,               // x displacements within cells
-      const double &dy,               // y displacements within cells
-      int inf3,                       // 3rd dimension of f
-      int ny                          // Number of y points (4th dim of f)
+      const double &dy               // y displacements within cells
   );
 
   void mkbicub(Rank1View<const T, MemorySpace> x, int nx,
                Rank1View<const T, MemorySpace> y, int ny,
-               Rank3View<T, MemorySpace> f, int nf2, int ibcxmin,
+               Rank3View<T, MemorySpace> f, int ibcxmin,
                Rank1View<T, MemorySpace> bcxmin, int ibcxmax,
                Rank1View<T, MemorySpace> bcxmax, int ibcymin,
                Rank1View<T, MemorySpace> bcymin, int ibcymax,
-               Rank1View<T, MemorySpace> bcymax, int &ilinx, int &iliny,
-               int &ier);
+               Rank1View<T, MemorySpace> bcymax, Rank1View<T, MemorySpace> wk);
 
   void herm2xy(double xget, double yget, Rank1View<const T, MemorySpace> x,
                int &nx, Rank1View<const T, MemorySpace> y, int &ny, int &i,
@@ -1228,8 +1218,7 @@ public:
 
   void evbicub(double xget, double yget, Rank1View<const T, MemorySpace> x,
                int nx, Rank1View<const T, MemorySpace> y, int ny,
-               Rank3View<T, MemorySpace> f, // f[4][inf2][ny]
-               int inf2, const std::vector<int> &ict,
+               const std::vector<int> &ict,
                Rank1View<T, MemorySpace> fval, // output (size depends on ict)
                int &ier);
 };
@@ -1238,8 +1227,8 @@ template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     Rank1View<const T, MemorySpace> x,           // size: inx
     int inx, Rank1View<const T, MemorySpace> th, // size: inth
-    int inth, Rank4View<T, MemorySpace> fspl,    // [4, 4, inf3, inth]
-    int inf3, int ibcxmin,
+    int inth, Rank4View<T, MemorySpace> fspl,    // [4, 4, inx, inth]
+    int ibcxmin,
     Rank1View<T, MemorySpace> bcxmin, // size: inth (used if ibcxmin = 1 or 2)
     int ibcxmax,
     Rank1View<T, MemorySpace> bcxmax, // size: inth (used if ibcxmax = 1 or 2)
@@ -1247,8 +1236,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     Rank1View<T, MemorySpace> bcthmin, // size: inx (used if ibcthmin = 1 or 2)
     int ibcthmax,
     Rank1View<T, MemorySpace> bcthmax, // size: inx (used if ibcthmax = 1 or 2)
-    Rank1View<T, MemorySpace> wk,      // size: nwk
-    int nwk) {
+    Rank1View<T, MemorySpace> wk      // size: nwk
+    ) {
   int iflg2 = 0;
   std::vector<int> iselect1(10, 0); // Size 10, all initialized to 0
   std::vector<int> iselect2(10, 0); // Size 10, all initialized to 0
@@ -1284,9 +1273,9 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     itest += 4 * inx * inth;
   }
 
-  if (nwk < itest) {
+  if (wk.extent(0) < itest) {
     std::cerr << " bcspline:  workspace too small:\n"
-              << "  user supplied:  nwk=" << nwk
+              << "  user supplied:  nwk=" << wk.extent(0)
               << "; need at least:  " << itest << "\n"
               << "  nwk=4*nx*ny +5*max(nx,ny) will work for any user\n"
               << "  choice of bdy conditions.\n";
@@ -1304,12 +1293,12 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
   }
 
   // Check boundary condition values
-  ibc_ck(ibcxmin, "bcspline", "xmin", -1, 7, ier_tmp);
+  ibc_ck(ibcxmin, "bcspline", "xmin", -1, 7);
   if (ibcxmin >= 0)
-    ibc_ck(ibcxmax, "bcspline", "xmax", 0, 7, ier_tmp);
-  ibc_ck(ibcthmin, "bcspline", "thmin", -1, 7, ier_tmp);
+    ibc_ck(ibcxmax, "bcspline", "xmax", 0, 7);
+  ibc_ck(ibcthmin, "bcspline", "thmin", -1, 7);
   if (ibcthmin >= 0)
-    ibc_ck(ibcthmax, "bcspline", "thmax", 0, 7, ier_tmp);
+    ibc_ck(ibcthmax, "bcspline", "thmax", 0, 7);
 
   // Check x vector spacing
   int ierx = 0;
@@ -1542,7 +1531,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     //         } else {
     //             // TODO: check if this is correct
     //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx,
-    //             th, inth, ilinx, ilinth, fspl, inf3, ier); if (ier != 0)
+    //             th, inth, ier); if (ier != 0)
     //             return;
     //         }
     //         zdiff2 = bcthmax[ix] - zcur(0, 0);
@@ -1553,7 +1542,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     //         } else {
     //             // TODO: check if this is correct
     //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx,
-    //             th, inth, ilinx, ilinth, fspl, inf3, ier); if (ier != 0)
+    //             th, inth, ier); if (ier != 0)
     //             return;
     //         }
     //         zdiff2 = bcthmax[ix] - zcur(0, 0);
@@ -1617,7 +1606,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
             } else {
               // TODO: check if this is correct
               bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th,
-                       inth, fspl, inf3, ier);
+                       inth, ier);
               if (ier != 0)
                 return;
             }
@@ -1629,7 +1618,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
             } else {
               // TODO: check if this is correct
               bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th,
-                       inth, fspl, inf3, ier);
+                       inth, ier);
               if (ier != 0)
                 return;
             }
@@ -1756,7 +1745,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
     Rank1View<double, HostMemorySpace> fval,
     Rank1View<const double, HostMemorySpace> x, int nx,
     Rank1View<const double, HostMemorySpace> y, int ny,
-    Rank4View<double, HostMemorySpace> f, int inf3, int &ier) {
+    int &ier) {
   int i = 0;
   int j = 0;
   double dx = 0.0;
@@ -1768,7 +1757,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
     return;
 
   // Evaluate spline function
-  bcspevfn(iselect, 1, 1, fval, i, j, dx, dy, inf3, ny);
+  bcspevfn(iselect, fval, i, j, dx, dy);
 }
 
 template <typename T, typename MemorySpace>
@@ -1841,15 +1830,11 @@ template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
     const std::vector<int>
         &ict, // Selector array for which derivatives to compute
-    int ivec, // Number of vector points
-    int ivd,  // First dimension of fval (≥ ivec)
     Rank1View<T, MemorySpace> fval, // Output array: size [ivd, *] (flattened)
     const int &i,                   // Grid cell indices in x direction
     const int &j,                   // Grid cell indices in y direction
     const double &dx,               // x displacements within cells
-    const double &dy,               // y displacements within cells
-    int inf3,                       // 3rd dimension of f
-    int ny                          // Number of y points (4th dim of f)
+    const double &dy               // y displacements within cells
 ) {
   int iaval = 0; // Index for fval
   if (ict[0] <= 2) {
@@ -2042,11 +2027,10 @@ template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
     Rank1View<const T, MemorySpace> x, int nx,
     Rank1View<const T, MemorySpace> y, int ny, Rank3View<T, MemorySpace> f,
-    int nf2, int ibcxmin, Rank1View<T, MemorySpace> bcxmin, int ibcxmax,
+    int ibcxmin, Rank1View<T, MemorySpace> bcxmin, int ibcxmax,
     Rank1View<T, MemorySpace> bcxmax, int ibcymin,
     Rank1View<T, MemorySpace> bcymin, int ibcymax,
-    Rank1View<T, MemorySpace> bcymax, int &ilinx, int &iliny, int &ier) {
-  ier = 0;
+    Rank1View<T, MemorySpace> bcymax, Rank1View<T, MemorySpace> wk) {
   int iflg2 = 0;
 
   // Check if inhomogeneous y-boundary conditions exist
@@ -2066,26 +2050,28 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
   }
 
   // Check bc validity (implement ibc_ck separately)
-  ibc_ck(ibcxmin, "bcspline", "xmin", -1, 7, ier);
+  ibc_ck(ibcxmin, "bcspline", "xmin", -1, 7);
   if (ibcxmin >= 0)
-    ibc_ck(ibcxmax, "bcspline", "xmax", 0, 7, ier);
-  ibc_ck(ibcymin, "bcspline", "ymin", -1, 7, ier);
+    ibc_ck(ibcxmax, "bcspline", "xmax", 0, 7);
+  ibc_ck(ibcymin, "bcspline", "ymin", -1, 7);
   if (ibcymin >= 0)
-    ibc_ck(ibcymax, "bcspline", "ymax", 0, 7, ier);
+    ibc_ck(ibcymax, "bcspline", "ymax", 0, 7);
 
   // Check if x and y are strictly ascending (implement splinck separately)
   CubicSplineInterpolator<T, MemorySpace>::splinck(x, 1.0e-3);
   CubicSplineInterpolator<T, MemorySpace>::splinck(y, 1.0e-3);
 
-  std::vector<T> fspl_l_x_vec(4 * nx * ny);
-  auto fspl_l_x = Rank2View<T, MemorySpace>(fspl_l_x_vec.data(), 2 * ny, nx);
-  std::vector<T> fspl_l_y_vec(4 * ny * nx);
-  auto fspl_l_y = Rank2View<T, MemorySpace>(fspl_l_y_vec.data(), 2 * nx, ny);
-  std::vector<T> wk_l_vec(nx * ny);
-  auto wk_l = Rank2View<T, MemorySpace>(wk_l_vec.data(), ny, nx);
-  std::vector<T> fwk4_l_x_vec(4 * nx * ny);
-  auto fwk4_l_x = Rank2View<T, MemorySpace>(fwk4_l_x_vec.data(), 4 * ny, nx);
+//   std::vector<T> fspl_l_x_vec(4 * nx * ny);
+//   auto fspl_l_x = Rank2View<T, MemorySpace>(fspl_l_x_vec.data(), 2 * ny, nx);
 
+//   std::vector<T> wk_l_vec(nx * ny);
+//   auto wk_l = Rank2View<T, MemorySpace>(wk_l_vec.data(), ny, nx);
+//   std::vector<T> fwk4_l_x_vec(4 * nx * ny);
+//   auto fwk4_l_x = Rank2View<T, MemorySpace>(fwk4_l_x_vec.data(), 4 * ny, nx);
+  auto fspl_l_x = Rank2View<T, MemorySpace>(wk.data_handle(), 2 * ny, nx);
+  auto wk_l = Rank1View<T, MemorySpace>(wk.data_handle() + 2 * ny * nx, nx * ny);
+  auto fwk4_l_x = Rank2View<T, MemorySpace>(
+      wk.data_handle() + 2 * ny * nx + nx * ny, 4 * ny, nx);
   // // Compute fxx
   // for (int iy = 0; iy < ny; ++iy) {
   //     for (int ix = 0; ix < nx; ++ix)
@@ -2126,8 +2112,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
           CubicSplineInterpolator<T, MemorySpace>::mkspline(
               x, nx, fwk_x_view, fwk4_x_view, ibcxmin, zbcmin, ibcxmax, zbcmax,
               wk_x_view);
-          if (ier != 0)
-            return;
         }
 
         Kokkos::parallel_for(
@@ -2182,8 +2166,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
           CubicSplineInterpolator<T, MemorySpace>::mkspline(
               y, ny, fwk_y_view, fwk4_y_view, ibcmin, 0.0, ibcmax, 0.0,
               wk_y_view);
-          if (ier != 0)
-            return;
         }
         Kokkos::parallel_for(
             Kokkos::TeamThreadRange(team, ny),
@@ -2240,8 +2222,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
           CubicSplineInterpolator<T, MemorySpace>::mkspline(
               y, ny, fwk_y_view, fwk4_y_view, ibcmin, 0.0, ibcmax, 0.0,
               wk_y_view);
-          if (ier != 0)
-            return;
         }
         Kokkos::parallel_for(
             Kokkos::TeamThreadRange(team, ny),
@@ -2321,8 +2301,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
             CubicSplineInterpolator<T, MemorySpace>::mkspline(
                 y, ny, fwk_y_view, fwk4_y_view, ibcymin, zdiff1, ibcymax,
                 zdiff2, wk_y_view);
-            if (ier != 0)
-              return;
           }
           Kokkos::parallel_for(
               Kokkos::TeamThreadRange(team, ny),
@@ -2358,8 +2336,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
             CubicSplineInterpolator<T, MemorySpace>::mkspline(
                 x, nx, fwk_x_view, fwk4_x_view, ibcxmin, zbcmin, ibcxmax,
                 zbcmax, wk_x_view);
-            if (ier != 0)
-              return;
           }
 
           Kokkos::parallel_for(
@@ -2782,8 +2758,7 @@ template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::evbicub(
     double xget, double yget, Rank1View<const T, MemorySpace> x, int nx,
     Rank1View<const T, MemorySpace> y, int ny,
-    Rank3View<T, MemorySpace> f, // f[4][inf2][ny]
-    int inf2, const std::vector<int> &ict,
+    const std::vector<int> &ict,
     Rank1View<T, MemorySpace> fval, // output (size depends on ict)
     int &ier) {
   // Local variables

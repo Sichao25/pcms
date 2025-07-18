@@ -151,7 +151,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
   int ilinx = 1; // Dummy interpolation lookup table
   int ier = 0;
 
-  interpolator.cspline(x, ns, fspl, 1, 1, 1, 1, wk, nt);
+  interpolator.cspline(x, ns, fspl, 1, 1, 1, 1, wk);
 
   // interpolator.spgrid(xt,1000,testa1,ns,xpkg,fspl,iwarn);
   // interpolator.spgrid(xt,1000,testa2,ns,xpkg,fspp,iwarn);
@@ -168,7 +168,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
   double difabs = 0.0;
   std::vector<int> ict = {1, 0, 0}; // Request only function value
   for (int i = 0; i < 1000; ++i) {
-    interpolator.cspeval(xt[i], ict, splinv, x, ns, fspl, ier);
+    interpolator.cspeval(xt[i], ict, splinv, x, ns, ier);
     if (ier != 0) {
       ier = 0;
     } else {
@@ -182,10 +182,10 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
   std::cout << "1d spline relative difference " << sdifr << std::endl;
   assert(are_equal(sdifr, 6.6529E-04));
 
-  interpolator.cspline(x, ns, fspp, -1, 0, -1, 0, wk, nt);
+  interpolator.cspline(x, ns, fspp, -1, 0, -1, 0, wk);
 
   for (int i = 0; i < 1000; ++i) {
-    interpolator.cspeval(xt[i], ict, splinv, x, ns, fspp, ier);
+    interpolator.cspeval(xt[i], ict, splinv, x, ns, ier);
     if (ier != 0) {
       ier = 0;
     } else {
@@ -202,7 +202,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
 
   interpolator.mkspline(x, ns, fs2, fspl4, 1, 1, 1, 1, wk2);
   for (int i = 0; i < 1000; ++i) {
-    interpolator.evspline(xt[i], ict, splinv, x, ns, fs2, ier);
+    interpolator.evspline(xt[i], ict, splinv, x, ns, ier);
     if (ier != 0) {
       ier = 0;
     } else {
@@ -335,9 +335,9 @@ void compare(const std::string &slbl,
       fmax = std::max(fmax, ff);
 
       if (iherm == 0) {
-        interpolator.bcspeval(zx, zth, isel, fget, x, nx, th, nth, f, nx, ier);
+        interpolator.bcspeval(zx, zth, isel, fget, x, nx, th, nth, ier);
       } else if (iherm == 2) {
-        interpolator.evbicub(zx, zth, x, nx, th, nth, fh, nx, isel, fget, ier);
+        interpolator.evbicub(zx, zth, x, nx, th, nth, isel, fget, ier);
       }
 
       double fs = fget(0); // Interpolated value
@@ -400,8 +400,8 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,
   auto fspl_l_th =
       Rank2View<double, HostMemorySpace>(fspl_l_th_arr.data(), 40, 10);
 
-  interpolator.bcspline(x, nx, th, nth, f, nx, nbc, bcx1, nbc, bcx2, nbc, bcth1,
-                        nbc, bcth2, wk, 15000);
+  interpolator.bcspline(x, nx, th, nth, f, nbc, bcx1, nbc, bcx2, nbc, bcth1,
+                        nbc, bcth2, wk);
   if (ier != 0) {
     std::cerr << " ?? error in pspltest:  dotest2(bcspline)\n";
     return;
@@ -416,8 +416,8 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,
     }
   }
 
-  interpolator.mkbicub(x, nx, th, nth, fh, nx, nbc, bcx1, nbc, bcx2, nbc, bcth1,
-                       nbc, bcth2, ilinx, ilinth, ier);
+  interpolator.mkbicub(x, nx, th, nth, fh, nbc, bcx1, nbc, bcx2, nbc, bcth1,
+                       nbc, bcth2, wk);
 
   compare("mkbicub", x, nx, th, nth, f, fh, flin, ilinx, ilinth, xtest, fxtest,
           thtest, fthtest, ntest, interpolator);
