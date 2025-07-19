@@ -51,6 +51,26 @@ void vector4d_to_array(
   assert(idx <= N && "Vector has more elements than array can hold");
 }
 
+std::pair<std::vector<double>, std::vector<double>>
+createFlatGrid(Rank1View<double, HostMemorySpace> xvec, Rank1View<double, HostMemorySpace>yvec) {
+    size_t nx = xvec.size();
+    size_t ny = yvec.size();
+    
+    std::vector<double> X_flat, Y_flat;
+    X_flat.reserve(nx * ny);
+    Y_flat.reserve(nx * ny);
+    
+    // Fill in row-major order: (x0,y0), (x1,y0), ..., (xn,y0), (x0,y1), ...
+    for (size_t i = 0; i < ny; ++i) {
+        for (size_t j = 0; j < nx; ++j) {
+            X_flat.push_back(xvec[j]);
+            Y_flat.push_back(yvec[i]);
+        }
+    }
+    
+    return {X_flat, Y_flat};
+  }
+
 void tset(int nth, std::vector<double> &th, std::vector<double> &sth,
           std::vector<double> &cth, double thmin, double thmax) {
   for (int ith = 0; ith < nth; ++ith) {
@@ -112,13 +132,13 @@ void bset(Rank1View<double, HostMemorySpace> fx, int nx,
   }
 }
 
-void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
+void dotest1(int ns, Rank1View<double, HostMemorySpace> x,
              Rank1View<double, HostMemorySpace> f,
              Rank1View<double, HostMemorySpace> fd,
              Rank2View<double, HostMemorySpace> fspl,
              Rank2View<double, HostMemorySpace> fspp,
              Rank2View<double, HostMemorySpace> fs2, int nt,
-             Rank1View<const double, HostMemorySpace> xt,
+             Rank1View<double, HostMemorySpace> xt,
              Rank1View<double, HostMemorySpace> ft,
              Rank2View<double, HostMemorySpace> xpkg,
              Rank2View<double, HostMemorySpace> testa1,
@@ -140,7 +160,7 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
   std::array<double, 40> fspl4_arr;
   auto fspl4 = Rank2View<double, HostMemorySpace>(fspl4_arr.data(), 4, 10);
 
-  CubicSplineInterpolator<double, HostMemorySpace> interpolator;
+  // CubicSplineInterpolator<double, HostMemorySpace> interpolator;
 
   // interpolator.genxpkg(ns, x, xpkg, 1, 1, 1, 4.0e-7, 1);
   // if (ierg != 0) {
@@ -151,14 +171,11 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
   int ilinx = 1; // Dummy interpolation lookup table
   int ier = 0;
 
-  interpolator.cspline(x, ns, fspl, 1, 1, 1, 1, wk);
+  // interpolator.cspline(x, ns, fspl, 1, 1, 1, 1, wk);
+  CubicSplineInterpolator<double, HostMemorySpace> explicit_interpolator(x, ns, fspl, 1, 1, 1, 1, wk);
 
-  // interpolator.spgrid(xt,1000,testa1,ns,xpkg,fspl,iwarn);
-  // interpolator.spgrid(xt,1000,testa2,ns,xpkg,fspp,iwarn);
-  // interpolator.gridspline(xt,1000,testa3,ns,xpkg,fs2,iwarn);
-
-  std::array<double, 3> splinv_arr = {0.0, 0.0, 0.0};
-  auto splinv = Rank1View<double, HostMemorySpace>(splinv_arr.data(), 3);
+  std::array<double, 3> fget_arr = {0.0, 0.0, 0.0};
+  auto fget = Rank1View<double, HostMemorySpace>(fget_arr.data(), 3);
   double sdif = 0.0;
   double pdif = 0.0;
   double s2dif = 0.0;
@@ -167,29 +184,39 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
   double s2difr = 0.0;
   double difabs = 0.0;
   std::vector<int> ict = {1, 0, 0}; // Request only function value
+
+  std::array<double, 3000> splinv_arr;
+  auto splinv = Rank2View<double, HostMemorySpace>(splinv_arr.data(), 1000, 3);
+  explicit_interpolator.evaluate_explicit(ict, xt, splinv);
+
   for (int i = 0; i < 1000; ++i) {
-    interpolator.cspeval(xt[i], ict, splinv, x, ns, ier);
+    explicit_interpolator.cspeval(xt[i], ict, fget, ier);
     if (ier != 0) {
       ier = 0;
     } else {
-      difabs = std::abs(splinv(0) - ft[i]);
+      assert(fget(0) == splinv(i, 0));
+      difabs = std::abs(fget(0) - ft[i]);
       sdif = std::max(sdif, difabs);
       sdifr = std::max(sdifr, difabs / ft[i]);
     }
   }
+  
   std::cout << "1d spline max absolute difference " << sdif << std::endl;
   assert(are_equal(sdif, 6.7572E-04));
   std::cout << "1d spline relative difference " << sdifr << std::endl;
   assert(are_equal(sdifr, 6.6529E-04));
 
-  interpolator.cspline(x, ns, fspp, -1, 0, -1, 0, wk);
+  // interpolator.cspline(x, ns, fspp, -1, 0, -1, 0, wk);
+  CubicSplineInterpolator<double, HostMemorySpace> explicit_interpolator_periodic(x, ns, fspp, -1, 0, -1, 0, wk);
+  explicit_interpolator_periodic.evaluate_explicit(ict, xt, splinv);
 
   for (int i = 0; i < 1000; ++i) {
-    interpolator.cspeval(xt[i], ict, splinv, x, ns, ier);
+    explicit_interpolator_periodic.cspeval(xt[i], ict, fget, ier);
     if (ier != 0) {
       ier = 0;
     } else {
-      difabs = std::abs(splinv(0) - ft[i]);
+      assert(fget(0) == splinv(i, 0));
+      difabs = std::abs(fget(0) - ft[i]);
       pdif = std::max(pdif, difabs);
       pdifr = std::max(pdifr, difabs / ft[i]);
     }
@@ -200,13 +227,16 @@ void dotest1(int ns, Rank1View<const double, HostMemorySpace> x,
   std::cout << "1d periodic relative difference " << pdifr << std::endl;
   assert(are_equal(pdifr, 6.7622E-04));
 
-  interpolator.mkspline(x, ns, fs2, fspl4, 1, 1, 1, 1, wk2);
+  // interpolator.mkspline(x, ns, fs2, fspl4, 1, 1, 1, 1, wk2);
+  CubicSplineInterpolator<double, HostMemorySpace> compact_interpolator(x, ns, fs2, fspl4, 1, 1, 1, 1, wk2);
+  compact_interpolator.evaluate_compact(ict, xt, splinv);
   for (int i = 0; i < 1000; ++i) {
-    interpolator.evspline(xt[i], ict, splinv, x, ns, ier);
+    compact_interpolator.evspline(xt[i], ict, fget, ier);
     if (ier != 0) {
       ier = 0;
     } else {
-      difabs = std::abs(splinv(0) - ft[i]);
+      assert(fget(0) == splinv(i, 0));
+      difabs = std::abs(fget(0) - ft[i]);
       s2dif = std::max(s2dif, difabs);
       s2difr = std::max(s2difr, difabs / ft[i]);
     }
@@ -258,7 +288,7 @@ void pspltest1(double zctrl) {
   auto testa3 = Rank2View<double, HostMemorySpace>(testa3_arr.data(), 1000, 3);
   std::array<double, 10> x_arr;
   to_array(x_vec, x_arr);
-  auto x = Rank1View<const double, HostMemorySpace>(x_arr.data(), x_arr.size());
+  auto x = Rank1View<double, HostMemorySpace>(x_arr.data(), x_arr.size());
   std::array<double, 10> zcos_arr;
   to_array(zcos_vec, zcos_arr);
   auto zcos =
@@ -281,7 +311,7 @@ void pspltest1(double zctrl) {
   auto xpkg = Rank2View<double, HostMemorySpace>(xpkg_arr.data(), 10, 4);
   std::array<double, 1000> xtest_arr;
   to_array(xtest_vec, xtest_arr);
-  auto xtest = Rank1View<const double, HostMemorySpace>(xtest_arr.data(), 1000);
+  auto xtest = Rank1View<double, HostMemorySpace>(xtest_arr.data(), 1000);
   std::array<double, 1000> ftest_arr;
   to_array(ftest_vec, ftest_arr);
   auto ftest = Rank1View<double, HostMemorySpace>(ftest_arr.data(), 1000);
@@ -292,8 +322,8 @@ void pspltest1(double zctrl) {
 }
 
 void compare(const std::string &slbl,
-             Rank1View<const double, HostMemorySpace> x, int nx,
-             Rank1View<const double, HostMemorySpace> th, int nth,
+             Rank1View<double, HostMemorySpace> x, int nx,
+             Rank1View<double, HostMemorySpace> th, int nth,
              Rank4View<double, HostMemorySpace> f,
              Rank3View<double, HostMemorySpace> fh,
              Rank2View<double, HostMemorySpace> fl, int ilinx, int ilinth,
@@ -301,10 +331,8 @@ void compare(const std::string &slbl,
              Rank1View<double, HostMemorySpace> fxtest,
              Rank1View<double, HostMemorySpace> thtest,
              Rank1View<double, HostMemorySpace> fthtest, int ntest,
-             BiCubicSplineInterpolator<double, HostMemorySpace> interpolator) {
-
-  std::vector<int> isel(10, 0);
-  isel[0] = 1;
+             BiCubicSplineInterpolator<double, HostMemorySpace> interpolator,
+             const std::vector<int> &isel, Rank2View<double, HostMemorySpace> splinv) {
 
   int icycle = 20;
   int iherm = 0;
@@ -326,6 +354,11 @@ void compare(const std::string &slbl,
   double zth = 0.0;
   double zx = 0.0;
   double ff = 0.0;
+
+  auto splinv_reshaped = Rank3View<double, HostMemorySpace>(
+      splinv.data_handle(), ntest, ntest, 10);
+
+
   for (int j = 0; j < ntest; ++j) {
     zth = thtest[j];
     for (int i = 0; i < ntest; ++i) {
@@ -335,14 +368,18 @@ void compare(const std::string &slbl,
       fmax = std::max(fmax, ff);
 
       if (iherm == 0) {
-        interpolator.bcspeval(zx, zth, isel, fget, x, nx, th, nth, ier);
+        interpolator.bcspeval(zx, zth, isel, fget, ier);
       } else if (iherm == 2) {
-        interpolator.evbicub(zx, zth, x, nx, th, nth, isel, fget, ier);
+        interpolator.evbicub(zx, zth, isel, fget, ier);
       }
 
-      double fs = fget(0); // Interpolated value
-      fdif = std::max(fdif, std::abs(ff - fs));
-      fdifr = std::max(fdifr, std::abs((ff - fs) / (0.5 * (ff + fs))));
+      if (ier == 0) {
+        assert(fget(0) == splinv_reshaped(j, i, 0));
+        double fs = fget(0); // Interpolated value
+        fdif = std::max(fdif, std::abs(ff - fs));
+        fdifr = std::max(fdifr, std::abs((ff - fs) / (0.5 * (ff + fs))));
+      }
+      
     }
   }
   std::cout << "2d" << slbl << "  min: " << fmin << "  max: " << fmax
@@ -351,9 +388,9 @@ void compare(const std::string &slbl,
   assert(are_equal(fdifr, 6.7151E-04));
 }
 
-void dotest2(Rank1View<const double, HostMemorySpace> x,
+void dotest2(Rank1View<double, HostMemorySpace> x,
              Rank1View<double, HostMemorySpace> fx, int nx,
-             Rank1View<const double, HostMemorySpace> th,
+             Rank1View<double, HostMemorySpace> th,
              Rank1View<double, HostMemorySpace> fth,
              Rank1View<double, HostMemorySpace> dfth, int nth,
              Rank4View<double, HostMemorySpace> f,
@@ -384,7 +421,7 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,
   std::vector<double> wk_vec(1000);
   auto wk = Rank1View<double, HostMemorySpace>(wk_vec.data(), 1000);
 
-  BiCubicSplineInterpolator<double, HostMemorySpace> interpolator;
+  // BiCubicSplineInterpolator<double, HostMemorySpace> interpolator;
 
   bset(fx, nx, fth, nth, bcx1, bcx2, bcth1, bcth2);
 
@@ -400,27 +437,48 @@ void dotest2(Rank1View<const double, HostMemorySpace> x,
   auto fspl_l_th =
       Rank2View<double, HostMemorySpace>(fspl_l_th_arr.data(), 40, 10);
 
-  interpolator.bcspline(x, nx, th, nth, f, nbc, bcx1, nbc, bcx2, nbc, bcth1,
-                        nbc, bcth2, wk);
+  // interpolator.bcspline(x, nx, th, nth, f, nbc, bcx1, nbc, bcx2, nbc, bcth1,
+  //                       nbc, bcth2, wk);
+  BiCubicSplineInterpolator<double, HostMemorySpace> explicit_interpolator(
+      x, nx, th, nth, f, nbc, bcx1, nbc, bcx2, nbc, bcth1, nbc, bcth2, wk);
   if (ier != 0) {
     std::cerr << " ?? error in pspltest:  dotest2(bcspline)\n";
     return;
   }
+  std::array<double, 400000> splinv_arr;
+  auto splinv = Rank2View<double, HostMemorySpace>(splinv_arr.data(), 40000, 10);
+  std::vector<int> isel(10, 0);
+  isel[0] = 1;
+
+  auto [xtest_grid_vec, thtest_grid_vec] = createFlatGrid(xtest, thtest);
+  std::array<double, 40000> xtest_grid_arr;
+  std::array<double, 40000> thtest_grid_arr;
+  to_array(xtest_grid_vec, xtest_grid_arr);
+  to_array(thtest_grid_vec, thtest_grid_arr);
+  auto xtest_grid =
+      Rank1View<double, HostMemorySpace>(xtest_grid_arr.data(), 40000);
+  auto thtest_grid =
+      Rank1View<double, HostMemorySpace>(thtest_grid_arr.data(), 40000);
+
+  explicit_interpolator.evaluate_explicit(isel, xtest_grid, thtest_grid, splinv);
 
   compare("bcspline", x, nx, th, nth, f, fh, flin, ilinx, ilinth, xtest, fxtest,
-          thtest, fthtest, ntest, interpolator);
+          thtest, fthtest, ntest, explicit_interpolator, isel, splinv);
 
   for (int ith = 0; ith < nth; ++ith) {
     for (int ix = 0; ix < nx; ++ix) {
       fh(0, ix, ith) = f(0, 0, ix, ith); // f only
     }
   }
-
-  interpolator.mkbicub(x, nx, th, nth, fh, nbc, bcx1, nbc, bcx2, nbc, bcth1,
-                       nbc, bcth2, wk);
+  
+  // interpolator.mkbicub(x, nx, th, nth, fh, nbc, bcx1, nbc, bcx2, nbc, bcth1,
+  //                      nbc, bcth2, wk);
+  BiCubicSplineInterpolator<double, HostMemorySpace> compact_interpolator(
+      x, nx, th, nth, fh, nbc, bcx1, nbc, bcx2, nbc, bcth1, nbc, bcth2, wk);
+  compact_interpolator.evaluate_compact(isel, xtest_grid, thtest_grid, splinv);
 
   compare("mkbicub", x, nx, th, nth, f, fh, flin, ilinx, ilinth, xtest, fxtest,
-          thtest, fthtest, ntest, interpolator);
+          thtest, fthtest, ntest, compact_interpolator, isel, splinv);
 }
 
 void pspltest2(double zctrl) {
@@ -468,7 +526,7 @@ void pspltest2(double zctrl) {
   std::array<double, 10> x1_arr;
   to_array(x1_vec, x1_arr);
   auto x1 =
-      Rank1View<const double, HostMemorySpace>(x1_arr.data(), x1_arr.size());
+      Rank1View<double, HostMemorySpace>(x1_arr.data(), x1_arr.size());
 
   std::array<double, 10> ex1_arr;
   to_array(ex1_vec, ex1_arr);
@@ -477,7 +535,7 @@ void pspltest2(double zctrl) {
   std::array<double, 10> t1_arr;
   to_array(t1_vec, t1_arr);
   auto t1 =
-      Rank1View<const double, HostMemorySpace>(t1_arr.data(), t1_arr.size());
+      Rank1View<double, HostMemorySpace>(t1_arr.data(), t1_arr.size());
 
   std::array<double, 10> st1_arr;
   to_array(st1_vec, st1_arr);
