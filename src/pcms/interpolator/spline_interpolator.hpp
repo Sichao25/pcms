@@ -112,7 +112,7 @@ public:
                 Rank1View<T, MemorySpace> x, Rank2View<T, MemorySpace> f,
                 Rank1View<T, MemorySpace> wk);
 
-  KOKKOS_FUNCTION void cspevfn(const std::vector<int> &selector, Rank1View<T, MemorySpace> fval, const int &i,
+  KOKKOS_FUNCTION void cspevfn(Kokkos::View<int*, MemorySpace> selector, Rank1View<T, MemorySpace> fval, const int &i,
                const double &dx);
 
   void mkspline(Rank1View<T, MemorySpace> x, const int &nx,
@@ -120,30 +120,30 @@ public:
                 const int &ibcxmin, const double &bcxmin, const int &ibcxmax,
                 const double &bcxmax, Rank1View<T, MemorySpace> wk);
 
-  KOKKOS_FUNCTION void fvspline(const std::vector<int> &selector,
+  KOKKOS_FUNCTION void fvspline(Kokkos::View<int*, MemorySpace> selector,
                 Rank1View<T, MemorySpace> fval, const int &i,
                 const double &xparam, const double &hx, const double &hxi);
 
-  void cspeval(double xget, const std::vector<int> &iselect,
+  void cspeval(double xget, Kokkos::View<int*, MemorySpace> iselect,
                Rank1View<T, MemorySpace> fval,
                int &ier);
 
   KOKKOS_FUNCTION void cspevx(double xget, Rank1View<T, MemorySpace> x, const int &nx,
               int &i, double &dx, int &ier);
 
-  void evspline(double xget, const std::vector<int> &ict,
+  void evspline(double xget, Kokkos::View<int*, MemorySpace> ict,
                 Rank1View<T, MemorySpace> fval,
                 int &ier);
 
   KOKKOS_FUNCTION void herm1x(double xget, Rank1View<T, MemorySpace> x, const int &nx,
               int &i, double &xparam, double &hx, double &hxi, int &ier);
   void evaluate_explicit(
-    const std::vector<int> &selector,
+    Kokkos::View<int*, MemorySpace> selector,
     Rank1View<T, MemorySpace> xvec,
     Rank2View<T, MemorySpace> fval);
   
   void evaluate_compact(
-    const std::vector<int> &selector,
+    Kokkos::View<int*, MemorySpace> selector,
     Rank1View<T, MemorySpace> xvec,
     Rank2View<T, MemorySpace> fval);
 }; // end of cubic spline class
@@ -725,7 +725,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
 
 template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
-    const std::vector<int> &selector,
+    Kokkos::View<int*, MemorySpace> selector,
     Rank1View<T, MemorySpace> fval, const int &i, const double &dx) {
 
   int iaval = 0;
@@ -761,7 +761,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::cspeval(
-    double xget, const std::vector<int> &iselect,
+    double xget, Kokkos::View<int*, MemorySpace> iselect,
     Rank1View<T, MemorySpace> fval,
     int &ier) {
   int ia = 0;
@@ -860,7 +860,7 @@ void CubicSplineInterpolator<T, MemorySpace>::mkspline(
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
-    const std::vector<int> &selector,
+    const Kokkos::View<int*, MemorySpace> selector,
     Rank1View<T, MemorySpace> xvec,
     Rank2View<T, MemorySpace> fval) {
       int ivd = fval.extent(1);
@@ -880,7 +880,7 @@ void CubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
-    const std::vector<int> &selector,
+    Kokkos::View<int*, MemorySpace> selector,
     Rank1View<T, MemorySpace> xvec,
     Rank2View<T, MemorySpace> fval) {
       int ivd = fval.extent(1);
@@ -901,7 +901,7 @@ void CubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
 
 template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::fvspline(
-    const std::vector<int> &selector,
+    Kokkos::View<int*, MemorySpace> selector,
     Rank1View<T, MemorySpace> fval, const int &i, const double &xparam,
     const double &hx, const double &hxi) {
   const double sixth = 1.0 / 6.0;
@@ -1001,7 +1001,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::herm1x(
 
 template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::evspline(
-    double xget, const std::vector<int> &ict, Rank1View<T, MemorySpace> fval,
+    double xget, Kokkos::View<int*, MemorySpace> ict, Rank1View<T, MemorySpace> fval,
     int &ier) {
 
   // Initialize output zone info
@@ -1084,7 +1084,7 @@ public:
     Rank1View<T, MemorySpace> bcymin, int ibcymax,
     Rank1View<T, MemorySpace> bcymax, Rank1View<T, MemorySpace> wk);
 
-  void bcspeval(double xget, double yget, const std::vector<int> &iselect,
+  void bcspeval(double xget, double yget, Kokkos::View<int*, MemorySpace> iselect,
                 Rank1View<T, MemorySpace> fval,
                 int &ier);
 
@@ -1096,8 +1096,7 @@ public:
 
   KOKKOS_FUNCTION
   void bcspevfn(
-      const std::vector<int>
-          &ict, // Selector array for which derivatives to compute
+      Kokkos::View<int*, MemorySpace> ict, // Selector array for which derivatives to compute
       Rank1View<T, MemorySpace> fval, // Output array: size [ivd, *] (flattened)
       const int &i,                   // Grid cell indices in x direction
       const int &j,                   // Grid cell indices in y direction
@@ -1112,21 +1111,21 @@ public:
                double &hy, double &hyi, int &ier);
   
   KOKKOS_FUNCTION
-  void fvbicub(const std::vector<int> &ict, int ivec, int ivecd,
+  void fvbicub(Kokkos::View<int*, MemorySpace> ict, int ivec, int ivecd,
                Rank1View<T, MemorySpace> fval, const int &i, const int &j,
                const double &xparam, const double &yparam, const double &hx,
                const double &hxi, const double &hy, const double &hyi);
   
   void evbicub(double xget, double yget,
-               const std::vector<int> &ict,
+               Kokkos::View<int*, MemorySpace> ict,
                Rank1View<T, MemorySpace> fval, // output (size depends on ict)
                int &ier);
   
   void evaluate_explicit(
-    const std::vector<int> &iselect, Rank1View<T, MemorySpace> xvec,
+    Kokkos::View<int*, MemorySpace> iselect, Rank1View<T, MemorySpace> xvec,
     Rank1View<T, MemorySpace> yvec, Rank2View<T, MemorySpace> fval);
   void evaluate_compact(
-    const std::vector<int> &iselect, Rank1View<T, MemorySpace> xvec,
+    Kokkos::View<int*, MemorySpace> iselect, Rank1View<T, MemorySpace> xvec,
     Rank1View<T, MemorySpace> yvec, Rank2View<T, MemorySpace> fval);
 };
 
@@ -1171,8 +1170,12 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     Rank1View<T, MemorySpace> wk      // size: nwk
     ) {
   int iflg2 = 0;
-  std::vector<int> iselect1(10, 0); // Size 10, all initialized to 0
-  std::vector<int> iselect2(10, 0); // Size 10, all initialized to 0
+  // std::vector<int> iselect1(10, 0); // Size 10, all initialized to 0
+  // std::vector<int> iselect2(10, 0); // Size 10, all initialized to 0
+  Kokkos::View<int*, MemorySpace> iselect1("iselect1", 10);
+  Kokkos::deep_copy(iselect1, 0);
+  Kokkos::View<int*, MemorySpace> iselect2("iselect2", 10);
+  Kokkos::deep_copy(iselect2, 0);
 
   auto fspl_l_x = Rank2View<T, MemorySpace>(wk.data_handle() + 4 * inx * inth,
                                             4 * inx, inth);
@@ -1645,7 +1648,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
 
 template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
-  const std::vector<int> &iselect, Rank1View<T, MemorySpace> xvec,
+  Kokkos::View<int*, MemorySpace> iselect, Rank1View<T, MemorySpace> xvec,
   Rank1View<T, MemorySpace> yvec, Rank2View<T, MemorySpace> fval) {
   PCMS_ALWAYS_ASSERT(
       xvec.extent(0) == yvec.extent(0) && xvec.extent(0) == fval.extent(0),
@@ -1671,7 +1674,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
 
 template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
-  const std::vector<int> &iselect, Rank1View<T, MemorySpace> xvec,
+  Kokkos::View<int*, MemorySpace> iselect, Rank1View<T, MemorySpace> xvec,
   Rank1View<T, MemorySpace> yvec, Rank2View<T, MemorySpace> fval) {
   
   PCMS_ALWAYS_ASSERT(
@@ -1699,7 +1702,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
 
 template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
-    double xget, double yget, const std::vector<int> &iselect,
+    double xget, double yget, Kokkos::View<int*, MemorySpace> iselect,
     Rank1View<T, MemorySpace> fval,
     int &ier) {
   int i = 0;
@@ -1784,8 +1787,8 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspevxy(
 
 template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
-    const std::vector<int>
-        &ict, // Selector array for which derivatives to compute
+    Kokkos::View<int*, MemorySpace>
+        ict, // Selector array for which derivatives to compute
     Rank1View<T, MemorySpace> fval, // Output array: size [ivd, *] (flattened)
     const int &i,                   // Grid cell indices in x direction
     const int &j,                   // Grid cell indices in y direction
@@ -2406,7 +2409,7 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(
 
 template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
-    const std::vector<int> &ict, int ivec, int ivecd,
+    Kokkos::View<int*, MemorySpace> ict, int ivec, int ivecd,
     Rank1View<T, MemorySpace> fval, const int &i, const int &j,
     const double &xparam, const double &yparam, const double &hx,
     const double &hxi, const double &hy, const double &hyi) {
@@ -2719,7 +2722,7 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
 template <typename T, typename MemorySpace>
 void BiCubicSplineInterpolator<T, MemorySpace>::evbicub(
     double xget, double yget,
-    const std::vector<int> &ict,
+    Kokkos::View<int*, MemorySpace> ict,
     Rank1View<T, MemorySpace> fval, // output (size depends on ict)
     int &ier) {
   // Local variables
