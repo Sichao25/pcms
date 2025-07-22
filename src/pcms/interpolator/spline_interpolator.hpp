@@ -37,6 +37,16 @@ using Rank3View = View<3, ElementType, MemorySpace>;
 template <typename ElementType, typename MemorySpace>
 using Rank4View = View<4, ElementType, MemorySpace>;
 
+void ibc_ck(int ibc, const std::string &slbl, const std::string &xlbl, int imin,
+            int imax) {
+
+  PCMS_ALWAYS_ASSERT(
+      ibc >= imin && ibc <= imax, MPI_COMM_WORLD,
+      "Boundary condition index out of range: " + slbl + " -- ibc" + xlbl + " = " + std::to_string(ibc) +
+          " (valid range: " + std::to_string(imin) + " to " + std::to_string(imax) + ")");
+}
+
+
 template <typename T, typename MemorySpace> class SplineInterpolator {
 public:
   SplineInterpolator() = default;
@@ -57,21 +67,10 @@ void SplineInterpolator<T, MemorySpace>::splinck(
 
   for (int ix = 1; ix < inx; ++ix) {
     double zdiffx = x[ix] - x[ix - 1];
-    if (zdiffx <= 0.0) {
-      std::ostringstream msg;
-      msg << "Array not strictly ascending: x[" << ix << "] = " << x[ix] 
-          << " <= x[" << (ix-1) << "] = " << x[ix-1] 
-          << " (difference = " << zdiffx << ")";
-      throw std::runtime_error(msg.str());
-    }
+    PCMS_ALWAYS_ASSERT(zdiffx > 0.0, MPI_COMM_WORLD, "Array not strictly ascending!");
     double zdiff = zdiffx - dxavg;
-    if (std::abs(zdiff) > zeps) {
-      std::ostringstream msg;
-      msg << "Non-uniform grid detected: spacing at index " << ix 
-          << " is " << zdiffx << ", expected " << dxavg 
-          << " (tolerance: " << zeps << ", difference: " << std::abs(zdiff) << ")";
-      throw std::runtime_error(msg.str());
-    }
+    PCMS_ALWAYS_ASSERT(std::abs(zdiff) <= zeps, MPI_COMM_WORLD,
+                      "Non-uniform grid detected");
   }
 }
 
@@ -85,12 +84,12 @@ class CubicSplineInterpolator : public SplineInterpolator<T, MemorySpace> {
 public:
   CubicSplineInterpolator() = default;
 
-  CubicSplineInterpolator(
+ CubicSplineInterpolator(
     Rank1View<T, MemorySpace> x, const int &nx,
     Rank2View<T, MemorySpace> fspl, const int &ibcxmin, const double &bcxmin,
     const int &ibcxmax, const double &bcxmax, Rank1View<T, MemorySpace> wk);
   
-  CubicSplineInterpolator(
+ CubicSplineInterpolator(
     Rank1View<T, MemorySpace> x, const int &nx,
     Rank2View<T, MemorySpace> fspl, Rank2View<T, MemorySpace> fspl4,
     const int &ibcxmin, const double &bcxmin, const int &ibcxmax,
@@ -103,7 +102,7 @@ public:
   Rank1View<T, MemorySpace> x_;
   int nx_;
 
-  void cspline(Rank1View<T, MemorySpace> x, const int &nx,
+  KOKKOS_FUNCTION void cspline(Rank1View<T, MemorySpace> x, const int &nx,
                Rank2View<T, MemorySpace> fspl, const int &ibcxmin,
                const double &bcxmin, const int &ibcxmax, const double &bcxmax,
                Rank1View<T, MemorySpace> wk);
@@ -112,30 +111,32 @@ public:
                 Rank1View<T, MemorySpace> x, Rank2View<T, MemorySpace> f,
                 Rank1View<T, MemorySpace> wk);
 
-  KOKKOS_FUNCTION void cspevfn(Kokkos::View<int*, MemorySpace> selector, Rank1View<T, MemorySpace> fval, const int &i,
-               const double &dx);
+  static KOKKOS_FUNCTION void cspevfn(Kokkos::View<int*, MemorySpace> selector, Rank1View<T, MemorySpace> fval, const int &i,
+               const double &dx, Rank2View<T, MemorySpace> fspl);
 
-  void mkspline(Rank1View<T, MemorySpace> x, const int &nx,
+  KOKKOS_FUNCTION void mkspline(Rank1View<T, MemorySpace> x, const int &nx,
                 Rank2View<T, MemorySpace> fspl, Rank2View<T, MemorySpace> fspl4,
                 const int &ibcxmin, const double &bcxmin, const int &ibcxmax,
                 const double &bcxmax, Rank1View<T, MemorySpace> wk);
 
-  KOKKOS_FUNCTION void fvspline(Kokkos::View<int*, MemorySpace> selector,
+  static KOKKOS_FUNCTION void fvspline(Kokkos::View<int*, MemorySpace> selector,
                 Rank1View<T, MemorySpace> fval, const int &i,
-                const double &xparam, const double &hx, const double &hxi);
+                const double &xparam, const double &hx, const double &hxi, Rank2View<T, MemorySpace> fs2);
 
-  void cspeval(double xget, Kokkos::View<int*, MemorySpace> iselect,
-               Rank1View<T, MemorySpace> fval,
+  static KOKKOS_FUNCTION void cspeval(double xget, Kokkos::View<int*, MemorySpace> iselect,
+               Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x, const int &nx,
+               Rank2View<T, MemorySpace> fspl,
                int &ier);
 
-  KOKKOS_FUNCTION void cspevx(double xget, Rank1View<T, MemorySpace> x, const int &nx,
+  static KOKKOS_FUNCTION void cspevx(double xget, Rank1View<T, MemorySpace> x, const int &nx,
               int &i, double &dx, int &ier);
 
-  void evspline(double xget, Kokkos::View<int*, MemorySpace> ict,
-                Rank1View<T, MemorySpace> fval,
+  static KOKKOS_FUNCTION void evspline(double xget, Kokkos::View<int*, MemorySpace> ict,
+                Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x, const int &nx,
+                Rank2View<T, MemorySpace> fs2,
                 int &ier);
 
-  KOKKOS_FUNCTION void herm1x(double xget, Rank1View<T, MemorySpace> x, const int &nx,
+  static KOKKOS_FUNCTION void herm1x(double xget, Rank1View<T, MemorySpace> x, const int &nx,
               int &i, double &xparam, double &hx, double &hxi, int &ier);
   void evaluate_explicit(
     Kokkos::View<int*, MemorySpace> selector,
@@ -173,18 +174,17 @@ CubicSplineInterpolator<T, MemorySpace>::CubicSplineInterpolator(
     }
 
 template <typename T, typename MemorySpace>
-void CubicSplineInterpolator<T, MemorySpace>::cspline(
+KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::cspline(
     Rank1View<T, MemorySpace> x, const int &nx,
     Rank2View<T, MemorySpace> fspl, const int &ibcxmin, const double &bcxmin,
     const int &ibcxmax, const double &bcxmax, Rank1View<T, MemorySpace> wk) {
-  if (x.extent(0) < 2) {
-    throw std::invalid_argument(
-        "Cubic spline requires at least 2 points in each dimension.");
-  }
+  PCMS_ALWAYS_ASSERT(
+      x.extent(0) >= 2, MPI_COMM_WORLD,
+      "Cubic spline requires at least 2 points in each dimension.");
   // TODO: check min max between -1, 0 - 7 ?
 
-  x_ = x;
-  nx_ = x.extent(0);
+  // x_ = x;
+  // nx_ = x.extent(0);
 
   double half = 0.5;
   double sixth = 0.166666666666666667;
@@ -210,8 +210,6 @@ void CubicSplineInterpolator<T, MemorySpace>::cspline(
     fspl(2, i) = half * fspl(2, i);
     fspl(3, i) = sixth * fspl(3, i);
   }
-
-  fspl_ = fspl;
 }
 
 template <typename T, typename MemorySpace>
@@ -726,53 +724,54 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
 template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::cspevfn(
     Kokkos::View<int*, MemorySpace> selector,
-    Rank1View<T, MemorySpace> fval, const int &i, const double &dx) {
+    Rank1View<T, MemorySpace> fval, const int &i, const double &dx, Rank2View<T, MemorySpace> fspl) {
 
   int iaval = 0;
 
   if (selector[0] == 3) {
     // Third derivative only
     iaval++;
-    fval(iaval - 1) = 6.0 * fspl_(3, i);
+    fval(iaval - 1) = 6.0 * fspl(3, i);
   } else {
     if (selector[0] > 0) {
       // Evaluate f
       iaval++;
       fval(iaval - 1) =
-          fspl_(0, i) +
-          dx * (fspl_(1, i) + dx * (fspl_(2, i) + dx * fspl_(3, i)));
+          fspl(0, i) +
+          dx * (fspl(1, i) + dx * (fspl(2, i) + dx * fspl(3, i)));
     }
 
     if (selector[1] > 0) {
       // Evaluate df/dx
       iaval++;
       fval(iaval - 1) =
-          fspl_(1, i) + dx * (2.0 * fspl_(2, i) + dx * 3.0 * fspl_(3, i));
+          fspl(1, i) + dx * (2.0 * fspl(2, i) + dx * 3.0 * fspl(3, i));
     }
 
     if (selector[2] > 0) {
       // Evaluate d2f/dx2
       iaval++;
-      fval(iaval - 1) = 2.0 * fspl_(2, i) + dx * 6.0 * fspl_(3, i);
+      fval(iaval - 1) = 2.0 * fspl(2, i) + dx * 6.0 * fspl(3, i);
     }
   }
 } // end cspevfn
 
 
 template <typename T, typename MemorySpace>
-void CubicSplineInterpolator<T, MemorySpace>::cspeval(
+KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::cspeval(
     double xget, Kokkos::View<int*, MemorySpace> iselect,
-    Rank1View<T, MemorySpace> fval,
+    Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x, const int &nx,
+    Rank2View<T, MemorySpace> fspl,
     int &ier) {
   int ia = 0;
   double dxa = 0.0;
-  cspevx(xget, x_, nx_, ia, dxa, ier);
+  cspevx(xget, x, nx, ia, dxa, ier);
   if (ier != 0) {
     printf("cspeval: error in cspevx, ier = %d\n", ier);
     return;
   }
 
-  cspevfn(iselect, fval, ia, dxa);
+  cspevfn(iselect, fval, ia, dxa, fspl);
 }
 
 template <typename T, typename MemorySpace>
@@ -810,18 +809,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::cspevx(
   dx = zxget - x[i];
 }
 
-void ibc_ck(int ibc, const std::string &slbl, const std::string &xlbl, int imin,
-            int imax) {
-  if (ibc < imin || ibc > imax) {
-    std::ostringstream error_msg;
-    error_msg << "Index out of range: " << slbl << " -- ibc" << xlbl 
-              << " = " << ibc << " (valid range: " << imin << " to " << imax << ")";
-    throw std::out_of_range(error_msg.str());
-  }
-}
-
 template <typename T, typename MemorySpace>
-void CubicSplineInterpolator<T, MemorySpace>::mkspline(
+KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::mkspline(
     Rank1View<T, MemorySpace> x, const int &nx,
     Rank2View<T, MemorySpace> fspl, Rank2View<T, MemorySpace> fspl4,
     const int &ibcxmin, const double &bcxmin, const int &ibcxmax,
@@ -855,7 +844,6 @@ void CubicSplineInterpolator<T, MemorySpace>::mkspline(
   fspl(1, nx - 1) =
       2.0 * fspl4(2, nx - 2) + (x[nx - 1] - x[nx - 2]) * 6.0 * fspl4(3, nx - 2);
 
-  fs2_ = fspl;
 }
 
 template <typename T, typename MemorySpace>
@@ -867,14 +855,14 @@ void CubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
       // for (int i = 0; i < xvec.extent(0); ++i){
       //   int ier = 0;
       //   auto fval_view = Rank1View<T, MemorySpace>(fval.data_handle() + i * ivd, ivd);
-      //   cspeval(xvec(i), selector, fval_view, ier);
+      //   cspeval(xvec(i), selector, fval_view, x_, nx_, fspl_, ier);
       // }
       Kokkos::parallel_for(
           Kokkos::RangePolicy<execution_space>(0, xvec.extent(0)),
           KOKKOS_LAMBDA(const int i) {
             int ier = 0;
             auto fval_view = Rank1View<T, MemorySpace>(fval.data_handle() + i * ivd, ivd);
-            cspeval(xvec(i), selector, fval_view, ier);
+            cspeval(xvec(i), selector, fval_view, x_, nx_, fspl_, ier);
           });
     }
 
@@ -887,14 +875,14 @@ void CubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
       // for (int i = 0; i < xvec.extent(0); ++i){
       //   int ier = 0;
       //   auto fval_view = Rank1View<T, MemorySpace>(fval.data_handle() + i * ivd, ivd);
-      //   evspline(xvec(i), selector, fval_view, ier);
+      //   evspline(xvec(i), selector, fval_view, x_, nx_, fs2_, ier);
       // }
       Kokkos::parallel_for(
           Kokkos::RangePolicy<execution_space>(0, xvec.extent(0)),
           KOKKOS_LAMBDA(const int i) {
             int ier = 0;
             auto fval_view = Rank1View<T, MemorySpace>(fval.data_handle() + i * ivd, ivd);
-            evspline(xvec(i), selector, fval_view, ier);
+            evspline(xvec(i), selector, fval_view, x_, nx_, fs2_, ier);
           });
     }
 
@@ -903,7 +891,7 @@ template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::fvspline(
     Kokkos::View<int*, MemorySpace> selector,
     Rank1View<T, MemorySpace> fval, const int &i, const double &xparam,
-    const double &hx, const double &hxi) {
+    const double &hx, const double &hxi, Rank2View<T, MemorySpace> fs2) {
   const double sixth = 1.0 / 6.0;
   int iadr = 0;
 
@@ -920,8 +908,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::fvspline(
       double cxi = xpi * (xpi2 - 1.0);
       double hx2 = hx * hx;
 
-      double sum = xpi * fs2_(0, i) + xp * fs2_(0, i + 1);
-      sum += sixth * hx2 * (cxi * fs2_(1, i) + cx * fs2_(1, i + 1));
+      double sum = xpi * fs2(0, i) + xp * fs2(0, i + 1);
+      sum += sixth * hx2 * (cxi * fs2(1, i) + cx * fs2(1, i + 1));
 
       fval(iadr - 1) = sum; // zero-based indexing
     }
@@ -937,8 +925,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::fvspline(
       double cxd = 3.0 * xp2 - 1.0;
       double cxdi = -3.0 * xpi2 + 1.0;
 
-      double sum = hxi * (fs2_(0, i + 1) - fs2_(0, i));
-      sum += sixth * hx * (cxdi * fs2_(1, i) + cxd * fs2_(1, i + 1));
+      double sum = hxi * (fs2(0, i + 1) - fs2(0, i));
+      sum += sixth * hx * (cxdi * fs2(1, i) + cxd * fs2(1, i + 1));
 
       fval(iadr - 1) = sum;
     }
@@ -949,14 +937,14 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::fvspline(
       double xp = xparam;
       double xpi = 1.0 - xp;
 
-      double sum = xpi * fs2_(1, i) + xp * fs2_(1, i + 1);
+      double sum = xpi * fs2(1, i) + xp * fs2(1, i + 1);
       fval(iadr - 1) = sum;
     }
 
   } else {
     // Third derivative d3f/dx3
     iadr = 1;
-    fval(iadr - 1) = hxi * (fs2_(1, i + 1) - fs2_(1, i));
+    fval(iadr - 1) = hxi * (fs2(1, i + 1) - fs2(1, i));
   }
 }
 
@@ -1000,8 +988,10 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::herm1x(
 }
 
 template <typename T, typename MemorySpace>
-void CubicSplineInterpolator<T, MemorySpace>::evspline(
-    double xget, Kokkos::View<int*, MemorySpace> ict, Rank1View<T, MemorySpace> fval,
+KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::evspline(
+    double xget, Kokkos::View<int*, MemorySpace> ict, Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x,
+    const int &nx, // size of x
+    Rank2View<T, MemorySpace> fs2,
     int &ier) {
 
   // Initialize output zone info
@@ -1011,12 +1001,12 @@ void CubicSplineInterpolator<T, MemorySpace>::evspline(
   double hxi = 0.0;
 
   // Find the interval containing xget
-  herm1x(xget, x_, nx_, i, xparam, hx, hxi, ier);
+  herm1x(xget, x, nx, i, xparam, hx, hxi, ier);
   if (ier != 0)
     return;
 
   // Evaluate spline at the point
-  fvspline(ict, fval, i, xparam, hx, hxi);
+  fvspline(ict, fval, i, xparam, hx, hxi, fs2);
 }
 
 template <typename T, typename MemorySpace>
@@ -1034,7 +1024,7 @@ public:
 
   BiCubicSplineInterpolator() = default;
 
-  BiCubicSplineInterpolator(
+ BiCubicSplineInterpolator(
       Rank1View<T, MemorySpace> x,           // size: inx
       int inx, Rank1View<T, MemorySpace> th, // size: inth
       int inth, Rank4View<T, MemorySpace> fspl,    // [4, 4, inx, inth]
@@ -1051,7 +1041,7 @@ public:
       Rank1View<T, MemorySpace> wk // size: nwk
       );
     
-    BiCubicSplineInterpolator(Rank1View<T, MemorySpace> x, int nx,
+  BiCubicSplineInterpolator(Rank1View<T, MemorySpace> x, int nx,
       Rank1View<T, MemorySpace> y, int ny,
       Rank3View<T, MemorySpace> f, int ibcxmin,
       Rank1View<T, MemorySpace> bcxmin, int ibcxmax,
@@ -1084,41 +1074,47 @@ public:
     Rank1View<T, MemorySpace> bcymin, int ibcymax,
     Rank1View<T, MemorySpace> bcymax, Rank1View<T, MemorySpace> wk);
 
-  void bcspeval(double xget, double yget, Kokkos::View<int*, MemorySpace> iselect,
-                Rank1View<T, MemorySpace> fval,
+  static KOKKOS_FUNCTION void bcspeval(double xget, double yget, Kokkos::View<int*, MemorySpace> iselect,
+                Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x,
+                const int &nx, Rank1View<T, MemorySpace> y, const int &ny, 
+                Rank4View<T, MemorySpace> fspl,
                 int &ier);
 
-  KOKKOS_FUNCTION
+  static KOKKOS_FUNCTION
   void bcspevxy(double xget, double yget,
-                Rank1View<T, MemorySpace> x, int nx,
-                Rank1View<T, MemorySpace> y, int ny, int &i,
+                Rank1View<T, MemorySpace> x, const int &nx,
+                Rank1View<T, MemorySpace> y, const int &ny, int &i,
                 int &j, double &dx, double &dy, int &ier);
 
-  KOKKOS_FUNCTION
+  static KOKKOS_FUNCTION
   void bcspevfn(
       Kokkos::View<int*, MemorySpace> ict, // Selector array for which derivatives to compute
       Rank1View<T, MemorySpace> fval, // Output array: size [ivd, *] (flattened)
       const int &i,                   // Grid cell indices in x direction
       const int &j,                   // Grid cell indices in y direction
       const double &dx,               // x displacements within cells
-      const double &dy               // y displacements within cells
+      const double &dy,               // y displacements within cells
+      Rank4View<T, MemorySpace> fspl // Spline coefficients: [4, 4, nx, ny]
   );
 
-  KOKKOS_FUNCTION
+  static KOKKOS_FUNCTION
   void herm2xy(double xget, double yget, Rank1View<T, MemorySpace> x,
-               int &nx, Rank1View<T, MemorySpace> y, int &ny, int &i,
+               const int &nx, Rank1View<T, MemorySpace> y, const int &ny, int &i,
                int &j, double &xparam, double &yparam, double &hx, double &hxi,
                double &hy, double &hyi, int &ier);
   
-  KOKKOS_FUNCTION
+  static KOKKOS_FUNCTION
   void fvbicub(Kokkos::View<int*, MemorySpace> ict, int ivec, int ivecd,
                Rank1View<T, MemorySpace> fval, const int &i, const int &j,
                const double &xparam, const double &yparam, const double &hx,
-               const double &hxi, const double &hy, const double &hyi);
+               const double &hxi, const double &hy, const double &hyi, Rank3View<T, MemorySpace> f);
   
-  void evbicub(double xget, double yget,
+  static KOKKOS_FUNCTION void evbicub(double xget, double yget,
                Kokkos::View<int*, MemorySpace> ict,
                Rank1View<T, MemorySpace> fval, // output (size depends on ict)
+               Rank1View<T, MemorySpace> x, const int &nx,
+               Rank1View<T, MemorySpace> y, const int &ny,
+               Rank3View<T, MemorySpace> f,
                int &ier);
   
   void evaluate_explicit(
@@ -1267,7 +1263,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
   // }
 
   Kokkos::parallel_for(
-      Kokkos::TeamPolicy<execution_space>(inth, Kokkos::AUTO),
+      Kokkos::TeamPolicy<execution_space>(inth, Kokkos::AUTO()),
       KOKKOS_LAMBDA(const member_type &team) {
         const int ith = team.league_rank();
 
@@ -1343,7 +1339,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
   //     }
   // }
   Kokkos::parallel_for(
-      Kokkos::TeamPolicy<execution_space>(inx, Kokkos::AUTO),
+      Kokkos::TeamPolicy<execution_space>(inx, Kokkos::AUTO()),
       KOKKOS_LAMBDA(const member_type &team) {
         const int ix = team.league_rank();
 
@@ -1386,8 +1382,6 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
               });
         }
       });
-
-  fspl_ = fspl;
 
   if (iflg2 == 1) {
     int iasc = 0;        // Workspace base for correction splines
@@ -1437,7 +1431,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     //             ix, jth) + zhth * 3.0 * fspl(0, 3, ix, jth));
     //         } else {
     //             // TODO: check if this is correct
-    //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, ier); if (ier != 0)
+    //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, fspl, ier); if (ier != 0)
     //             return;
     //         }
     //         zdiff2 = bcthmax[ix] - zcur(0, 0);
@@ -1447,7 +1441,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     //             3, ix, jth);
     //         } else {
     //             // TODO: check if this is correct
-    //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, ier);
+    //             bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, fspl, ier);
     //             if (ier != 0)
     //             return;
     //         }
@@ -1515,7 +1509,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
                                 zhth * 3.0 * fspl(0, 3, ix, jth));
             } else {
               // TODO: check if this is correct
-              bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, ier);
+              bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, fspl, ier);
               if (ier != 0)
                 return;
             }
@@ -1526,7 +1520,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
                   2.0 * fspl(0, 2, ix, jth) + 6.0 * zhth * fspl(0, 3, ix, jth);
             } else {
               // TODO: check if this is correct
-              bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, ier);
+              bcspeval(x[inx - 1], th[inth - 1], iselect2, zcur, x, inx, th, inth, fspl, ier);
               if (ier != 0)
                 return;
             }
@@ -1610,7 +1604,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
     //     }
     // }
     Kokkos::parallel_for(
-        Kokkos::TeamPolicy<execution_space>(inth - 1, Kokkos::AUTO),
+        Kokkos::TeamPolicy<execution_space>(inth - 1, Kokkos::AUTO()),
         KOKKOS_LAMBDA(const member_type &team) {
           const int ith = team.league_rank();
 
@@ -1660,7 +1654,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
   //   int ier = 0;
   //   auto fval_view = Rank1View<T, MemorySpace>(
   //       fval.data_handle() + i * ivd, ivd);
-  //   bcspeval(xvec(i), yvec(i), iselect, fval_view, ier);
+  //   bcspeval(xvec(i), yvec(i), iselect, fval_view, x_, nx_, y_, ny_, fspl_, ier);
   // }
   Kokkos::parallel_for(
       Kokkos::RangePolicy<execution_space>(0, xvec.extent(0)),
@@ -1668,7 +1662,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
         int ier = 0;
         auto fval_view = Rank1View<T, MemorySpace>(
             fval.data_handle() + i * ivd, ivd);
-        bcspeval(xvec(i), yvec(i), iselect, fval_view, ier);
+        bcspeval(xvec(i), yvec(i), iselect, fval_view, x_, nx_, y_, ny_, fspl_, ier);
       });
 }
 
@@ -1687,7 +1681,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
   //   auto fval_view = Rank1View<T, MemorySpace>(
   //       fval.data_handle() + i * ivd, ivd);
   //   evbicub(
-  //       xvec(i), yvec(i), iselect, fval_view, ier);
+  //       xvec(i), yvec(i), iselect, fval_view,  x_, nx_, y_, ny_, f_, ier);
   // }
   Kokkos::parallel_for(
       Kokkos::RangePolicy<execution_space>(0, xvec.extent(0)),
@@ -1695,15 +1689,17 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
         int ier = 0;
         auto fval_view = Rank1View<T, MemorySpace>(
             fval.data_handle() + i * ivd, ivd);
-        evbicub(xvec(i), yvec(i), iselect, fval_view, ier);
+        evbicub(xvec(i), yvec(i), iselect, fval_view, x_, nx_, y_, ny_, f_, ier);
       });
 }
 
 
 template <typename T, typename MemorySpace>
-void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
+KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
     double xget, double yget, Kokkos::View<int*, MemorySpace> iselect,
-    Rank1View<T, MemorySpace> fval,
+    Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x,
+    const int &nx, Rank1View<T, MemorySpace> y, const int &ny,
+    Rank4View<T, MemorySpace> fspl,
     int &ier) {
   int i = 0;
   int j = 0;
@@ -1711,18 +1707,18 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
   double dy = 0.0;
 
   // Range finding
-  bcspevxy(xget, yget, x_, nx_, y_, ny_, i, j, dx, dy, ier);
+  bcspevxy(xget, yget, x, nx, y, ny, i, j, dx, dy, ier);
   if (ier != 0)
     return;
 
   // Evaluate spline function
-  bcspevfn(iselect, fval, i, j, dx, dy);
+  bcspevfn(iselect, fval, i, j, dx, dy, fspl);
 }
 
 template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspevxy(
     double xget, double yget, Rank1View<T, MemorySpace> x,
-    int nx, Rank1View<T, MemorySpace> y, int ny, int &i, int &j,
+    const int &nx, Rank1View<T, MemorySpace> y, const int &ny, int &i, int &j,
     double &dx, double &dy, int &ier) {
   int nxm = nx - 1;
   int nym = ny - 1;
@@ -1793,7 +1789,8 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
     const int &i,                   // Grid cell indices in x direction
     const int &j,                   // Grid cell indices in y direction
     const double &dx,               // x displacements within cells
-    const double &dy               // y displacements within cells
+    const double &dy,               // y displacements within cells
+    Rank4View<T, MemorySpace> fspl // Spline coefficients
 ) {
   int iaval = 0; // Index for fval
   if (ict[0] <= 2) {
@@ -1801,138 +1798,138 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
       // Evaluate f
       iaval++;
       fval(iaval - 1) =
-          fspl_(0, 0, i, j) +
-          dy * (fspl_(0, 1, i, j) +
-                dy * (fspl_(0, 2, i, j) + dy * fspl_(0, 3, i, j))) +
-          dx * (fspl_(1, 0, i, j) +
-                dy * (fspl_(1, 1, i, j) +
-                      dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
-                dx * (fspl_(2, 0, i, j) +
-                      dy * (fspl_(2, 1, i, j) +
-                            dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
-                      dx * (fspl_(3, 0, i, j) +
-                            dy * (fspl_(3, 1, i, j) +
-                                  dy * (fspl_(3, 2, i, j) +
-                                        dy * fspl_(3, 3, i, j))))));
+          fspl(0, 0, i, j) +
+          dy * (fspl(0, 1, i, j) +
+                dy * (fspl(0, 2, i, j) + dy * fspl(0, 3, i, j))) +
+          dx * (fspl(1, 0, i, j) +
+                dy * (fspl(1, 1, i, j) +
+                      dy * (fspl(1, 2, i, j) + dy * fspl(1, 3, i, j))) +
+                dx * (fspl(2, 0, i, j) +
+                      dy * (fspl(2, 1, i, j) +
+                            dy * (fspl(2, 2, i, j) + dy * fspl(2, 3, i, j))) +
+                      dx * (fspl(3, 0, i, j) +
+                            dy * (fspl(3, 1, i, j) +
+                                  dy * (fspl(3, 2, i, j) +
+                                        dy * fspl(3, 3, i, j))))));
     }
 
     if ((ict[1] > 0) && (ict[0] != -1)) {
       // Evaluate df/dx
       iaval++;
       fval(iaval - 1) =
-          fspl_(1, 0, i, j) +
-          dy * (fspl_(1, 1, i, j) +
-                dy * (fspl_(1, 2, i, j) + dy * fspl_(1, 3, i, j))) +
+          fspl(1, 0, i, j) +
+          dy * (fspl(1, 1, i, j) +
+                dy * (fspl(1, 2, i, j) + dy * fspl(1, 3, i, j))) +
           2.0 * dx *
-              (fspl_(2, 0, i, j) +
-               dy * (fspl_(2, 1, i, j) +
-                     dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j))) +
+              (fspl(2, 0, i, j) +
+               dy * (fspl(2, 1, i, j) +
+                     dy * (fspl(2, 2, i, j) + dy * fspl(2, 3, i, j))) +
                1.5 * dx *
-                   (fspl_(3, 0, i, j) +
-                    dy * (fspl_(3, 1, i, j) +
-                          dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j)))));
+                   (fspl(3, 0, i, j) +
+                    dy * (fspl(3, 1, i, j) +
+                          dy * (fspl(3, 2, i, j) + dy * fspl(3, 3, i, j)))));
     }
 
     if ((ict[2] > 0) && (ict[0] != -1)) {
       // Evaluate df/dy
       iaval++;
       fval(iaval - 1) =
-          fspl_(0, 1, i, j) +
-          dy * (2.0 * fspl_(0, 2, i, j) + dy * 3.0 * fspl_(0, 3, i, j)) +
-          dx * (fspl_(1, 1, i, j) +
-                dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
-                dx * (fspl_(2, 1, i, j) +
-                      dy * (2.0 * fspl_(2, 2, i, j) +
-                            dy * 3.0 * fspl_(2, 3, i, j)) +
-                      dx * (fspl_(3, 1, i, j) +
-                            dy * (2.0 * fspl_(3, 2, i, j) +
-                                  dy * 3.0 * fspl_(3, 3, i, j)))));
+          fspl(0, 1, i, j) +
+          dy * (2.0 * fspl(0, 2, i, j) + dy * 3.0 * fspl(0, 3, i, j)) +
+          dx * (fspl(1, 1, i, j) +
+                dy * (2.0 * fspl(1, 2, i, j) + dy * 3.0 * fspl(1, 3, i, j)) +
+                dx * (fspl(2, 1, i, j) +
+                      dy * (2.0 * fspl(2, 2, i, j) +
+                            dy * 3.0 * fspl(2, 3, i, j)) +
+                      dx * (fspl(3, 1, i, j) +
+                            dy * (2.0 * fspl(3, 2, i, j) +
+                                  dy * 3.0 * fspl(3, 3, i, j)))));
     }
 
     if ((ict[3] > 0) || (ict[0] == -1)) {
       // Evaluate d2f/dx2
       iaval++;
       fval(iaval - 1) =
-          2.0 * (fspl_(2, 0, i, j) +
-                 dy * (fspl_(2, 1, i, j) +
-                       dy * (fspl_(2, 2, i, j) + dy * fspl_(2, 3, i, j)))) +
+          2.0 * (fspl(2, 0, i, j) +
+                 dy * (fspl(2, 1, i, j) +
+                       dy * (fspl(2, 2, i, j) + dy * fspl(2, 3, i, j)))) +
           6.0 * dx *
-              (fspl_(3, 0, i, j) +
-               dy * (fspl_(3, 1, i, j) +
-                     dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
+              (fspl(3, 0, i, j) +
+               dy * (fspl(3, 1, i, j) +
+                     dy * (fspl(3, 2, i, j) + dy * fspl(3, 3, i, j))));
     }
 
     if ((ict[4] > 0) || (ict[0] == -1)) {
       // Evaluate d2f/dy2
       iaval++;
       fval(iaval - 1) =
-          2.0 * fspl_(0, 2, i, j) + 6.0 * dy * fspl_(0, 3, i, j) +
-          dx * (2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
-                dx * (2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
-                      dx * (2.0 * fspl_(3, 2, i, j) +
-                            6.0 * dy * fspl_(3, 3, i, j))));
+          2.0 * fspl(0, 2, i, j) + 6.0 * dy * fspl(0, 3, i, j) +
+          dx * (2.0 * fspl(1, 2, i, j) + 6.0 * dy * fspl(1, 3, i, j) +
+                dx * (2.0 * fspl(2, 2, i, j) + 6.0 * dy * fspl(2, 3, i, j) +
+                      dx * (2.0 * fspl(3, 2, i, j) +
+                            6.0 * dy * fspl(3, 3, i, j))));
     }
 
     if ((ict[5] > 0) && (ict[0] != -1)) {
       // Evaluate d2f/dxdy
       iaval++;
       fval(iaval - 1) =
-          fspl_(1, 1, i, j) +
-          dy * (2.0 * fspl_(1, 2, i, j) + dy * 3.0 * fspl_(1, 3, i, j)) +
+          fspl(1, 1, i, j) +
+          dy * (2.0 * fspl(1, 2, i, j) + dy * 3.0 * fspl(1, 3, i, j)) +
           2.0 * dx *
-              (fspl_(2, 1, i, j) +
-               dy * (2.0 * fspl_(2, 2, i, j) + dy * 3.0 * fspl_(2, 3, i, j)) +
+              (fspl(2, 1, i, j) +
+               dy * (2.0 * fspl(2, 2, i, j) + dy * 3.0 * fspl(2, 3, i, j)) +
                1.5 * dx *
-                   (fspl_(3, 1, i, j) + dy * (2.0 * fspl_(3, 2, i, j) +
-                                              dy * 3.0 * fspl_(3, 3, i, j))));
+                   (fspl(3, 1, i, j) + dy * (2.0 * fspl(3, 2, i, j) +
+                                              dy * 3.0 * fspl(3, 3, i, j))));
     }
 
     if (ict[0] == -1) {
       // Evaluate d4f/dx2dy2
       iaval++;
       fval(iaval - 1) =
-          4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
-          dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
+          4.0 * fspl(2, 2, i, j) + 12.0 * dy * fspl(2, 3, i, j) +
+          dx * (12.0 * fspl(3, 2, i, j) + 36.0 * dy * fspl(3, 3, i, j));
     }
   } else if (ict[0] == 3) {
     if (ict[1] == 1) {
       // d³f/dx³ (not continuous)
       iaval++;
       fval(iaval - 1) =
-          6.0 * (fspl_(3, 0, i, j) +
-                 dy * (fspl_(3, 1, i, j) +
-                       dy * (fspl_(3, 2, i, j) + dy * fspl_(3, 3, i, j))));
+          6.0 * (fspl(3, 0, i, j) +
+                 dy * (fspl(3, 1, i, j) +
+                       dy * (fspl(3, 2, i, j) + dy * fspl(3, 3, i, j))));
     }
 
     if (ict[2] == 1) {
       // d³f/dx²dy
       iaval++;
       fval(iaval - 1) =
-          2.0 * (fspl_(2, 1, i, j) + dy * (2.0 * fspl_(2, 2, i, j) +
-                                           dy * 3.0 * fspl_(2, 3, i, j))) +
+          2.0 * (fspl(2, 1, i, j) + dy * (2.0 * fspl(2, 2, i, j) +
+                                           dy * 3.0 * fspl(2, 3, i, j))) +
           6.0 * dx *
-              (fspl_(3, 1, i, j) +
-               dy * (2.0 * fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j)));
+              (fspl(3, 1, i, j) +
+               dy * (2.0 * fspl(3, 2, i, j) + dy * 3.0 * fspl(3, 3, i, j)));
     }
 
     if (ict[3] == 1) {
       // d³f/dxdy²
       iaval++;
       fval(iaval - 1) =
-          2.0 * fspl_(1, 2, i, j) + 6.0 * dy * fspl_(1, 3, i, j) +
+          2.0 * fspl(1, 2, i, j) + 6.0 * dy * fspl(1, 3, i, j) +
           2.0 * dx *
-              (2.0 * fspl_(2, 2, i, j) + 6.0 * dy * fspl_(2, 3, i, j) +
+              (2.0 * fspl(2, 2, i, j) + 6.0 * dy * fspl(2, 3, i, j) +
                1.5 * dx *
-                   (2.0 * fspl_(3, 2, i, j) + 6.0 * dy * fspl_(3, 3, i, j)));
+                   (2.0 * fspl(3, 2, i, j) + 6.0 * dy * fspl(3, 3, i, j)));
     }
 
     if (ict[4] == 1) {
       // d³f/dy³ (not continuous)
       iaval++;
       fval(iaval - 1) =
-          6.0 * (fspl_(0, 3, i, j) +
-                 dx * (fspl_(1, 3, i, j) +
-                       dx * (fspl_(2, 3, i, j) + dx * fspl_(3, 3, i, j))));
+          6.0 * (fspl(0, 3, i, j) +
+                 dx * (fspl(1, 3, i, j) +
+                       dx * (fspl(2, 3, i, j) + dx * fspl(3, 3, i, j))));
     }
 
   } else if (ict[0] == 4) {
@@ -1940,24 +1937,24 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
       // d⁴f/dx³dy
       iaval++;
       fval(iaval - 1) =
-          6.0 * (fspl_(3, 1, i, j) +
-                 dy * 2.0 * (fspl_(3, 2, i, j) + dy * 1.5 * fspl_(3, 3, i, j)));
+          6.0 * (fspl(3, 1, i, j) +
+                 dy * 2.0 * (fspl(3, 2, i, j) + dy * 1.5 * fspl(3, 3, i, j)));
     }
 
     if (ict[2] == 1) {
       // d⁴f/dx²dy²
       iaval++;
       fval(iaval - 1) =
-          4.0 * fspl_(2, 2, i, j) + 12.0 * dy * fspl_(2, 3, i, j) +
-          dx * (12.0 * fspl_(3, 2, i, j) + 36.0 * dy * fspl_(3, 3, i, j));
+          4.0 * fspl(2, 2, i, j) + 12.0 * dy * fspl(2, 3, i, j) +
+          dx * (12.0 * fspl(3, 2, i, j) + 36.0 * dy * fspl(3, 3, i, j));
     }
 
     if (ict[3] == 1) {
       // d⁴f/dxdy³ (not continuous)
       iaval++;
       fval(iaval - 1) =
-          6.0 * (fspl_(1, 3, i, j) +
-                 2.0 * dx * (fspl_(2, 3, i, j) + 1.5 * dx * fspl_(3, 3, i, j)));
+          6.0 * (fspl(1, 3, i, j) +
+                 2.0 * dx * (fspl(2, 3, i, j) + 1.5 * dx * fspl(3, 3, i, j)));
     }
 
   } else if (ict[0] == 5) {
@@ -1965,20 +1962,20 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
       // d⁵f/dx³dy² (not continuous)
       iaval++;
       fval(iaval - 1) =
-          12.0 * (fspl_(3, 2, i, j) + dy * 3.0 * fspl_(3, 3, i, j));
+          12.0 * (fspl(3, 2, i, j) + dy * 3.0 * fspl(3, 3, i, j));
     }
 
     if (ict[2] == 1) {
       // d⁵f/dx²dy³ (not continuous)
       iaval++;
       fval(iaval - 1) =
-          12.0 * (fspl_(2, 3, i, j) + dx * 3.0 * fspl_(3, 3, i, j));
+          12.0 * (fspl(2, 3, i, j) + dx * 3.0 * fspl(3, 3, i, j));
     }
 
   } else if (ict[0] == 6) {
     // d⁶f/dx³dy³ (not continuous)
     iaval++;
-    fval(iaval - 1) = 36.0 * fspl_(3, 3, i, j);
+    fval(iaval - 1) = 36.0 * fspl(3, 3, i, j);
   }
 } // end bcspevfn
 
@@ -2057,7 +2054,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
   //         f(1, ix, iy) = fwk_x(1, ix);
   // }
   Kokkos::parallel_for(
-      Kokkos::TeamPolicy<execution_space>(ny, Kokkos::AUTO),
+      Kokkos::TeamPolicy<execution_space>(ny, Kokkos::AUTO()),
       KOKKOS_LAMBDA(const member_type &team) {
         const int iy = team.league_rank();
         double zbcmin = 0.0, zbcmax = 0.0;
@@ -2108,7 +2105,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
   //         f(2, ix, iy) = fwk_y(1, iy);
   // }
   Kokkos::parallel_for(
-      Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO),
+      Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO()),
       KOKKOS_LAMBDA(const member_type &team) {
         const int ix = team.league_rank();
         double zbcmin = 0.0, zbcmax = 0.0;
@@ -2164,7 +2161,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
   // }
 
   Kokkos::parallel_for(
-      Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO),
+      Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO()),
       KOKKOS_LAMBDA(const member_type &team) {
         const int ix = team.league_rank();
         double zbcmin = 0.0, zbcmax = 0.0;
@@ -2230,7 +2227,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
     //         fcorr(0, ix, iy) = fwk_y(1, iy);
     // }
     Kokkos::parallel_for(
-        Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO),
+        Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO()),
         KOKKOS_LAMBDA(const member_type &team) {
           const int ix = team.league_rank();
           double zdiff1 = 0.0, zdiff2 = 0.0;
@@ -2291,7 +2288,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
     //         fcorr[1][ix][iy] = fwk_x(1, ix);
     // }
     Kokkos::parallel_for(
-        Kokkos::TeamPolicy<execution_space>(ny, Kokkos::AUTO),
+        Kokkos::TeamPolicy<execution_space>(ny, Kokkos::AUTO()),
         KOKKOS_LAMBDA(const member_type &team) {
           const int iy = team.league_rank();
           auto fwk_x_view = Rank2View<T, MemorySpace>(
@@ -2331,8 +2328,8 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
 
 template <typename T, typename MemorySpace>
 KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::herm2xy(
-    double xget, double yget, Rank1View<T, MemorySpace> x, int &nx,
-    Rank1View<T, MemorySpace> y, int &ny, int &i, int &j, double &xparam,
+    double xget, double yget, Rank1View<T, MemorySpace> x, const int &nx,
+    Rank1View<T, MemorySpace> y, const int &ny, int &i, int &j, double &xparam,
     double &yparam, double &hx, double &hxi, double &hy, double &hyi,
     int &ier) {
   ier = 0;
@@ -2412,7 +2409,7 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
     Kokkos::View<int*, MemorySpace> ict, int ivec, int ivecd,
     Rank1View<T, MemorySpace> fval, const int &i, const int &j,
     const double &xparam, const double &yparam, const double &hx,
-    const double &hxi, const double &hy, const double &hyi) {
+    const double &hxi, const double &hy, const double &hyi, Rank3View<T, MemorySpace> f) {
   constexpr double sixth = 1.0 / 6.0;
   const double z36th = sixth * sixth;
   int iadr = 0;
@@ -2436,17 +2433,17 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cyi = ypi * (ypi2 - 1.0);
       double hy2 = hy * hy;
 
-      double sum = xpi * (ypi * f_(0, i, j) + yp * f_(0, i, j + 1)) +
-                   xp * (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1));
+      double sum = xpi * (ypi * f(0, i, j) + yp * f(0, i, j + 1)) +
+                   xp * (ypi * f(0, i + 1, j) + yp * f(0, i + 1, j + 1));
       sum += sixth * hx2 *
-             (cxi * (ypi * f_(1, i, j) + yp * f_(1, i, j + 1)) +
-              cx * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
+             (cxi * (ypi * f(1, i, j) + yp * f(1, i, j + 1)) +
+              cx * (ypi * f(1, i + 1, j) + yp * f(1, i + 1, j + 1)));
       sum += sixth * hy2 *
-             (xpi * (cyi * f_(2, i, j) + cy * f_(2, i, j + 1)) +
-              xp * (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
+             (xpi * (cyi * f(2, i, j) + cy * f(2, i, j + 1)) +
+              xp * (cyi * f(2, i + 1, j) + cy * f(2, i + 1, j + 1)));
       sum += z36th * hx2 * hy2 *
-             (cxi * (cyi * f_(3, i, j) + cy * f_(3, i, j + 1)) +
-              cx * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+             (cxi * (cyi * f(3, i, j) + cy * f(3, i, j + 1)) +
+              cx * (cyi * f(3, i + 1, j) + cy * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2463,17 +2460,17 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cyi = ypi * (ypi2 - 1.0);
       double hy2 = hy * hy;
 
-      double sum = hxi * (-(ypi * f_(0, i, j) + yp * f_(0, i, j + 1)) +
-                          (ypi * f_(0, i + 1, j) + yp * f_(0, i + 1, j + 1)));
+      double sum = hxi * (-(ypi * f(0, i, j) + yp * f(0, i, j + 1)) +
+                          (ypi * f(0, i + 1, j) + yp * f(0, i + 1, j + 1)));
       sum += sixth * hx *
-             (cxdi * (ypi * f_(1, i, j) + yp * f_(1, i, j + 1)) +
-              cxd * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
+             (cxdi * (ypi * f(1, i, j) + yp * f(1, i, j + 1)) +
+              cxd * (ypi * f(1, i + 1, j) + yp * f(1, i + 1, j + 1)));
       sum += sixth * hxi * hy2 *
-             (-(cyi * f_(2, i, j) + cy * f_(2, i, j + 1)) +
-              (cyi * f_(2, i + 1, j) + cy * f_(2, i + 1, j + 1)));
+             (-(cyi * f(2, i, j) + cy * f(2, i, j + 1)) +
+              (cyi * f(2, i + 1, j) + cy * f(2, i + 1, j + 1)));
       sum += z36th * hx * hy2 *
-             (cxdi * (cyi * f_(3, i, j) + cy * f_(3, i, j + 1)) +
-              cxd * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+             (cxdi * (cyi * f(3, i, j) + cy * f(3, i, j + 1)) +
+              cxd * (cyi * f(3, i + 1, j) + cy * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2490,17 +2487,17 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cyd = 3.0 * yp2 - 1.0;
       double cydi = -3.0 * ypi2 + 1.0;
 
-      double sum = hyi * (xpi * (-f_(0, i, j) + f_(0, i, j + 1)) +
-                          xp * (-f_(0, i + 1, j) + f_(0, i + 1, j + 1)));
+      double sum = hyi * (xpi * (-f(0, i, j) + f(0, i, j + 1)) +
+                          xp * (-f(0, i + 1, j) + f(0, i + 1, j + 1)));
       sum += sixth * hx2 * hyi *
-             (cxi * (-f_(1, i, j) + f_(1, i, j + 1)) +
-              cx * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
+             (cxi * (-f(1, i, j) + f(1, i, j + 1)) +
+              cx * (-f(1, i + 1, j) + f(1, i + 1, j + 1)));
       sum += sixth * hy *
-             (xpi * (cydi * f_(2, i, j) + cyd * f_(2, i, j + 1)) +
-              xp * (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
+             (xpi * (cydi * f(2, i, j) + cyd * f(2, i, j + 1)) +
+              xp * (cydi * f(2, i + 1, j) + cyd * f(2, i + 1, j + 1)));
       sum += z36th * hx2 * hy *
-             (cxi * (cydi * f_(3, i, j) + cyd * f_(3, i, j + 1)) +
-              cx * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+             (cxi * (cydi * f(3, i, j) + cyd * f(3, i, j + 1)) +
+              cx * (cydi * f(3, i + 1, j) + cyd * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2514,11 +2511,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cyi = ypi * (ypi2 - 1.0);
       double hy2 = hy * hy;
 
-      double sum = xpi * (ypi * f_(1, i, j) + yp * f_(1, i, j + 1)) +
-                   xp * (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1));
+      double sum = xpi * (ypi * f(1, i, j) + yp * f(1, i, j + 1)) +
+                   xp * (ypi * f(1, i + 1, j) + yp * f(1, i + 1, j + 1));
       sum += sixth * hy2 *
-             (xpi * (cyi * f_(3, i, j) + cy * f_(3, i, j + 1)) +
-              xp * (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+             (xpi * (cyi * f(3, i, j) + cy * f(3, i, j + 1)) +
+              xp * (cyi * f(3, i + 1, j) + cy * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2532,11 +2529,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double hx2 = hx * hx;
       double yp = yparam, ypi = 1.0 - yp;
 
-      double sum = xpi * (ypi * f_(2, i, j) + yp * f_(2, i, j + 1)) +
-                   xp * (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1));
+      double sum = xpi * (ypi * f(2, i, j) + yp * f(2, i, j + 1)) +
+                   xp * (ypi * f(2, i + 1, j) + yp * f(2, i + 1, j + 1));
       sum += sixth * hx2 *
-             (cxi * (ypi * f_(3, i, j) + yp * f_(3, i, j + 1)) +
-              cx * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
+             (cxi * (ypi * f(3, i, j) + yp * f(3, i, j + 1)) +
+              cx * (ypi * f(3, i + 1, j) + yp * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2553,17 +2550,17 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cydi = -3.0 * ypi2 + 1.0;
 
       double sum = hxi * hyi *
-                   (f_(0, i, j) - f_(0, i, j + 1) - f_(0, i + 1, j) +
-                    f_(0, i + 1, j + 1));
+                   (f(0, i, j) - f(0, i, j + 1) - f(0, i + 1, j) +
+                    f(0, i + 1, j + 1));
       sum += sixth * hx * hyi *
-             (cxdi * (-f_(1, i, j) + f_(1, i, j + 1)) +
-              cxd * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
+             (cxdi * (-f(1, i, j) + f(1, i, j + 1)) +
+              cxd * (-f(1, i + 1, j) + f(1, i + 1, j + 1)));
       sum += sixth * hxi * hy *
-             (-(cydi * f_(2, i, j) + cyd * f_(2, i, j + 1)) +
-              (cydi * f_(2, i + 1, j) + cyd * f_(2, i + 1, j + 1)));
+             (-(cydi * f(2, i, j) + cyd * f(2, i, j + 1)) +
+              (cydi * f(2, i + 1, j) + cyd * f(2, i + 1, j + 1)));
       sum += z36th * hx * hy *
-             (cxdi * (cydi * f_(3, i, j) + cyd * f_(3, i, j + 1)) +
-              cxd * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+             (cxdi * (cydi * f(3, i, j) + cyd * f(3, i, j + 1)) +
+              cxd * (cydi * f(3, i + 1, j) + cyd * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
   }
@@ -2580,11 +2577,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cy = yp * (yp2 - 1.0);
       double cyi = ypi * (ypi2 - 1.0);
       double hy2 = hy * hy;
-      double sum = hxi * (-(ypi * f_(1, i, j) + yp * f_(1, i, j + 1)) +
-                          (ypi * f_(1, i + 1, j) + yp * f_(1, i + 1, j + 1)));
+      double sum = hxi * (-(ypi * f(1, i, j) + yp * f(1, i, j + 1)) +
+                          (ypi * f(1, i + 1, j) + yp * f(1, i + 1, j + 1)));
       sum += sixth * hy2 * hxi *
-             (-(cyi * f_(3, i, j) + cy * f_(3, i, j + 1)) +
-              (cyi * f_(3, i + 1, j) + cy * f_(3, i + 1, j + 1)));
+             (-(cyi * f(3, i, j) + cy * f(3, i, j + 1)) +
+              (cyi * f(3, i + 1, j) + cy * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2596,11 +2593,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double yp2 = yp * yp, ypi2 = ypi * ypi;
       double cyd = 3.0 * yp2 - 1.0;
       double cydi = -3.0 * ypi2 + 1.0;
-      double sum = hyi * (xpi * (-f_(1, i, j) + f_(1, i, j + 1)) +
-                          xp * (-f_(1, i + 1, j) + f_(1, i + 1, j + 1)));
+      double sum = hyi * (xpi * (-f(1, i, j) + f(1, i, j + 1)) +
+                          xp * (-f(1, i + 1, j) + f(1, i + 1, j + 1)));
       sum += sixth * hy *
-             (xpi * (cydi * f_(3, i, j) + cyd * f_(3, i, j + 1)) +
-              xp * (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+             (xpi * (cydi * f(3, i, j) + cyd * f(3, i, j + 1)) +
+              xp * (cydi * f(3, i + 1, j) + cyd * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2612,11 +2609,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cxd = 3.0 * xp2 - 1.0;
       double cxdi = -3.0 * xpi2 + 1.0;
       double yp = yparam, ypi = 1.0 - yp;
-      double sum = hxi * (-(ypi * f_(2, i, j) + yp * f_(2, i, j + 1)) +
-                          (ypi * f_(2, i + 1, j) + yp * f_(2, i + 1, j + 1)));
+      double sum = hxi * (-(ypi * f(2, i, j) + yp * f(2, i, j + 1)) +
+                          (ypi * f(2, i + 1, j) + yp * f(2, i + 1, j + 1)));
       sum += sixth * hx *
-             (cxdi * (ypi * f_(3, i, j) + yp * f_(3, i, j + 1)) +
-              cxd * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
+             (cxdi * (ypi * f(3, i, j) + yp * f(3, i, j + 1)) +
+              cxd * (ypi * f(3, i + 1, j) + yp * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2628,11 +2625,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cx = xp * (xp2 - 1.0);
       double cxi = xpi * (xpi2 - 1.0);
       double hx2 = hx * hx;
-      double sum = hyi * (xpi * (-f_(2, i, j) + f_(2, i, j + 1)) +
-                          xp * (-f_(2, i + 1, j) + f_(2, i + 1, j + 1)));
+      double sum = hyi * (xpi * (-f(2, i, j) + f(2, i, j + 1)) +
+                          xp * (-f(2, i + 1, j) + f(2, i + 1, j + 1)));
       sum += sixth * hx2 * hyi *
-             (cxi * (-f_(3, i, j) + f_(3, i, j + 1)) +
-              cx * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
+             (cxi * (-f(3, i, j) + f(3, i, j + 1)) +
+              cx * (-f(3, i + 1, j) + f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
   }
@@ -2649,11 +2646,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cyd = 3.0 * yp2 - 1.0;
       double cydi = -3.0 * ypi2 + 1.0;
       double sum = hxi * hyi *
-                   (f_(1, i, j) - f_(1, i, j + 1) - f_(1, i + 1, j) +
-                    f_(1, i + 1, j + 1));
+                   (f(1, i, j) - f(1, i, j + 1) - f(1, i + 1, j) +
+                    f(1, i + 1, j + 1));
       sum += sixth * hy * hxi *
-             (-(cydi * f_(3, i, j) + cyd * f_(3, i, j + 1)) +
-              (cydi * f_(3, i + 1, j) + cyd * f_(3, i + 1, j + 1)));
+             (-(cydi * f(3, i, j) + cyd * f(3, i, j + 1)) +
+              (cydi * f(3, i + 1, j) + cyd * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2662,8 +2659,8 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       iadr++;
       double xp = xparam, xpi = 1.0 - xp;
       double yp = yparam, ypi = 1.0 - yp;
-      double sum = xpi * (ypi * f_(3, i, j) + yp * f_(3, i, j + 1)) +
-                   xp * (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1));
+      double sum = xpi * (ypi * f(3, i, j) + yp * f(3, i, j + 1)) +
+                   xp * (ypi * f(3, i + 1, j) + yp * f(3, i + 1, j + 1));
       fval(iadr - 1) = sum;
     }
 
@@ -2675,11 +2672,11 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
       double cxd = 3.0 * xp2 - 1.0;
       double cxdi = -3.0 * xpi2 + 1.0;
       double sum = hxi * hyi *
-                   (f_(2, i, j) - f_(2, i, j + 1) - f_(2, i + 1, j) +
-                    f_(2, i + 1, j + 1));
+                   (f(2, i, j) - f(2, i, j + 1) - f(2, i + 1, j) +
+                    f(2, i + 1, j + 1));
       sum += sixth * hx * hyi *
-             (cxdi * (-f_(3, i, j) + f_(3, i, j + 1)) +
-              cxd * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
+             (cxdi * (-f(3, i, j) + f(3, i, j + 1)) +
+              cxd * (-f(3, i + 1, j) + f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
   }
@@ -2692,8 +2689,8 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
     if (ict[1] == 1) {
       iadr++;
       double yp = yparam, ypi = 1.0 - yp;
-      double sum = hxi * (-(ypi * f_(3, i, j) + yp * f_(3, i, j + 1)) +
-                          (ypi * f_(3, i + 1, j) + yp * f_(3, i + 1, j + 1)));
+      double sum = hxi * (-(ypi * f(3, i, j) + yp * f(3, i, j + 1)) +
+                          (ypi * f(3, i + 1, j) + yp * f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
 
@@ -2701,8 +2698,8 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
     if (ict[2] == 1) {
       iadr++;
       double xp = xparam, xpi = 1.0 - xp;
-      double sum = hyi * (xpi * (-f_(3, i, j) + f_(3, i, j + 1)) +
-                          xp * (-f_(3, i + 1, j) + f_(3, i + 1, j + 1)));
+      double sum = hyi * (xpi * (-f(3, i, j) + f(3, i, j + 1)) +
+                          xp * (-f(3, i + 1, j) + f(3, i + 1, j + 1)));
       fval(iadr - 1) = sum;
     }
   }
@@ -2714,7 +2711,7 @@ KOKKOS_FUNCTION void BiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
     iadr++;
     double sum =
         hxi * hyi *
-        (f_(3, i, j) - f_(3, i, j + 1) - f_(3, i + 1, j) + f_(3, i + 1, j + 1));
+        (f(3, i, j) - f(3, i, j + 1) - f(3, i + 1, j) + f(3, i + 1, j + 1));
     fval(iadr - 1) = sum;
   }
 }
@@ -2724,6 +2721,9 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evbicub(
     double xget, double yget,
     Kokkos::View<int*, MemorySpace> ict,
     Rank1View<T, MemorySpace> fval, // output (size depends on ict)
+    Rank1View<T, MemorySpace> x, const int &nx,
+    Rank1View<T, MemorySpace> y, const int &ny,
+    Rank3View<T, MemorySpace> f, // input (size depends on ict)
     int &ier) {
   // Local variables
   int i = 0, j = 0;
@@ -2732,14 +2732,14 @@ void BiCubicSplineInterpolator<T, MemorySpace>::evbicub(
   T hxi = 0.0, hyi = 0.0;
 
   // Call herm2xy to locate cell and compute params
-  herm2xy(xget, yget, x_, nx_, y_, ny_, i, j, xparam, yparam, hx, hxi, hy, hyi,
+  herm2xy(xget, yget, x, nx, y, ny, i, j, xparam, yparam, hx, hxi, hy, hyi,
           ier);
 
   if (ier != 0)
     return;
 
   // Call fvbicub with scalar-vector interface
-  fvbicub(ict, 1, 1, fval, i, j, xparam, yparam, hx, hxi, hy, hyi);
+  fvbicub(ict, 1, 1, fval, i, j, xparam, yparam, hx, hxi, hy, hyi, f);
 }
 
 } // namespace pcms
