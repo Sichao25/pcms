@@ -10,46 +10,6 @@ bool are_equal(double a, double b, double tolerance = 1e-7) {
   return std::abs(a - b) < tolerance;
 }
 
-template <typename T>
-void flatten_vector4d(
-    const std::vector<std::vector<std::vector<std::vector<T>>>> &vec4d,
-    std::vector<T> &vec) {
-  std::size_t idx = 0;
-  for (const auto &cube : vec4d) {
-    for (const auto &plane : cube) {
-      for (const auto &row : plane) {
-        for (const auto &val : row) {
-          vec[idx++] = val;
-        }
-      }
-    }
-  }
-}
-
-template <typename T, std::size_t N>
-void to_array(const std::vector<T> &vec, std::array<T, N> &arr) {
-  std::copy(vec.begin(), vec.end(), arr.begin());
-}
-
-// Template function for 4D vector to 1D array
-template <std::size_t N, typename T>
-void vector4d_to_array(
-    const std::vector<std::vector<std::vector<std::vector<T>>>> &vec4d,
-    std::array<T, N> &arr) {
-  std::size_t idx = 0;
-  for (const auto &cube : vec4d) {
-    for (const auto &plane : cube) {
-      for (const auto &row : plane) {
-        for (const auto &val : row) {
-          if (idx < N) {
-            arr[idx++] = val;
-          }
-        }
-      }
-    }
-  }
-  assert(idx <= N && "Vector has more elements than array can hold");
-}
 
 void createFlatGrid(Rank1View<double, HostMemorySpace> xvec, Rank1View<double, HostMemorySpace> yvec,
   Kokkos::View<double*, HostMemorySpace> X_flat, Kokkos::View<double*, HostMemorySpace> Y_flat) {
@@ -152,16 +112,11 @@ void dotest1(int ns, Rank1View<double, HostMemorySpace> x,
     fs2(0, i) = f[i];
   }
 
-  std::array<double, 40> fspl4_arr;
-  auto fspl4 = Rank2View<double, HostMemorySpace>(fspl4_arr.data(), 4, 10);
+  Kokkos::View<double*, HostMemorySpace> fspl4_view("fspl4_view", 40);
+  auto fspl4 = Rank2View<double, HostMemorySpace>(fspl4_view.data(), 4, 10);
 
   // CubicSplineInterpolator<double, HostMemorySpace> interpolator;
 
-  // interpolator.genxpkg(ns, x, xpkg, 1, 1, 1, 4.0e-7, 1);
-  // if (ierg != 0) {
-  //     std::cerr << "Error in genxpkg: " << ierg << std::endl;
-  //     return;
-  // }
 
   int ilinx = 1; // Dummy interpolation lookup table
   int ier = 0;
@@ -169,8 +124,8 @@ void dotest1(int ns, Rank1View<double, HostMemorySpace> x,
   // interpolator.cspline(x, ns, fspl, 1, 1, 1, 1, wk);
   CubicSplineInterpolator<double, HostMemorySpace> explicit_interpolator(x, ns, fspl, 1, 1, 1, 1, wk);
 
-  std::array<double, 3> fget_arr = {0.0, 0.0, 0.0};
-  auto fget = Rank1View<double, HostMemorySpace>(fget_arr.data(), 3);
+  Kokkos::View<double*, HostMemorySpace> fget_view("fget_view", 3);
+  auto fget = Rank1View<double, HostMemorySpace>(fget_view.data(), 3);
   double sdif = 0.0;
   double pdif = 0.0;
   double s2dif = 0.0;
@@ -183,8 +138,8 @@ void dotest1(int ns, Rank1View<double, HostMemorySpace> x,
   Kokkos::deep_copy(ict, 0);
   ict[0] = 1;
 
-  std::array<double, 3000> splinv_arr;
-  auto splinv = Rank2View<double, HostMemorySpace>(splinv_arr.data(), 1000, 3);
+  Kokkos::View<double*, HostMemorySpace> splinv_view("splinv_view", 3000);
+  auto splinv = Rank2View<double, HostMemorySpace>(splinv_view.data(), 1000, 3);
   explicit_interpolator.evaluate_explicit(ict, xt, splinv);
 
   for (int i = 0; i < 1000; ++i) {
@@ -252,110 +207,52 @@ void pspltest1(double zctrl) {
   int inum = 10;
 
   // Local arrays
-  // std::vector<double> zdum_vec(1000), testa1_vec(1000), testa2_vec(1000),
-  //     testa3_vec(1000), xtest_vec(1000), ftest_vec(1000);
-  // std::vector<double> x_vec(10), zcos_vec(10), z2sin_vec(10);
-  // std::vector<double> xpkg_vec(10 * 4);
-  // std::vector<double> fs_vec(40), fsp_vec(40);
-  // std::vector<double> fs2_vec(20);
-  Kokkos::View<double*, HostMemorySpace> zdum_arr("zdum_arr", 1000);
-  Kokkos::View<double*, HostMemorySpace> testa1_arr("testa1_arr", 1000);
-  Kokkos::View<double*, HostMemorySpace> testa2_arr("testa2_arr", 1000);
-  Kokkos::View<double*, HostMemorySpace> testa3_arr("testa3_arr", 1000);
-  Kokkos::View<double*, HostMemorySpace> xtest_arr("xtest_arr", 1000);
-  Kokkos::View<double*, HostMemorySpace> ftest_arr("ftest_arr", 1000);
-  Kokkos::View<double*, HostMemorySpace> x_arr("x_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> zcos_arr("zcos_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> z2sin_arr("z2sin_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> xpkg_arr("xpkg_arr", 10 * 4);
-  Kokkos::View<double*, HostMemorySpace> fs_arr("fs_arr", 40);
-  Kokkos::View<double*, HostMemorySpace> fsp_arr("fsp_arr", 40);
-  Kokkos::View<double*, HostMemorySpace> fs2_arr("fs2_arr", 20);
+  Kokkos::View<double*, HostMemorySpace> zdum_view("zdum_view", 1000);
+  Kokkos::View<double*, HostMemorySpace> testa1_view("testa1_view", 1000);
+  Kokkos::View<double*, HostMemorySpace> testa2_view("testa2_view", 1000);
+  Kokkos::View<double*, HostMemorySpace> testa3_view("testa3_view", 1000);
+  Kokkos::View<double*, HostMemorySpace> xtest_view("xtest_view", 1000);
+  Kokkos::View<double*, HostMemorySpace> ftest_view("ftest_view", 1000);
+  Kokkos::View<double*, HostMemorySpace> x_view("x_view", 10);
+  Kokkos::View<double*, HostMemorySpace> zcos_view("zcos_view", 10);
+  Kokkos::View<double*, HostMemorySpace> z2sin_view("z2sin_view", 10);
+  Kokkos::View<double*, HostMemorySpace> xpkg_view("xpkg_view", 10 * 4);
+  Kokkos::View<double*, HostMemorySpace> fs_view("fs_view", 40);
+  Kokkos::View<double*, HostMemorySpace> fsp_view("fsp_view", 40);
+  Kokkos::View<double*, HostMemorySpace> fs2_view("fs2_view", 20);
 
 
   // Prepare test data
-  tset(1000, xtest_arr, ftest_arr, zdum_arr, zero - 0.1, pi2 + 0.1);
-  tset(inum, x_arr, z2sin_arr, zcos_arr, zero, pi2);
+  tset(1000, xtest_view, ftest_view, zdum_view, zero - 0.1, pi2 + 0.1);
+  tset(inum, x_view, z2sin_view, zcos_view, zero, pi2);
 
   // Calculate derivative (df/dx = cos(x))
   for (int ix = 0; ix < inum; ++ix) {
-    zcos_arr[ix] = std::cos(x_arr[ix]);
+    zcos_view[ix] = std::cos(x_view[ix]);
   }
 
-  // std::array<double, 1000> zdum_arr;
-  // to_array(zdum_vec, zdum_arr);
-  // auto zdum_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   zdum_vec.data(), zdum_vec.size());
+ 
   auto zdum =
-      Rank1View<double, HostMemorySpace>(zdum_arr.data(), zdum_arr.size());
-  // std::array<double, 1000> wk2_arr;
-  // std::copy(zdum_vec.begin(), zdum_vec.end(), wk2_arr.begin());
-  // Kokkos::View<double*, HostMemorySpace> wk2_arr("wk2_arr", 3);
-  auto wk2_arr = Kokkos::View<double*, HostMemorySpace>(
-    zdum_arr.data(), 1000);
-  auto wk2 = Rank1View<double, HostMemorySpace>(wk2_arr.data(), wk2_arr.size());
-  // std::array<double, 3000> testa1_arr;
-  // to_array(testa1_vec, testa1_arr);
-  // auto testa1_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   testa1_vec.data(), testa1_vec.size());
-  auto testa1 = Rank2View<double, HostMemorySpace>(testa1_arr.data(), 1000, 3);
-  // std::array<double, 3000> testa2_arr;
-  // to_array(testa2_vec, testa2_arr);
-  // auto testa2_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   testa2_vec.data(), testa2_vec.size());
-  auto testa2 = Rank2View<double, HostMemorySpace>(testa2_arr.data(), 1000, 3);
-  // std::array<double, 3000> testa3_arr;
-  // to_array(testa3_vec, testa3_arr);
-  // auto testa3_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   testa3_vec.data(), testa3_vec.size());
-  auto testa3 = Rank2View<double, HostMemorySpace>(testa3_arr.data(), 1000, 3);
-  // std::array<double, 10> x_arr;
-  // to_array(x_vec, x_arr);
-  // auto x_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   x_vec.data(), x_vec.size());
-  auto x = Rank1View<double, HostMemorySpace>(x_arr.data(), x_arr.size());
-  // std::array<double, 10> zcos_arr;
-  // to_array(zcos_vec, zcos_arr);
-  // auto zcos_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   zcos_vec.data(), zcos_vec.size());
+      Rank1View<double, HostMemorySpace>(zdum_view.data(), zdum_view.size());
+
+  auto wk2_view = Kokkos::View<double*, HostMemorySpace>(
+    zdum_view.data(), 1000);
+  auto wk2 = Rank1View<double, HostMemorySpace>(wk2_view.data(), wk2_view.size());
+
+  auto testa1 = Rank2View<double, HostMemorySpace>(testa1_view.data(), 1000, 3);
+  auto testa2 = Rank2View<double, HostMemorySpace>(testa2_view.data(), 1000, 3);
+  auto testa3 = Rank2View<double, HostMemorySpace>(testa3_view.data(), 1000, 3);
+  auto x = Rank1View<double, HostMemorySpace>(x_view.data(), x_view.size());
   auto zcos =
-      Rank1View<double, HostMemorySpace>(zcos_arr.data(), zcos_arr.size());
-  // std::array<double, 10> z2sin_arr;
-  // to_array(z2sin_vec, z2sin_arr);
-  // auto z2sin_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   z2sin_vec.data(), z2sin_vec.size());
+      Rank1View<double, HostMemorySpace>(zcos_view.data(), zcos_view.size());
   auto z2sin =
-      Rank1View<double, HostMemorySpace>(z2sin_arr.data(), z2sin_arr.size());
-  // std::array<double, 40> fs_arr;
-  // to_array(fs_vec, fs_arr);
-  // auto fs_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   fs_vec.data(), fs_vec.size());
-  auto fs = Rank2View<double, HostMemorySpace>(fs_arr.data(), 4, 10);
-  // std::array<double, 40> fsp_arr;
-  // to_array(fsp_vec, fsp_arr);
-  // auto fsp_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   fsp_vec.data(), fsp_vec.size());
-  auto fsp = Rank2View<double, HostMemorySpace>(fsp_arr.data(), 4, 10);
-  // std::array<double, 20> fs2_arr;
-  // to_array(fs2_vec, fs2_arr);
-  // auto fs2_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   fs2_vec.data(), fs2_vec.size());
-  auto fs2 = Rank2View<double, HostMemorySpace>(fs2_arr.data(), 2, 10);
-  // std::array<double, 40> xpkg_arr;
-  // to_array(xpkg_vec, xpkg_arr);
-  // auto xpkg_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   xpkg_vec.data(), xpkg_vec.size());
-  auto xpkg = Rank2View<double, HostMemorySpace>(xpkg_arr.data(), 10, 4);
-  // std::array<double, 1000> xtest_arr;
-  // to_array(xtest_vec, xtest_arr);
-  // auto xtest_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   xtest_vec.data(), xtest_vec.size());
-  auto xtest = Rank1View<double, HostMemorySpace>(xtest_arr.data(), 1000);
-  // std::array<double, 1000> ftest_arr;
-  // to_array(ftest_vec, ftest_arr);
-  // auto ftest_arr = Kokkos::View<double*, HostMemorySpace>(
-  //   ftest_vec.data(), ftest_vec.size());
-  auto ftest = Rank1View<double, HostMemorySpace>(ftest_arr.data(), 1000);
+      Rank1View<double, HostMemorySpace>(z2sin_view.data(), z2sin_view.size());
+  auto fs = Rank2View<double, HostMemorySpace>(fs_view.data(), 4, 10);
+  auto fsp = Rank2View<double, HostMemorySpace>(fsp_view.data(), 4, 10);
+  auto fs2 = Rank2View<double, HostMemorySpace>(fs2_view.data(), 2, 10);
+  auto xpkg = Rank2View<double, HostMemorySpace>(xpkg_view.data(), 10, 4);
+  auto xtest = Rank1View<double, HostMemorySpace>(xtest_view.data(), 1000);
+  auto ftest = Rank1View<double, HostMemorySpace>(ftest_view.data(), 1000);
 
   // Call test function
   dotest1(inum, x, z2sin, zcos, fs, fsp, fs2, 1000, xtest, ftest, xpkg, testa1,
@@ -468,19 +365,6 @@ void dotest2(Rank1View<double, HostMemorySpace> x,
 
   bset(fx, nx, fth, nth, bcx1, bcx2, bcth1, bcth2);
 
-  // // std::array<double, 40> fspl_x_arr;
-  // Kokkos::View<double*, HostMemorySpace> fspl_x_arr(40);
-  // auto fspl_x = Rank2View<double, HostMemorySpace>(fspl_x_arr.data(), 4, 10);
-  // // std::array<double, 40> fspl_th_arr;
-  // Kokkos::View<double*, HostMemorySpace> fspl_th_arr(40);
-  // auto fspl_th = Rank2View<double, HostMemorySpace>(fspl_th_arr.data(), 4, 10);
-  // std::array<double, 10> wk_x_arr;
-  // auto wk_x = Rank1View<double, HostMemorySpace>(wk_x_arr.data(), 10);
-  // std::array<double, 10> wk_th_arr;
-  // auto wk_th = Rank1View<double, HostMemorySpace>(wk_th_arr.data(), 10);
-  // std::array<double, 400> fspl_l_th_arr;
-  // auto fspl_l_th =
-  //     Rank2View<double, HostMemorySpace>(fspl_l_th_arr.data(), 40, 10);
 
   // interpolator.bcspline(x, nx, th, nth, f, nbc, bcx1, nbc, bcx2, nbc, bcth1,
   //                       nbc, bcth2, wk);
@@ -490,28 +374,20 @@ void dotest2(Rank1View<double, HostMemorySpace> x,
     std::cerr << " ?? error in pspltest:  dotest2(bcspline)\n";
     return;
   }
-  // std::array<double, 400000> splinv_arr;
-  Kokkos::View<double*, HostMemorySpace> splinv_arr("splinv_arr", 400000);
-  auto splinv = Rank2View<double, HostMemorySpace>(splinv_arr.data(), 40000, 10);
+  Kokkos::View<double*, HostMemorySpace> splinv_view("splinv_view", 400000);
+  auto splinv = Rank2View<double, HostMemorySpace>(splinv_view.data(), 40000, 10);
   // std::vector<int> isel(10, 0);
   Kokkos::View<int*, HostMemorySpace> isel("isel", 10);
   Kokkos::deep_copy(isel, 0);
   isel[0] = 1;
 
-  // auto [xtest_grid_vec, thtest_grid_vec] = createFlatGrid(xtest, thtest);
-  // std::array<double, 40000> xtest_grid_arr;
-  // std::array<double, 40000> thtest_grid_arr;
-  // to_array(xtest_grid_vec, xtest_grid_arr);
-  // to_array(thtest_grid_vec, thtest_grid_arr);
-  // auto xtest_grid_arr = Kokkos::View<double*, HostMemorySpace>(xtest_grid_vec.data(), xtest_grid_vec.size());
-  // auto thtest_grid_arr = Kokkos::View<double*, HostMemorySpace>(thtest_grid_vec.data(), thtest_grid_vec.size());
-  Kokkos::View<double*, HostMemorySpace> xtest_grid_arr("xtest_grid_arr", 40000);
-  Kokkos::View<double*, HostMemorySpace> thtest_grid_arr("thtest_grid_arr", 40000);
-  createFlatGrid(xtest, thtest, xtest_grid_arr, thtest_grid_arr);
+  Kokkos::View<double*, HostMemorySpace> xtest_grid_view("xtest_grid_view", 40000);
+  Kokkos::View<double*, HostMemorySpace> thtest_grid_view("thtest_grid_view", 40000);
+  createFlatGrid(xtest, thtest, xtest_grid_view, thtest_grid_view);
   auto xtest_grid =
-      Rank1View<double, HostMemorySpace>(xtest_grid_arr.data(), 40000);
+      Rank1View<double, HostMemorySpace>(xtest_grid_view.data(), 40000);
   auto thtest_grid =
-      Rank1View<double, HostMemorySpace>(thtest_grid_arr.data(), 40000);
+      Rank1View<double, HostMemorySpace>(thtest_grid_view.data(), 40000);
 
   explicit_interpolator.evaluate_explicit(isel, xtest_grid, thtest_grid, splinv);
 
@@ -540,140 +416,71 @@ void pspltest2(double zctrl) {
   const double one = 1.0;
   int inum = 10;
 
-  // std::vector<double> x1_vec(10), ex1_vec(10), t1_vec(10), st1_vec(10),
-  //     ct1_vec(10);
-  // std::vector<double> x2_vec(20), ex2_vec(20), t2_vec(20), st2_vec(20),
-  //     ct2_vec(20);
-  // std::vector<double> x4_vec(40), ex4_vec(40), t4_vec(40), st4_vec(40),
-  //     ct4_vec(40);
-  // std::vector<double> xtest_vec(200), extest_vec(200), ttest_vec(200),
-  //     stest_vec(200), ctest_vec(200);
-
-  // std::vector<double> f1_vec(1600), f2_vec(6400), f4_vec(4 * 4 * 40 * 40);
-  // std::vector<double> bcx1_vec(40), bcx2_vec(40), bcth1_vec(40), bcth2_vec(40);
-  // std::vector<double> fh_vec(400);
-  // std::vector<double> flin_vec(100, 100);
-
-  Kokkos::View<double*, HostMemorySpace> x1_arr("x1_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> ex1_arr("ex1_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> t1_arr("t1_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> st1_arr("st1_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> ct1_arr("ct1_arr", 10);
-  Kokkos::View<double*, HostMemorySpace> xtest_arr("xtest_arr", 200);
-  Kokkos::View<double*, HostMemorySpace> extest_arr("extest_arr", 200);
-  Kokkos::View<double*, HostMemorySpace> ttest_arr("ttest_arr", 200);
-  Kokkos::View<double*, HostMemorySpace> stest_arr("stest_arr", 200);
-  Kokkos::View<double*, HostMemorySpace> ctest_arr("ctest_arr", 200);
-  Kokkos::View<double*, HostMemorySpace> f1_arr("f1_arr", 1600);
-  Kokkos::View<double*, HostMemorySpace> f2_arr("f2_arr", 6400);
-  Kokkos::View<double*, HostMemorySpace> f4_arr("f4_arr", 4 * 4 * 40 * 40);
-  Kokkos::View<double*, HostMemorySpace> bcx1_arr("bcx1_arr", 40);
-  Kokkos::View<double*, HostMemorySpace> bcx2_arr("bcx2_arr", 40);
-  Kokkos::View<double*, HostMemorySpace> bcth1_arr("bcth1_arr", 40);
-  Kokkos::View<double*, HostMemorySpace> bcth2_arr("bcth2_arr", 40);
-  Kokkos::View<double*, HostMemorySpace> fh_arr("fh_arr", 400);
-  Kokkos::View<double*, HostMemorySpace> flin_arr("flin_arr", 100);
+  Kokkos::View<double*, HostMemorySpace> x1_view("x1_view", 10);
+  Kokkos::View<double*, HostMemorySpace> ex1_view("ex1_view", 10);
+  Kokkos::View<double*, HostMemorySpace> t1_view("t1_view", 10);
+  Kokkos::View<double*, HostMemorySpace> st1_view("st1_view", 10);
+  Kokkos::View<double*, HostMemorySpace> ct1_view("ct1_view", 10);
+  Kokkos::View<double*, HostMemorySpace> xtest_view("xtest_view", 200);
+  Kokkos::View<double*, HostMemorySpace> extest_view("extest_view", 200);
+  Kokkos::View<double*, HostMemorySpace> ttest_view("ttest_view", 200);
+  Kokkos::View<double*, HostMemorySpace> stest_view("stest_view", 200);
+  Kokkos::View<double*, HostMemorySpace> ctest_view("ctest_view", 200);
+  Kokkos::View<double*, HostMemorySpace> f1_view("f1_view", 1600);
+  Kokkos::View<double*, HostMemorySpace> f2_view("f2_view", 6400);
+  Kokkos::View<double*, HostMemorySpace> f4_view("f4_view", 4 * 4 * 40 * 40);
+  Kokkos::View<double*, HostMemorySpace> bcx1_view("bcx1_view", 40);
+  Kokkos::View<double*, HostMemorySpace> bcx2_view("bcx2_view", 40);
+  Kokkos::View<double*, HostMemorySpace> bcth1_view("bcth1_view", 40);
+  Kokkos::View<double*, HostMemorySpace> bcth2_view("bcth2_view", 40);
+  Kokkos::View<double*, HostMemorySpace> fh_view("fh_view", 400);
+  Kokkos::View<double*, HostMemorySpace> flin_view("flin_view", 100);
 
 
-  xset(10, x1_arr, ex1_arr, zero, one);
-  // xset(20, x2_arr, ex2_arr, zero, one);
-  // xset(40, x4_arr, ex4_arr, zero, one);
-  xset(200, xtest_arr, extest_arr, zero, one);
+  xset(10, x1_view, ex1_view, zero, one);
+  // xset(20, x2_view, ex2_view, zero, one);
+  // xset(40, x4_view, ex4_view, zero, one);
+  xset(200, xtest_view, extest_view, zero, one);
 
-  tset(10, t1_arr, st1_arr, ct1_arr, zero, pi2);
-  // tset(20, t2_arr, st2_arr, ct2_arr, zero, pi2);
-  // tset(40, t4_arr, st4_arr, ct4_arr, zero, pi2);
-  tset(200, ttest_arr, stest_arr, ctest_arr, zero, pi2);
+  tset(10, t1_view, st1_view, ct1_view, zero, pi2);
+  // tset(20, t2_view, st2_view, ct2_view, zero, pi2);
+  // tset(40, t4_view, st4_view, ct4_view, zero, pi2);
+  tset(200, ttest_view, stest_view, ctest_view, zero, pi2);
 
-  ffset(10, ex1_arr, st1_arr, f1_arr);
-  // ffset(20, ex2_arr, st2_arr, f2_arr);
-  // ffset(40, ex4_arr, st4_arr, f4_arr);
+  ffset(10, ex1_view, st1_view, f1_view);
+  // ffset(20, ex2_view, st2_view, f2_view);
+  // ffset(40, ex4_view, st4_view, f4_view);
 
-  // std::array<double, 10> x1_arr;
-  // to_array(x1_vec, x1_arr);
-  // auto x1_arr = Kokkos::View<double*, HostMemorySpace>(x1_vec.data(), x1_vec.size());
   auto x1 =
-      Rank1View<double, HostMemorySpace>(x1_arr.data(), x1_arr.size());
-
-  // std::array<double, 10> ex1_arr;
-  // to_array(ex1_vec, ex1_arr);
-  // auto ex1_arr = Kokkos::View<double*, HostMemorySpace>(ex1_vec.data(), ex1_vec.size());
-  auto ex1 = Rank1View<double, HostMemorySpace>(ex1_arr.data(), ex1_arr.size());
-
-  // td::array<double, 10> t1_arr;
-  // to_array(t1_vec, t1_arr);s
-  // auto t1_arr = Kokkos::View<double*, HostMemorySpace>(t1_vec.data(), t1_vec.size());
+      Rank1View<double, HostMemorySpace>(x1_view.data(), x1_view.size());
+  auto ex1 = Rank1View<double, HostMemorySpace>(ex1_view.data(), ex1_view.size());
   auto t1 =
-      Rank1View<double, HostMemorySpace>(t1_arr.data(), t1_arr.size());
-
-  // std::array<double, 10> st1_arr;
-  // to_array(st1_vec, st1_arr);
-  // auto st1_arr = Kokkos::View<double*, HostMemorySpace>(st1_vec.data(), st1_vec.size());
-  auto st1 = Rank1View<double, HostMemorySpace>(st1_arr.data(), st1_arr.size());
-  // std::array<double, 10> ct1_arr;
-  // to_array(ct1_vec, ct1_arr);
-  // auto ct1_arr = Kokkos::View<double*, HostMemorySpace>(ct1_vec.data(), ct1_vec.size());
-  auto ct1 = Rank1View<double, HostMemorySpace>(ct1_arr.data(), ct1_arr.size());
-
-  // std::array<double, 1600> f1_arr;
-  // to_array(f1_vec, f1_arr);
-  // auto f1_arr = Kokkos::View<double*, HostMemorySpace>(f1_vec.data(), f1_vec.size());
-  auto f1 = Rank4View<double, HostMemorySpace>(f1_arr.data(),
+      Rank1View<double, HostMemorySpace>(t1_view.data(), t1_view.size());
+  auto st1 = Rank1View<double, HostMemorySpace>(st1_view.data(), st1_view.size());
+  auto ct1 = Rank1View<double, HostMemorySpace>(ct1_view.data(), ct1_view.size());
+  auto f1 = Rank4View<double, HostMemorySpace>(f1_view.data(),
                                                Kokkos::extents{4, 4, 10, 10});
-  // std::array<double, 1600> flin_arr;
-  // to_array(flin_vec, flin_arr);
-  // auto flin_arr = Kokkos::View<double*, HostMemorySpace>(flin_vec.data(), flin_vec.size());
-  auto flin = Rank2View<double, HostMemorySpace>(flin_arr.data(), 10, 10);
-  // std::array<double, 6400> fh_arr;
-  // to_array(fh_vec, fh_arr);
-  // auto fh_arr = Kokkos::View<double*, HostMemorySpace>(fh_vec.data(), fh_vec.size());
-  auto fh = Rank3View<double, HostMemorySpace>(fh_arr.data(), 4, 10, 10);
+  auto flin = Rank2View<double, HostMemorySpace>(flin_view.data(), 10, 10);
 
-  // std::array<double, 40> bcx1_arr;
-  // to_array(bcx1_vec, bcx1_arr);
-  // auto bcx1_arr = Kokkos::View<double*, HostMemorySpace>(bcx1_vec.data(), bcx1_vec.size());
+  auto fh = Rank3View<double, HostMemorySpace>(fh_view.data(), 4, 10, 10);
+
   auto bcx1 =
-      Rank1View<double, HostMemorySpace>(bcx1_arr.data(), bcx1_arr.size());
-  // std::array<double, 40> bcx2_arr;
-  // to_array(bcx2_vec, bcx2_arr);
-  // auto bcx2_arr = Kokkos::View<double*, HostMemorySpace>(bcx2_vec.data(), bcx2_vec.size());
+      Rank1View<double, HostMemorySpace>(bcx1_view.data(), bcx1_view.size());
   auto bcx2 =
-      Rank1View<double, HostMemorySpace>(bcx2_arr.data(), bcx2_arr.size());
-  // std::array<double, 40> bcth1_arr;
-  // to_array(bcth1_vec, bcth1_arr);
-  // auto bcth1_arr = Kokkos::View<double*, HostMemorySpace>(bcth1_vec.data(), bcth1_vec.size());
+      Rank1View<double, HostMemorySpace>(bcx2_view.data(), bcx2_view.size());
   auto bcth1 =
-      Rank1View<double, HostMemorySpace>(bcth1_arr.data(), bcth1_arr.size());
-  // std::array<double, 40> bcth2_arr;
-  // to_array(bcth2_vec, bcth2_arr);
-  // auto bcth2_arr = Kokkos::View<double*, HostMemorySpace>(bcth2_vec.data(), bcth2_vec.size());
+      Rank1View<double, HostMemorySpace>(bcth1_view.data(), bcth1_view.size());
   auto bcth2 =
-      Rank1View<double, HostMemorySpace>(bcth2_arr.data(), bcth2_arr.size());
+      Rank1View<double, HostMemorySpace>(bcth2_view.data(), bcth2_view.size());
 
-  // std::array<double, 200> xtest_arr;
-  // to_array(xtest_vec, xtest_arr);
-  // auto xtest_arr = Kokkos::View<double*, HostMemorySpace>(xtest_vec.data(), xtest_vec.size());
   auto xtest =
-      Rank1View<double, HostMemorySpace>(xtest_arr.data(), xtest_arr.size());
-  // std::array<double, 200> extest_arr;
-  // to_array(extest_vec, extest_arr);
-  // auto extest_arr = Kokkos::View<double*, HostMemorySpace>(extest_vec.data(), extest_vec.size());
+      Rank1View<double, HostMemorySpace>(xtest_view.data(), xtest_view.size());
   auto extest =
-      Rank1View<double, HostMemorySpace>(extest_arr.data(), extest_arr.size());
-  // std::array<double, 200> ttest_arr;
-  // to_array(ttest_vec, ttest_arr);
-  // auto ttest_arr = Kokkos::View<double*, HostMemorySpace>(ttest_vec.data(), ttest_vec.size());
+      Rank1View<double, HostMemorySpace>(extest_view.data(), extest_view.size());
   auto ttest =
-      Rank1View<double, HostMemorySpace>(ttest_arr.data(), ttest_arr.size());
-  // std::array<double, 200> stest_arr;
-  // to_array(stest_vec, stest_arr);
-  // auto stest_arr = Kokkos::View<double*, HostMemorySpace>(stest_vec.data(), stest_vec.size());
+      Rank1View<double, HostMemorySpace>(ttest_view.data(), ttest_view.size());
   auto stest =
-      Rank1View<double, HostMemorySpace>(stest_arr.data(), stest_arr.size());
-  // std::array<double, 200> ctest_arr;
-  // to_array(ctest_vec, ctest_arr);
-  // auto ctest = Rank1View<double, HostMemorySpace>(ctest_arr.data(),
-  // ctest_arr.size());
+      Rank1View<double, HostMemorySpace>(stest_view.data(), stest_view.size());
 
   dotest2(x1, ex1, 10, t1, st1, ct1, 10, f1, fh, flin, bcx1, bcx2, bcth1, bcth2,
           xtest, extest, ttest, stest, 200);
