@@ -214,8 +214,8 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   sdifr = std::max(sdifr, result_sdifr);
   
   std::cout << "1d spline max absolute difference " << sdif << std::endl;
-  assert(are_equal(sdif, 6.7572E-04));
   std::cout << "1d spline relative difference " << sdifr << std::endl;
+  assert(are_equal(sdif, 6.7572E-04));
   assert(are_equal(sdifr, 6.6529E-04));
 
   // interpolator.cspline(x, ns, fspp, -1, 0, -1, 0, wk);
@@ -254,8 +254,8 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   pdifr = std::max(pdifr, result_pdifr);
 
   std::cout << "1d periodic max absolute difference " << pdif << std::endl;
-  assert(are_equal(pdif, 6.8669E-04));
   std::cout << "1d periodic relative difference " << pdifr << std::endl;
+  assert(are_equal(pdif, 6.8669E-04));
   assert(are_equal(pdifr, 6.7622E-04));
 
   // interpolator.mkspline(x, ns, fs2, fspl4, 1, 1, 1, 1, wk2);
@@ -291,8 +291,8 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   s2difr = std::max(s2difr, result_s2difr);
 
   std::cout << "1d spline2 max absolute difference " << s2dif << std::endl;
-  assert(are_equal(s2dif, 6.7572E-04));
   std::cout << "1d spline2 relative difference " << s2difr << std::endl;
+  assert(are_equal(s2dif, 6.7572E-04));
   assert(are_equal(s2difr, 6.6529E-04));
 }
 
