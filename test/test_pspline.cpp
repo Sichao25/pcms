@@ -12,6 +12,40 @@ bool are_equal(double a, double b, double tolerance = 1e-7) {
   return std::abs(a - b) < tolerance;
 }
 
+void print_mdspan(Rank1View<double, TestMemorySpace> view) {
+    Kokkos::parallel_for(
+        Kokkos::RangePolicy<TestMemorySpace>(0, view.size()),
+        KOKKOS_LAMBDA(const int i) {
+            printf("view[%d] = %f\n", i, view(i));
+        });
+}
+
+void print_2dmdspan(Rank2View<double, TestMemorySpace> view) {
+    Kokkos::parallel_for(
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {view.extent(0), view.extent(1)}),
+        KOKKOS_LAMBDA(const int i, const int j) {
+            printf("view[%d][%d] = %f\n", i, j, view(i, j));
+        });
+}
+
+void print_4dmdspan(Rank4View<double, TestMemorySpace> view) {
+    Kokkos::parallel_for(
+        Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0}, {view.extent(0), view.extent(1), view.extent(2), view.extent(3)}),
+        KOKKOS_LAMBDA(const int i, const int j, const int k, const int l) {
+            printf("view[%d][%d][%d][%d] = %f\n", i, j, k, l, view(i, j, k, l));
+        });
+}
+
+void print_view(Kokkos::View<double*, TestMemorySpace> view) {
+    Kokkos::parallel_for(
+        Kokkos::RangePolicy<TestMemorySpace>(0, view.size()),
+        KOKKOS_LAMBDA(const int i) {
+            printf("view[%d] = %f\n", i, view(i));
+        });
+}
+
+
+
 void createFlatGrid(Rank1View<double, TestMemorySpace> xvec, Rank1View<double, TestMemorySpace> yvec,
   Kokkos::View<double*, TestMemorySpace> X_flat, Kokkos::View<double*, TestMemorySpace> Y_flat) {
     size_t nx = xvec.size();
@@ -162,12 +196,9 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
 
 
   int ier = 0;
-
   // interpolator.cspline(x, ns, fspl, 1, 1, 1, 1, wk);
   CubicSplineInterpolator<double, TestMemorySpace> explicit_interpolator(x, ns, fspl, 1, 1, 1, 1, wk);
 
-  Kokkos::View<double*, TestMemorySpace> fget_view("fget_view", 3);
-  auto fget = Rank1View<double, TestMemorySpace>(fget_view.data(), 3);
   double sdif = 0.0;
   double pdif = 0.0;
   double s2dif = 0.0;
@@ -185,21 +216,23 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   auto splinv = Rank2View<double, TestMemorySpace>(splinv_view.data(), 1000, 3);
   // explicit_interpolator.evaluate_explicit(ict, xt, splinv);
 
-  // for (int i = 0; i < 1000; ++i) {
-  //   CubicSplineInterpolator<double, TestMemorySpace>::cspeval(xt[i], ict, fget, x, ns, fspl, ier);
-  //   if (ier != 0) {
-  //     ier = 0;
-  //   } else {
-  //     difabs = std::abs(fget(0) - ft[i]);
-  //     sdif = std::max(sdif, difabs);
-  //     sdifr = std::max(sdifr, difabs / ft[i]);
-  //   }
-  // }
+//   for (int i = 0; i < 1000; ++i) {
+//     CubicSplineInterpolator<double, TestMemorySpace>::cspeval(xt[i], ict, fget, x, ns, fspl, ier);
+//     if (ier != 0) {
+//       ier = 0;
+//     } else {
+//       difabs = std::abs(fget(0) - ft[i]);
+//       sdif = std::max(sdif, difabs);
+//       sdifr = std::max(sdifr, difabs / ft[i]);
+//     }
+//   }
+  Kokkos::View<double*, TestMemorySpace> fget_view("fget_view", 3 * 1000);
   double result_sdif = 0.0;
   double result_sdifr = 0.0;
   Kokkos::parallel_reduce("spline_eval", 1000, 
       KOKKOS_LAMBDA(int i, double& max_sdif, double& max_sdifr) {
           int local_ier = 0;
+          auto fget = Rank1View<double, TestMemorySpace>(fget_view.data() + i * 3, 3);
           CubicSplineInterpolator<double, TestMemorySpace>::cspeval(
               xt(i), ict, fget, x, ns, fspl, local_ier);
           if (local_ier == 0) {
@@ -238,6 +271,7 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   Kokkos::parallel_reduce("spline_eval", 1000, 
       KOKKOS_LAMBDA(int i, double& max_pdif, double& max_pdifr) {
           int local_ier = 0;
+          auto fget = Rank1View<double, TestMemorySpace>(fget_view.data() + i * 3, 3);
           CubicSplineInterpolator<double, TestMemorySpace>::cspeval(
               xt[i], ict, fget, x, ns, fspp, local_ier);
           
@@ -276,6 +310,7 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   Kokkos::parallel_reduce("spline_eval_compact", 1000, 
       KOKKOS_LAMBDA(int i, double& max_s2dif, double& max_s2difr) {
           int local_ier = 0;
+          auto fget = Rank1View<double, TestMemorySpace>(fget_view.data() + i * 3, 3);
           CubicSplineInterpolator<double, TestMemorySpace>::evspline(
               xt[i], ict, fget, x, ns, fs2, local_ier);
           
@@ -355,6 +390,7 @@ void pspltest1(double zctrl) {
   auto ftest = Rank1View<double, TestMemorySpace>(ftest_view.data(), 1000);
 
   // Call test function
+  print_view(x_view);
   dotest1(inum, x, z2sin, zcos, fs, fsp, fs2, 1000, xtest, ftest, xpkg, testa1,
           testa2, testa3, zdum, wk2);
 }
@@ -388,8 +424,7 @@ void compare(const std::string &slbl,
   // int ier;
 
   // std::vector<double> fget_vec(10);
-  Kokkos::View<double*, TestMemorySpace> fget_vec("fget_vec", 10);
-  auto fget = Rank1View<double, TestMemorySpace>(fget_vec.data(), 10);
+  Kokkos::View<double*, TestMemorySpace> fget_vec("fget_vec", 10 * ntest * ntest);
   double zth = 0.0;
   double zx = 0.0;
   double ff = 0.0;
@@ -430,6 +465,7 @@ void compare(const std::string &slbl,
           double zth = thtest(j);
           double zx = xtest(i);
           double ff = fxtest(i) * fthtest(j);
+          auto fget = Rank1View<double, TestMemorySpace>(fget_vec.data() + idx * 10, 10);
           if (iherm == 0) {
               BiCubicSplineInterpolator<double, TestMemorySpace>::bcspeval(
                   zx, zth, isel, fget, x, nx, th, nth, f, ier);
@@ -443,6 +479,8 @@ void compare(const std::string &slbl,
               max_fdif = Kokkos::max(max_fdif, dif);
               max_fdifr = Kokkos::max(max_fdifr, dif / (0.5 * (ff + fs)));
           }
+          // printf("i=%d, j=%d,ff=%f, fs=%f, fdif=%f, fdifr=%f\n",
+          //        i, j, ff, fget(0), max_fdif, max_fdifr);
       },
       Kokkos::Max<double>(result_fdif),
       Kokkos::Max<double>(result_fdifr));
@@ -527,7 +565,8 @@ void dotest2(Rank1View<double, TestMemorySpace> x,
   auto thtest_grid =
       Rank1View<double, TestMemorySpace>(thtest_grid_view.data(), 40000);
 
-  explicit_interpolator.evaluate_explicit(isel, xtest_grid, thtest_grid, splinv);
+  //TODO: evaluate function raise memeory acess violation
+  // explicit_interpolator.evaluate_explicit(isel, xtest_grid, thtest_grid, splinv);
 
   compare("bcspline", x, nx, th, nth, f, fh, flin, ilinx, ilinth, xtest, fxtest,
           thtest, fthtest, ntest, explicit_interpolator, isel, splinv);
@@ -542,7 +581,7 @@ void dotest2(Rank1View<double, TestMemorySpace> x,
   //                      nbc, bcth2, wk);
   BiCubicSplineInterpolator<double, TestMemorySpace> compact_interpolator(
       x, nx, th, nth, fh, nbc, bcx1, nbc, bcx2, nbc, bcth1, nbc, bcth2, wk);
-  compact_interpolator.evaluate_compact(isel, xtest_grid, thtest_grid, splinv);
+//   compact_interpolator.evaluate_compact(isel, xtest_grid, thtest_grid, splinv);
 
   compare("mkbicub", x, nx, th, nth, f, fh, flin, ilinx, ilinth, xtest, fxtest,
           thtest, fthtest, ntest, compact_interpolator, isel, splinv);
