@@ -1247,12 +1247,14 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
       //   }
       // }
       Kokkos::parallel_reduce(
-          Kokkos::RangePolicy<execution_space>(0, inx),
-          KOKKOS_LAMBDA(const int ix, int &iflg) {
-            if (bcthmin[ix] != 0.0) {
-              iflg += 1;
+        "check_nonzero",
+        Kokkos::RangePolicy<execution_space>(0, inx),
+        KOKKOS_LAMBDA(const int ix, int& local_flag) {
+            if (bcthmin(ix) != 0.0) {
+                local_flag = 1;
             }
-          }, iflg2);
+        },
+        Kokkos::Max<int>(iflg2));
 
     }
     if (ibcthmax == 1 || ibcthmax == 2) {
@@ -1263,12 +1265,14 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
       //   }
       // }
       Kokkos::parallel_reduce(
-          Kokkos::RangePolicy<execution_space>(0, inx),
-          KOKKOS_LAMBDA(const int ix, int &iflg) {
-            if (bcthmax[ix] != 0.0) {
-              iflg += 1;
+        "check_nonzero",
+        Kokkos::RangePolicy<execution_space>(0, inx),
+        KOKKOS_LAMBDA(const int ix, int& local_flag) {
+            if (bcthmax(ix) != 0.0) {
+                local_flag = 1;
             }
-          }, iflg2);
+        },
+        Kokkos::Max<int>(iflg2));
     }
   }
 
@@ -1427,7 +1431,7 @@ void BiCubicSplineInterpolator<T, MemorySpace>::bcspline(
         }
       });
 
-  if (iflg2 > 1) {
+  if (iflg2 == 1) {
     int iasc = 0;        // Workspace base for correction splines
     int iinc = 4 * inth; // Spacing between correction splines
 
@@ -2081,11 +2085,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
       // }
       Kokkos::parallel_reduce(
           Kokkos::RangePolicy<execution_space>(0, nx),
-          KOKKOS_LAMBDA(const int ix, int &update_iflg2) {
+          KOKKOS_LAMBDA(const int ix, int &local_iflg2) {
             if (bcymin[ix] != 0.0) {
-              update_iflg2 = 1;
+              local_iflg2 = 1;
             }
-          }, iflg2);
+          }, Kokkos::Max<int>(iflg2));
     }
     if ((ibcymax == 1 || ibcymax == 2)) {
       // for (int ix = 0; ix < nx; ++ix) {
@@ -2094,11 +2098,11 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
       // }
       Kokkos::parallel_reduce(
           Kokkos::RangePolicy<execution_space>(0, nx),
-          KOKKOS_LAMBDA(const int ix, int &update_iflg2) {
+          KOKKOS_LAMBDA(const int ix, int &local_iflg2) {
             if (bcymax[ix] != 0.0) {
-              update_iflg2 = 1;
+              local_iflg2 = 1;
             }
-          }, iflg2);
+          }, Kokkos::Max<int>(iflg2));
     }
   }
 
@@ -2269,83 +2273,83 @@ void BiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
       wk.data_handle() + 7 * ny * nx, 2, nx, ny);
   
 
-    T zdiff1 = 0.0, zdiff2 = 0.0;
-    auto fwk_y = Rank2View<T, MemorySpace>(
-        fspl_l_x.data_handle(), 2, ny);
-    auto wk_y = Rank1View<T, MemorySpace>(
-        wk.data_handle(), ny);
-    auto fwk4_y = Rank2View<T, MemorySpace>(
-        fwk4_l_x.data_handle(), 4, ny);
-    for (int ix = 0; ix < nx; ++ix) {
-        zdiff1 = (ibcymin == 1) ? (bcymin[ix] - ((f(0, ix, 1) - f(0, ix, 0))
-        / (y[1] - y[0]) + (y[1] - y[0]) * (-2.0 * f(2, ix, 0) - f(2, ix, 1))
-        / 6.0)) :
-                    ((ibcymin == 2) ? bcymin[ix] - f(2, ix, 0) : 0.0);
+    // T zdiff1 = 0.0, zdiff2 = 0.0;
+    // auto fwk_y = Rank2View<T, MemorySpace>(
+    //     fspl_l_x.data_handle(), 2, ny);
+    // auto wk_y = Rank1View<T, MemorySpace>(
+    //     wk.data_handle(), ny);
+    // auto fwk4_y = Rank2View<T, MemorySpace>(
+    //     fwk4_l_x.data_handle(), 4, ny);
+    // for (int ix = 0; ix < nx; ++ix) {
+    //     zdiff1 = (ibcymin == 1) ? (bcymin[ix] - ((f(0, ix, 1) - f(0, ix, 0))
+    //     / (y[1] - y[0]) + (y[1] - y[0]) * (-2.0 * f(2, ix, 0) - f(2, ix, 1))
+    //     / 6.0)) :
+    //                 ((ibcymin == 2) ? bcymin[ix] - f(2, ix, 0) : 0.0);
 
-        zdiff2 = (ibcymax == 1) ? (bcymax[ix] - ((f(0, ix, ny-1) - f(0, ix,
-        ny-2)) / (y[ny-1] - y[ny-2]) + (y[ny-1] - y[ny-2]) * (2.0 * f(2, ix,
-        ny-1) + f(2, ix, ny-2)) / 6.0)) :
-                    ((ibcymax == 2) ? bcymax[ix] - f(2, ix, ny-1) : 0.0);
+    //     zdiff2 = (ibcymax == 1) ? (bcymax[ix] - ((f(0, ix, ny-1) - f(0, ix,
+    //     ny-2)) / (y[ny-1] - y[ny-2]) + (y[ny-1] - y[ny-2]) * (2.0 * f(2, ix,
+    //     ny-1) + f(2, ix, ny-2)) / 6.0)) :
+    //                 ((ibcymax == 2) ? bcymax[ix] - f(2, ix, ny-1) : 0.0);
 
-        for (int iy = 0; iy < ny; ++iy) {
-            fwk_y(0, iy) = 0.0;
-        }
-        CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y,
-        fwk4_y, ibcymin, zdiff1, ibcymax, zdiff2, wk_y);
-        for (int iy = 0; iy < ny; ++iy)
-            fcorr(0, ix, iy) = fwk_y(1, iy);
-    }
+    //     for (int iy = 0; iy < ny; ++iy) {
+    //         fwk_y(0, iy) = 0.0;
+    //     }
+    //     CubicSplineInterpolator<T, MemorySpace>::mkspline(y, ny, fwk_y,
+    //     fwk4_y, ibcymin, zdiff1, ibcymax, zdiff2, wk_y);
+    //     for (int iy = 0; iy < ny; ++iy)
+    //         fcorr(0, ix, iy) = fwk_y(1, iy);
+    // }
 
-    // Kokkos::parallel_for(
-    //     Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO),
-    //     KOKKOS_LAMBDA(const member_type &team) {
-    //       const int ix = team.league_rank();
-    //       double zdiff1 = 0.0, zdiff2 = 0.0;
+    Kokkos::parallel_for(
+        Kokkos::TeamPolicy<execution_space>(nx, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const member_type &team) {
+          const int ix = team.league_rank();
+          double zdiff1 = 0.0, zdiff2 = 0.0;
 
-    //       auto fwk_y_view = Rank2View<T, MemorySpace>(
-    //           fspl_l_x.data_handle() + 2 * ny * ix, 2, ny);
-    //       auto wk_y_view =
-    //           Rank1View<T, MemorySpace>(wk_l.data_handle() + ny * ix, ny);
-    //       auto fwk4_y_view = Rank2View<T, MemorySpace>(
-    //           fwk4_l_x.data_handle() + 4 * ny * ix, 4, ny);
+          auto fwk_y_view = Rank2View<T, MemorySpace>(
+              fspl_l_x.data_handle() + 2 * ny * ix, 2, ny);
+          auto wk_y_view =
+              Rank1View<T, MemorySpace>(wk_l.data_handle() + ny * ix, ny);
+          auto fwk4_y_view = Rank2View<T, MemorySpace>(
+              fwk4_l_x.data_handle() + 4 * ny * ix, 4, ny);
 
           
-    //       if (ibcymin == 1) {
-    //         zdiff1 =
-    //             bcymin[ix] -
-    //             ((f(0, ix, 1) - f(0, ix, 0)) / (y[1] - y[0]) +
-    //               (y[1] - y[0]) * (-2.0 * f(2, ix, 0) - f(2, ix, 1)) / 6.0);
-    //       } else if (ibcymin == 2) {
-    //         zdiff1 = bcymin[ix] - f(2, ix, 0);
-    //       } else {
-    //         zdiff1 = 0.0;
-    //       }
+          if (ibcymin == 1) {
+            zdiff1 =
+                bcymin[ix] -
+                ((f(0, ix, 1) - f(0, ix, 0)) / (y[1] - y[0]) +
+                  (y[1] - y[0]) * (-2.0 * f(2, ix, 0) - f(2, ix, 1)) / 6.0);
+          } else if (ibcymin == 2) {
+            zdiff1 = bcymin[ix] - f(2, ix, 0);
+          } else {
+            zdiff1 = 0.0;
+          }
 
-    //       if (ibcymax == 1) {
-    //         zdiff2 = bcymax[ix] -
-    //                   ((f(0, ix, ny - 1) - f(0, ix, ny - 2)) /
-    //                       (y[ny - 1] - y[ny - 2]) +
-    //                   (y[ny - 1] - y[ny - 2]) *
-    //                       (2.0 * f(2, ix, ny - 1) + f(2, ix, ny - 2)) / 6.0);
-    //       } else if (ibcymax == 2) {
-    //         zdiff2 = bcymax[ix] - f(2, ix, ny - 1);
-    //       } else {
-    //         zdiff2 = 0.0;
-    //       }
+          if (ibcymax == 1) {
+            zdiff2 = bcymax[ix] -
+                      ((f(0, ix, ny - 1) - f(0, ix, ny - 2)) /
+                          (y[ny - 1] - y[ny - 2]) +
+                      (y[ny - 1] - y[ny - 2]) *
+                          (2.0 * f(2, ix, ny - 1) + f(2, ix, ny - 2)) / 6.0);
+          } else if (ibcymax == 2) {
+            zdiff2 = bcymax[ix] - f(2, ix, ny - 1);
+          } else {
+            zdiff2 = 0.0;
+          }
           
 
-    //       Kokkos::parallel_for(
-    //           Kokkos::TeamThreadRange(team, ny),
-    //           [=](int iy) { fwk_y_view(0, iy) = 0.0; });
-    //       if (team.team_rank() == 0) {
-    //         CubicSplineInterpolator<T, MemorySpace>::mkspline(
-    //             y, ny, fwk_y_view, fwk4_y_view, ibcymin, zdiff1, ibcymax,
-    //             zdiff2, wk_y_view);
-    //       }
-    //       Kokkos::parallel_for(
-    //           Kokkos::TeamThreadRange(team, ny),
-    //           [=](int iy) { fcorr(0, ix, iy) = fwk_y_view(1, iy); });
-    //     });
+          Kokkos::parallel_for(
+              Kokkos::TeamThreadRange(team, ny),
+              [=](int iy) { fwk_y_view(0, iy) = 0.0; });
+          if (team.team_rank() == 0) {
+            CubicSplineInterpolator<T, MemorySpace>::mkspline(
+                y, ny, fwk_y_view, fwk4_y_view, ibcymin, zdiff1, ibcymax,
+                zdiff2, wk_y_view);
+          }
+          Kokkos::parallel_for(
+              Kokkos::TeamThreadRange(team, ny),
+              [=](int iy) { fcorr(0, ix, iy) = fwk_y_view(1, iy); });
+        });
 
 
 

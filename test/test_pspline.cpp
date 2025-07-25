@@ -433,28 +433,30 @@ void compare(const std::string &slbl,
       splinv.data_handle(), ntest, ntest, 10);
 
 
-  // for (int j = 0; j < ntest; ++j) {
-  //   zth = thtest[j];
-  //   for (int i = 0; i < ntest; ++i) {
-  //     zx = xtest[i];
-  //     ff = fxtest[i] * fthtest[j];
-  //     fmin = std::min(fmin, ff);
-  //     fmax = std::max(fmax, ff);
+//   for (int j = 0; j < ntest; ++j) {
+//     zth = thtest[j];
+//     for (int i = 0; i < ntest; ++i) {
+//       zx = xtest[i];
+//       ff = fxtest[i] * fthtest[j];
+//       fmin = std::min(fmin, ff);
+//       fmax = std::max(fmax, ff);
+//       int ier = 0;
+//       auto fget = Rank1View<double, TestMemorySpace>(fget_vec.data() + (j * ntest + i) * 10, 10);
 
-  //     if (iherm == 0) {
-  //       BiCubicSplineInterpolator<double, TestMemorySpace>::bcspeval(zx, zth, isel, fget, x, nx, th, nth, f, ier);
-  //     } else if (iherm == 2) {
-  //       BiCubicSplineInterpolator<double, TestMemorySpace>::evbicub(zx, zth, isel, fget, x, nx, th, nth, fh, ier);
-  //     }
+//       if (iherm == 0) {
+//         BiCubicSplineInterpolator<double, TestMemorySpace>::bcspeval(zx, zth, isel, fget, x, nx, th, nth, f, ier);
+//       } else if (iherm == 2) {
+//         BiCubicSplineInterpolator<double, TestMemorySpace>::evbicub(zx, zth, isel, fget, x, nx, th, nth, fh, ier);
+//       }
 
-  //     if (ier == 0) {
-  //       double fs = fget(0); // Interpolated value
-  //       fdif = std::max(fdif, std::abs(ff - fs));
-  //       fdifr = std::max(fdifr, std::abs((ff - fs) / (0.5 * (ff + fs))));
-  //     }
+//       if (ier == 0) {
+//         double fs = fget(0); // Interpolated value
+//         fdif = std::max(fdif, std::abs(ff - fs));
+//         fdifr = std::max(fdifr, std::abs((ff - fs) / (0.5 * (ff + fs))));
+//       }
       
-  //   }
-  // }
+//     }
+//   }
   double result_fdif = 0.0;
   double result_fdifr = 0.0;
   Kokkos::parallel_reduce("bicubic_eval", ntest * ntest,
