@@ -175,8 +175,6 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
              Rank1View<double, TestMemorySpace> wk2) {
   using std::data;
   using std::size;
-  int ierg = 0;
-  int iwarn = 0;
 
   // for (int i = 0; i < ns; ++i) {
   //   fspl(0, i) = f[i];
@@ -194,8 +192,6 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   Kokkos::View<double*, TestMemorySpace> fspl4_view("fspl4_view", 40);
   auto fspl4 = Rank2View<double, TestMemorySpace>(fspl4_view.data(), 4, 10);
 
-
-  int ier = 0;
   // interpolator.cspline(x, ns, fspl, 1, 1, 1, 1, wk);
   CubicSplineInterpolator<double, TestMemorySpace> explicit_interpolator(x, ns, fspl, 1, 1, 1, 1, wk);
 
@@ -205,7 +201,6 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   double sdifr = 0.0;
   double pdifr = 0.0;
   double s2difr = 0.0;
-  double difabs = 0.0;
   int ict_arr[3] = {1, 0, 0};
   Kokkos::View<int*, TestMemorySpace> ict("ict", 3);
   Kokkos::parallel_for(
@@ -216,6 +211,7 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   auto splinv = Rank2View<double, TestMemorySpace>(splinv_view.data(), 1000, 3);
   // explicit_interpolator.evaluate_explicit(ict, xt, splinv);
 
+//   double difabs = 0.0;
 //   for (int i = 0; i < 1000; ++i) {
 //     CubicSplineInterpolator<double, TestMemorySpace>::cspeval(xt[i], ict, fget, x, ns, fspl, ier);
 //     if (ier != 0) {
@@ -408,7 +404,6 @@ void compare(const std::string &slbl,
              BiCubicSplineInterpolator<double, TestMemorySpace> interpolator,
              Kokkos::View<int*, TestMemorySpace> isel, Rank2View<double, TestMemorySpace> splinv) {
 
-  int icycle = 20;
   int iherm = 0;
   if (slbl == "hermite")
     iherm = 1;
@@ -425,14 +420,13 @@ void compare(const std::string &slbl,
 
   // std::vector<double> fget_vec(10);
   Kokkos::View<double*, TestMemorySpace> fget_vec("fget_vec", 10 * ntest * ntest);
-  double zth = 0.0;
-  double zx = 0.0;
-  double ff = 0.0;
 
   auto splinv_reshaped = Rank3View<double, TestMemorySpace>(
       splinv.data_handle(), ntest, ntest, 10);
 
-
+//   double zth = 0.0;
+//   double zx = 0.0;
+//   double ff = 0.0;
 //   for (int j = 0; j < ntest; ++j) {
 //     zth = thtest[j];
 //     for (int i = 0; i < ntest; ++i) {
@@ -593,7 +587,6 @@ void pspltest2(double zctrl) {
   const double pi2 = 6.28318530718;
   const double zero = 0.0;
   const double one = 1.0;
-  int inum = 10;
 
   Kokkos::View<double*, TestMemorySpace> x1_view("x1_view", 10);
   Kokkos::View<double*, TestMemorySpace> ex1_view("ex1_view", 10);
