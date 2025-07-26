@@ -46,8 +46,6 @@ void ibc_ck(int ibc, const std::string &slbl, const std::string &xlbl, int imin,
 // TODO: better error handling, use pcms existing error handling
 // TODO: better documentation
 // TODO: add more checks/assetions for input parameters
-// TODO: remove the usage of size variable if it is better to use extent(0) or
-// extent(1) in mdspan
 template <typename T, typename MemorySpace> class CubicSplineInterpolator {
 public:
   CubicSplineInterpolator() = default;
@@ -56,6 +54,8 @@ public:
   Rank1View<T, MemorySpace> x_;
   int nx_;
   static void splinck(Rank1View<T, MemorySpace> x, const double &ztol);
+
+  static KOKKOS_INLINE_FUNCTION void range_check(double &xget, double &zxget, Rank1View<T, MemorySpace> x, const int &nx, int &ier);
 
   static KOKKOS_FUNCTION void v_spline(const int &k_bc1, const int &k_bcn,
                                        const int &n,
@@ -114,7 +114,7 @@ public:
                                   const int &ibcxmax, const double &bcxmax,
                                   Rank1View<T, MemorySpace> wk);
   Rank2View<T, MemorySpace> fspl_;
-  void explicit_setup(Rank1View<T, MemorySpace> x, const int &nx,
+  void setup(Rank1View<T, MemorySpace> x, const int &nx,
                       Rank2View<T, MemorySpace> fspl, const int &ibcxmin,
                       const double &bcxmin, const int &ibcxmax,
                       const double &bcxmax, Rank1View<T, MemorySpace> wk);
@@ -124,20 +124,20 @@ public:
                                       const int &ibcxmin, const double &bcxmin,
                                       const int &ibcxmax, const double &bcxmax,
                                       Rank1View<T, MemorySpace> wk);
-  static KOKKOS_FUNCTION void cspevfn(Kokkos::View<int *, MemorySpace> selector,
+  static KOKKOS_INLINE_FUNCTION void cspevfn(Kokkos::View<int *, MemorySpace> selector,
                                       Rank1View<T, MemorySpace> fval,
                                       const int &i, const double &dx,
                                       Rank2View<T, MemorySpace> fspl);
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   cspeval(double xget, Kokkos::View<int *, MemorySpace> iselect,
           Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x,
           const int &nx, Rank2View<T, MemorySpace> fspl, int &ier);
 
-  static KOKKOS_FUNCTION void cspevx(double xget, Rank1View<T, MemorySpace> x,
+  static KOKKOS_INLINE_FUNCTION void cspevx(double xget, Rank1View<T, MemorySpace> x,
                                      const int &nx, int &i, double &dx,
                                      int &ier);
-  void evaluate_explicit(Kokkos::View<int *, MemorySpace> selector,
+  void evaluate(Kokkos::View<int *, MemorySpace> selector,
                          Rank1View<T, MemorySpace> xvec,
                          Rank2View<T, MemorySpace> fval);
 };
@@ -156,7 +156,7 @@ public:
                                  const int &ibcxmin, const double &bcxmin,
                                  const int &ibcxmax, const double &bcxmax,
                                  Rank1View<T, MemorySpace> wk);
-  void compact_setup(Rank1View<T, MemorySpace> x, const int &nx,
+  void setup(Rank1View<T, MemorySpace> x, const int &nx,
                      Rank2View<T, MemorySpace> fspl,
                      Rank2View<T, MemorySpace> fspl4, const int &ibcxmin,
                      const double &bcxmin, const int &ibcxmax,
@@ -167,21 +167,21 @@ public:
            const int &ibcxmin, const double &bcxmin, const int &ibcxmax,
            const double &bcxmax, Rank1View<T, MemorySpace> wk);
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   fvspline(Kokkos::View<int *, MemorySpace> selector,
            Rank1View<T, MemorySpace> fval, const int &i, const double &xparam,
            const double &hx, const double &hxi, Rank2View<T, MemorySpace> fs2);
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   evspline(double xget, Kokkos::View<int *, MemorySpace> ict,
            Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x,
            const int &nx, Rank2View<T, MemorySpace> fs2, int &ier);
 
-  static KOKKOS_FUNCTION void herm1x(double xget, Rank1View<T, MemorySpace> x,
+  static KOKKOS_INLINE_FUNCTION void herm1x(double xget, Rank1View<T, MemorySpace> x,
                                      const int &nx, int &i, double &xparam,
                                      double &hx, double &hxi, int &ier);
 
-  void evaluate_compact(Kokkos::View<int *, MemorySpace> selector,
+  void evaluate(Kokkos::View<int *, MemorySpace> selector,
                         Rank1View<T, MemorySpace> xvec,
                         Rank2View<T, MemorySpace> fval);
 };
@@ -196,12 +196,12 @@ ExplicitCubicSplineInterpolator<T, MemorySpace>::
   PCMS_ALWAYS_ASSERT(x.extent(0) >= 2);
   this->nx_ = x.extent(0);
   this->x_ = x;
-  explicit_setup(x, nx, fspl, ibcxmin, bcxmin, ibcxmax, bcxmax, wk);
+  setup(x, nx, fspl, ibcxmin, bcxmin, ibcxmax, bcxmax, wk);
   this->fspl_ = fspl;
 }
 
 template <typename T, typename MemorySpace>
-void ExplicitCubicSplineInterpolator<T, MemorySpace>::explicit_setup(
+void ExplicitCubicSplineInterpolator<T, MemorySpace>::setup(
     Rank1View<T, MemorySpace> x, const int &nx, Rank2View<T, MemorySpace> fspl,
     const int &ibcxmin, const double &bcxmin, const int &ibcxmax,
     const double &bcxmax, Rank1View<T, MemorySpace> wk) {
@@ -225,12 +225,12 @@ CompactCubicSplineInterpolator<T, MemorySpace>::CompactCubicSplineInterpolator(
     const int &ibcxmax, const double &bcxmax, Rank1View<T, MemorySpace> wk) {
   this->nx_ = x.extent(0);
   this->x_ = x;
-  compact_setup(x, nx, fspl, fspl4, ibcxmin, bcxmin, ibcxmax, bcxmax, wk);
+  setup(x, nx, fspl, fspl4, ibcxmin, bcxmin, ibcxmax, bcxmax, wk);
   this->fs2_ = fspl;
 }
 
 template <typename T, typename MemorySpace>
-void CompactCubicSplineInterpolator<T, MemorySpace>::compact_setup(
+void CompactCubicSplineInterpolator<T, MemorySpace>::setup(
     Rank1View<T, MemorySpace> x, const int &nx, Rank2View<T, MemorySpace> fspl,
     Rank2View<T, MemorySpace> fspl4, const int &ibcxmin, const double &bcxmin,
     const int &ibcxmax, const double &bcxmax, Rank1View<T, MemorySpace> wk) {
@@ -759,7 +759,26 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
 } // v_spline
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspevfn(
+KOKKOS_INLINE_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::range_check(double &xget, double &zxget, Rank1View<T, MemorySpace> x, const int &nx, int &ier) {
+  if (xget < x[0] || xget > x[nx - 1]) {
+    double zxtol = 4.0e-7 * std::max(std::abs(x[0]), std::abs(x[nx - 1]));
+
+    if (xget < x[0] - zxtol || xget > x[nx - 1] + zxtol) {
+      ier = 1; // Error code for out of range
+      printf("cspevx:  xget=%.6f out of range %.6f to %.6f\n", xget, x[0],
+             x[nx - 1]);
+
+      return;
+    } else {
+      printf("cspevx:  xget=%.6f beyond range %.6f to %.6f (fixup applied)\n",
+             xget, x[0], x[nx - 1]);
+      zxget = (xget < x[0]) ? x[0] : x[nx - 1];
+    }
+  }
+}
+
+template <typename T, typename MemorySpace>
+KOKKOS_INLINE_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspevfn(
     Kokkos::View<int *, MemorySpace> selector, Rank1View<T, MemorySpace> fval,
     const int &i, const double &dx, Rank2View<T, MemorySpace> fspl) {
 
@@ -793,7 +812,7 @@ KOKKOS_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspevfn(
 } // end cspevfn
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspeval(
+KOKKOS_INLINE_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspeval(
     double xget, Kokkos::View<int *, MemorySpace> iselect,
     Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x, const int &nx,
     Rank2View<T, MemorySpace> fspl, int &ier) {
@@ -809,28 +828,14 @@ KOKKOS_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspeval(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspevx(
+KOKKOS_INLINE_FUNCTION void ExplicitCubicSplineInterpolator<T, MemorySpace>::cspevx(
     double xget, Rank1View<T, MemorySpace> x, const int &nx, int &i, double &dx,
     int &ier) {
   int nxm = nx - 1;
   double zxget = xget;
 
   // Range check
-  if (xget < x[0] || xget > x[nx - 1]) {
-    double zxtol = 4.0e-7 * std::max(std::abs(x[0]), std::abs(x[nx - 1]));
-
-    if (xget < x[0] - zxtol || xget > x[nx - 1] + zxtol) {
-      ier = 1; // Error code for out of range
-      printf("cspevx:  xget=%.6f out of range %.6f to %.6f\n", xget, x[0],
-             x[nx - 1]);
-
-      return;
-    } else {
-      printf("cspevx:  xget=%.6f beyond range %.6f to %.6f (fixup applied)\n",
-             xget, x[0], x[nx - 1]);
-      zxget = (xget < x[0]) ? x[0] : x[nx - 1];
-    }
-  }
+  CubicSplineInterpolator<T, MemorySpace>::range_check(xget, zxget, x, nx, ier);
 
   int ii = static_cast<int>(nxm * (zxget - x[0]) / (x[nx - 1] - x[0]));
   i = std::min(nxm - 1, ii); // Fortran is 1-based, C++ is 0-based
@@ -870,7 +875,7 @@ KOKKOS_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::mkspline(
 }
 
 template <typename T, typename MemorySpace>
-void ExplicitCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
+void ExplicitCubicSplineInterpolator<T, MemorySpace>::evaluate(
     const Kokkos::View<int *, MemorySpace> selector,
     Rank1View<T, MemorySpace> xvec, Rank2View<T, MemorySpace> fval) {
   int ivd = fval.extent(1);
@@ -891,7 +896,7 @@ void ExplicitCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
 }
 
 template <typename T, typename MemorySpace>
-void CompactCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
+void CompactCubicSplineInterpolator<T, MemorySpace>::evaluate(
     Kokkos::View<int *, MemorySpace> selector, Rank1View<T, MemorySpace> xvec,
     Rank2View<T, MemorySpace> fval) {
   int ivd = fval.extent(1);
@@ -912,7 +917,7 @@ void CompactCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::fvspline(
+KOKKOS_INLINE_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::fvspline(
     Kokkos::View<int *, MemorySpace> selector, Rank1View<T, MemorySpace> fval,
     const int &i, const double &xparam, const double &hx, const double &hxi,
     Rank2View<T, MemorySpace> fs2) {
@@ -973,29 +978,15 @@ KOKKOS_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::fvspline(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::herm1x(
+KOKKOS_INLINE_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::herm1x(
     double xget, Rank1View<T, MemorySpace> x, const int &nx, int &i,
     double &xparam, double &hx, double &hxi, int &ier) {
   ier = 0;
 
   double zxget = xget;
 
-  if ((xget < x[0]) || (xget > x[nx - 1])) {
-    double zxtol = 4.0e-7 * std::max(std::abs(x[0]), std::abs(x[nx - 1]));
-    if ((xget < x[0] - zxtol) || (xget > x[nx - 1] + zxtol)) {
-      ier = 1;
-      printf("herm1ev:  xget=%.6f out of range %.6f to %.6f\n", xget, x[0],
-             x[nx - 1]);
-      return;
-    } else {
-      if ((xget < x[0] - 0.5 * zxtol) || (xget > x[nx - 1] + 0.5 * zxtol)) {
-        printf(
-            "herm1ev:  xget=%.6f beyond range %.6f to %.6f (fixup applied)\n",
-            xget, x[0], x[nx - 1]);
-      }
-      zxget = (xget < x[0]) ? x[0] : x[nx - 1];
-    }
-  }
+  CubicSplineInterpolator<T, MemorySpace>::range_check(
+      xget, zxget, x, nx, ier);
 
   int nxm = nx - 1;
 
@@ -1014,7 +1005,7 @@ KOKKOS_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::herm1x(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::evspline(
+KOKKOS_INLINE_FUNCTION void CompactCubicSplineInterpolator<T, MemorySpace>::evspline(
     double xget, Kokkos::View<int *, MemorySpace> ict,
     Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x,
     const int &nx, // size of x
@@ -1082,18 +1073,18 @@ public:
       Rank1View<T, MemorySpace> wk // size: nwk
   );
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   bcspeval(double xget, double yget, Kokkos::View<int *, MemorySpace> iselect,
            Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x,
            const int &nx, Rank1View<T, MemorySpace> y, const int &ny,
            Rank4View<T, MemorySpace> fspl, int &ier);
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   bcspevxy(double xget, double yget, Rank1View<T, MemorySpace> x, const int &nx,
            Rank1View<T, MemorySpace> y, const int &ny, int &i, int &j,
            double &dx, double &dy, int &ier);
 
-  static KOKKOS_FUNCTION void bcspevfn(
+  static KOKKOS_INLINE_FUNCTION void bcspevfn(
       Kokkos::View<int *, MemorySpace>
           ict, // Selector array for which derivatives to compute
       Rank1View<T, MemorySpace> fval, // Output array: size [ivd, *] (flattened)
@@ -1104,7 +1095,7 @@ public:
       Rank4View<T, MemorySpace> fspl  // Spline coefficients: [4, 4, nx, ny]
   );
 
-  void evaluate_explicit(Kokkos::View<int *, MemorySpace> iselect,
+  void evaluate(Kokkos::View<int *, MemorySpace> iselect,
                          Rank1View<T, MemorySpace> xvec,
                          Rank1View<T, MemorySpace> yvec,
                          Rank2View<T, MemorySpace> fval);
@@ -1139,26 +1130,26 @@ public:
                       Rank1View<T, MemorySpace> bcymax,
                       Rank1View<T, MemorySpace> wk);
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   herm2xy(double xget, double yget, Rank1View<T, MemorySpace> x, const int &nx,
           Rank1View<T, MemorySpace> y, const int &ny, int &i, int &j,
           double &xparam, double &yparam, double &hx, double &hxi, double &hy,
           double &hyi, int &ier);
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   fvbicub(Kokkos::View<int *, MemorySpace> ict, int ivec, int ivecd,
           Rank1View<T, MemorySpace> fval, const int &i, const int &j,
           const double &xparam, const double &yparam, const double &hx,
           const double &hxi, const double &hy, const double &hyi,
           Rank3View<T, MemorySpace> f);
 
-  static KOKKOS_FUNCTION void
+  static KOKKOS_INLINE_FUNCTION void
   evbicub(double xget, double yget, Kokkos::View<int *, MemorySpace> ict,
           Rank1View<T, MemorySpace> fval, // output (size depends on ict)
           Rank1View<T, MemorySpace> x, const int &nx,
           Rank1View<T, MemorySpace> y, const int &ny,
           Rank3View<T, MemorySpace> f, int &ier);
-  void evaluate_compact(Kokkos::View<int *, MemorySpace> iselect,
+  void evaluate(Kokkos::View<int *, MemorySpace> iselect,
                         Rank1View<T, MemorySpace> xvec,
                         Rank1View<T, MemorySpace> yvec,
                         Rank2View<T, MemorySpace> fval);
@@ -1693,7 +1684,7 @@ void ExplicitBiCubicSplineInterpolator<T, MemorySpace>::bcspline(
 }
 
 template <typename T, typename MemorySpace>
-void ExplicitBiCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
+void ExplicitBiCubicSplineInterpolator<T, MemorySpace>::evaluate(
     Kokkos::View<int *, MemorySpace> iselect, Rank1View<T, MemorySpace> xvec,
     Rank1View<T, MemorySpace> yvec, Rank2View<T, MemorySpace> fval) {
   PCMS_ALWAYS_ASSERT(xvec.extent(0) == yvec.extent(0) &&
@@ -1719,7 +1710,7 @@ void ExplicitBiCubicSplineInterpolator<T, MemorySpace>::evaluate_explicit(
 }
 
 template <typename T, typename MemorySpace>
-void CompactBiCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
+void CompactBiCubicSplineInterpolator<T, MemorySpace>::evaluate(
     Kokkos::View<int *, MemorySpace> iselect, Rank1View<T, MemorySpace> xvec,
     Rank1View<T, MemorySpace> yvec, Rank2View<T, MemorySpace> fval) {
 
@@ -1745,7 +1736,7 @@ void CompactBiCubicSplineInterpolator<T, MemorySpace>::evaluate_compact(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void
+KOKKOS_INLINE_FUNCTION void
 ExplicitBiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
     double xget, double yget, Kokkos::View<int *, MemorySpace> iselect,
     Rank1View<T, MemorySpace> fval, Rank1View<T, MemorySpace> x, const int &nx,
@@ -1766,7 +1757,7 @@ ExplicitBiCubicSplineInterpolator<T, MemorySpace>::bcspeval(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void
+KOKKOS_INLINE_FUNCTION void
 ExplicitBiCubicSplineInterpolator<T, MemorySpace>::bcspevxy(
     double xget, double yget, Rank1View<T, MemorySpace> x, const int &nx,
     Rank1View<T, MemorySpace> y, const int &ny, int &i, int &j, double &dx,
@@ -1779,37 +1770,11 @@ ExplicitBiCubicSplineInterpolator<T, MemorySpace>::bcspevxy(
   double zxget = xget;
   double zyget = yget;
 
-  if ((xget < x[0]) || (xget > x[nx - 1])) {
-    double zxtol = 4.0e-7 * std::max(std::abs(x[0]), std::abs(x[nx - 1]));
-    if ((xget < x[0] - zxtol) || (xget > x[nx - 1] + zxtol)) {
-      ier = 1;
-      printf("bcspeval: xget=%.6f out of range %.6f to %.6f\n", xget, x[0],
-             x[nx - 1]);
-    } else {
-      if ((xget < x[0] - 0.5 * zxtol) || (xget > x[nx - 1] + 0.5 * zxtol)) {
-        printf(
-            "bcspeval: xget=%.6f beyond range %.6f to %.6f (fixup applied)\n",
-            xget, x[0], x[nx - 1]);
-      }
-      zxget = (xget < x[0]) ? x[0] : x[nx - 1];
-    }
-  }
-
-  if ((yget < y[0]) || (yget > y[ny - 1])) {
-    double zytol = 4.0e-7 * std::max(std::abs(y[0]), std::abs(y[ny - 1]));
-    if ((yget < y[0] - zytol) || (yget > y[ny - 1] + zytol)) {
-      ier = 1;
-      printf("bcspeval: yget=%.6f out of range %.6f to %.6f\n", yget, y[0],
-             y[nx - 1]);
-    } else {
-      if ((yget < y[0] - 0.5 * zytol) || (yget > y[ny - 1] + 0.5 * zytol)) {
-        printf(
-            "bcspeval: yget=%.6f beyond range %.6f to %.6f (fixup applied)\n",
-            yget, y[0], y[nx - 1]);
-      }
-      zyget = (yget < y[0]) ? y[0] : y[ny - 1];
-    }
-  }
+  CubicSplineInterpolator<T, MemorySpace>::range_check(
+      xget, zxget, x, nx, ier);
+  CubicSplineInterpolator<T, MemorySpace>::range_check(
+      yget, zyget, y, ny, ier);
+  
 
   if (ier != 0)
     return;
@@ -1835,7 +1800,7 @@ ExplicitBiCubicSplineInterpolator<T, MemorySpace>::bcspevxy(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void
+KOKKOS_INLINE_FUNCTION void
 ExplicitBiCubicSplineInterpolator<T, MemorySpace>::bcspevfn(
     Kokkos::View<int *, MemorySpace>
         ict, // Selector array for which derivatives to compute
@@ -2389,7 +2354,7 @@ void CompactBiCubicSplineInterpolator<T, MemorySpace>::mkbicub(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::herm2xy(
+KOKKOS_INLINE_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::herm2xy(
     double xget, double yget, Rank1View<T, MemorySpace> x, const int &nx,
     Rank1View<T, MemorySpace> y, const int &ny, int &i, int &j, double &xparam,
     double &yparam, double &hx, double &hxi, double &hy, double &hyi,
@@ -2399,44 +2364,10 @@ KOKKOS_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::herm2xy(
   double zxget = xget;
   double zyget = yget;
 
-  const double zxtol = 4.0e-7 * std::max(std::fabs(x[0]), std::fabs(x[nx - 1]));
-  const double zytol = 4.0e-7 * std::max(std::fabs(y[0]), std::fabs(y[ny - 1]));
-
-  // X range check / fixup
-  if (xget < x[0] - zxtol || xget > x[nx - 1] + zxtol) {
-    ier = 1;
-    printf("?herm2xy:  xget = %g out of range %g to %g\n", xget, x[0],
-           x[nx - 1]);
-    return;
-  } else if (xget < x[0]) {
-    if (xget < x[0] - 0.5 * zxtol || xget > x[nx - 1] + 0.5 * zxtol)
-      printf("herm2xy:  xget = %g beyond range %g to %g (fixup applied)\n",
-             xget, x[0], x[nx - 1]);
-    zxget = x[0];
-  } else if (xget > x[nx - 1]) {
-    if (xget < x[0] - 0.5 * zxtol || xget > x[nx - 1] + 0.5 * zxtol)
-      printf("herm2xy:  xget = %g beyond range %g to %g (fixup applied)\n",
-             xget, x[0], x[nx - 1]);
-    zxget = x[nx - 1];
-  }
-
-  // Y range check / fixup
-  if (yget < y[0] - zytol || yget > y[ny - 1] + zytol) {
-    ier = 1;
-    printf("?herm2xy:  yget = %g out of range %g to %g\n", yget, y[0],
-           y[ny - 1]);
-    return;
-  } else if (yget < y[0]) {
-    if (yget < y[0] - 0.5 * zytol || yget > y[ny - 1] + 0.5 * zytol)
-      printf("herm2xy:  yget = %g beyond range %g to %g (fixup applied)\n",
-             yget, y[0], y[ny - 1]);
-    zyget = y[0];
-  } else if (yget > y[ny - 1]) {
-    if (yget < y[0] - 0.5 * zytol || yget > y[ny - 1] + 0.5 * zytol)
-      printf("herm2xy:  yget = %g beyond range %g to %g (fixup applied)\n",
-             yget, y[0], y[ny - 1]);
-    zyget = y[ny - 1];
-  }
+  CubicSplineInterpolator<T, MemorySpace>::range_check(
+      xget, zxget, x, nx, ier);
+  CubicSplineInterpolator<T, MemorySpace>::range_check(
+      yget, zyget, y, ny, ier);
 
   int nxm = nx - 1; // Number of intervals in x
   int nym = ny - 1; // Number of intervals in y
@@ -2467,7 +2398,7 @@ KOKKOS_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::herm2xy(
 }
 
 template <typename T, typename MemorySpace>
-KOKKOS_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
+KOKKOS_INLINE_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
     Kokkos::View<int *, MemorySpace> ict, int ivec, int ivecd,
     Rank1View<T, MemorySpace> fval, const int &i, const int &j,
     const double &xparam, const double &yparam, const double &hx,
@@ -2780,7 +2711,7 @@ KOKKOS_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::fvbicub(
 }
 
 template <typename T, typename MemorySpace>
-void CompactBiCubicSplineInterpolator<T, MemorySpace>::evbicub(
+KOKKOS_INLINE_FUNCTION void CompactBiCubicSplineInterpolator<T, MemorySpace>::evbicub(
     double xget, double yget, Kokkos::View<int *, MemorySpace> ict,
     Rank1View<T, MemorySpace> fval, // output (size depends on ict)
     Rank1View<T, MemorySpace> x, const int &nx, Rank1View<T, MemorySpace> y,

@@ -160,6 +160,50 @@ void bset(Rank1View<double, TestMemorySpace> fx, int nx,
       });
 }
 
+void generate_gt_2d(Rank1View<double, TestMemorySpace> gt_splinv, Rank1View<double, TestMemorySpace> fxtest, 
+                    Rank1View<double, TestMemorySpace> fthtest, int ntest) {
+  // Generate ground truth for 2D bicubic spline interpolation
+  // for (int j = 0; j < ntest; ++j) {
+  //   for (int i = 0; i < ntest; ++i) {
+  //     gt_splinv(j * ntest + i) = fxtest(i) * fthtest(j);
+  //   }
+  // }
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {ntest, ntest}),
+      KOKKOS_LAMBDA(const int j, const int i) {
+        gt_splinv(j * ntest + i) = fxtest(i) * fthtest(j);
+      });
+}
+
+void compare_output(Rank2View<double, TestMemorySpace> splinv, Rank1View<double, TestMemorySpace> gt_splinv, const double gt_dif, const double gt_difr, std::string label) {
+  // Compare the output of splinv with gt_splinv
+  double result_fdif = 0.0;
+  double result_fdifr = 0.0;
+  Kokkos::parallel_reduce(
+      "compare_splinv", splinv.extent(0),
+      KOKKOS_LAMBDA(const int i, double &max_fdif, double &max_fdifr) {
+        if (splinv(i, 0) != 0.0) {
+          double dif = Kokkos::abs(splinv(i, 0) - gt_splinv(i));
+          max_fdif = Kokkos::max(max_fdif, dif);
+          max_fdifr = Kokkos::max(max_fdifr, dif / (0.5 * (splinv(i, 0) + gt_splinv(i))));
+        }
+      },
+      Kokkos::Max<double>(result_fdif), Kokkos::Max<double>(result_fdifr));
+  double fdif = std::max(result_fdif, gt_dif);
+  double fdifr = std::max(result_fdifr, gt_difr);
+  std::cout << "2d " << label << " max absolute difference: " << fdif
+            << ", relative difference: " << fdifr << std::endl;
+  assert(are_equal(fdif, gt_dif));
+  assert(are_equal(fdifr, gt_difr));
+}
+
+void reset_2dspan(Rank2View<double, TestMemorySpace> span) {
+  Kokkos::parallel_for("zero_init", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0,0}, {span.extent(0), span.extent(1)}),
+    KOKKOS_LAMBDA(int i, int j) {
+      span(i, j) = 0.0;
+  });
+}
+
 void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
              Rank1View<double, TestMemorySpace> f,
              Rank1View<double, TestMemorySpace> fd,
@@ -210,7 +254,9 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
 
   Kokkos::View<double *, TestMemorySpace> splinv_view("splinv_view", 3000);
   auto splinv = Rank2View<double, TestMemorySpace>(splinv_view.data(), 1000, 3);
-  // explicit_interpolator.evaluate_explicit(ict, xt, splinv);
+  reset_2dspan(splinv);
+  explicit_interpolator.evaluate(ict, xt, splinv);
+  compare_output(splinv, ft, 6.7572E-04, 6.6529E-04, "cspline");
 
   //   double difabs = 0.0;
   //   for (int i = 0; i < 1000; ++i) {
@@ -250,10 +296,11 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   assert(are_equal(sdif, 6.7572E-04));
   assert(are_equal(sdifr, 6.6529E-04));
 
-  // interpolator.cspline(x, ns, fspp, -1, 0, -1, 0, wk);
+  reset_2dspan(splinv);
   ExplicitCubicSplineInterpolator<double, TestMemorySpace>
       explicit_interpolator_periodic(x, ns, fspp, -1, 0, -1, 0, wk);
-  // explicit_interpolator_periodic.evaluate_explicit(ict, xt, splinv);
+  explicit_interpolator_periodic.evaluate(ict, xt, splinv);
+  compare_output(splinv, ft, 6.8669E-04, 6.7622E-04, "cspline_periodic");
 
   // for (int i = 0; i < 1000; ++i) {
   //   ExplicitCubicSplineInterpolator<double, TestMemorySpace>::cspeval(xt[i],
@@ -294,10 +341,11 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   assert(are_equal(pdif, 6.8669E-04));
   assert(are_equal(pdifr, 6.7622E-04));
 
-  // interpolator.mkspline(x, ns, fs2, fspl4, 1, 1, 1, 1, wk2);
+  reset_2dspan(splinv);
   CompactCubicSplineInterpolator<double, TestMemorySpace> compact_interpolator(
       x, ns, fs2, fspl4, 1, 1, 1, 1, wk2);
-  // compact_interpolator.evaluate_compact(ict, xt, splinv);
+  compact_interpolator.evaluate(ict, xt, splinv);
+  compare_output(splinv, ft, 6.7572E-04, 6.6529E-04, "compact_cubic");
   // for (int i = 0; i < 1000; ++i) {
   //   CompactubicSplineInterpolator<double, TestMemorySpace>::evspline(xt[i],
   //   ict, fget, x, ns, fs2, ier); if (ier != 0) {
@@ -560,6 +608,7 @@ void dotest2(Rank1View<double, TestMemorySpace> x,
   Kokkos::View<double *, TestMemorySpace> splinv_view("splinv_view", 400000);
   auto splinv =
       Rank2View<double, TestMemorySpace>(splinv_view.data(), 40000, 10);
+  reset_2dspan(splinv);
   int isel_arr[10] = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   Kokkos::View<int *, TestMemorySpace> isel("isel", 10);
   Kokkos::parallel_for(
@@ -575,10 +624,16 @@ void dotest2(Rank1View<double, TestMemorySpace> x,
       Rank1View<double, TestMemorySpace>(xtest_grid_view.data(), 40000);
   auto thtest_grid =
       Rank1View<double, TestMemorySpace>(thtest_grid_view.data(), 40000);
+  Kokkos::View<double *, TestMemorySpace> splinv_gt_view("splinv_view", 40000);
+  auto splinv_gt =
+      Rank1View<double, TestMemorySpace>(splinv_gt_view.data(), 40000);
+  generate_gt_2d(splinv_gt, fxtest, fthtest, ntest);
 
   // TODO: evaluate function raise memeory acess violation
-  //  explicit_interpolator.evaluate_explicit(isel, xtest_grid, thtest_grid,
-  //  splinv);
+  explicit_interpolator.evaluate(isel, xtest_grid, thtest_grid,
+   splinv);
+
+  compare_output(splinv, splinv_gt, 1.8312E-03, 6.7151E-04, "bcspline");
 
   compare("bcspline", x, nx, th, nth, f, fh, flin, ilinx, ilinth, xtest, fxtest,
           thtest, fthtest, ntest, explicit_interpolator, isel, splinv);
@@ -588,14 +643,13 @@ void dotest2(Rank1View<double, TestMemorySpace> x,
   //     fh(0, ix, ith) = f(0, 0, ix, ith);
   //   }
   // }
-
-  // interpolator.mkbicub(x, nx, th, nth, fh, nbc, bcx1, nbc, bcx2, nbc, bcth1,
-  //                      nbc, bcth2, wk);
+  reset_2dspan(splinv);
   CompactBiCubicSplineInterpolator<double, TestMemorySpace>
       compact_interpolator(x, nx, th, nth, fh, nbc, bcx1, nbc, bcx2, nbc, bcth1,
                            nbc, bcth2, wk);
-  //   compact_interpolator.evaluate_compact(isel, xtest_grid, thtest_grid,
-  //   splinv);
+  compact_interpolator.evaluate(isel, xtest_grid, thtest_grid,
+    splinv);
+  compare_output(splinv, splinv_gt, 1.8312E-03, 6.7151E-04, "mkbicub");
 
   compare("mkbicub", x, nx, th, nth, f, fh, flin, ilinx, ilinth, xtest, fxtest,
           thtest, fthtest, ntest, compact_interpolator, isel, splinv);
