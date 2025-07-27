@@ -280,6 +280,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
   int i_bcn = k_bcn;
   int iord1, iord2, imin, imax;
   T a1, b1, an, bn, f0, fh, h;
+  const T dx = x(1) - x(0);
 
   // Clip to allowed ranges
   if (i_bc1 < -1 || i_bc1 > 7)
@@ -341,12 +342,12 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
   } else if (i_bc1 == 2) {
     b1 = f(2, 0);
   } else if (i_bc1 == 5) {
-    a1 = (f(0, 1) - f(0, 0)) / (x[1] - x[0]);
+    a1 = (f(0, 1) - f(0, 0)) / dx;
   } else if (i_bc1 == 6) {
     b1 = 2.0 *
-         ((f(0, 2) - f(0, 1)) / (x[2] - x[1]) -
-          (f(0, 1) - f(0, 0)) / (x[1] - x[0])) /
-         (x[2] - x[0]);
+         ((f(0, 2) - f(0, 1)) / dx -
+          (f(0, 1) - f(0, 0)) / dx) /
+         (2 * dx);
   }
 
   if (i_bcn == 1) {
@@ -354,12 +355,12 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
   } else if (i_bcn == 2) {
     bn = f(2, n - 1);
   } else if (i_bcn == 5) {
-    an = (f(0, n - 1) - f(0, n - 2)) / (x[n - 1] - x[n - 2]);
+    an = (f(0, n - 1) - f(0, n - 2)) / dx;
   } else if (i_bcn == 6) {
     bn = 2.0 *
-         ((f(0, n - 1) - f(0, n - 2)) / (x[n - 1] - x[n - 2]) -
-          (f(0, n - 2) - f(0, n - 3)) / (x[n - 2] - x[n - 3])) /
-         (x[n - 1] - x[n - 3]);
+         ((f(0, n - 1) - f(0, n - 2)) / dx -
+          (f(0, n - 2) - f(0, n - 3)) / dx) /
+         (2 * dx);
   }
   f(1, n - 1) = 0.0;
   f(2, n - 1) = 0.0;
@@ -367,7 +368,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
   if (n == 2) {
     if (i_bc1 == 5 && i_bcn == 5) {
       // Coefficients for n = 2
-      f(1, 0) = (f(0, 1) - f(0, 0)) / (x[1] - x[0]);
+      f(1, 0) = (f(0, 1) - f(0, 0)) / dx;
       f(2, 0) = 0.0;
       f(3, 0) = 0.0;
       f(1, 1) = f(1, 0);
@@ -377,7 +378,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
       T a1 = f(1, 0), an = f(1, 1);
       f(1, 0) = a1;
       f(1, 1) = an;
-      h = x[1] - x[0];
+      h = dx;
       f0 = f(0, 0);
       fh = f(0, 1);
 
@@ -392,7 +393,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
       T a1 = f(1, 0), bn = f(2, 1);
       f(1, 0) = a1;
       f(2, 1) = bn;
-      h = x[1] - x[0];
+      h = dx;
       f0 = f(0, 0);
       fh = f(0, 1);
 
@@ -407,7 +408,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
       T b1 = f(2, 0), an = f(1, 1);
       f(2, 0) = b1;
       f(1, 1) = an;
-      h = x[1] - x[0];
+      h = dx;
       f0 = f(0, 0);
       fh = f(0, 1);
 
@@ -422,7 +423,7 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
       T b1 = f(2, 0), bn = f(2, 1);
       f(2, 0) = b1;
       f(2, 1) = bn;
-      h = x[1] - x[0];
+      h = dx;
       f0 = f(0, 0);
       fh = f(0, 1);
 
@@ -434,19 +435,17 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
     }
   } // n == 2
   else if (i3perio == 1) {
-    T h1 = x[1] - x[0];
-    T h2 = x[2] - x[1];
-    T h = h1 + h2;
+    h = 2 * dx;
 
-    T dels = (f(0, 2) - f(0, 1)) / h2 - (f(0, 1) - f(0, 0)) / h1;
+    T dels = (f(0, 2) - f(0, 1)) / dx - (f(0, 1) - f(0, 0)) / dx;
 
-    f(1, 0) = (f(0, 1) - f(0, 0)) / h1 + (h1 * dels) / h;
+    f(1, 0) = (f(0, 1) - f(0, 0)) / dx + (dx * dels) / h;
     f(2, 0) = -6.0 * dels / h;
-    f(3, 0) = 12.0 * dels / (h1 * h);
+    f(3, 0) = 12.0 * dels / (dx * h);
 
-    f(1, 1) = (f(0, 2) - f(0, 1)) / h2 - (h2 * dels) / h;
+    f(1, 1) = (f(0, 2) - f(0, 1)) / dx - (dx * dels) / h;
     f(2, 1) = 6.0 * dels / h;
-    f(3, 1) = -12.0 * dels / (h2 * h);
+    f(3, 1) = -12.0 * dels / (dx * h);
 
     f(1, 2) = f(1, 0);
     f(2, 2) = f(2, 0);
@@ -454,16 +453,14 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
   } // i3perio == 1
   else if (i3knots == 2) {
     // Special case: nx = 3, not-a-knot on both sides
-    T h1 = x[1] - x[0];
-    T h2 = x[2] - x[1];
-    T h = h1 + h2;
+    h = 2 * dx;
 
     T f1 = f(0, 0) - f(0, 1);
     T f2 = f(0, 2) - f(0, 1);
 
     // Solve quadratic through 3 points centered at x[1]
-    T aa = (f2 * h1 + f1 * h2) / (h1 * h2 * h);
-    T bb = (f2 * h1 * h1 - f1 * h2 * h2) / (h1 * h2 * h);
+    T aa = (f2 * dx + f1 * dx) / (dx * dx * h);
+    T bb = (f2 * dx * dx - f1 * dx * dx) / (dx * dx * h);
 
     // Third derivative = 0 (quadratic)
     f(3, 0) = 0.0;
@@ -476,31 +473,30 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
     f(2, 2) = 2 * aa;
 
     // First derivatives
-    f(1, 0) = bb - 2 * aa * h1;
+    f(1, 0) = bb - 2 * aa * dx;
     f(1, 1) = bb;
-    f(1, 2) = bb + 2 * aa * h2;
+    f(1, 2) = bb + 2 * aa * dx;
   } // i3knots == 2
   else if (i3knots == 1) {
     if (i_bc1 == 1 || i_bc1 == 3 || i_bc1 == 5) {
       // f' LHS condition; not-a-knot RHS
-      T h2 = x[1] - x[0];
-      T h3 = x[2] - x[0];
+      T h3 = 2 * dx;
 
       T f2 = f(0, 1) - f(0, 0);
       T f3 = f(0, 2) - f(0, 0);
 
-      T aa = a1 / (h2 * h3) + f3 / (h3 * h3 * (h3 - h2)) -
-                  f2 / (h2 * h2 * (h3 - h2));
-      T bb = -a1 * (h3 * h3 - h2 * h2) / (h2 * h3 * (h3 - h2)) +
-                  f2 * h3 / (h2 * h2 * (h3 - h2)) -
-                  f3 * h2 / (h3 * h3 * (h3 - h2));
+      T aa = a1 / (dx * h3) + f3 / (h3 * h3 * (h3 - dx)) -
+                  f2 / (dx * dx * (h3 - dx));
+      T bb = -a1 * (h3 * h3 - dx * dx) / (dx * h3 * (h3 - dx)) +
+                  f2 * h3 / (dx * dx * (h3 - dx)) -
+                  f3 * dx / (h3 * h3 * (h3 - dx));
 
       f(1, 0) = a1;
       f(2, 0) = 2 * bb;
       f(3, 0) = 6 * aa;
 
-      f(1, 1) = 3 * aa * h2 * h2 + 2 * bb * h2 + a1;
-      f(2, 1) = 6 * aa * h2 + 2 * bb;
+      f(1, 1) = 3 * aa * dx * dx + 2 * bb * dx + a1;
+      f(2, 1) = 6 * aa * dx + 2 * bb;
       f(3, 1) = 6 * aa;
 
       f(1, 2) = 3 * aa * h3 * h3 + 2 * bb * h3 + a1;
@@ -509,25 +505,24 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
 
     } else if (i_bc1 == 2 || i_bc1 == 4 || i_bc1 == 6) {
       // f'' LHS condition; not-a-knot RHS
-      T h2 = x[1] - x[0];
-      T h3 = x[2] - x[0];
+      T h3 = 2 * dx;
 
       T f2 = f(0, 1) - f(0, 0);
       T f3 = f(0, 2) - f(0, 0);
 
-      T aa = -(b1 / 2.0) * (h3 - h2) / (h3 * h3 - h2 * h2) -
-                  f2 / (h2 * (h3 * h3 - h2 * h2)) +
-                  f3 / (h3 * (h3 * h3 - h2 * h2));
-      T bb = -(b1 / 2.0) * h2 * h3 * (h3 - h2) / (h3 * h3 - h2 * h2) +
-                  f2 * h3 * h3 / (h2 * (h3 * h3 - h2 * h2)) -
-                  f3 * h2 * h2 / (h3 * (h3 * h3 - h2 * h2));
+      T aa = -(b1 / 2.0) * (h3 - dx) / (h3 * h3 - dx * dx) -
+                  f2 / (dx * (h3 * h3 - dx * dx)) +
+                  f3 / (h3 * (h3 * h3 - dx * dx));
+      T bb = -(b1 / 2.0) * dx * h3 * (h3 - dx) / (h3 * h3 - dx * dx) +
+                  f2 * h3 * h3 / (dx * (h3 * h3 - dx * dx)) -
+                  f3 * dx * dx / (h3 * (h3 * h3 - dx * dx));
 
       f(1, 0) = bb;
       f(2, 0) = b1;
       f(3, 0) = 6 * aa;
 
-      f(1, 1) = 3 * aa * h2 * h2 + b1 * h2 + bb;
-      f(2, 1) = 6 * aa * h2 + b1;
+      f(1, 1) = 3 * aa * dx * dx + b1 * dx + bb;
+      f(2, 1) = 6 * aa * dx + b1;
       f(3, 1) = 6 * aa;
 
       f(1, 2) = 3 * aa * h3 * h3 + b1 * h3 + bb;
@@ -536,8 +531,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
 
     } else if (i_bcn == 1 || i_bcn == 3 || i_bcn == 5) {
       // f' RHS condition; not-a-knot LHS
-      T h2 = x[1] - x[2];
-      T h3 = x[0] - x[2];
+      T h2 = -dx;
+      T h3 = -2 * dx;
 
       T f2 = f(0, 1) - f(0, 2);
       T f3 = f(0, 0) - f(0, 2);
@@ -562,8 +557,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
 
     } else if (i_bcn == 2 || i_bcn == 4 || i_bcn == 6) {
       // f'' RHS condition; not-a-knot LHS
-      T h2 = x[1] - x[2];
-      T h3 = x[0] - x[2];
+      T h2 = - dx;
+      T h3 = -2 * dx;
 
       T f2 = f(0, 1) - f(0, 2);
       T f3 = f(0, 0) - f(0, 2);
@@ -589,12 +584,12 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
     }
   } // i3knots == 1
   else if (n > 2) {
-    f(3, 0) = x[1] - x[0];
+    f(3, 0) = dx;
     f(2, 1) = (f(0, 1) - f(0, 0)) / f(3, 0);
 
     // TODO: check if Kokkos do improves performance
     for (int i = 1; i < n - 1; ++i) {
-      f(3, i) = x[i + 1] - x[i];
+      f(3, i) = dx;
       f(1, i) = 2.0 * (f(3, i - 1) + f(3, i));
       f(2, i + 1) = (f(0, i + 1) - f(0, i)) / f(3, i);
       f(2, i) = f(2, i + 1) - f(2, i);
@@ -622,8 +617,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
       f(3, 0) = 0.0;
     } else if (i_bc1 == 7) {
       f(1, 0) = -f(3, 0);
-      f(2, 0) = f(2, 2) / (x[3] - x[1]) - f(2, 1) / (x[2] - x[0]);
-      f(2, 0) *= f(3, 0) * f(3, 0) / (x[3] - x[0]);
+      f(2, 0) = f(2, 2) / (2 * dx) - f(2, 1) / (2 * dx);
+      f(2, 0) *= f(3, 0) * f(3, 0) / (3 * dx);
     } else {
       imin = 1;
       f(1, 1) = f(3, 0) + 2.0 * f(3, 1);
@@ -640,10 +635,10 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
       elemnn1 = 0.0;
     } else if (i_bcn == 7) {
       f(1, n - 1) = -f(3, n - 2);
-      f(2, n - 1) = f(2, n - 2) / (x[n - 1] - x[n - 3]) -
-                    f(2, n - 3) / (x[n - 2] - x[n - 4]);
+      f(2, n - 1) = f(2, n - 2) / (2 * dx) -
+                    f(2, n - 3) / (2 * dx);
       f(2, n - 1) =
-          -f(2, n - 1) * f(3, n - 2) * f(3, n - 2) / (x[n - 1] - x[n - 4]);
+          -f(2, n - 1) * f(3, n - 2) * f(3, n - 2) / (3 * dx);
     } else if (i_bc1 != -1) {
       imax = n - 2;
       f(1, n - 2) = 2.0 * f(3, n - 3) + f(3, n - 2);
@@ -717,8 +712,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
         }
       }
 
-      f(3, 0) = x[1] - x[0];
-      f(3, n - 2) = x[n - 1] - x[n - 2];
+      f(3, 0) = dx;
+      f(3, n - 2) = dx;
 
       if (i_bc1 <= 0 || i_bc1 > 7) {
         f(2, 0) = (f(2, 1) * (f(3, 0) + f(3, 1)) - f(2, 2) * f(3, 0)) / f(3, 1);
@@ -744,9 +739,8 @@ KOKKOS_FUNCTION void CubicSplineInterpolator<T, MemorySpace>::v_spline(
       f(2, n - 1) = f(2, 0);
       f(3, n - 1) = f(3, 0);
     } else {
-      T hn = x[n - 1] - x[n - 2];
-      f(1, n - 1) = f(1, n - 2) + hn * (f(2, n - 2) + 0.5 * hn * f(3, n - 2));
-      f(2, n - 1) = f(2, n - 2) + hn * f(3, n - 2);
+      f(1, n - 1) = f(1, n - 2) + dx * (f(2, n - 2) + 0.5 * dx * f(3, n - 2));
+      f(2, n - 1) = f(2, n - 2) + dx * f(3, n - 2);
       f(3, n - 1) = f(3, n - 2);
 
       if (i_bcn == 1 || i_bcn == 3 || i_bcn == 5) {
