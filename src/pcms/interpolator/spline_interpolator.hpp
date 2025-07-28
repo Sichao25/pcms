@@ -83,6 +83,17 @@ void CubicSplineInterpolator<T, MemorySpace>::correction_detect(Rank1View<T, Mem
 }
 
 template <typename T, typename MemorySpace>
+T get_element_from_span(Rank1View<T, MemorySpace> span, LO index) {
+  T element;
+  Kokkos::View<T *, MemorySpace> data_view(span.data_handle() + index, 1);
+  auto element_host = Kokkos::create_mirror_view(data_view);
+  Kokkos::deep_copy(element_host, data_view);
+  element = element_host(0);
+  printf("Element at index %d: %f\n", index, element);
+  return element;
+}
+
+template <typename T, typename MemorySpace>
 void CubicSplineInterpolator<T, MemorySpace>::sanity_check(
     Rank1View<T, MemorySpace> x, const T &ztol) {
   LO inx = static_cast<LO>(x.extent(0));
@@ -90,15 +101,9 @@ void CubicSplineInterpolator<T, MemorySpace>::sanity_check(
   if (inx <= 1)
     return;
 
-  T dxavg = 0.0;
-  T zeps = 0.0;
-  Kokkos::parallel_reduce(
-      Kokkos::RangePolicy<execution_space>(0, 1),
-      KOKKOS_LAMBDA(const LO, T &avg, T &eps) {
-        avg = (x[inx - 1] - x[0]) / (inx - 1);
-        eps = std::abs(ztol * avg);
-      },
-      dxavg, zeps);
+  T dxavg = (get_element_from_span(x, inx - 1) - get_element_from_span(x, 0)) / (inx - 1);
+  T zeps = std::abs(ztol * dxavg);
+
   Kokkos::parallel_for(
       Kokkos::RangePolicy<execution_space>(1, inx),
       KOKKOS_LAMBDA(const LO ix) {
@@ -1303,22 +1308,11 @@ void ExplicitBiCubicSplineInterpolator<T, MemorySpace>::solve_spline(
     LO iasc = 0;        // Workspace base for correction splines
     LO iinc = 4 * inth; // Spacing between correction splines
 
-    // T zhxn = x[inx - 1] - x[inx - 2];
-    // T zhth = th[inth - 1] - th[inth - 2];
-    T zhxn = 0.0;
-    T zhth = 0.0;
-    Kokkos::parallel_reduce(
-        Kokkos::RangePolicy<execution_space>(0, 1),
-        KOKKOS_LAMBDA(const LO ix, T &zhxn) {
-          zhxn = x[inx - 1] - x[inx - 2];
-        },
-        zhxn);
-    Kokkos::parallel_reduce(
-        Kokkos::RangePolicy<execution_space>(0, 1),
-        KOKKOS_LAMBDA(const LO ith, T &zhth) {
-          zhth = th[inth - 1] - th[inth - 2];
-        },
-        zhth);
+    T zhxn = get_element_from_span(x, inx - 1) -
+           get_element_from_span(x, inx - 2);
+    T zhth = get_element_from_span(th, inth - 1) -
+           get_element_from_span(th, inth - 2);
+
     LO jx = inx - 2;
     LO jth = inth - 2;
 
