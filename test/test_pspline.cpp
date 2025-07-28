@@ -20,13 +20,7 @@ void createFlatGrid(Rank1View<double, TestMemorySpace> xvec,
                     Kokkos::View<double *, TestMemorySpace> Y_flat) {
   size_t nx = xvec.size();
   size_t ny = yvec.size();
-  // for (size_t i = 0; i < ny; ++i) {
-  //     for (size_t j = 0; j < nx; ++j) {
-  //         size_t idx = i * nx + j;
-  //         X_flat[idx] = xvec[j];
-  //         Y_flat[idx] = yvec[i];
-  //     }
-  // }
+
   Kokkos::parallel_for(
       Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {ny, nx}),
       KOKKOS_LAMBDA(const int i, const int j) {
@@ -40,12 +34,6 @@ void tset(int nth, Kokkos::View<double *, TestMemorySpace> th,
           Kokkos::View<double *, TestMemorySpace> sth,
           Kokkos::View<double *, TestMemorySpace> cth, double thmin,
           double thmax) {
-  // for (int ith = 0; ith < nth; ++ith) {
-  //   th[ith] = thmin + static_cast<double>(ith) * (thmax - thmin) /
-  //                         static_cast<double>(nth - 1);
-  //   sth[ith] = 2.0 + std::sin(th[ith]);
-  //   cth[ith] = std::cos(th[ith]);
-  // }
   Kokkos::parallel_for(
       Kokkos::RangePolicy<TestMemorySpace>(0, nth),
       KOKKOS_LAMBDA(const int ith) {
@@ -62,11 +50,6 @@ void xset(int nx, Kokkos::View<double *, TestMemorySpace> x,
   if (nx < 2)
     return; // avoid division by zero
 
-  // for (int ix = 0; ix < nx; ++ix) {
-  //   x[ix] = xmin + static_cast<double>(ix) * (xmax - xmin) /
-  //                      static_cast<double>(nx - 1);
-  //   ex[ix] = std::exp(2.0 * x[ix] - 1.0);
-  // }
   Kokkos::parallel_for(
       Kokkos::RangePolicy<TestMemorySpace>(0, nx), KOKKOS_LAMBDA(const int ix) {
         x[ix] = xmin + static_cast<double>(ix) * (xmax - xmin) /
@@ -75,24 +58,9 @@ void xset(int nx, Kokkos::View<double *, TestMemorySpace> x,
       });
 }
 
-// void ffset(int num, const std::vector<double>& xf, const std::vector<double>&
-// tf,
-//            std::vector<std::vector<std::vector<std::vector<double>>>>& f) {
-//     for (int j = 0; j < num; ++j) {
-//         for (int i = 0; i < num; ++i) {
-//             f[0][0][i][j] = xf[i] * tf[j];
-//         }
-//     }
-// }
-
 void ffset(int num, Kokkos::View<double *, TestMemorySpace> xf,
            Kokkos::View<double *, TestMemorySpace> tf,
            Kokkos::View<double *, TestMemorySpace> f) {
-  // for (int j = 0; j < num; ++j) {
-  //   for (int i = 0; i < num; ++i) {
-  //     f[i * num + j] = xf[i] * tf[j];
-  //   }
-  // }
   Kokkos::parallel_for(
       Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num, num}),
       KOKKOS_LAMBDA(const int i, const int j) {
@@ -106,12 +74,6 @@ void bset(Rank1View<double, TestMemorySpace> fx, int nx,
           Rank1View<double, TestMemorySpace> bcx2,
           Rank1View<double, TestMemorySpace> bcth1,
           Rank1View<double, TestMemorySpace> bcth2) {
-
-  // df/dx = 2*exp(2x-1)*(2+sin(th)) = 2*f  (represented using fx*fth)
-  // for (int ith = 0; ith < nth; ++ith) {
-  //   bcx1[ith] = 2.0 * fx[0] * fth[ith];      // df/dx at x(1)
-  //   bcx2[ith] = 2.0 * fx[nx - 1] * fth[ith]; // df/dx at x(nx)
-  // }
   Kokkos::parallel_for(
       Kokkos::RangePolicy<TestMemorySpace>(0, nth),
       KOKKOS_LAMBDA(const int ith) {
@@ -119,11 +81,6 @@ void bset(Rank1View<double, TestMemorySpace> fx, int nx,
         bcx2[ith] = 2.0 * fx(nx - 1) * fth(ith); // df/dx at x(nx)
       });
 
-  // df/dth = exp(2x-1)*cos(th) → cos(0) = cos(2π) = 1 → df/dth = fx[ix]
-  // for (int ix = 0; ix < nx; ++ix) {
-  //   bcth1[ix] = fx[ix]; // df/dth at th = 0 (th[0])
-  //   bcth2[ix] = fx[ix]; // df/dth at th = 2π (th[nth - 1])
-  // }
   Kokkos::parallel_for(
       Kokkos::RangePolicy<TestMemorySpace>(0, nx), KOKKOS_LAMBDA(const int ix) {
         bcth1(ix) = fx(ix); // df/dth at th = 0 (th[0])
@@ -133,12 +90,6 @@ void bset(Rank1View<double, TestMemorySpace> fx, int nx,
 
 void generate_gt_2d(Rank1View<double, TestMemorySpace> gt_splinv, Rank1View<double, TestMemorySpace> fxtest, 
                     Rank1View<double, TestMemorySpace> fthtest, int ntest) {
-  // Generate ground truth for 2D bicubic spline interpolation
-  // for (int j = 0; j < ntest; ++j) {
-  //   for (int i = 0; i < ntest; ++i) {
-  //     gt_splinv(j * ntest + i) = fxtest(i) * fthtest(j);
-  //   }
-  // }
   Kokkos::parallel_for(
       Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {ntest, ntest}),
       KOKKOS_LAMBDA(const int j, const int i) {
@@ -259,11 +210,6 @@ void dotest1(int ns, Rank1View<double, TestMemorySpace> x,
   using std::data;
   using std::size;
 
-  // for (int i = 0; i < ns; ++i) {
-  //   fspl(0, i) = f[i];
-  //   fspp(0, i) = f[i];
-  //   fs2(0, i) = f[i];
-  // }
   Kokkos::parallel_for(
       Kokkos::RangePolicy<TestMemorySpace>(0, ns), KOKKOS_LAMBDA(const int i) {
         fspl(0, i) = f(i);
@@ -347,12 +293,12 @@ void pspltest1(Kokkos::View<double *, HostMemorySpace> res_1d) {
       KOKKOS_LAMBDA(const int ix) { zcos_view(ix) = std::cos(x_view(ix)); });
 
   auto zdum =
-      Rank1View<double, TestMemorySpace>(zdum_view.data(), zdum_view.size());
+      Rank1View<double, TestMemorySpace>(zdum_view.data(), 10);
 
   auto wk2_view =
       Kokkos::View<double *, TestMemorySpace>(zdum_view.data(), 1000);
   auto wk2 =
-      Rank1View<double, TestMemorySpace>(wk2_view.data(), wk2_view.size());
+      Rank1View<double, TestMemorySpace>(wk2_view.data(), 10);
 
   auto testa1 = Rank2View<double, TestMemorySpace>(testa1_view.data(), 1000, 3);
   auto testa2 = Rank2View<double, TestMemorySpace>(testa2_view.data(), 1000, 3);
@@ -414,8 +360,8 @@ void dotest2(Rank1View<double, TestMemorySpace> x,
   int nbc = 1;
   int ilinx = 0;
   int ilinth = 0;
-  Kokkos::View<double *, TestMemorySpace> wk_vec("wk_vec", 1000);
-  auto wk = Rank1View<double, TestMemorySpace>(wk_vec.data(), 1000);
+  Kokkos::View<double *, TestMemorySpace> wk_vec("wk_vec", 900);
+  auto wk = Rank1View<double, TestMemorySpace>(wk_vec.data(), 900);
 
   // BiCubicSplineInterpolator<double, TestMemorySpace> interpolator;
 
