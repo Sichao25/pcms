@@ -76,15 +76,7 @@ endif()
 
 add_executable(smoke_test test/test_ohClassPtn.cpp)
 target_link_libraries(smoke_test pcms::core test_support)
-dual_mpi_test(
-  TESTNAME
-  smoke_test
-  TIMEOUT
-  4
-  NAME1
-  rdv
-  EXE1
-  ./smoke_test
+dual_mpi_test(TESTNAME smoke_test TIMEOUT 4 NAME1 rdv EXE1 ./smoke_test
   PROCS1
   2
   ARGS1
