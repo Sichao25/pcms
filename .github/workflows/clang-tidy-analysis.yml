@@ -136,10 +136,10 @@ jobs:
 
     - name: configure pcms
       run : |
+        echo $PWD
         ls -la
-        mkdir build-pcms
-        cd build-pcms
-        cmake -S ../.. -DCMAKE_BUILD_TYPE=Release \
+        mkdir ${{ runner.temp }}/build-pcms
+        cmake -S . -B ${{ runner.temp }}/build-pcms -DCMAKE_BUILD_TYPE=Release \
                   -DCMAKE_C_COMPILER=`which mpicc` \
                   -DCMAKE_CXX_COMPILER=`which mpicxx` \
                   -DCMAKE_Fortran_COMPILER=`which mpifort` \
@@ -157,8 +157,7 @@ jobs:
       
     - name: copy compile_commands
       run: |
-        cd build-pcms
-        cp compile_commands.json ../compile_commands.json
+        cp ${{ runner.temp }}/build-pcms/compile_commands.json compile_commands.json
     
     - name: Install clang-tidy
       run: sudo apt-get install -yq clang-tidy
