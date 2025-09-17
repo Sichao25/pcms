@@ -1,0 +1,13 @@
+---
+Checks: >-
+  bugprone-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*
+WarningsAsErrors: true
+HeaderFileExtensions:         ['', 'h','hh','hpp','hxx']
+ImplementationFileExtensions: ['c','cc','cpp','cxx']
+HeaderFilterRegex:   ''
+FormatStyle:         none
+InheritParentConfig: true
