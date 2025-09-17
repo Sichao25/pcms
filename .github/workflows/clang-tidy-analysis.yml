@@ -165,4 +165,4 @@ jobs:
     - name: Run clang-tidy
       run: |
         ls -la
-        clang-tidy -p . $(find ../src -name '*.cpp' -or -name '*.cxx' -or -name '*.cc' -or -name '*.c') --warnings-as-errors='*' || true
+        clang-tidy -p . $(find . -name '*.cpp' -or -name '*.cxx' -or -name '*.cc' -or -name '*.c') --warnings-as-errors='*' || true
