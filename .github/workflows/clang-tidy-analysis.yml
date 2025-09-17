@@ -136,7 +136,6 @@ jobs:
 
     - name: configure pcms
       run : |
-        echo $PWD
         ls -la
         mkdir ${{ runner.temp }}/build-pcms
         cmake -S . -B ${{ runner.temp }}/build-pcms -DCMAKE_BUILD_TYPE=Release \
@@ -153,6 +152,7 @@ jobs:
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake \
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos \
                   -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels/install/lib/cmake/KokkosKernels/ \
+                  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                   -DPCMS_TEST_DATA_DIR=$PWD/pcms_testcases
       
     - name: copy compile_commands
