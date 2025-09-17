@@ -19,11 +19,11 @@ jobs:
         shell: bash
 
     steps:
-    - name: Update packages
-      run: sudo apt-get update
+    # - name: Update packages
+    #   run: sudo apt-get update
 
-    - name: Install mpi
-      run: sudo apt-get install -yq mpich
+    # - name: Install mpi
+    #   run: sudo apt-get install -yq mpich
 
     - uses: actions/checkout@v4
 
@@ -160,7 +160,9 @@ jobs:
     #     cp ${{ runner.temp }}/build-pcms/compile_commands.json compile_commands.json
     
     - name: Install clang-tidy
-      run: sudo apt-get install -yq clang-tidy
+      run: |
+        sudo apt-get update
+        sudo apt-get install -yq clang-tidy
     
     - name: Run clang-tidy
       run: |

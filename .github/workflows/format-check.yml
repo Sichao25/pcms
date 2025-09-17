@@ -29,24 +29,32 @@ jobs:
       
       - name: Check C++ code format
         run: |
+          EXIT_CODE=0
           find . -name "*.cpp" -o -name "*.hpp" -o -name "*.c" -o -name "*.h" -o -name "*.cc" -o -name "*.cxx" | \
           while read file; do
             if ! clang-format --dry-run --Werror "$file"; then
               echo "$file is not properly formatted"
               echo "Run: clang-format -i $file"
-              exit 1
+              EXIT_CODE=1
             fi
           done
+          if [ $EXIT_CODE -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
           echo "All C/C++ files are properly formatted"
       
       - name: Check CMake code format
         run: |
+          EXIT_CODE=0
           find . -name "CMakeLists.txt" -o -name "*.cmake" | \
           while read file; do
             if ! cmake-format --check "$file"; then
               echo "$file is not properly formatted"
               echo "Run: cmake-format -i $file"
-              exit 1
+              EXIT_CODE=1
             fi
           done
+          if [ $EXIT_CODE -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
           echo "All CMake files are properly formatted"
