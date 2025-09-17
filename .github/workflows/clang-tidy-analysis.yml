@@ -136,9 +136,10 @@ jobs:
 
     - name: configure pcms
       run : |
+        ls -la
         mkdir build-pcms
         cd build-pcms
-        cmake ../.. -DCMAKE_BUILD_TYPE=Release \
+        cmake -S ../.. -DCMAKE_BUILD_TYPE=Release \
                   -DCMAKE_C_COMPILER=`which mpicc` \
                   -DCMAKE_CXX_COMPILER=`which mpicxx` \
                   -DCMAKE_Fortran_COMPILER=`which mpifort` \
