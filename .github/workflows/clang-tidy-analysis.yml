@@ -170,6 +170,6 @@ jobs:
     - name: Run clang-tidy
       run: |
         cat compile_commands.json
-        clang-tidy $(find src -name '*.cpp' -or -name '*.cxx' -or -name '*.cc' -or -name '*.c' \
+        clang-tidy -p . $(find src -name '*.cpp' -or -name '*.cxx' -or -name '*.cc' -or -name '*.c' \
             -not -path "src/pcms/fortranapi/*") -- $(mpicc -show | sed 's/^[^ ]* //') || EXIT_CODE=$?
         exit ${EXIT_CODE:-0}
