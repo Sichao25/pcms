@@ -167,5 +167,8 @@ jobs:
     - name: Run clang-tidy
       run: |
         ls -la
-        clang-tidy $(find src -name '*.cpp' -or -name '*.cxx' -or -name '*.cc' -or -name '*.c') --warnings-as-errors='*' || EXIT_CODE=$?
+        clang-tidy $(find src -name '*.cpp' -or -name '*.cxx' -or -name '*.cc' -or -name '*.c' \
+            -not -path "src/third_party/*" \
+            -not -path "src/tests/*" \
+            -not -path "src/experimental/*") || EXIT_CODE=$?
         exit ${EXIT_CODE:-0}

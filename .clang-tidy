@@ -13,9 +13,6 @@ Checks: >
   modernize-use-nullptr,
   modernize-use-using
 
-WarningsAsErrors: true
-HeaderFileExtensions:         ['', 'h','hh','hpp','hxx']
-ImplementationFileExtensions: ['c','cc','cpp','cxx']
+WarningsAsErrors: '*'
 HeaderFilterRegex:   ''
 FormatStyle:         none
-InheritParentConfig: true
