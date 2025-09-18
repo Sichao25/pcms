@@ -14,5 +14,5 @@ Checks: >
   modernize-use-using
 
 WarningsAsErrors: '*'
-HeaderFilterRegex:   ''
+HeaderFilterRegex:   'src/.*'
 FormatStyle:         none
