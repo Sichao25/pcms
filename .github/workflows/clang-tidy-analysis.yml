@@ -26,6 +26,7 @@ jobs:
       run: |
         sudo apt-get install -yq mpich
         mpicxx -compile-info || echo "mpicxx not found"
+        mpicc -show | sed 's/^[^ ]* //'
 
     - uses: actions/checkout@v4
 
@@ -170,5 +171,5 @@ jobs:
       run: |
         ls -la
         clang-tidy $(find src -name '*.cpp' -or -name '*.cxx' -or -name '*.cc' -or -name '*.c' \
-            -not -path "src/pcms/fortranapi/*") || EXIT_CODE=$?
+            -not -path "src/pcms/fortranapi/*") -- $(mpicc -show | sed 's/^[^ ]* //') || EXIT_CODE=$?
         exit ${EXIT_CODE:-0}
