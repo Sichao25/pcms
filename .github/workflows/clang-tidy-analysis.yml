@@ -160,10 +160,11 @@ jobs:
     
     - name: Configure pcms with Bear
       run: |
-        bear -- make -C ${{ runner.temp }}/build-pcms
+        bear -- cmake -C ${{ runner.temp }}/build-pcms
     
     - name: Check compile_commands.json
-      run: cat ${{ runner.temp }}/build-pcms/compile_commands.json
+      run: |
+        ls -la ${{ runner.temp }}/build-pcms
     
     - name: Install clang-tidy
       run: |
