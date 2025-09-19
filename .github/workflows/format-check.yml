@@ -22,12 +22,12 @@ jobs:
       - name: Install clang-format
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y clang-format-18
           clang-format --version
 
       - name: Install cmake-format
         run: |
-          pip install cmake-format PyYAML
+          pip install PyYAML cmake-format==0.6.13
           cmake-format --version
       
       - name: Check C++ code format
@@ -41,7 +41,7 @@ jobs:
             fi
           done < <(find . -name "*.cpp" -o -name "*.hpp" -o -name "*.c" -o -name "*.h" -o -name "*.cc" -o -name "*.cxx")
           if [ $EXIT_CODE -eq 1 ]; then
-            echo "Some C/C++ files are not properly formatted"
+            echo "Some C/C++ files are not properly formatted. Reformat with clang-format-18"
             exit 1
           fi
           echo "All C/C++ files are properly formatted"
@@ -57,7 +57,7 @@ jobs:
             fi
           done < <(find . -name "CMakeLists.txt" -o -name "*.cmake")
           if [ $EXIT_CODE -eq 1 ]; then
-            echo "Some CMake files are not properly formatted"
+            echo "Some CMake files are not properly formatted. Reformat with cmake-format 0.6.13"
             exit 1
           fi
           echo "All CMake files are properly formatted"

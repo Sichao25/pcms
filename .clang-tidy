@@ -14,6 +14,6 @@ Checks: >
   modernize-use-using
 
 WarningsAsErrors: '*'
-HeaderFilterRegex:   'src/.*'
+HeaderFilterRegex:   'src/(?!pcms/(capi|fortranapi)/).*'
 FormatStyle:         none
 InheritParentConfig: true
