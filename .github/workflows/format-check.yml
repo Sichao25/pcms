@@ -23,9 +23,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format
+          clang-format --version
 
       - name: Install cmake-format
-        run: pip install cmake-format PyYAML
+        run: |
+          pip install cmake-format PyYAML
+          cmake-format --version
       
       - name: Check C++ code format
         run: |
