@@ -176,7 +176,7 @@ jobs:
         ls -la
         EXIT_CODE=0
         while read file; do
-          if ! clang-tidy -p ${{ runner.temp }}/build-omega_h "$file" --quiet; then
+          if ! clang-tidy -p . "$file" --quiet; then
             echo "$file has clang-tidy issues"
             EXIT_CODE=1
           fi
