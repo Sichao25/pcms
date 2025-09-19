@@ -162,7 +162,7 @@ jobs:
     
     - name: Check compile_commands.json
       run: |
-        cat compile_commands.json
+        cat ${{ runner.temp }}/build-pcms/compile_commands.json
     
     - name: Install clang-tidy
       run: |
