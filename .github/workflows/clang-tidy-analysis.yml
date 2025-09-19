@@ -135,32 +135,30 @@ jobs:
     - name: Install fftw3
       run: sudo apt-get install -yq libfftw3-dev pkg-config
 
-    - name: build pcms
-      uses: ./.github/actions/install-repo
-      with:
-        repo-name: 'pcms'
-        repo-path: 'SCOREC/pcms'
-        repo-ref: ''
-        cache: false
-        options: '-DCMAKE_BUILD_TYPE=Release
-                  -DCMAKE_C_COMPILER=`which mpicc`
-                  -DCMAKE_CXX_COMPILER=`which mpicxx`
-                  -DCMAKE_Fortran_COMPILER=`which mpifort`
-                  -DPCMS_TIMEOUT=5
-                  -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2
-                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h
-                  -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev
-                  -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop/install/lib/cmake/flcl
-                  -DMPIEXEC_EXECUTABLE=`which mpirun`
-                  -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2
-                  -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake
-                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos
-                  -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels/install/lib/cmake/KokkosKernels/
-                  -DPCMS_TEST_DATA_DIR=$PWD/pcms_testcases'
+    - name: configure pcms
+      run : |
+        ls -la
+        mkdir ${{ runner.temp }}/build-pcms
+        cmake -S . -B ${{ runner.temp }}/build-pcms -DCMAKE_BUILD_TYPE=Release \
+                  -DCMAKE_C_COMPILER=mpicc \
+                  -DCMAKE_CXX_COMPILER=mpicxx \
+                  -DCMAKE_Fortran_COMPILER=mpifort \
+                  -DPCMS_TIMEOUT=5 \
+                  -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2 \
+                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h \
+                  -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev \
+                  -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop/install/lib/cmake/flcl \
+                  -DMPIEXEC_EXECUTABLE=mpirun \
+                  -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2 \
+                  -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake \
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos \
+                  -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels/install/lib/cmake/KokkosKernels/ \
+                  -DPCMS_TEST_DATA_DIR=$PWD/pcms_testcases
     
     - name: Configure pcms with Bear
       run: |
-        bear -- cmake --build ${{ runner.temp }}/build-pcms
+        cd ${{ runner.temp }}/build-pcms
+        bear -- make -j 4
     
     - name: Check compile_commands.json
       run: |
@@ -176,7 +174,7 @@ jobs:
         ls -la
         EXIT_CODE=0
         while read file; do
-          if ! clang-tidy -p . "$file" --quiet; then
+          if ! clang-tidy -p ${{ runner.temp }}/build-pcms "$file" --quiet; then
             echo "$file has clang-tidy issues"
             EXIT_CODE=1
           fi
