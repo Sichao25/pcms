@@ -16,3 +16,4 @@ Checks: >
 WarningsAsErrors: '*'
 HeaderFilterRegex:   'src/.*'
 FormatStyle:         none
+InheritParentConfig: true
