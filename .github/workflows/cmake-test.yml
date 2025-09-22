@@ -30,8 +30,6 @@ jobs:
     - name: Install mpi
       run: sudo apt-get install -yq mpich
 
-    - uses: actions/checkout@v4
-
     - name: build Catch2
       uses: ./.github/actions/install-repo
       with:
@@ -130,15 +128,6 @@ jobs:
                   -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake'
 
-    - name: checkout pcms_testcases
-      uses: actions/checkout@v3
-      with:
-        repository: jacobmerson/pcms_testcases
-        path: pcms_testcases
-
-    - name: Install fftw3
-      run: sudo apt-get install -yq libfftw3-dev pkg-config
-
   test:
     needs: build
     runs-on: ubuntu-24.04
@@ -161,6 +150,22 @@ jobs:
             memory_test: OFF
 
     steps:
+    - uses: actions/checkout@v4
+
+    - name: Install mpi
+      run: |
+        sudo apt-get update
+        sudo apt-get install -yq mpich
+    
+    - name: checkout pcms_testcases
+      uses: actions/checkout@v3
+      with:
+        repository: jacobmerson/pcms_testcases
+        path: pcms_testcases
+
+    - name: Install fftw3
+      run: sudo apt-get install -yq libfftw3-dev pkg-config
+    
     - name: build pcms
       uses: ./.github/actions/install-repo
       with:
@@ -204,6 +209,13 @@ jobs:
         shell: bash
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mpi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -yq mpich
+      
       - name: configure pcms
         run : |
           ls -la
