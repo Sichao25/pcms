@@ -187,6 +187,10 @@ jobs:
     # - name: Print Test
     #   if: matrix.clang_tidy == 'OFF'
     #   run: cat ${{ runner.temp }}/build-pcms/Testing/Temporary/LastTest.log
+
+    - name: Install Bear
+      if: matrix.clang_tidy == 'ON'
+      run: sudo apt-get install -yq bear
     
     - name: configure pcms
       if: matrix.clang_tidy == 'ON'
