@@ -3,11 +3,9 @@ on:
   push:
     branches:
       - develop
-      - yus/format_check_test
   pull_request:
     branches:
       - develop
-      - yus/format_check_test
 
 jobs:
   test-build:
