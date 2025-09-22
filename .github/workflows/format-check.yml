@@ -2,9 +2,9 @@ name: Format Check
 
 on:
   push:
-    branches: [ develop, yus/format_check_test ]
+    branches: [ develop ]
   pull_request:
-    branches: [ develop, yus/format_check_test ]
+    branches: [ develop ]
 
 jobs:
   format-check:
