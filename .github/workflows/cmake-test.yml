@@ -26,6 +26,8 @@ jobs:
 
     - name: Update packages
       run: sudo apt-get update
+    
+    - uses: actions/checkout@v4
 
     - name: Install mpi
       run: sudo apt-get install -yq mpich
