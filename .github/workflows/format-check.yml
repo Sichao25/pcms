@@ -27,7 +27,7 @@ jobs:
 
       - name: Install cmake-format
         run: |
-          pip install PyYAML cmake-format==0.6.13
+          pip install PyYAML cmake-format==0.6.11
           cmake-format --version
       
       - name: Check C++ code format
@@ -57,7 +57,7 @@ jobs:
             fi
           done < <(find . -name "CMakeLists.txt" -o -name "*.cmake")
           if [ $EXIT_CODE -eq 1 ]; then
-            echo "Some CMake files are not properly formatted. Reformat with cmake-format 0.6.13"
+            echo "Some CMake files are not properly formatted. Reformat with cmake-format 0.6.11"
             exit 1
           fi
           echo "All CMake files are properly formatted"
