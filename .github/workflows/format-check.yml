@@ -2,7 +2,7 @@ name: Format Check
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, yus/format_check_test ]
   pull_request:
     branches: [ develop ]
 
