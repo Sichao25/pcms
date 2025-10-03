@@ -46,7 +46,7 @@ jobs:
       with:
         repo-name: 'Catch2'
         repo-path: 'catchorg/Catch2'
-        repo-ref: ''
+        repo-ref: 'v3.11.0'
         cache: true
 
     - name: build kokkos
@@ -80,7 +80,7 @@ jobs:
       with:
         repo-name: 'omega_h'
         repo-path: 'SCOREC/omega_h'
-        repo-ref: ''
+        repo-ref: 'scorec-v10.10.0'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
@@ -121,7 +121,7 @@ jobs:
       with:
         repo-name: 'ADIOS2'
         repo-path: 'ornladios/ADIOS2'
-        repo-ref: ''
+        repo-ref: 'v2.10.2'
         cache: true
         options: '-DADIOS2_USE_CUDA=OFF'
 
