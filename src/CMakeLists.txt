@@ -69,6 +69,8 @@ if(spdlog_FOUND)
   target_link_libraries(pcms_core PUBLIC spdlog::spdlog)
 endif()
 
+target_link_libraries(pcms_core PRIVATE sycl)
+
 # export the library
 set_target_properties(pcms_core PROPERTIES PUBLIC_HEADER "${PCMS_HEADERS}")
 target_include_directories(
