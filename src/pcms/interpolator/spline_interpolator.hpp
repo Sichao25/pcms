@@ -1,12 +1,12 @@
 #ifndef MLS_RBF_OPTIONS_HPP
 #define MLS_RBF_OPTIONS_HPP
 
+#include <Kokkos_Core.hpp>
 #include "mdspan/mdspan.hpp"
 #include "pcms/arrays.h"
 #include "pcms/assert.h"
 #include "pcms/memory_spaces.h"
 #include "pcms/types.h"
-#include <Kokkos_Core.hpp>
 #include <cmath>
 #include <iostream>
 
@@ -93,12 +93,12 @@ KOKKOS_INLINE_FUNCTION void clamp_to_grid_range(T xget, T& zxget,
 
     if (xget < x[0] - zxtol || xget > x[nx - 1] + zxtol) {
       ier = 1; // Error code for out of range
-      printf("lookup:  xget=%.6f out of range %.6f to %.6f\n", xget, x[0],
+      Kokkos::printf("lookup:  xget=%.6f out of range %.6f to %.6f\n", xget, x[0],
              x[nx - 1]);
 
       return;
     } else {
-      printf("lookup:  xget=%.6f beyond range %.6f to %.6f (fixup applied)\n",
+      Kokkos::printf("lookup:  xget=%.6f beyond range %.6f to %.6f (fixup applied)\n",
              xget, x[0], x[nx - 1]);
       zxget = (xget < x[0]) ? x[0] : x[nx - 1];
     }
@@ -762,7 +762,7 @@ KOKKOS_INLINE_FUNCTION void cubic_eval_explicit(
   T dxa = 0.0;
   cubic_lookup_explicit(xget, x, nx, ia, dxa, ier, lookup_tol);
   if (ier != 0) {
-    printf("error in evaluation, ier = %d\n", ier);
+    Kokkos::printf("error in evaluation, ier = %d\n", ier);
     return;
   }
 

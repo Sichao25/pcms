@@ -16,6 +16,8 @@ namespace pcms
 #define ACTIVE_GPU_EXECUTION
 #endif
 
+#  define PCMS_CHECK_PRINTF(cond, format, ...) OMEGA_H_CHECK(cond)
+
 FILE* getStdout();
 FILE* getStderr();
 

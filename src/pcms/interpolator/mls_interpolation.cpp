@@ -1,4 +1,5 @@
 #include <pcms/interpolator/mls_interpolation.hpp>
+#include <pcms/print.h>
 #include <Kokkos_MathematicalFunctions.hpp>
 #include <cmath>
 
@@ -20,12 +21,12 @@ struct RBF_GAUSSIAN
   double operator()(double r_sq, double rho_sq) const
   {
     double phi;
-    OMEGA_H_CHECK_PRINTF(rho_sq >= 0,
+    PCMS_CHECK_PRINTF(rho_sq >= 0,
                          "ERROR: square of cutoff distance should always be "
                          "positive but the value is %.16f\n",
                          rho_sq);
 
-    OMEGA_H_CHECK_PRINTF(r_sq >= 0,
+    PCMS_CHECK_PRINTF(r_sq >= 0,
                          "ERROR: square of  distance should always be positive "
                          "but the value is %.16f\n",
                          r_sq);
@@ -55,7 +56,7 @@ struct RBF_C4
   {
     double phi;
     double r = Kokkos::sqrt(r_sq);
-    OMEGA_H_CHECK_PRINTF(
+    PCMS_CHECK_PRINTF(
       rho_sq > 0, "ERROR: rho_sq in rbf has to be positive, but got %.16f\n",
       rho_sq);
     double rho = Kokkos::sqrt(rho_sq);
@@ -70,7 +71,7 @@ struct RBF_C4
       phi = phi * pow(limit, 6);
     }
 
-    OMEGA_H_CHECK_PRINTF(!std::isnan(phi),
+    PCMS_CHECK_PRINTF(!std::isnan(phi),
                          "ERROR: phi in rbf is NaN. r_sq, rho_sq = (%f, %f)\n",
                          r_sq, rho_sq);
     return phi;
@@ -87,7 +88,7 @@ struct RBF_CONST
   {
     double phi;
     double r = Kokkos::sqrt(r_sq);
-    OMEGA_H_CHECK_PRINTF(
+    PCMS_CHECK_PRINTF(
       rho_sq > 0, "ERROR: rho_sq in rbf has to be positive, but got %.16f\n",
       rho_sq);
     double rho = Kokkos::sqrt(rho_sq);
@@ -100,7 +101,7 @@ struct RBF_CONST
       phi = 1.0;
     }
 
-    OMEGA_H_CHECK_PRINTF(!std::isnan(phi),
+    PCMS_CHECK_PRINTF(!std::isnan(phi),
                          "ERROR: phi in rbf is NaN. r_sq, rho_sq = (%f, %f)\n",
                          r_sq, rho_sq);
     return phi;

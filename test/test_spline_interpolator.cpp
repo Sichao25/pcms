@@ -1,6 +1,6 @@
+#include <Kokkos_Core.hpp>
 #include "mdspan/mdspan.hpp"
 #include "pcms.h"
-#include <Kokkos_Core.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>

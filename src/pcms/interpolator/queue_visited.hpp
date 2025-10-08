@@ -7,6 +7,7 @@
 #include <Omega_h_library.hpp>
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_reduce.hpp>
+#include <Kokkos_Core.hpp>
 #define MAX_SIZE_QUEUE 500
 #define MAX_SIZE_TRACK 800
 
@@ -66,7 +67,7 @@ OMEGA_H_INLINE
 void Queue::push_back(const int& item)
 {
   if (count == MAX_SIZE_QUEUE) {
-    printf("queue is full %d\n", count);
+    Kokkos::printf("queue is full %d\n", count);
     return;
   }
   last = (last + 1) % MAX_SIZE_QUEUE;
@@ -78,7 +79,7 @@ OMEGA_H_INLINE
 void Queue::pop_front()
 {
   if (count == 0) {
-    printf("queue is empty\n");
+    Kokkos::printf("queue is empty\n");
     return;
   }
   first = (first + 1) % MAX_SIZE_QUEUE;
@@ -107,7 +108,7 @@ OMEGA_H_INLINE
 void Track::push_back(const int& item)
 {
   if (count == MAX_SIZE_TRACK) {
-    printf("track is full %d\n", count);
+    Kokkos::printf("track is full %d\n", count);
     return;
   }
   last = (last + 1) % MAX_SIZE_TRACK;

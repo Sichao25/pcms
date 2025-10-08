@@ -313,12 +313,12 @@ TEST_CASE("test_serial_svd")
         if (team.team_rank() == 0) {
           for (int i = 0; i < rowA; ++i) {
             for (int j = 0; j < colA; ++j) {
-              printf("A(%d,%d) = %f\n", i, j, A(i, j));
+              Kokkos::printf("A(%d,%d) = %f\n", i, j, A(i, j));
             }
           }
 
           for (int i = 0; i < rowB; ++i) {
-            printf("weight(%d) = %f\n", i, weight(i));
+            Kokkos::printf("weight(%d) = %f\n", i, weight(i));
           }
         }
 
@@ -367,17 +367,17 @@ TEST_CASE("test_serial_svd")
         team.team_barrier();
 
         if (team.team_rank() == 0) {
-          printf("\n[A matrix before solve_matrix_svd]\n");
+          Kokkos::printf("\n[A matrix before solve_matrix_svd]\n");
           for (int i = 0; i < row; ++i) {
             for (int j = 0; j < column; ++j) {
-              printf("A(%d, %d) = %f\t", i, j, A(i, j));
+              Kokkos::printf("A(%d, %d) = %f\t", i, j, A(i, j));
             }
-            printf("\n");
+            Kokkos::printf("\n");
           }
 
-          printf("[rhs vector before solve_matrix_svd]\n");
+          Kokkos::printf("[rhs vector before solve_matrix_svd]\n");
           for (int i = 0; i < row; ++i) {
-            printf("rhs[%d] = %f\n", i, rhs(i));
+            Kokkos::printf("rhs[%d] = %f\n", i, rhs(i));
           }
         }
 
@@ -385,9 +385,9 @@ TEST_CASE("test_serial_svd")
         detail::solve_matrix_svd(team, weight, rhs, A, x, 0, 1e-12);
         team.team_barrier();
         if (team.team_rank() == 0) {
-          printf("[solution vector x after solve_matrix_svd]\n");
+          Kokkos::printf("[solution vector x after solve_matrix_svd]\n");
           for (int i = 0; i < column; ++i) {
-            printf("x[%d] = %f\n", i, x(i));
+            Kokkos::printf("x[%d] = %f\n", i, x(i));
           }
         }
         Kokkos::parallel_for(Kokkos::TeamThreadRange(team, column),

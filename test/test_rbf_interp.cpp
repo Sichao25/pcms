@@ -26,7 +26,7 @@ double func(pcms::Coord& p, int degree)
 
     return pow(x, 3) + pow(y, 3);
   } else {
-    printf("No polynomials with degree = %d\n", degree);
+    Kokkos::printf("No polynomials with degree = %d\n", degree);
   }
   return -1;
 }

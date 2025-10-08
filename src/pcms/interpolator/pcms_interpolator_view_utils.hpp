@@ -5,6 +5,7 @@
 #include <Omega_h_array_ops.hpp>
 #include <cmath>
 #include <Omega_h_fail.hpp>
+#include <pcms/print.h>
 #include <Kokkos_MathematicalFunctions.hpp>
 
 namespace pcms
@@ -55,7 +56,7 @@ void find_sq_root_each(member_type team, ScratchVecView& array)
   int size = array.size();
 
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, size), [=](int i) {
-    OMEGA_H_CHECK_PRINTF(
+    PCMS_CHECK_PRINTF(
       array(i) >= 0,
       "[Error:] Square root of a negative number is invalid!\n"
       "value is %12.6f\n",
@@ -175,7 +176,7 @@ void eval_row_scaling(member_type team, ScratchVecView diagonal_entries,
   int column = matrix.extent(1);
   int vector_size = diagonal_entries.size();
 
-  OMEGA_H_CHECK_PRINTF(
+  PCMS_CHECK_PRINTF(
     vector_size <= row,
     "[ERROR]: for row scaling the size of diagonal entries vector should be "
     "equal or less than the row of the matrix which is to be scaled\n"
@@ -212,7 +213,7 @@ void eval_rhs_scaling(member_type team, ScratchVecView diagonal_entries,
   int weight_size = diagonal_entries.size();
   int rhs_size = rhs_values.size();
 
-  OMEGA_H_CHECK_PRINTF(
+  PCMS_CHECK_PRINTF(
     weight_size == rhs_size,
     "[ERROR]: for row scaling the size of diagonal entries vector should be "
     "equal or less than the row of the matrix which is to be scaled\n"

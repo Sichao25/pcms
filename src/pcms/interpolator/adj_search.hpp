@@ -2,6 +2,7 @@
 #define ADJ_SEARCH_HPP
 
 #include <pcms/point_search.h>
+#include <pcms/print.h>
 
 #include "queue_visited.hpp"
 
@@ -31,10 +32,10 @@ inline void checkTargetPoints(
   auto check_target_points = OMEGA_H_LAMBDA(Omega_h::LO i)
   {
     if (results(i).tri_id < 0) {
-      OMEGA_H_CHECK_PRINTF(results(i).tri_id >= 0,
+      PCMS_CHECK_PRINTF(results(i).tri_id >= 0,
                            "ERROR: Source cell id not found for target %d\n",
                            i);
-      printf("%d, ", i);
+      Kokkos::printf("%d, ", i);
     }
   };
   Omega_h::parallel_for(results.size(), check_target_points,
@@ -53,13 +54,13 @@ inline void printSupportsForTarget(
       if (id == target_id) {
         Omega_h::LO start_ptr = supports_ptr[id];
         Omega_h::LO end_ptr = supports_ptr[id + 1];
-        printf("Target vertex: %d\n with %d num supports: nSupports[id]=%d", id,
+        Kokkos::printf("Target vertex: %d\n with %d num supports: nSupports[id]=%d", id,
                end_ptr - start_ptr, nSupports[id]);
         for (Omega_h::LO i = start_ptr; i < end_ptr; ++i) {
           Omega_h::LO cell_id = support_idx[i];
-          printf(", %d", cell_id);
+          Kokkos::printf(", %d", cell_id);
         }
-        printf("\n");
+        Kokkos::printf("\n");
       }
     });
 }
@@ -130,7 +131,7 @@ inline void FindSupports::adjBasedSearch(
       Omega_h::Real cutoffDistance = radii2[id];
 
       Omega_h::LO source_cell_id = results(id).tri_id;
-      OMEGA_H_CHECK_PRINTF(
+      PCMS_CHECK_PRINTF(
         source_cell_id >= 0,
         "ERROR: Source cell id not found for target %d (%f,%f)\n", id,
         target_points(id, 0), target_points(id, 1));
@@ -174,10 +175,10 @@ inline void FindSupports::adjBasedSearch(
         if (dist <= cutoffDistance) {
           count++;
           if (count >= 500) {
-            printf(
+            Kokkos::printf(
               "Warning: count exceeds 500 for target %d with %d supports\n", id,
               end_ptr - start_ptr);
-            printf("Warning: Target %d: coors: (%f, %f) and support %d: "
+            Kokkos::printf("Warning: Target %d: coors: (%f, %f) and support %d: "
                    "coords: (%f, %f)\n",
                    id, target_coords[0], target_coords[1], vert_id,
                    support_coords[0], support_coords[1]);
@@ -214,7 +215,7 @@ inline void FindSupports::adjBasedSearch(
             if (dist <= cutoffDistance) {
               count++;
               if (count >= 500) {
-                printf("Warning: count exceeds 500 for target %d with start %d "
+                Kokkos::printf("Warning: count exceeds 500 for target %d with start %d "
                        "and end %d radius2 %f adding neighbor %d\n",
                        id, start, end, cutoffDistance, neighborIndex);
               }

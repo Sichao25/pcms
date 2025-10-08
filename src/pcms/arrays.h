@@ -1,5 +1,6 @@
 #ifndef PCMS_COUPLING_ARRAYS_H
 #define PCMS_COUPLING_ARRAYS_H
+#include "Kokkos_Core.hpp"
 #include "mdspan/mdspan.hpp"
 #include "pcms/types.h"
 #include "pcms/memory_spaces.h"
