@@ -399,25 +399,44 @@ if(Catch2_FOUND)
       test_interpolation_class.cpp
       test_omega_h_field2_outofbounds.cpp)
   endif()
+
+  if (PCMS_ENABLE_MESHFIELDS)
+	list(APPEND PCMS_UNIT_TEST_SOURCES test_load_vector.cpp)
+  endif()
+  
   add_executable(unit_tests ${PCMS_UNIT_TEST_SOURCES})
-  target_link_libraries(unit_tests PUBLIC Catch2::Catch2 pcms::core
-                                          pcms::interpolator Kokkos::kokkoskernels)
-  target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+  
+  if (PCMS_ENABLE_MESHFIELDS)
+	target_link_libraries(unit_tests PUBLIC meshfields::meshfields)
+  endif()
 
-  add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
-  target_link_libraries(test_interpolation_on_ltx_mesh PUBLIC Catch2::Catch2WithMain
-                                                        pcms::core
-                                                        pcms::interpolator)
-  target_include_directories(test_interpolation_on_ltx_mesh PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-  add_test(NAME test_interpolation_on_ltx_mesh
-          COMMAND test_interpolation_on_ltx_mesh
-                  --degas2_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx_graded_gauss.osh
-                  --ltx_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx
-                  --data_root ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/
-  )
+  if (PCMS_ENABLE_PETSC)
+	  target_include_directories(unit_tests PUBLIC ${PCMS_PETSC_INCLUDES})
+	  target_link_libraries(unit_tests PUBLIC ${PCMS_PETSC_LIBRARIES})
+  endif()
 
-  include(Catch)
-  catch_discover_tests(unit_tests)
+  target_link_libraries(unit_tests PUBLIC 
+		Catch2::Catch2 
+		pcms::core
+		pcms::interpolator
+		pcms_mesh_intersection
+	) 
+ target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+ add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
+ target_link_libraries(test_interpolation_on_ltx_mesh PUBLIC Catch2::Catch2WithMain
+                                                       pcms::core
+                                                       pcms::interpolator)
+ target_include_directories(test_interpolation_on_ltx_mesh PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+ add_test(NAME test_interpolation_on_ltx_mesh
+         COMMAND test_interpolation_on_ltx_mesh
+                 --degas2_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx_graded_gauss.osh
+                 --ltx_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx
+                 --data_root ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/
+ )
+
+ include(Catch)
+ 	Catch_discover_tests(unit_tests)
 else()
   message(WARNING "Catch2 not found. Disabling Unit Tests")
 endif()
