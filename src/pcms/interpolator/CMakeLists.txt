@@ -42,7 +42,7 @@ target_include_directories(pcms_interpolator INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../..>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-target_link_libraries(pcms_interpolator PUBLIC pcms::core Kokkos::kokkoskernels pcms_mesh_intersection)
+target_link_libraries(pcms_interpolator PUBLIC pcms::core Kokkos::kokkoskernels)
 
 install(
   TARGETS pcms_interpolator
