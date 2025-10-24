@@ -139,9 +139,9 @@ jobs:
                   -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake'
     
-    - name: test redev
-      run: |
-        ctest --test-dir ${{ runner.temp }}/build-redev
+    # - name: test redev
+    #   run: |
+    #     ctest --test-dir ${{ runner.temp }}/build-redev
 
     - name: checkout pcms_testcases
       uses: actions/checkout@v3
@@ -178,8 +178,8 @@ jobs:
     # - name: Install Valgrind
     #   run: sudo apt-get install -yq valgrind
 
-    # - name: Run CTest
-    #   run: ctest --test-dir ${{ runner.temp }}/build-pcms
+    - name: Run CTest
+      run: ctest --test-dir ${{ runner.temp }}/build-pcms
 
     # - name: Print Test
     #   if: always()
