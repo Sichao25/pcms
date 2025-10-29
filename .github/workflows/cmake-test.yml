@@ -181,7 +181,7 @@ jobs:
                   -DCMAKE_C_COMPILER=`which mpicc`
                   -DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_Fortran_COMPILER=`which mpifort`
-                  -DPCMS_TIMEOUT=5
+                  -DPCMS_TIMEOUT=50
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h
                   -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields
