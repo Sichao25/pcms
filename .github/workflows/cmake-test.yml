@@ -204,7 +204,7 @@ jobs:
 
     - name: Run CTest
       if: matrix.clang_tidy == 'OFF'
-      run: ctest --test-dir ${{ runner.temp }}/build-pcms
+      run: ctest --test-dir ${{ runner.temp }}/build-pcms --output-on-failure
     # - name: Print Test
     #   if: matrix.clang_tidy == 'OFF'
     #   run: cat ${{ runner.temp }}/build-pcms/Testing/Temporary/LastTest.log
