@@ -178,7 +178,7 @@ jobs:
       with:
         repo-name: 'pcms'
         repo-path: 'SCOREC/pcms'
-        repo-ref: ''
+        repo-ref: 'workflow_test'
         cache: false
         options: '-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
                   -DCMAKE_C_COMPILER=`which mpicc`
