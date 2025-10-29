@@ -40,6 +40,9 @@ jobs:
     - name: Install mpi
       run: sudo apt-get install -yq mpich
 
+    - name: Install cmake
+      run: sudo apt-get install -yq cmake
+
     - uses: actions/checkout@v4
 
     - name: build Catch2
@@ -92,6 +95,19 @@ jobs:
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos'
     
+    - name: build meshFields
+      uses: ./.github/actions/install-repo
+      with:
+        repo-name: 'meshFields'
+        repo-path: 'SCOREC/meshFields'
+        repo-ref: ''
+        cache: true
+        options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
+                  -DCMAKE_C_COMPILER=`which mpicc`
+                  -DMPIEXEC_EXECUTABLE=`which mpirun`
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos
+                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h'
+
     - name: build perfstubs
       uses: ./.github/actions/install-repo
       with:
@@ -161,13 +177,14 @@ jobs:
         repo-path: 'SCOREC/pcms'
         repo-ref: ''
         cache: false
-        options: '-DCMAKE_BUILD_TYPE=Release
+        options: '-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
                   -DCMAKE_C_COMPILER=`which mpicc`
                   -DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_Fortran_COMPILER=`which mpifort`
                   -DPCMS_TIMEOUT=5
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h
+                  -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields
                   -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev
                   -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop/install/lib/cmake/flcl
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
@@ -196,13 +213,14 @@ jobs:
       if: matrix.clang_tidy == 'ON'
       run : |
         mkdir ${{ runner.temp }}/build-pcms
-        cmake -S . -B ${{ runner.temp }}/build-pcms -DCMAKE_BUILD_TYPE=Release \
+        cmake -S . -B ${{ runner.temp }}/build-pcms -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                   -DCMAKE_C_COMPILER=mpicc \
                   -DCMAKE_CXX_COMPILER=mpicxx \
                   -DCMAKE_Fortran_COMPILER=mpifort \
                   -DPCMS_TIMEOUT=5 \
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2 \
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h \
+                  -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields \
                   -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev \
                   -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop/install/lib/cmake/flcl \
                   -DMPIEXEC_EXECUTABLE=mpirun \
