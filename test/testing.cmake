@@ -23,8 +23,8 @@ set(VALGRIND_ARGS
       STRING
       "specify valgrind options; logging (--log-file=%p_<name>.vg) is enabled by default if VALGRIND_EXECUTABLE is set"
 )
-if(NOT MPIEXEC_PREFLAGS)
-  set(MPIEXEC_PREFLAGS "none" CACHE STRING "specify any preflags for mpiexec/mpirun")
+if(MPIEXEC_PREFLAGS STREQUAL "")
+  set(MPIEXEC_PREFLAGS "none")
 endif()
 
 message(STATUS "MPIEXEC_EXECUTABLE: ${MPIEXEC_EXECUTABLE}")
