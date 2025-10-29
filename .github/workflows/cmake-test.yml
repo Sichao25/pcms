@@ -177,7 +177,7 @@ jobs:
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'pcms'
-        repo-path: 'SCOREC/pcms'
+        repo-path: 'Sichao25/pcms'
         repo-ref: 'workflow_test'
         cache: false
         options: '-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
