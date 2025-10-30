@@ -231,7 +231,6 @@ jobs:
     - name: Configure pcms with Bear
       if: matrix.clang_tidy == 'ON'
       run: |
-        cmake --build ${{ runner.temp }}/build-pcms -j 4
         bear -- cmake --build ${{ runner.temp }}/build-pcms
     
     - name: Install clang-tidy
