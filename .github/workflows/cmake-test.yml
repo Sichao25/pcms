@@ -169,8 +169,8 @@ jobs:
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'pcms'
-        repo-path: 'SCOREC/pcms'
-        repo-ref: ''
+        repo-path: 'Sichao/pcms'
+        repo-ref: 'yus/ci_test'
         cache: false
         options: '-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
                   -DCMAKE_C_COMPILER=`which mpicc`
