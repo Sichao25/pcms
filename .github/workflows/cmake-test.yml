@@ -169,7 +169,7 @@ jobs:
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'pcms'
-        repo-path: 'Sichao/pcms'
+        repo-path: 'Sichao25/pcms'
         repo-ref: 'yus/ci_test'
         cache: false
         options: '-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
