@@ -230,13 +230,14 @@ jobs:
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake \
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos \
                   -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels/install/lib/cmake/KokkosKernels/ \
+                  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                   -DPCMS_TEST_DATA_DIR=$PWD/pcms_testcases
     
     - name: Configure pcms with Bear
       if: matrix.clang_tidy == 'ON'
       run: |
         cd ${{ runner.temp }}/build-pcms
-        bear -- make
+        cat compile_commands.json
     
     - name: Install clang-tidy
       if: matrix.clang_tidy == 'ON'
