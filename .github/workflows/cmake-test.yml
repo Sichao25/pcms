@@ -214,16 +214,14 @@ jobs:
       if: matrix.clang_tidy == 'ON'
       run : |
         mkdir ${{ runner.temp }}/build-pcms
-        MPI_CXX_COMPILE_FLAGS=$(mpicxx -compile-info | cut -d' ' -f2-)
-        MPI_CXX_LINK_FLAGS=$(mpicxx -link-info | cut -d' ' -f2-)
+        MPI_FLAGS=$(mpicxx -show | cut -d' ' -f2-)
         cmake -S . -B ${{ runner.temp }}/build-pcms -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                   -DCMAKE_C_COMPILER=mpicc \
                   -DCMAKE_CXX_COMPILER=mpicxx \
                   -DCMAKE_Fortran_COMPILER=mpifort \
                   -DMPIEXEC_PREFLAGS="--oversubscribe" \
                   -DPCMS_TIMEOUT=10 \
-                  -DCMAKE_CXX_FLAGS="$MPI_CXX_COMPILE_FLAGS" \
-                  -DCMAKE_EXE_LINKER_FLAGS="$MPI_CXX_LINK_FLAGS" \
+                  -DCMAKE_CXX_FLAGS="$MPI_FLAGS" \
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2 \
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h \
                   -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields \
