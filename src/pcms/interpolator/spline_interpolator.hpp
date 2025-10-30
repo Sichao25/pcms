@@ -2553,7 +2553,7 @@ struct SolveCompactCubicSplineFunctor
   KOKKOS_INLINE_FUNCTION
   void operator()(const member_type& team_member) const
   {
-    Kokkos::single(Kokkos::PerTeam(team_member), [=]() {
+    Kokkos::single(Kokkos::PerTeam(team_member), [KOKKOS_CLASS_LAMBDA]() {
       detail::solve_cubic_spline_compact(x, nx, fspl, fspl4, ibcxmin, bcxmin,
                                          ibcxmax, bcxmax, wk);
     });
@@ -2593,7 +2593,7 @@ struct SolveExplicitCubicSplineFunctor
   KOKKOS_INLINE_FUNCTION
   void operator()(const member_type& team_member) const
   {
-    Kokkos::single(Kokkos::PerTeam(team_member), [=]() {
+    Kokkos::single(Kokkos::PerTeam(team_member), [KOKKOS_CLASS_LAMBDA]() {
       detail::solve_cubic_spline_explicit(x, nx, fspl, ibcxmin, bcxmin, ibcxmax,
                                           bcxmax, wk);
     });
