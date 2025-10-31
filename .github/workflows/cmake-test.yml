@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         build_type: [Release]
-        clang_tidy: [ON, OFF]
+        clang_tidy: [ON]
         memory_test: [ON, OFF]
         compiler: [g++]
         language: ['cpp']
