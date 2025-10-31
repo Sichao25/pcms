@@ -164,7 +164,6 @@ jobs:
       run: sudo apt-get install -yq libfftw3-dev pkg-config
 
     - name: build pcms
-      if: matrix.clang_tidy == 'OFF'
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'pcms'
