@@ -23,17 +23,13 @@ jobs:
         build_type: [Release]
         clang_tidy: [ON, OFF]
         memory_test: [ON, OFF]
-        compiler: [g++, clang++]
+        compiler: [g++]
         language: ['cpp']
         exclude:
           - build_type: Release
             memory_test: ON
           - build_type: RelWithDebInfo
             memory_test: OFF
-          - clang_tidy: ON
-            compiler: g++
-          - clang_tidy: OFF
-            compiler: clang++
       
     steps:
 
@@ -41,7 +37,12 @@ jobs:
       run: sudo apt-get update
 
     - name: Install openmpi
+      if: matrix.clang_tidy == 'OFF'
       run: sudo apt-get install -yq libopenmpi-dev openmpi-bin
+    
+    - name: Install mpich
+      if: matrix.clang_tidy == 'ON'
+      run: sudo apt-get install -yq libmpich-dev mpich
 
     - name: Install cmake
       run: sudo apt-get install -yq cmake
@@ -219,9 +220,7 @@ jobs:
                   -DCMAKE_C_COMPILER=mpicc \
                   -DCMAKE_CXX_COMPILER=mpicxx \
                   -DCMAKE_Fortran_COMPILER=mpifort \
-                  -DMPIEXEC_PREFLAGS="--oversubscribe" \
                   -DPCMS_TIMEOUT=10 \
-                  -DCMAKE_CXX_FLAGS="$MPI_FLAGS" \
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2 \
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h \
                   -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields \
@@ -232,14 +231,13 @@ jobs:
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake \
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos \
                   -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels/install/lib/cmake/KokkosKernels/ \
-                  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                   -DPCMS_TEST_DATA_DIR=$PWD/pcms_testcases
     
     - name: Configure pcms with Bear
       if: matrix.clang_tidy == 'ON'
       run: |
         cd ${{ runner.temp }}/build-pcms
-        cat compile_commands.json
+        bear -- make
     
     - name: Install clang-tidy
       if: matrix.clang_tidy == 'ON'
