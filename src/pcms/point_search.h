@@ -17,7 +17,8 @@ namespace pcms
 // TODO take a bounding box as we may want a bbox that's bigger than the mesh!
 // this function is in the public header for testing, but should not be directly
 // used
-namespace detail {
+namespace detail
+{
 Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>
 construct_intersection_map_2d(Omega_h::Mesh& mesh,
                            Kokkos::View<Uniform2DGrid[1]> grid,
@@ -33,7 +34,8 @@ template <int dim>
 class PointLocalizationSearch
 {
 public:
-  struct Result {
+  struct Result
+  {
     enum class Dimensionality
     {
       VERTEX = 0,
@@ -51,12 +53,14 @@ public:
 
   using PointSearchTolerances = Kokkos::View<Real[DIM]>;
 
-  explicit PointLocalizationSearch(const PointSearchTolerances& tolerances) : tolerances_(tolerances)
+  explicit PointLocalizationSearch(const PointSearchTolerances& tolerances)
+    : tolerances_(tolerances)
   {
     assert(tolerances_.is_allocated());
   }
 
-  virtual Kokkos::View<Result*> operator()(Kokkos::View<Real*[dim] > point) const = 0;
+  virtual Kokkos::View<Result*> operator()(
+    Kokkos::View<Real* [dim]> point) const = 0;
   virtual ~PointLocalizationSearch() = default;
 
 protected:
@@ -68,7 +72,8 @@ using PointLocalizationSearch3D = PointLocalizationSearch<3>;
 
 class GridPointSearch2D : public PointLocalizationSearch2D
 {
-  using CandidateMapT = Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>;
+  using CandidateMapT =
+    Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>;
 
 public:
   using Result = PointLocalizationSearch2D::Result;
@@ -83,7 +88,8 @@ public:
    * id will be a negative number and (TODO) will return a negative id of the
    * closest element
    */
-  Kokkos::View<Result*> operator()(Kokkos::View<Real* [DIM]> point) const override;
+  Kokkos::View<Result*> operator()(
+    Kokkos::View<Real* [DIM]> point) const override;
 
 private:
   Omega_h::Mesh mesh_;
@@ -99,13 +105,15 @@ private:
 
 class GridPointSearch3D : public PointLocalizationSearch3D
 {
-  using CandidateMapT = Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>;
+  using CandidateMapT =
+    Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>;
 
 public:
   using Result = PointLocalizationSearch3D::Result;
 
   GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz);
-  GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz, const PointSearchTolerances& tolerances);
+  GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
+                    const PointSearchTolerances& tolerances);
 
   /**
    *  given a point in global coordinates give the id of the triangle that the
@@ -114,7 +122,8 @@ public:
    * id will be a negative number and (TODO) will return a negative id of the
    * closest element
    */
-  Kokkos::View<Result*> operator()(Kokkos::View<Real* [DIM]> point) const override;
+  Kokkos::View<Result*> operator()(
+    Kokkos::View<Real* [DIM]> point) const override;
 
 private:
   Omega_h::Mesh mesh_;
@@ -127,5 +136,5 @@ private:
   Omega_h::Reals coords_;
 };
 
-} // namespace detail
+} // namespace pcms
 #endif // PCMS_COUPLING_POINT_SEARCH_H
