@@ -161,7 +161,7 @@ struct OmegaHField2LocalizationHint
 {
   OmegaHField2LocalizationHint(
     Omega_h::Mesh& mesh,
-    Kokkos::View<GridPointSearch::Result*, HostMemorySpace> search_results,
+    Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> search_results,
     OutOfBoundsMode mode)
     : mode_(mode), num_valid_(0), num_missing_(0)
   {
