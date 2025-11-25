@@ -4,6 +4,25 @@
 
 namespace pcms
 {
+
+struct InitializeOwnedGidsFunctor
+{
+  Kokkos::View<bool*> owned_;
+  Kokkos::View<GO*> gids_;
+
+  InitializeOwnedGidsFunctor(Kokkos::View<bool*> owned, Kokkos::View<GO*> gids)
+    : owned_(owned), gids_(gids)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(int i) const
+  {
+    owned_[i] = 1;
+    gids_[i] = i;
+  }
+};
+
 PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
                                    CoordinateSystem coordinate_system)
   : dim_(dim),
@@ -14,11 +33,8 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
 {
   components_ = 1;
 
-  Kokkos::parallel_for(
-    owned_.size(), KOKKOS_LAMBDA(int i) {
-      owned_[i] = 0;
-      gids_[i] = 0;
-    });
+  Kokkos::parallel_for(coords_.extent(0),
+                       InitializeOwnedGidsFunctor(owned_, gids_));
 }
 
 std::unique_ptr<FieldT<Real>> PointCloudLayout::CreateField() const
@@ -43,14 +59,12 @@ GO PointCloudLayout::GetNumGlobalDofHolder() const
 
 Rank1View<const bool, HostMemorySpace> PointCloudLayout::GetOwned() const
 {
-  return make_const_array_view(owned_);
+  return make_const_array_view<const Kokkos::View<bool*>, HostMemorySpace>(
+    owned_);
 }
 
 GlobalIDView<HostMemorySpace> PointCloudLayout::GetGids() const
 {
-  static_assert(
-    std::is_same_v<HostMemorySpace, DefaultExecutionSpace::memory_space>,
-    "types must match");
   return GlobalIDView<HostMemorySpace>(gids_.data(), gids_.size());
 }
 

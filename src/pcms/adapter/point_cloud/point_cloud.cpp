@@ -4,6 +4,27 @@
 
 namespace pcms
 {
+
+struct CopyCoordinatesFunctor
+{
+  Kokkos::View<Real**> coordinates_;
+  Rank2View<const Real, HostMemorySpace> coords_;
+
+  CopyCoordinatesFunctor(Kokkos::View<Real**> coordinates,
+                         Rank2View<const Real, HostMemorySpace> coords)
+    : coordinates_(coordinates), coords_(coords)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(int i) const
+  {
+    for (int j = 0; j < coords_.extent(1); ++j) {
+      coordinates_(i, j) = coords_(i, j);
+    }
+  }
+};
+
 struct PointCloudLocalizationHint
 {
   PointCloudLocalizationHint(CoordinateView<HostMemorySpace> coordinate_view)
@@ -12,12 +33,7 @@ struct PointCloudLocalizationHint
   {
     auto coords = coordinate_view.GetCoordinates();
     int n = coords.extent(0);
-    Kokkos::parallel_for(
-      n, KOKKOS_LAMBDA(int i) {
-        for (int j = 0; j < coords.extent(1); ++j) {
-          coordinates_(i, j) = coords(i, j);
-        }
-      });
+    Kokkos::parallel_for(n, CopyCoordinatesFunctor(coordinates_, coords));
   }
 
   Kokkos::View<Real**> coordinates_;
@@ -31,7 +47,8 @@ PointCloud::PointCloud(const PointCloudLayout& layout)
 
 Rank1View<const Real, HostMemorySpace> PointCloud::GetDOFHolderData() const
 {
-  return make_const_array_view(data_);
+  return make_const_array_view<const Kokkos::View<Real*>, HostMemorySpace>(
+    data_);
 }
 
 void PointCloud::SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data)

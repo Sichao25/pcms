@@ -39,7 +39,8 @@ void interpolate_field2(const FieldT<T>& source, FieldT<T>& target)
                                                  source.GetCoordinateSystem()};
   auto locale = source.GetLocalizationHint(coords);
   source.Evaluate(locale, data_view);
-  target.SetDOFHolderData(make_const_array_view(evaluation));
+  target.SetDOFHolderData(
+    make_const_array_view<const std::vector<Real>>(evaluation));
 }
 
 } // namespace pcms

@@ -916,8 +916,10 @@ KOKKOS_INLINE_FUNCTION void cubic_eval_compact(
 
   // Find the interval containing xget
   cubic_lookup_compact(xget, x, nx, i, xparam, hx, hxi, ier, lookup_tol);
-  if (ier != 0)
+  if (ier != 0) {
+    printf("error in evaluation, ier = %d\n", ier);
     return;
+  }
 
   // Evaluate spline at the points
   cubic_evalfn_compact(ict, fval, i, xparam, hx, hxi, fspl);
@@ -2553,10 +2555,11 @@ struct SolveCompactCubicSplineFunctor
   KOKKOS_INLINE_FUNCTION
   void operator()(const member_type& team_member) const
   {
-    Kokkos::single(Kokkos::PerTeam(team_member), [=]() {
-      detail::solve_cubic_spline_compact(x, nx, fspl, fspl4, ibcxmin, bcxmin,
-                                         ibcxmax, bcxmax, wk);
-    });
+    Kokkos::single(
+      Kokkos::PerTeam(team_member), KOKKOS_CLASS_LAMBDA() {
+        detail::solve_cubic_spline_compact(x, nx, fspl, fspl4, ibcxmin, bcxmin,
+                                           ibcxmax, bcxmax, wk);
+      });
   }
 };
 
@@ -2593,10 +2596,11 @@ struct SolveExplicitCubicSplineFunctor
   KOKKOS_INLINE_FUNCTION
   void operator()(const member_type& team_member) const
   {
-    Kokkos::single(Kokkos::PerTeam(team_member), [=]() {
-      detail::solve_cubic_spline_explicit(x, nx, fspl, ibcxmin, bcxmin, ibcxmax,
-                                          bcxmax, wk);
-    });
+    Kokkos::single(
+      Kokkos::PerTeam(team_member), KOKKOS_CLASS_LAMBDA() {
+        detail::solve_cubic_spline_explicit(x, nx, fspl, ibcxmin, bcxmin,
+                                            ibcxmax, bcxmax, wk);
+      });
   }
 };
 
