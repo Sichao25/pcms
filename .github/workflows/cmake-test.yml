@@ -221,3 +221,49 @@ jobs:
 
     - name: Print Test
       run: cat ${{ runner.temp }}/build-pcms/Testing/Temporary/LastTest.log
+
+    - name: Test PCMS dependency export
+      shell: bash
+      run: |
+        # Create minimal test to check dependency export
+        mkdir -p ${{ runner.temp }}/dependency_test
+        cd ${{ runner.temp }}/dependency_test
+
+        cat > CMakeLists.txt << 'EOF'
+        cmake_minimum_required(VERSION 3.15)
+        project(pcms_dependency_test)
+
+        find_package(pcms REQUIRED)
+
+        add_executable(pcms_test main.cpp)
+        target_link_libraries(pcms_test PUBLIC pcms::pcms)
+        EOF
+
+        cat > main.cpp << 'EOF'
+        #include <iostream>
+        #include <pcms/print.h>
+
+        int main() {
+            std::cout << "Testing PCMS dependency export..." << std::endl;
+            pcms::printInfo("Dependency test successful!\n");
+            return 0;
+        }
+        EOF
+
+        # Configure and build the test
+        cmake -B build -S . \
+          -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
+          -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2 \
+          -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h \
+          -DmeshFields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields \
+          -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev \
+          -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop/install/lib/cmake/flcl \
+          -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2 \
+          -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake \
+          -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos \
+          -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels/install/lib/cmake/KokkosKernels/
+
+        cmake --build build
+
+        # successfully built a project with pcms dependency
+        echo "PCMS dependency export test completed successfully."
