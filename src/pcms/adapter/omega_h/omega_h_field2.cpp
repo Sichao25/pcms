@@ -29,13 +29,10 @@ public:
   {
     size_t stride = num_nodes * num_components;
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
-    Kokkos::View<Real*, HostMemorySpace> data_h("data_h", data.size());
-    Kokkos::parallel_for(
-      Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, data.size()),
-      KOKKOS_LAMBDA(size_t i) { data_h(i) = data(i); });
     Kokkos::View<Real*, DefaultExecutionSpace::memory_space> data_d(
       "data_d", data.size());
-    Kokkos::deep_copy(data_d, data_h);
+    Kokkos::deep_copy(data_d, Kokkos::View<const Real*, HostMemorySpace>(
+                                data.data_handle(), data.size()));
     Omega_h::parallel_for(
       mesh_.nents(dim), OMEGA_H_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
@@ -63,11 +60,9 @@ public:
           }
         }
       });
-    Kokkos::View<Real*, HostMemorySpace> data_h("data_h", data.size());
-    Kokkos::deep_copy(data_h, data_d);
-    Kokkos::parallel_for(
-      Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, data.size()),
-      KOKKOS_LAMBDA(size_t i) { data(i) = data_h(i); });
+    Kokkos::deep_copy(
+      Kokkos::View<Real*, HostMemorySpace>(data.data_handle(), data.size()),
+      data_d);
   }
 
 private:
@@ -303,10 +298,7 @@ LocalizationHint OmegaHField2::GetLocalizationHint(
   Kokkos::View<Real* [2]> coords("coords", coordinates.size() / 2);
 
   Kokkos::parallel_for(
-    "CopyCoordinates",
-    Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0,
-                                                       coordinates.size() / 2),
-    KOKKOS_LAMBDA(LO i) {
+    coordinates.size() / 2, KOKKOS_LAMBDA(LO i) {
       coords(i, 0) = coordinates(i, 0);
       coords(i, 1) = coordinates(i, 1);
     });
