@@ -256,8 +256,7 @@ Rank1View<const Real, HostMemorySpace> OmegaHField2::GetDOFHolderData() const
     }
   }
 
-  return make_const_array_view<const Kokkos::View<Real*, HostMemorySpace>,
-                               HostMemorySpace>(dof_holder_data_);
+  return make_const_array_view(dof_holder_data_);
 };
 
 void OmegaHField2::SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data)

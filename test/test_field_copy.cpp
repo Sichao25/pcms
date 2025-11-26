@@ -28,9 +28,7 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
     KOKKOS_LAMBDA(int i) { ids[i] = i; });
 
   auto original = layout->CreateField();
-  original->SetDOFHolderData(
-    pcms::make_const_array_view<const Omega_h::HostWrite<Real>,
-                                pcms::HostMemorySpace>(ids));
+  original->SetDOFHolderData(pcms::make_const_array_view(ids));
 
   auto copied = layout->CreateField();
   pcms::copy_field2(*original, *copied);

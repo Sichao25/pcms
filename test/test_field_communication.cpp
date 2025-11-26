@@ -77,9 +77,7 @@ void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
     KOKKOS_LAMBDA(int i) { ids[i] = gids[i]; });
 
   auto field = layout->CreateField();
-  field->SetDOFHolderData(
-    pcms::make_const_array_view<const Omega_h::HostWrite<Real>,
-                                pcms::HostMemorySpace>(ids));
+  field->SetDOFHolderData(pcms::make_const_array_view(ids));
 
   pcms::FieldLayoutCommunicator<pcms::Real> layout_comm(comm_name + "1", comm,
                                                         rdv, channel, *layout);

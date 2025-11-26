@@ -133,9 +133,12 @@ OmegaHFieldLayout::OmegaHFieldLayout(Omega_h::Mesh& mesh,
     coordinate_system_(coordinate_system),
     nodes_per_dim_(nodes_per_dim),
     dof_holder_coords_("", GetNumOwnedDofHolder(), mesh_.dim()),
+    dof_holder_coords_host_("dof_holder_coords_host", GetNumOwnedDofHolder(),
+                            mesh_.dim()),
     class_ids_(GetNumEnts()),
     class_dims_(class_ids_.size()),
-    owned_("", class_dims_.size())
+    owned_("", class_dims_.size()),
+    owned_host_("", class_dims_.size())
 {
   PCMS_FUNCTION_TIMER;
   LO total_ents = GetNumEnts();
@@ -191,11 +194,6 @@ OmegaHFieldLayout::OmegaHFieldLayout(Omega_h::Mesh& mesh,
     }
   }
   gids_host_ = Omega_h::HostWrite<Omega_h::GO>(gids_);
-  owned_host_ =
-    Kokkos::View<bool*, HostMemorySpace>("owned_host", owned_.size());
-  dof_holder_coords_host_ = Kokkos::View<Real**, HostMemorySpace>(
-    "dof_holder_coords_host", dof_holder_coords_.extent(0),
-    dof_holder_coords_.extent(1));
 }
 
 std::unique_ptr<FieldT<Real>> OmegaHFieldLayout::CreateField() const
@@ -234,8 +232,7 @@ std::array<int, 4> OmegaHFieldLayout::GetNodesPerDim() const
 Rank1View<const bool, HostMemorySpace> OmegaHFieldLayout::GetOwned() const
 {
   Kokkos::deep_copy(owned_host_, owned_);
-  return make_const_array_view<const Kokkos::View<bool*, HostMemorySpace>,
-                               HostMemorySpace>(owned_host_);
+  return make_const_array_view(owned_host_);
 }
 
 GlobalIDView<HostMemorySpace> OmegaHFieldLayout::GetGids() const

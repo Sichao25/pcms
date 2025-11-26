@@ -34,9 +34,7 @@ TEST_CASE("evaluate linear 2d omega_h_field")
     });
   Omega_h::HostWrite<Real> test_f_host(test_f);
   auto field = layout->CreateField();
-  field->SetDOFHolderData(
-    pcms::make_const_array_view<const Omega_h::HostWrite<Real>,
-                                pcms::HostMemorySpace>(test_f_host));
+  field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
 
   std::vector<Real> coords = {
     0.7681, 0.886,  0.5337, 0.5205,   0.8088, 0.1513, 0.13,
@@ -107,9 +105,7 @@ TEST_CASE("evaluate quadratic 2d omega_h_field")
 
   Omega_h::HostWrite<Real> test_f_host(test_f);
   auto field = layout->CreateField();
-  field->SetDOFHolderData(
-    pcms::make_const_array_view<const Omega_h::HostWrite<Real>,
-                                pcms::HostMemorySpace>(test_f_host));
+  field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
 
   std::vector<Real> coords = {
     0.7681, 0.886,  0.5337, 0.5205,   0.8088, 0.1513, 0.13,

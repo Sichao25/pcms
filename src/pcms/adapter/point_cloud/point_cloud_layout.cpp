@@ -29,15 +29,14 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
     coordinate_system_(coordinate_system),
     coords_(coords),
     owned_("", coords.extent(0)),
-    gids_("", coords.extent(0))
+    gids_("", coords.extent(0)),
+    owned_host_("", coords.extent(0)),
+    gids_host_("", coords.extent(0))
 {
   components_ = 1;
 
   Kokkos::parallel_for(coords_.extent(0),
                        InitializeOwnedGidsFunctor(owned_, gids_));
-  owned_host_ =
-    Kokkos::View<bool*, HostMemorySpace>("owned_host", owned_.extent(0));
-  gids_host_ = Kokkos::View<GO*, HostMemorySpace>("gids_host", gids_.extent(0));
 }
 
 std::unique_ptr<FieldT<Real>> PointCloudLayout::CreateField() const
