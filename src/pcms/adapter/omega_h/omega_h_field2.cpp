@@ -296,13 +296,12 @@ LocalizationHint OmegaHField2::GetLocalizationHint(
 
   auto coordinates = coordinate_view.GetCoordinates();
   Kokkos::View<Real* [2]> coords("coords", coordinates.size() / 2);
-
-  Kokkos::parallel_for(
-    coordinates.size() / 2, KOKKOS_LAMBDA(LO i) {
-      coords(i, 0) = coordinates(i, 0);
-      coords(i, 1) = coordinates(i, 1);
-    });
-
+  auto coordinates_host_tmp = Kokkos::create_mirror_view(coords);
+  Kokkos::deep_copy(
+    coordinates_host_tmp,
+    Kokkos::View<const Real**, HostMemorySpace>(
+      coordinates.data_handle(), coordinates.extent(0), coordinates.extent(1)));
+  Kokkos::deep_copy(coords, coordinates_host_tmp);
   auto results = search_(coords);
   Kokkos::View<GridPointSearch::Result*, HostMemorySpace> results_h(
     "results_h", results.size());
