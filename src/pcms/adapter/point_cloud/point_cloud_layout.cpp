@@ -35,6 +35,9 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
 
   Kokkos::parallel_for(coords_.extent(0),
                        InitializeOwnedGidsFunctor(owned_, gids_));
+  owned_host_ =
+    Kokkos::View<bool*, HostMemorySpace>("owned_host", owned_.extent(0));
+  gids_host_ = Kokkos::View<GO*, HostMemorySpace>("gids_host", gids_.extent(0));
 }
 
 std::unique_ptr<FieldT<Real>> PointCloudLayout::CreateField() const
@@ -59,13 +62,14 @@ GO PointCloudLayout::GetNumGlobalDofHolder() const
 
 Rank1View<const bool, HostMemorySpace> PointCloudLayout::GetOwned() const
 {
-  return make_const_array_view<const Kokkos::View<bool*>, HostMemorySpace>(
-    owned_);
+  Kokkos::deep_copy(owned_host_, owned_);
+  return make_const_array_view(owned_host_);
 }
 
 GlobalIDView<HostMemorySpace> PointCloudLayout::GetGids() const
 {
-  return GlobalIDView<HostMemorySpace>(gids_.data(), gids_.size());
+  Kokkos::deep_copy(gids_host_, gids_);
+  return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
 CoordinateView<HostMemorySpace> PointCloudLayout::GetDOFHolderCoordinates()
