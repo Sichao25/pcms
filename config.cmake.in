@@ -4,7 +4,6 @@ include(CMakeFindDependencyMacro)
 find_dependency(redev CONFIG HINTS @redev_DIR@)
 find_dependency(Kokkos CONFIG HINTS @Kokkos_DIR@)
 find_dependency(meshfields CONFIG HINTS @meshfields_DIR@)
-find_dependency(perfstubs CONFIG HINTS @perfstubs_DIR@)
 find_dependency(MPI)
 
 if(@PCMS_ENABLE_OMEGA_H@)
