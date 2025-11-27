@@ -225,12 +225,11 @@ jobs:
     - name: Test PCMS Installation
       shell: bash
       run: |
-        # this directory contains an example project that depends on pcms
-        cd ${{ runner.temp }}/pcms/examples/configure-pcms
-
         # Configure and build the test
         # it should only ask for pcms_DIR/ROOT to find all dependencies
-        cmake -B build -S . \
+        cmake \
+          -B ${{github.workspace}}/examples/configure-pcms/build \
+          -S ${{github.workspace}}/examples/configure-pcms \
           -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
 
         cmake --build build
