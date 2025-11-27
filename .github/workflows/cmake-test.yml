@@ -228,8 +228,8 @@ jobs:
         # Configure and build the test
         # it should only ask for pcms_DIR/ROOT to find all dependencies
         cmake \
-          -B ${{github.workspace}}/examples/configure-pcms/build \
-          -S ${{github.workspace}}/examples/configure-pcms \
+          -B ${{github.workspace}}/examples/external-usage-example/build \
+          -S ${{github.workspace}}/examples/external-usage-example/ \
           -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
 
         cmake --build build
