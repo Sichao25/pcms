@@ -7,6 +7,10 @@ find_dependency(meshfields CONFIG HINTS @meshfields_DIR@)
 find_dependency(ADIOS2 CONFIG HINTS @ADIOS2_DIR@)
 find_dependency(MPI)
 
+if(@spdlog_FOUND)
+    find_dependency(spdlog CONFIG HINTS @spdlog_DIR@)
+endif()
+
 if(@PCMS_ENABLE_OMEGA_H@)
     find_dependency(Omega_h CONFIG HINTS @Omega_h_DIR@)
 endif()
