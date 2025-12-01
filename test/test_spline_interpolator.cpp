@@ -143,7 +143,6 @@ void compare_2d(Rank2View<double, TestMemorySpace> splinv,
       }
     },
     Kokkos::Max<double>(result_fdif), Kokkos::Max<double>(result_fdifr));
-  Kokkos::fence();
   res(0) = result_fdif;
   res(1) = result_fdifr;
   std::cout << "2d " << label << " max absolute difference: " << res(0)
