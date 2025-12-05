@@ -232,4 +232,4 @@ jobs:
           -S ${{github.workspace}}/examples/external-usage-example/ \
           -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
 
-        cmake --build build
+        cmake --build ${{github.workspace}}/examples/external-usage-example/build
