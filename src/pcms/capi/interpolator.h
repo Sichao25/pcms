@@ -38,18 +38,19 @@ typedef struct PcmsInterpolatorHandle PcmsInterpolatorHandle;
  * @brief Holds void pointers of Omega_h Mesh object and the library
  * (communicator) handle
  */
-struct PcmsInterpolatorOHMeshHandle
+struct PcmsInterpolatorOmega_hMeshHandle
 {
   void* mesh_handle;
   void* lib_handle;
 };
 
 /**
- * @brief Typedef for PcmsInterpolatorOHMeshHandle struct
- * @copydetails PcmsInterpolatorOHMeshHandle
- * @see PcmsInterpolatorOHMeshHandle
+ * @brief Typedef for PcmsInterpolatorOmega_hMeshHandle struct
+ * @copydetails PcmsInterpolatorOmega_hMeshHandle
+ * @see PcmsInterpolatorOmega_hMeshHandle
  */
-typedef struct PcmsInterpolatorOHMeshHandle PcmsInterpolatorOHMeshHandle;
+typedef struct PcmsInterpolatorOmega_hMeshHandle
+  PcmsInterpolatorOmega_hMeshHandle;
 
 /**
  * @brief Create centroid to node interpolator
@@ -65,7 +66,7 @@ typedef struct PcmsInterpolatorOHMeshHandle PcmsInterpolatorOHMeshHandle;
  * @see MLSMeshInterpolation
  */
 PcmsInterpolatorHandle pcms_create_interpolator(
-  PcmsInterpolatorOHMeshHandle oh_mesh, double radius);
+  PcmsInterpolatorOmega_hMeshHandle oh_mesh, double radius);
 
 /**
  * @brief Create 2D point-based MLS interpolator for RBF interpolation
@@ -173,13 +174,14 @@ void pcms_destroy_interpolator(PcmsInterpolatorHandle interpolator);
 /**
  * @brief Read Omega_h mesh from file
  * @param filename C-string of Omega_h mesh filename
- * @return PcmsInterpolatorOHMeshHandle Handle to the read Omega_h mesh
+ * @return PcmsInterpolatorOmega_hMeshHandle Handle to the read Omega_h mesh
  *
  * @details Reads an Omega_h mesh from the given filename and returns a handle
  * to it. This handle can be used to create interpolators that operate on the
  * mesh.
  */
-PcmsInterpolatorOHMeshHandle read_oh_mesh(const char* filename);
+PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(
+  const char* filename);
 
 /**
  * @brief Release Omega_h mesh
@@ -188,7 +190,8 @@ PcmsInterpolatorOHMeshHandle read_oh_mesh(const char* filename);
  * @details Releases the Omega_h mesh associated with the given handle to
  * free up resources.
  */
-void release_oh_mesh(PcmsInterpolatorOHMeshHandle oh_mesh_handle);
+void pcms_destroy_omega_h_mesh(
+  PcmsInterpolatorOmega_hMeshHandle oh_mesh_handle);
 
 /**
  * @brief Perform interpolation

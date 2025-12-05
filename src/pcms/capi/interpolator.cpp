@@ -11,7 +11,7 @@
 
 //[[nodiscard]]
 PcmsInterpolatorHandle pcms_create_interpolator(
-  PcmsInterpolatorOHMeshHandle oh_mesh, double radius)
+  PcmsInterpolatorOmega_hMeshHandle oh_mesh, double radius)
 {
   auto* source_mesh = reinterpret_cast<Omega_h::Mesh*>(oh_mesh.mesh_handle);
   auto* interpolator = new MLSMeshInterpolation(*source_mesh, radius);
@@ -110,7 +110,7 @@ void pcms_destroy_interpolator(PcmsInterpolatorHandle interpolator)
   }
 }
 
-PcmsInterpolatorOHMeshHandle read_oh_mesh(const char* filename)
+PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(const char* filename)
 {
   auto fname = std::string(filename);
   // trim the filename since it is coming from c or fortran api which may have
@@ -122,7 +122,7 @@ PcmsInterpolatorOHMeshHandle read_oh_mesh(const char* filename)
   return {reinterpret_cast<void*>(mesh), reinterpret_cast<void*>(oh_lib)};
 }
 
-void release_oh_mesh(PcmsInterpolatorOHMeshHandle oh_mesh)
+void pcms_destroy_omega_h_mesh(PcmsInterpolatorOmega_hMeshHandle oh_mesh)
 {
   if (oh_mesh.mesh_handle != nullptr) {
     assert(oh_mesh.lib_handle != nullptr);

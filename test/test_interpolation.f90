@@ -7,7 +7,7 @@ program test_interpolation
 
     !!!!!!!!!!!!!! Declare the variables !!!!!!!!!!!!!!
     type(PcmsInterpolatorHandle) :: interpolator, point_cloud_interpolator
-    type(PcmsInterpolatorOHMeshHandle) :: mesh
+    type(PcmsInterpolatorOmega_hMeshHandle) :: mesh
     character(len=100) :: filename, num_faces_str, num_vertices_str
     real(8) :: radius
     integer :: num_faces, num_vertices
@@ -52,7 +52,7 @@ program test_interpolation
     !!!!!!!!!!!!!!!!!!!!! Initialize !!!!!!!!!!!!!!!!!
     call pcms_kokkos_initialize_without_args()
 
-    mesh = read_oh_mesh(filename)
+    mesh = pcms_create_omega_h_mesh(filename)
     interpolator = pcms_create_interpolator(mesh, radius)
 
     allocate(source_at_face(num_faces))
@@ -151,7 +151,7 @@ program test_interpolation
     !!!!!!!!!!!!!!!! Destroy !!!!!!!!!!!!!!!!!!!!!!!!
     call pcms_destroy_interpolator(interpolator)
     call pcms_destroy_interpolator(point_cloud_interpolator)
-    call release_oh_mesh(mesh)
+    call pcms_destroy_omega_h_mesh(mesh)
 
     call pcms_kokkos_finalize()
 
