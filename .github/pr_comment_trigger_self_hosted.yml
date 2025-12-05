@@ -10,11 +10,13 @@ on:
 
 jobs:
   build_and_test:
+    # The asics environment is only for launching on self-hosted runners.
+    # Do not use or edit this environment for any other purpose.
     environment: asics
     permissions:
       contents: read
     # The type of runner that the job will run on
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, linux, x64, gpu]
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
