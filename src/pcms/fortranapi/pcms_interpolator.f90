@@ -5,6 +5,7 @@
 ! the SWIG interface file instead.
 module pcms_interpolator
  use, intrinsic :: ISO_C_BINDING
+ use pcms_mesh
  implicit none
  private
 
@@ -16,26 +17,6 @@ module pcms_interpolator
   type(C_PTR), public :: cptr = C_NULL_PTR
   integer(C_INT), public :: cmemflags = 0
  end type
- ! struct struct PcmsInterpolatorOmega_hLibraryHandle
- type, public :: PcmsInterpolatorOmega_hLibraryHandle
-  type(SwigClassWrapper), public :: swigdata
- contains
-  procedure :: set_lib_handle => swigf_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_set
-  procedure :: get_lib_handle => swigf_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_get
-  procedure :: release => swigf_PcmsInterpolatorOmega_hLibraryHandle_release
-  procedure, private :: swigf_PcmsInterpolatorOmega_hLibraryHandle_op_assign__
-  generic :: assignment(=) => swigf_PcmsInterpolatorOmega_hLibraryHandle_op_assign__
- end type PcmsInterpolatorOmega_hLibraryHandle
- ! struct struct PcmsInterpolatorOmega_hMeshHandle
- type, public :: PcmsInterpolatorOmega_hMeshHandle
-  type(SwigClassWrapper), public :: swigdata
- contains
-  procedure :: set_mesh_handle => swigf_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_set
-  procedure :: get_mesh_handle => swigf_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_get
-  procedure :: release => swigf_PcmsInterpolatorOmega_hMeshHandle_release
-  procedure, private :: swigf_PcmsInterpolatorOmega_hMeshHandle_op_assign__
-  generic :: assignment(=) => swigf_PcmsInterpolatorOmega_hMeshHandle_op_assign__
- end type PcmsInterpolatorOmega_hMeshHandle
  ! struct struct PcmsInterpolatorHandle
  type, public :: PcmsInterpolatorHandle
   type(SwigClassWrapper), public :: swigdata
@@ -57,103 +38,13 @@ module pcms_interpolator
  public :: pcms_destroy_interpolator
  public :: pcms_kokkos_initialize_without_args
  public :: pcms_kokkos_finalize
- public :: pcms_create_omega_h_library
- public :: pcms_create_omega_h_mesh
- public :: pcms_destroy_omega_h_mesh
- public :: pcms_destroy_omega_h_library
  public :: pcms_interpolate
- interface PcmsInterpolatorOmega_hMeshHandle
-  module procedure swigf_new_PcmsInterpolatorOmega_hMeshHandle
- end interface
- interface PcmsInterpolatorOmega_hLibraryHandle
-  module procedure swigf_new_PcmsInterpolatorOmega_hLibraryHandle
- end interface
  interface PcmsInterpolatorHandle
   module procedure swigf_new_PcmsInterpolatorHandle
  end interface
 
 ! WRAPPER DECLARATIONS
 interface
-subroutine swigc_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_set(farg1, farg2) &
-bind(C, name="_wrap_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_set")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(in) :: farg1
-type(C_PTR), intent(in) :: farg2
-end subroutine
-
-function swigc_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_get(farg1) &
-bind(C, name="_wrap_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_get") &
-result(fresult)
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(in) :: farg1
-type(C_PTR) :: fresult
-end function
-
-function swigc_new_PcmsInterpolatorOmega_hLibraryHandle() &
-bind(C, name="_wrap_new_PcmsInterpolatorOmega_hLibraryHandle") &
-result(fresult)
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper) :: fresult
-end function
-
-subroutine swigc_delete_PcmsInterpolatorOmega_hLibraryHandle(farg1) &
-bind(C, name="_wrap_delete_PcmsInterpolatorOmega_hLibraryHandle")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(inout) :: farg1
-end subroutine
-
-subroutine swigc_PcmsInterpolatorOmega_hLibraryHandle_op_assign__(farg1, farg2) &
-bind(C, name="_wrap_PcmsInterpolatorOmega_hLibraryHandle_op_assign__")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(inout) :: farg1
-type(SwigClassWrapper), intent(in) :: farg2
-end subroutine
-
-subroutine swigc_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_set(farg1, farg2) &
-bind(C, name="_wrap_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_set")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(in) :: farg1
-type(C_PTR), intent(in) :: farg2
-end subroutine
-
-function swigc_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_get(farg1) &
-bind(C, name="_wrap_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_get") &
-result(fresult)
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(in) :: farg1
-type(C_PTR) :: fresult
-end function
-
-function swigc_new_PcmsInterpolatorOmega_hMeshHandle() &
-bind(C, name="_wrap_new_PcmsInterpolatorOmega_hMeshHandle") &
-result(fresult)
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper) :: fresult
-end function
-
-subroutine swigc_delete_PcmsInterpolatorOmega_hMeshHandle(farg1) &
-bind(C, name="_wrap_delete_PcmsInterpolatorOmega_hMeshHandle")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(inout) :: farg1
-end subroutine
-
-subroutine swigc_PcmsInterpolatorOmega_hMeshHandle_op_assign__(farg1, farg2) &
-bind(C, name="_wrap_PcmsInterpolatorOmega_hMeshHandle_op_assign__")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(inout) :: farg1
-type(SwigClassWrapper), intent(in) :: farg2
-end subroutine
-
 subroutine swigc_PcmsInterpolatorHandle_pointer_set(farg1, farg2) &
 bind(C, name="_wrap_PcmsInterpolatorHandle_pointer_set")
 use, intrinsic :: ISO_C_BINDING
@@ -274,39 +165,6 @@ bind(C, name="_wrap_pcms_kokkos_finalize")
 use, intrinsic :: ISO_C_BINDING
 end subroutine
 
-function swigc_pcms_create_omega_h_library() &
-bind(C, name="_wrap_pcms_create_omega_h_library") &
-result(fresult)
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper) :: fresult
-end function
-
-function swigc_pcms_create_omega_h_mesh(farg1, farg2) &
-bind(C, name="_wrap_pcms_create_omega_h_mesh") &
-result(fresult)
-use, intrinsic :: ISO_C_BINDING
-import :: swigarraywrapper
-import :: swigclasswrapper
-type(SwigArrayWrapper) :: farg1
-type(SwigClassWrapper), intent(in) :: farg2
-type(SwigClassWrapper) :: fresult
-end function
-
-subroutine swigc_pcms_destroy_omega_h_mesh(farg1) &
-bind(C, name="_wrap_pcms_destroy_omega_h_mesh")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(in) :: farg1
-end subroutine
-
-subroutine swigc_pcms_destroy_omega_h_library(farg1) &
-bind(C, name="_wrap_pcms_destroy_omega_h_library")
-use, intrinsic :: ISO_C_BINDING
-import :: swigclasswrapper
-type(SwigClassWrapper), intent(in) :: farg1
-end subroutine
-
 subroutine swigc_pcms_interpolate(farg1, farg2, farg3, farg4, farg5) &
 bind(C, name="_wrap_pcms_interpolate")
 use, intrinsic :: ISO_C_BINDING
@@ -323,130 +181,6 @@ end interface
 
 contains
  ! MODULE SUBPROGRAMS
-subroutine swigf_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_set(self, lib_handle)
-use, intrinsic :: ISO_C_BINDING
-class(PcmsInterpolatorOmega_hLibraryHandle), intent(in) :: self
-type(C_PTR), intent(in) :: lib_handle
-type(SwigClassWrapper) :: farg1 
-type(C_PTR) :: farg2 
-
-farg1 = self%swigdata
-farg2 = lib_handle
-call swigc_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_set(farg1, farg2)
-end subroutine
-
-function swigf_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_get(self) &
-result(swig_result)
-use, intrinsic :: ISO_C_BINDING
-type(C_PTR) :: swig_result
-class(PcmsInterpolatorOmega_hLibraryHandle), intent(in) :: self
-type(C_PTR) :: fresult 
-type(SwigClassWrapper) :: farg1 
-
-farg1 = self%swigdata
-fresult = swigc_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_get(farg1)
-swig_result = fresult
-end function
-
-function swigf_new_PcmsInterpolatorOmega_hLibraryHandle() &
-result(self)
-use, intrinsic :: ISO_C_BINDING
-type(PcmsInterpolatorOmega_hLibraryHandle) :: self
-type(SwigClassWrapper) :: fresult 
-
-fresult = swigc_new_PcmsInterpolatorOmega_hLibraryHandle()
-self%swigdata = fresult
-end function
-
-subroutine swigf_PcmsInterpolatorOmega_hLibraryHandle_release(self)
-use, intrinsic :: ISO_C_BINDING
-class(PcmsInterpolatorOmega_hLibraryHandle), intent(inout) :: self
-type(SwigClassWrapper) :: farg1 
-
-farg1 = self%swigdata
-if (btest(farg1%cmemflags, swig_cmem_own_bit)) then
-call swigc_delete_PcmsInterpolatorOmega_hLibraryHandle(farg1)
-endif
-farg1%cptr = C_NULL_PTR
-farg1%cmemflags = 0
-self%swigdata = farg1
-end subroutine
-
-subroutine swigf_PcmsInterpolatorOmega_hLibraryHandle_op_assign__(self, other)
-use, intrinsic :: ISO_C_BINDING
-class(PcmsInterpolatorOmega_hLibraryHandle), intent(inout) :: self
-type(PcmsInterpolatorOmega_hLibraryHandle), intent(in) :: other
-type(SwigClassWrapper) :: farg1 
-type(SwigClassWrapper) :: farg2 
-
-farg1 = self%swigdata
-farg2 = other%swigdata
-call swigc_PcmsInterpolatorOmega_hLibraryHandle_op_assign__(farg1, farg2)
-self%swigdata = farg1
-end subroutine
-
-subroutine swigf_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_set(self, mesh_handle)
-use, intrinsic :: ISO_C_BINDING
-class(PcmsInterpolatorOmega_hMeshHandle), intent(in) :: self
-type(C_PTR), intent(in) :: mesh_handle
-type(SwigClassWrapper) :: farg1 
-type(C_PTR) :: farg2 
-
-farg1 = self%swigdata
-farg2 = mesh_handle
-call swigc_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_set(farg1, farg2)
-end subroutine
-
-function swigf_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_get(self) &
-result(swig_result)
-use, intrinsic :: ISO_C_BINDING
-type(C_PTR) :: swig_result
-class(PcmsInterpolatorOmega_hMeshHandle), intent(in) :: self
-type(C_PTR) :: fresult 
-type(SwigClassWrapper) :: farg1 
-
-farg1 = self%swigdata
-fresult = swigc_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_get(farg1)
-swig_result = fresult
-end function
-
-function swigf_new_PcmsInterpolatorOmega_hMeshHandle() &
-result(self)
-use, intrinsic :: ISO_C_BINDING
-type(PcmsInterpolatorOmega_hMeshHandle) :: self
-type(SwigClassWrapper) :: fresult 
-
-fresult = swigc_new_PcmsInterpolatorOmega_hMeshHandle()
-self%swigdata = fresult
-end function
-
-subroutine swigf_PcmsInterpolatorOmega_hMeshHandle_release(self)
-use, intrinsic :: ISO_C_BINDING
-class(PcmsInterpolatorOmega_hMeshHandle), intent(inout) :: self
-type(SwigClassWrapper) :: farg1 
-
-farg1 = self%swigdata
-if (btest(farg1%cmemflags, swig_cmem_own_bit)) then
-call swigc_delete_PcmsInterpolatorOmega_hMeshHandle(farg1)
-endif
-farg1%cptr = C_NULL_PTR
-farg1%cmemflags = 0
-self%swigdata = farg1
-end subroutine
-
-subroutine swigf_PcmsInterpolatorOmega_hMeshHandle_op_assign__(self, other)
-use, intrinsic :: ISO_C_BINDING
-class(PcmsInterpolatorOmega_hMeshHandle), intent(inout) :: self
-type(PcmsInterpolatorOmega_hMeshHandle), intent(in) :: other
-type(SwigClassWrapper) :: farg1 
-type(SwigClassWrapper) :: farg2 
-
-farg1 = self%swigdata
-farg2 = other%swigdata
-call swigc_PcmsInterpolatorOmega_hMeshHandle_op_assign__(farg1, farg2)
-self%swigdata = farg1
-end subroutine
-
 subroutine swigf_PcmsInterpolatorHandle_pointer_set(self, pointer)
 use, intrinsic :: ISO_C_BINDING
 class(PcmsInterpolatorHandle), intent(in) :: self
@@ -678,51 +412,6 @@ subroutine pcms_kokkos_finalize()
 use, intrinsic :: ISO_C_BINDING
 
 call swigc_pcms_kokkos_finalize()
-end subroutine
-
-function pcms_create_omega_h_library() &
-result(swig_result)
-use, intrinsic :: ISO_C_BINDING
-type(PcmsInterpolatorOmega_hLibraryHandle) :: swig_result
-type(SwigClassWrapper) :: fresult 
-
-fresult = swigc_pcms_create_omega_h_library()
-swig_result%swigdata = fresult
-end function
-
-function pcms_create_omega_h_mesh(filename, oh_lib_handle) &
-result(swig_result)
-use, intrinsic :: ISO_C_BINDING
-type(PcmsInterpolatorOmega_hMeshHandle) :: swig_result
-character(len=*), intent(in) :: filename
-type(PcmsInterpolatorOmega_hLibraryHandle), intent(in) :: oh_lib_handle
-type(SwigClassWrapper) :: fresult 
-character(kind=C_CHAR), dimension(:), allocatable, target :: farg1_temp 
-type(SwigArrayWrapper) :: farg1 
-type(SwigClassWrapper) :: farg2 
-
-call SWIGTM_fin_char_Sm_(filename, farg1, farg1_temp)
-farg2 = oh_lib_handle%swigdata
-fresult = swigc_pcms_create_omega_h_mesh(farg1, farg2)
-swig_result%swigdata = fresult
-end function
-
-subroutine pcms_destroy_omega_h_mesh(oh_mesh)
-use, intrinsic :: ISO_C_BINDING
-type(PcmsInterpolatorOmega_hMeshHandle), intent(in) :: oh_mesh
-type(SwigClassWrapper) :: farg1 
-
-farg1 = oh_mesh%swigdata
-call swigc_pcms_destroy_omega_h_mesh(farg1)
-end subroutine
-
-subroutine pcms_destroy_omega_h_library(oh_lib_handle)
-use, intrinsic :: ISO_C_BINDING
-type(PcmsInterpolatorOmega_hLibraryHandle), intent(in) :: oh_lib_handle
-type(SwigClassWrapper) :: farg1 
-
-farg1 = oh_lib_handle%swigdata
-call swigc_pcms_destroy_omega_h_library(farg1)
 end subroutine
 
 subroutine pcms_interpolate(interpolator, input, input_size, output, output_size)

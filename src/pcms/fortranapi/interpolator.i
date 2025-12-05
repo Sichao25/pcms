@@ -6,19 +6,8 @@
 %include <../external/flibhpc/include/mpi.i>
 %include <stdint.i>
 %include <typemaps.i>
+%import "mesh.i"
 
-
-struct PcmsInterpolatorOmega_hLibraryHandle
-{
-  void* lib_handle;
-};
-typedef struct PcmsInterpolatorOmega_hLibraryHandle PcmsInterpolatorOmega_hLibraryHandle;
-
-struct PcmsInterpolatorOmega_hMeshHandle
-{
-  void* mesh_handle;
-};
-typedef struct PcmsInterpolatorOmega_hMeshHandle PcmsInterpolatorOmega_hMeshHandle;
 
 struct PcmsInterpolatorHandle {
   void* pointer;
@@ -38,10 +27,5 @@ void pcms_destroy_interpolator(PcmsInterpolatorHandle interpolator);
 
 void pcms_kokkos_initialize_without_args();
 void pcms_kokkos_finalize();
-
-PcmsInterpolatorOmega_hLibraryHandle pcms_create_omega_h_library();
-PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(const char* filename, PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle);
-void pcms_destroy_omega_h_mesh(PcmsInterpolatorOmega_hMeshHandle oh_mesh);
-void pcms_destroy_omega_h_library(PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle);
 
 void pcms_interpolate(PcmsInterpolatorHandle interpolator, void* input, int input_size, void* output, int output_size);

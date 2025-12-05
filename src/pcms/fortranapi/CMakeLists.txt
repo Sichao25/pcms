@@ -15,7 +15,7 @@ target_link_libraries(
   PRIVATE pcms::capi
   PUBLIC Kokkos::kokkos)
 
-add_library(pcms_interpolator_fortranapi pcms_interpolator.f90 interpolator_wrap.c)
+add_library(pcms_interpolator_fortranapi pcms_interpolator.f90 interpolator_wrap.c pcms_mesh.f90 mesh_wrap.c)
 add_library(pcms::interpolator::fortranapi ALIAS pcms_interpolator_fortranapi)
 set_target_properties(pcms_interpolator_fortranapi PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fortran
         OUTPUT_NAME pcmsinterpolatorfortranapi

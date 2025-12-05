@@ -2,6 +2,7 @@
 
 program test_interpolation
     use pcms_interpolator
+    use pcms_mesh
     use iso_c_binding
     implicit none
 

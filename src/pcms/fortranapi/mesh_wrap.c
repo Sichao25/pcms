@@ -218,8 +218,7 @@ enum
 #define SWIG_as_voidptr(a) (void*)((const void*)(a))
 #define SWIG_as_voidptrptr(a) ((void)SWIG_as_voidptr(*a), (void**)(a))
 
-#include "pcms/capi/interpolator.h"
-#include "pcms/capi/kokkos.h"
+#include "pcms/capi/mesh.h"
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -301,234 +300,202 @@ SWIGINTERN SwigArrayWrapper SwigArrayWrapper_uninitialized()
   return result;
 }
 
-SWIGEXPORT void _wrap_PcmsInterpolatorHandle_pointer_set(
+SWIGEXPORT void _wrap_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_set(
   SwigClassWrapper* farg1, void const** farg2)
 {
-  struct PcmsInterpolatorHandle* arg1 = (struct PcmsInterpolatorHandle*)0;
+  struct PcmsInterpolatorOmega_hLibraryHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hLibraryHandle*)0;
   void* arg2 = (void*)0;
 
-  SWIG_check_nonnull(farg1->cptr, "struct PcmsInterpolatorHandle *",
-                     "PcmsInterpolatorHandle",
-                     "PcmsInterpolatorHandle::pointer", return);
-  arg1 = (struct PcmsInterpolatorHandle*)farg1->cptr;
+  SWIG_check_nonnull(
+    farg1->cptr, "struct PcmsInterpolatorOmega_hLibraryHandle *",
+    "PcmsInterpolatorOmega_hLibraryHandle",
+    "PcmsInterpolatorOmega_hLibraryHandle::lib_handle", return);
+  arg1 = (struct PcmsInterpolatorOmega_hLibraryHandle*)farg1->cptr;
   arg2 = (void*)(*farg2);
   if (arg1)
-    (arg1)->pointer = arg2;
+    (arg1)->lib_handle = arg2;
 }
 
-SWIGEXPORT void* _wrap_PcmsInterpolatorHandle_pointer_get(
+SWIGEXPORT void* _wrap_PcmsInterpolatorOmega_hLibraryHandle_lib_handle_get(
   SwigClassWrapper* farg1)
 {
   void* fresult;
-  struct PcmsInterpolatorHandle* arg1 = (struct PcmsInterpolatorHandle*)0;
+  struct PcmsInterpolatorOmega_hLibraryHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hLibraryHandle*)0;
   void* result = 0;
 
-  SWIG_check_nonnull(farg1->cptr, "struct PcmsInterpolatorHandle *",
-                     "PcmsInterpolatorHandle",
-                     "PcmsInterpolatorHandle::pointer", return 0);
-  arg1 = (struct PcmsInterpolatorHandle*)farg1->cptr;
-  result = (void*)((arg1)->pointer);
+  SWIG_check_nonnull(
+    farg1->cptr, "struct PcmsInterpolatorOmega_hLibraryHandle *",
+    "PcmsInterpolatorOmega_hLibraryHandle",
+    "PcmsInterpolatorOmega_hLibraryHandle::lib_handle", return 0);
+  arg1 = (struct PcmsInterpolatorOmega_hLibraryHandle*)farg1->cptr;
+  result = (void*)((arg1)->lib_handle);
   fresult = (void*)(result);
   return fresult;
 }
 
-SWIGEXPORT SwigClassWrapper _wrap_new_PcmsInterpolatorHandle()
+SWIGEXPORT SwigClassWrapper _wrap_new_PcmsInterpolatorOmega_hLibraryHandle()
 {
   SwigClassWrapper fresult;
-  struct PcmsInterpolatorHandle* result = 0;
+  struct PcmsInterpolatorOmega_hLibraryHandle* result = 0;
 
-  result = (struct PcmsInterpolatorHandle*)calloc(
-    1, sizeof(struct PcmsInterpolatorHandle));
+  result = (struct PcmsInterpolatorOmega_hLibraryHandle*)calloc(
+    1, sizeof(struct PcmsInterpolatorOmega_hLibraryHandle));
   fresult.cptr = (void*)result;
   fresult.cmemflags = SWIG_MEM_RVALUE | (1 ? SWIG_MEM_OWN : 0);
   return fresult;
 }
 
-SWIGEXPORT void _wrap_delete_PcmsInterpolatorHandle(SwigClassWrapper* farg1)
+SWIGEXPORT void _wrap_delete_PcmsInterpolatorOmega_hLibraryHandle(
+  SwigClassWrapper* farg1)
 {
-  struct PcmsInterpolatorHandle* arg1 = (struct PcmsInterpolatorHandle*)0;
+  struct PcmsInterpolatorOmega_hLibraryHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hLibraryHandle*)0;
 
-  arg1 = (struct PcmsInterpolatorHandle*)farg1->cptr;
+  arg1 = (struct PcmsInterpolatorOmega_hLibraryHandle*)farg1->cptr;
   free((char*)arg1);
 }
 
-SWIGEXPORT void _wrap_PcmsInterpolatorHandle_op_assign__(
+SWIGEXPORT void _wrap_PcmsInterpolatorOmega_hLibraryHandle_op_assign__(
   SwigClassWrapper* farg1, SwigClassWrapper* farg2)
 {
-  struct PcmsInterpolatorHandle* arg1 = (struct PcmsInterpolatorHandle*)0;
-  struct PcmsInterpolatorHandle* arg2 = 0;
+  struct PcmsInterpolatorOmega_hLibraryHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hLibraryHandle*)0;
+  struct PcmsInterpolatorOmega_hLibraryHandle* arg2 = 0;
 
   (void)sizeof(arg1);
   (void)sizeof(arg2);
   SWIG_assign(farg1, *farg2);
 }
 
-SWIGEXPORT SwigClassWrapper _wrap_pcms_create_point_based_interpolator(
-  void const** farg1, int const* farg2, void const** farg3, int const* farg4,
-  double const* farg5, int const* farg6, int const* farg7, double const* farg8,
-  double const* farg9)
+SWIGEXPORT void _wrap_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_set(
+  SwigClassWrapper* farg1, void const** farg2)
 {
-  SwigClassWrapper fresult;
-  void* arg1 = (void*)0;
-  int arg2;
-  void* arg3 = (void*)0;
-  int arg4;
-  double arg5;
-  int arg6;
-  int arg7;
-  double arg8;
-  double arg9;
-  PcmsInterpolatorHandle result;
-
-  arg1 = (void*)(*farg1);
-  arg2 = (int)(*farg2);
-  arg3 = (void*)(*farg3);
-  arg4 = (int)(*farg4);
-  arg5 = (double)(*farg5);
-  arg6 = (int)(*farg6);
-  arg7 = (int)(*farg7);
-  arg8 = (double)(*farg8);
-  arg9 = (double)(*farg9);
-  result = pcms_create_point_based_interpolator(arg1, arg2, arg3, arg4, arg5,
-                                                arg6, arg7, arg8, arg9);
-  fresult.cptr = (PcmsInterpolatorHandle*)memcpy(
-    (PcmsInterpolatorHandle*)calloc(1, sizeof(PcmsInterpolatorHandle)), &result,
-    sizeof(PcmsInterpolatorHandle));
-  fresult.cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-  return fresult;
-}
-
-SWIGEXPORT SwigClassWrapper _wrap_pcms_create_degas2xgcnode_interpolator(
-  void const** farg1, int const* farg2, SwigArrayWrapper* farg3,
-  double const* farg4, void const** farg5, int const* farg6, int const* farg7,
-  double const* farg8, double const* farg9)
-{
-  SwigClassWrapper fresult;
-  void* arg1 = (void*)0;
-  int arg2;
-  char* arg3 = (char*)0;
-  double arg4;
-  void* arg5 = (void*)0;
-  int arg6;
-  int arg7;
-  double arg8;
-  double arg9;
-  PcmsInterpolatorHandle result;
-
-  arg1 = (void*)(*farg1);
-  arg2 = (int)(*farg2);
-  arg3 = (char*)(farg3->data);
-  arg4 = (double)(*farg4);
-  arg5 = (void*)(*farg5);
-  arg6 = (int)(*farg6);
-  arg7 = (int)(*farg7);
-  arg8 = (double)(*farg8);
-  arg9 = (double)(*farg9);
-  result = pcms_create_degas2xgcnode_interpolator(
-    arg1, arg2, (char const*)arg3, arg4, arg5, arg6, arg7, arg8, arg9);
-  fresult.cptr = (PcmsInterpolatorHandle*)memcpy(
-    (PcmsInterpolatorHandle*)calloc(1, sizeof(PcmsInterpolatorHandle)), &result,
-    sizeof(PcmsInterpolatorHandle));
-  fresult.cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-  return fresult;
-}
-
-SWIGEXPORT SwigClassWrapper _wrap_pcms_create_xgcnodedegas2_interpolator(
-  SwigArrayWrapper* farg1, void const** farg2, int const* farg3,
-  double const* farg4, void const** farg5, int const* farg6, int const* farg7,
-  double const* farg8, double const* farg9)
-{
-  SwigClassWrapper fresult;
-  char* arg1 = (char*)0;
+  struct PcmsInterpolatorOmega_hMeshHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hMeshHandle*)0;
   void* arg2 = (void*)0;
-  int arg3;
-  double arg4;
-  void* arg5 = (void*)0;
-  int arg6;
-  int arg7;
-  double arg8;
-  double arg9;
-  PcmsInterpolatorHandle result;
 
-  arg1 = (char*)(farg1->data);
+  SWIG_check_nonnull(farg1->cptr, "struct PcmsInterpolatorOmega_hMeshHandle *",
+                     "PcmsInterpolatorOmega_hMeshHandle",
+                     "PcmsInterpolatorOmega_hMeshHandle::mesh_handle", return);
+  arg1 = (struct PcmsInterpolatorOmega_hMeshHandle*)farg1->cptr;
   arg2 = (void*)(*farg2);
-  arg3 = (int)(*farg3);
-  arg4 = (double)(*farg4);
-  arg5 = (void*)(*farg5);
-  arg6 = (int)(*farg6);
-  arg7 = (int)(*farg7);
-  arg8 = (double)(*farg8);
-  arg9 = (double)(*farg9);
-  result = pcms_create_xgcnodedegas2_interpolator(
-    (char const*)arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
-  fresult.cptr = (PcmsInterpolatorHandle*)memcpy(
-    (PcmsInterpolatorHandle*)calloc(1, sizeof(PcmsInterpolatorHandle)), &result,
-    sizeof(PcmsInterpolatorHandle));
+  if (arg1)
+    (arg1)->mesh_handle = arg2;
+}
+
+SWIGEXPORT void* _wrap_PcmsInterpolatorOmega_hMeshHandle_mesh_handle_get(
+  SwigClassWrapper* farg1)
+{
+  void* fresult;
+  struct PcmsInterpolatorOmega_hMeshHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hMeshHandle*)0;
+  void* result = 0;
+
+  SWIG_check_nonnull(farg1->cptr, "struct PcmsInterpolatorOmega_hMeshHandle *",
+                     "PcmsInterpolatorOmega_hMeshHandle",
+                     "PcmsInterpolatorOmega_hMeshHandle::mesh_handle",
+                     return 0);
+  arg1 = (struct PcmsInterpolatorOmega_hMeshHandle*)farg1->cptr;
+  result = (void*)((arg1)->mesh_handle);
+  fresult = (void*)(result);
+  return fresult;
+}
+
+SWIGEXPORT SwigClassWrapper _wrap_new_PcmsInterpolatorOmega_hMeshHandle()
+{
+  SwigClassWrapper fresult;
+  struct PcmsInterpolatorOmega_hMeshHandle* result = 0;
+
+  result = (struct PcmsInterpolatorOmega_hMeshHandle*)calloc(
+    1, sizeof(struct PcmsInterpolatorOmega_hMeshHandle));
+  fresult.cptr = (void*)result;
+  fresult.cmemflags = SWIG_MEM_RVALUE | (1 ? SWIG_MEM_OWN : 0);
+  return fresult;
+}
+
+SWIGEXPORT void _wrap_delete_PcmsInterpolatorOmega_hMeshHandle(
+  SwigClassWrapper* farg1)
+{
+  struct PcmsInterpolatorOmega_hMeshHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hMeshHandle*)0;
+
+  arg1 = (struct PcmsInterpolatorOmega_hMeshHandle*)farg1->cptr;
+  free((char*)arg1);
+}
+
+SWIGEXPORT void _wrap_PcmsInterpolatorOmega_hMeshHandle_op_assign__(
+  SwigClassWrapper* farg1, SwigClassWrapper* farg2)
+{
+  struct PcmsInterpolatorOmega_hMeshHandle* arg1 =
+    (struct PcmsInterpolatorOmega_hMeshHandle*)0;
+  struct PcmsInterpolatorOmega_hMeshHandle* arg2 = 0;
+
+  (void)sizeof(arg1);
+  (void)sizeof(arg2);
+  SWIG_assign(farg1, *farg2);
+}
+
+SWIGEXPORT SwigClassWrapper _wrap_pcms_create_omega_h_library()
+{
+  SwigClassWrapper fresult;
+  PcmsInterpolatorOmega_hLibraryHandle result;
+
+  result = pcms_create_omega_h_library();
+  fresult.cptr = (PcmsInterpolatorOmega_hLibraryHandle*)memcpy(
+    (PcmsInterpolatorOmega_hLibraryHandle*)calloc(
+      1, sizeof(PcmsInterpolatorOmega_hLibraryHandle)),
+    &result, sizeof(PcmsInterpolatorOmega_hLibraryHandle));
   fresult.cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
   return fresult;
 }
 
 SWIGEXPORT SwigClassWrapper
-_wrap_pcms_create_interpolator(SwigClassWrapper* farg1, double const* farg2)
+_wrap_pcms_create_omega_h_mesh(SwigArrayWrapper* farg1, SwigClassWrapper* farg2)
 {
   SwigClassWrapper fresult;
-  PcmsInterpolatorOmega_hMeshHandle arg1;
-  double arg2;
-  PcmsInterpolatorHandle result;
+  char* arg1 = (char*)0;
+  PcmsInterpolatorOmega_hLibraryHandle arg2;
+  PcmsInterpolatorOmega_hMeshHandle result;
 
-  SWIG_check_nonnull(
-    farg1->cptr, "PcmsInterpolatorOmega_hMeshHandle",
-    "PcmsInterpolatorOmega_hMeshHandle",
-    "pcms_create_interpolator(PcmsInterpolatorOmega_hMeshHandle,double)",
-    return SwigClassWrapper_uninitialized());
-  arg1 = *((PcmsInterpolatorOmega_hMeshHandle*)(farg1->cptr));
-  arg2 = (double)(*farg2);
-  result = pcms_create_interpolator(arg1, arg2);
-  fresult.cptr = (PcmsInterpolatorHandle*)memcpy(
-    (PcmsInterpolatorHandle*)calloc(1, sizeof(PcmsInterpolatorHandle)), &result,
-    sizeof(PcmsInterpolatorHandle));
+  arg1 = (char*)(farg1->data);
+  SWIG_check_nonnull(farg2->cptr, "PcmsInterpolatorOmega_hLibraryHandle",
+                     "PcmsInterpolatorOmega_hLibraryHandle",
+                     "pcms_create_omega_h_mesh(char const "
+                     "*,PcmsInterpolatorOmega_hLibraryHandle)",
+                     return SwigClassWrapper_uninitialized());
+  arg2 = *((PcmsInterpolatorOmega_hLibraryHandle*)(farg2->cptr));
+  result = pcms_create_omega_h_mesh((char const*)arg1, arg2);
+  fresult.cptr = (PcmsInterpolatorOmega_hMeshHandle*)memcpy(
+    (PcmsInterpolatorOmega_hMeshHandle*)calloc(
+      1, sizeof(PcmsInterpolatorOmega_hMeshHandle)),
+    &result, sizeof(PcmsInterpolatorOmega_hMeshHandle));
   fresult.cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
   return fresult;
 }
 
-SWIGEXPORT void _wrap_pcms_destroy_interpolator(SwigClassWrapper* farg1)
+SWIGEXPORT void _wrap_pcms_destroy_omega_h_mesh(SwigClassWrapper* farg1)
 {
-  PcmsInterpolatorHandle arg1;
+  PcmsInterpolatorOmega_hMeshHandle arg1;
 
   SWIG_check_nonnull(
-    farg1->cptr, "PcmsInterpolatorHandle", "PcmsInterpolatorHandle",
-    "pcms_destroy_interpolator(PcmsInterpolatorHandle)", return);
-  arg1 = *((PcmsInterpolatorHandle*)(farg1->cptr));
-  pcms_destroy_interpolator(arg1);
+    farg1->cptr, "PcmsInterpolatorOmega_hMeshHandle",
+    "PcmsInterpolatorOmega_hMeshHandle",
+    "pcms_destroy_omega_h_mesh(PcmsInterpolatorOmega_hMeshHandle)", return);
+  arg1 = *((PcmsInterpolatorOmega_hMeshHandle*)(farg1->cptr));
+  pcms_destroy_omega_h_mesh(arg1);
 }
 
-SWIGEXPORT void _wrap_pcms_kokkos_initialize_without_args()
+SWIGEXPORT void _wrap_pcms_destroy_omega_h_library(SwigClassWrapper* farg1)
 {
-  pcms_kokkos_initialize_without_args();
-}
-
-SWIGEXPORT void _wrap_pcms_kokkos_finalize()
-{
-  pcms_kokkos_finalize();
-}
-
-SWIGEXPORT void _wrap_pcms_interpolate(SwigClassWrapper* farg1,
-                                       void const** farg2, int const* farg3,
-                                       void const** farg4, int const* farg5)
-{
-  PcmsInterpolatorHandle arg1;
-  void* arg2 = (void*)0;
-  int arg3;
-  void* arg4 = (void*)0;
-  int arg5;
+  PcmsInterpolatorOmega_hLibraryHandle arg1;
 
   SWIG_check_nonnull(
-    farg1->cptr, "PcmsInterpolatorHandle", "PcmsInterpolatorHandle",
-    "pcms_interpolate(PcmsInterpolatorHandle,void *,int,void *,int)", return);
-  arg1 = *((PcmsInterpolatorHandle*)(farg1->cptr));
-  arg2 = (void*)(*farg2);
-  arg3 = (int)(*farg3);
-  arg4 = (void*)(*farg4);
-  arg5 = (int)(*farg5);
-  pcms_interpolate(arg1, arg2, arg3, arg4, arg5);
+    farg1->cptr, "PcmsInterpolatorOmega_hLibraryHandle",
+    "PcmsInterpolatorOmega_hLibraryHandle",
+    "pcms_destroy_omega_h_library(PcmsInterpolatorOmega_hLibraryHandle)",
+    return);
+  arg1 = *((PcmsInterpolatorOmega_hLibraryHandle*)(farg1->cptr));
+  pcms_destroy_omega_h_library(arg1);
 }
