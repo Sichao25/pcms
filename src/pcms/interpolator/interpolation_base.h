@@ -150,8 +150,10 @@ private:
   int dim_;           /*!< Spatial dimension of the point clouds */
   double radius_;     /*!< Cutoff radius for the MLS interpolation */
   bool adapt_radius_; /*!< Whether to adapt the radius based on local density */
-  unsigned degree_; /*!< Degree of the polynomial used in the MLS interpolation */
-  unsigned min_req_supports_; /*!< Minimum number of source locations required */
+  unsigned
+    degree_; /*!< Degree of the polynomial used in the MLS interpolation */
+  unsigned
+    min_req_supports_; /*!< Minimum number of source locations required */
   double lambda_; /*!< Regularization parameter for the MLS interpolation */
   double decay_factor_; /*!< Decay factor for the weight function in the MLS
                          interpolation */
@@ -185,7 +187,8 @@ private:
    * @param max_allowed_supports Maximum allowed supports
    * @param max_count Maximum number of iterations to adjust radius
    */
-  void find_supports(unsigned min_req_supports = 10, unsigned max_allowed_supports = 30,
+  void find_supports(unsigned min_req_supports = 10,
+                     unsigned max_allowed_supports = 30,
                      unsigned max_count = 100);
 };
 
@@ -262,8 +265,10 @@ private:
                      interpolation */
   bool adapt_radius_; /*!< Whether to adapt the radius based on local density */
   bool single_mesh_ = false; /*!< Whether single mesh mode is used */
-  unsigned degree_; /*!< Degree of the polynomial used in the MLS interpolation */
-  unsigned min_req_supports_; /*!< Minimum number of source locations required */
+  unsigned
+    degree_; /*!< Degree of the polynomial used in the MLS interpolation */
+  unsigned
+    min_req_supports_; /*!< Minimum number of source locations required */
 
   // InterpolationType interpolation_type_;
 

@@ -30,7 +30,8 @@ Omega_h::Reals getCentroids(Omega_h::Mesh& mesh)
 }
 
 MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
-                                           double radius, unsigned min_req_support,
+                                           double radius,
+                                           unsigned min_req_support,
                                            unsigned degree, bool adapt_radius,
                                            double lambda, double decay_factor)
   : source_mesh_(source_mesh),
@@ -59,12 +60,10 @@ MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
   find_supports(min_req_supports_, 3 * min_req_supports_);
 }
 
-MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
-                                           Omega_h::Mesh& target_mesh,
-                                           const double radius,
-                                           unsigned min_req_support, unsigned degree,
-                                           const bool adapt_radius,
-                                           double lambda, double decay_factor)
+MLSMeshInterpolation::MLSMeshInterpolation(
+  Omega_h::Mesh& source_mesh, Omega_h::Mesh& target_mesh, const double radius,
+  unsigned min_req_support, unsigned degree, const bool adapt_radius,
+  double lambda, double decay_factor)
   : source_mesh_(source_mesh),
     target_mesh_(target_mesh),
     radius_(radius),
@@ -98,8 +97,8 @@ double pointDistanceSquared(const double x1, const double y1, const double z1,
 
 // replace with Kokkos::minmax_element when out of experimental
 // https://kokkos.org/kokkos-core-wiki/API/algorithms/std-algorithms/all/StdMinMaxElement.html
-void minmax(Omega_h::Read<Omega_h::LO> num_supports, unsigned& min_supports_found,
-            unsigned& max_supports_found)
+void minmax(Omega_h::Read<Omega_h::LO> num_supports,
+            unsigned& min_supports_found, unsigned& max_supports_found)
 {
   using minMaxReducerType = Kokkos::MinMax<unsigned, Kokkos::HostSpace>;
   using minMaxValueType = minMaxReducerType::value_type;

@@ -27,8 +27,8 @@ inline bool within_number_of_support_range(unsigned min_supports_found,
          (max_supports_found <= max_allowed_supports);
 }
 
-void minmax(Omega_h::Read<Omega_h::LO> num_supports, unsigned& min_supports_found,
-            unsigned& max_supports_found);
+void minmax(Omega_h::Read<Omega_h::LO> num_supports,
+            unsigned& min_supports_found, unsigned& max_supports_found);
 void adapt_radii(unsigned min_req_supports, unsigned max_allowed_supports,
                  Omega_h::LO n_targets, Omega_h::Write<Omega_h::Real> radii2_l,
                  Omega_h::Write<Omega_h::LO> num_supports);
