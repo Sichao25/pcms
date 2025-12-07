@@ -1,27 +1,10 @@
 #include "point_cloud_layout.h"
 #include "point_cloud.h"
 #include <memory>
+#include <Kokkos_StdAlgorithms.hpp>
 
 namespace pcms
 {
-
-struct InitializeOwnedGidsFunctor
-{
-  Kokkos::View<bool*> owned_;
-  Kokkos::View<GO*> gids_;
-
-  InitializeOwnedGidsFunctor(Kokkos::View<bool*> owned, Kokkos::View<GO*> gids)
-    : owned_(owned), gids_(gids)
-  {
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  void operator()(int i) const
-  {
-    owned_[i] = 1;
-    gids_[i] = i;
-  }
-};
 
 PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
                                    CoordinateSystem coordinate_system)
@@ -35,8 +18,9 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
 {
   components_ = 1;
 
-  Kokkos::parallel_for(coords_.extent(0),
-                       InitializeOwnedGidsFunctor(owned_, gids_));
+  namespace KE = Kokkos::Experimental;
+  KE::fill(Kokkos::DefaultExecutionSpace(), owned_, true);
+  iota_view(gids_);
 }
 
 std::unique_ptr<FieldT<Real>> PointCloudLayout::CreateField() const
