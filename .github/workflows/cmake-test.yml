@@ -98,7 +98,7 @@ jobs:
       with:
         repo-name: 'meshFields'
         repo-path: 'SCOREC/meshFields'
-        repo-ref: ''
+        repo-ref: 'b1482bbba288df210784b2345eae08e34faabdc4'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
@@ -145,7 +145,7 @@ jobs:
       with:
         repo-name: 'redev'
         repo-path: 'SCOREC/redev'
-        repo-ref: ''
+        repo-ref: '1452ec290dc6f8638019e342758325611e16ad77'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
