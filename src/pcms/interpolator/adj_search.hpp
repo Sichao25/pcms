@@ -406,8 +406,8 @@ inline SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
                             radii2, true);
       Kokkos::fence();
 
-      uint min_supports_found = 0;
-      uint max_supports_found = 0;
+      unsigned min_supports_found = 0;
+      unsigned max_supports_found = 0;
       minmax(nSupports, min_supports_found, max_supports_found);
       r_adjust_loop++;
       pcms::printInfo(
@@ -496,8 +496,8 @@ inline SupportResults searchNeighbors(Omega_h::Mesh& mesh,
                                          radii2, true);
 
       Kokkos::fence();
-      uint min_nSupports = 0;
-      uint max_nSupports = 0;
+      unsigned min_nSupports = 0;
+      unsigned max_nSupports = 0;
       minmax(nSupports, min_nSupports, max_nSupports);
 
       r_adjust_loop++;

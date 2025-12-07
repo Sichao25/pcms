@@ -30,8 +30,8 @@ Omega_h::Reals getCentroids(Omega_h::Mesh& mesh)
 }
 
 MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
-                                           double radius, uint min_req_support,
-                                           uint degree, bool adapt_radius,
+                                           double radius, unsigned min_req_support,
+                                           unsigned degree, bool adapt_radius,
                                            double lambda, double decay_factor)
   : source_mesh_(source_mesh),
     target_mesh_(source_mesh),
@@ -62,7 +62,7 @@ MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
 MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
                                            Omega_h::Mesh& target_mesh,
                                            const double radius,
-                                           uint min_req_support, uint degree,
+                                           unsigned min_req_support, unsigned degree,
                                            const bool adapt_radius,
                                            double lambda, double decay_factor)
   : source_mesh_(source_mesh),
@@ -98,10 +98,10 @@ double pointDistanceSquared(const double x1, const double y1, const double z1,
 
 // replace with Kokkos::minmax_element when out of experimental
 // https://kokkos.org/kokkos-core-wiki/API/algorithms/std-algorithms/all/StdMinMaxElement.html
-void minmax(Omega_h::Read<Omega_h::LO> num_supports, uint& min_supports_found,
-            uint& max_supports_found)
+void minmax(Omega_h::Read<Omega_h::LO> num_supports, unsigned& min_supports_found,
+            unsigned& max_supports_found)
 {
-  using minMaxReducerType = Kokkos::MinMax<uint, Kokkos::HostSpace>;
+  using minMaxReducerType = Kokkos::MinMax<unsigned, Kokkos::HostSpace>;
   using minMaxValueType = minMaxReducerType::value_type;
   minMaxValueType minmax;
   Kokkos::parallel_reduce(
@@ -118,7 +118,7 @@ void minmax(Omega_h::Read<Omega_h::LO> num_supports, uint& min_supports_found,
   max_supports_found = minmax.max_val;
 }
 
-void adapt_radii(uint min_req_supports, uint max_allowed_supports,
+void adapt_radii(unsigned min_req_supports, unsigned max_allowed_supports,
                  Omega_h::LO n_targets, Omega_h::Write<Omega_h::Real> radii2_l,
                  Omega_h::Write<Omega_h::LO> num_supports)
 {
@@ -153,11 +153,11 @@ void MLSPointCloudInterpolation::fill_support_structure(
 {
   // parallel scan for fill the support index with cumulative sum
   auto support_ptr_l = Omega_h::Write<Omega_h::LO>(n_targets_ + 1, 0);
-  uint total_supports = 0;
+  unsigned total_supports = 0;
   Kokkos::fence();
   Kokkos::parallel_scan(
     "scan", n_targets_,
-    KOKKOS_LAMBDA(const int& i, uint& update, const bool final) {
+    KOKKOS_LAMBDA(const int& i, unsigned& update, const bool final) {
       update += num_supports[i];
       if (final) {
         support_ptr_l[i + 1] = update;
@@ -248,9 +248,9 @@ void MLSPointCloudInterpolation::distance_based_pointcloud_search(
   Kokkos::fence();
 }
 
-void MLSPointCloudInterpolation::find_supports(uint min_req_supports,
-                                               uint max_allowed_supports,
-                                               uint max_count)
+void MLSPointCloudInterpolation::find_supports(unsigned min_req_supports,
+                                               unsigned max_allowed_supports,
+                                               unsigned max_count)
 {
   pcms::printDebugInfo("First 10 Target Points with %d points:\n", n_targets_);
   const auto target_coords_l = target_coords_;
@@ -272,8 +272,8 @@ void MLSPointCloudInterpolation::find_supports(uint min_req_supports,
   auto radii2_l = Omega_h::Write<Omega_h::Real>(n_targets_, radius_);
   auto num_supports = Omega_h::Write<Omega_h::LO>(n_targets_, 0);
 
-  uint min_supports_found = 0;
-  uint max_supports_found = 0;
+  unsigned min_supports_found = 0;
+  unsigned max_supports_found = 0;
   // radius adjustment loop
   int loop_count = 0;
   while (!within_number_of_support_range(min_supports_found, max_supports_found,
@@ -405,8 +405,8 @@ void MLSMeshInterpolation::eval(
   copyHostWrite2ScalarArrayView(target_field_, target_field);
 }
 
-void MLSMeshInterpolation::find_supports(const uint min_req_supports,
-                                         const uint max_allowed_supports)
+void MLSMeshInterpolation::find_supports(const unsigned min_req_supports,
+                                         const unsigned max_allowed_supports)
 {
   if (single_mesh_) {
     supports_ =

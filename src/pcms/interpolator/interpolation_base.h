@@ -98,7 +98,7 @@ public:
   MLSPointCloudInterpolation(
     pcms::Rank1View<SourceType, pcms::HostMemorySpace> source_points,
     pcms::Rank1View<TargetType, pcms::HostMemorySpace> target_points, int dim,
-    double radius, uint min_req_supports = 10, uint degree = 3,
+    double radius, unsigned min_req_supports = 10, unsigned degree = 3,
     bool adapt_radius = true, double lambda = 0.0, double decay_factor = 5.0)
     : dim_(dim),
       radius_(radius),
@@ -150,8 +150,8 @@ private:
   int dim_;           /*!< Spatial dimension of the point clouds */
   double radius_;     /*!< Cutoff radius for the MLS interpolation */
   bool adapt_radius_; /*!< Whether to adapt the radius based on local density */
-  uint degree_; /*!< Degree of the polynomial used in the MLS interpolation */
-  uint min_req_supports_; /*!< Minimum number of source locations required */
+  unsigned degree_; /*!< Degree of the polynomial used in the MLS interpolation */
+  unsigned min_req_supports_; /*!< Minimum number of source locations required */
   double lambda_; /*!< Regularization parameter for the MLS interpolation */
   double decay_factor_; /*!< Decay factor for the weight function in the MLS
                          interpolation */
@@ -185,8 +185,8 @@ private:
    * @param max_allowed_supports Maximum allowed supports
    * @param max_count Maximum number of iterations to adjust radius
    */
-  void find_supports(uint min_req_supports = 10, uint max_allowed_supports = 30,
-                     uint max_count = 100);
+  void find_supports(unsigned min_req_supports = 10, unsigned max_allowed_supports = 30,
+                     unsigned max_count = 100);
 };
 
 /**
@@ -224,8 +224,8 @@ public:
    * @see mls_interpolation, RadialBasisFunction
    */
   MLSMeshInterpolation(Omega_h::Mesh& source_mesh, Omega_h::Mesh& target_mesh,
-                       double radius, uint min_req_supports = 10,
-                       uint degree = 3, bool adapt_radius = true,
+                       double radius, unsigned min_req_supports = 10,
+                       unsigned degree = 3, bool adapt_radius = true,
                        double lambda = 0.0, double decay_factor = 5.0);
 
   /**
@@ -246,7 +246,7 @@ public:
    * @see mls_interpolation, RadialBasisFunction
    */
   MLSMeshInterpolation(Omega_h::Mesh& source_mesh, double radius,
-                       uint min_req_supports = 10, uint degree = 3,
+                       unsigned min_req_supports = 10, unsigned degree = 3,
                        bool adapt_radius = true, double lambda = 0.0,
                        double decay_factor = 5.0);
 
@@ -262,8 +262,8 @@ private:
                      interpolation */
   bool adapt_radius_; /*!< Whether to adapt the radius based on local density */
   bool single_mesh_ = false; /*!< Whether single mesh mode is used */
-  uint degree_; /*!< Degree of the polynomial used in the MLS interpolation */
-  uint min_req_supports_; /*!< Minimum number of source locations required */
+  unsigned degree_; /*!< Degree of the polynomial used in the MLS interpolation */
+  unsigned min_req_supports_; /*!< Minimum number of source locations required */
 
   // InterpolationType interpolation_type_;
 
@@ -285,8 +285,8 @@ private:
    *
    * @see searchNeighbors
    */
-  void find_supports(uint min_req_supports = 10,
-                     uint max_allowed_supports = 30);
+  void find_supports(unsigned min_req_supports = 10,
+                     unsigned max_allowed_supports = 30);
 };
 
 #endif // PCMS_INTERPOLATION_BASE_H
