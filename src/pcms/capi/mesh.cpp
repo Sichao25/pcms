@@ -4,7 +4,7 @@
 #include <Omega_h_library.hpp>
 #include <Omega_h_mesh.hpp>
 
-PcmsInterpolatorOmega_hLibraryHandle pcms_create_omega_h_library()
+PcmsOmegaHLibraryHandle pcms_create_omega_h_library()
 {
 #ifdef Omega_H_USE_MPI
   Omega_h::Library* oh_lib =
@@ -16,9 +16,8 @@ PcmsInterpolatorOmega_hLibraryHandle pcms_create_omega_h_library()
   return {reinterpret_cast<void*>(oh_lib)};
 }
 
-PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(
-  const char* filename,
-  const PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle)
+PcmsOmegaHMeshHandle pcms_create_omega_h_mesh(
+  const char* filename, const PcmsOmegaHLibraryHandle oh_lib_handle)
 {
   auto fname = std::string(filename);
   // trim the filename since it is coming from c or fortran api which may have
@@ -31,15 +30,14 @@ PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(
   return {reinterpret_cast<void*>(mesh)};
 }
 
-void pcms_destroy_omega_h_mesh(PcmsInterpolatorOmega_hMeshHandle oh_mesh)
+void pcms_destroy_omega_h_mesh(PcmsOmegaHMeshHandle oh_mesh)
 {
   if (oh_mesh.mesh_handle != nullptr) {
     delete reinterpret_cast<Omega_h::Mesh*>(oh_mesh.mesh_handle);
   }
 }
 
-void pcms_destroy_omega_h_library(
-  PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle)
+void pcms_destroy_omega_h_library(PcmsOmegaHLibraryHandle oh_lib_handle)
 {
   if (oh_lib_handle.lib_handle != nullptr) {
     delete reinterpret_cast<Omega_h::Library*>(oh_lib_handle.lib_handle);

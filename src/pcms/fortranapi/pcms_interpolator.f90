@@ -381,7 +381,7 @@ function pcms_create_interpolator(oh_mesh, radius) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 type(PcmsInterpolatorHandle) :: swig_result
-type(PcmsInterpolatorOmega_hMeshHandle), intent(in) :: oh_mesh
+type(PcmsOmegaHMeshHandle), intent(in) :: oh_mesh
 real(C_DOUBLE), intent(in) :: radius
 type(SwigClassWrapper) :: fresult 
 type(SwigClassWrapper) :: farg1 

@@ -472,16 +472,15 @@ SWIGEXPORT SwigClassWrapper
 _wrap_pcms_create_interpolator(SwigClassWrapper* farg1, double const* farg2)
 {
   SwigClassWrapper fresult;
-  PcmsInterpolatorOmega_hMeshHandle arg1;
+  PcmsOmegaHMeshHandle arg1;
   double arg2;
   PcmsInterpolatorHandle result;
 
-  SWIG_check_nonnull(
-    farg1->cptr, "PcmsInterpolatorOmega_hMeshHandle",
-    "PcmsInterpolatorOmega_hMeshHandle",
-    "pcms_create_interpolator(PcmsInterpolatorOmega_hMeshHandle,double)",
-    return SwigClassWrapper_uninitialized());
-  arg1 = *((PcmsInterpolatorOmega_hMeshHandle*)(farg1->cptr));
+  SWIG_check_nonnull(farg1->cptr, "PcmsOmegaHMeshHandle",
+                     "PcmsOmegaHMeshHandle",
+                     "pcms_create_interpolator(PcmsOmegaHMeshHandle,double)",
+                     return SwigClassWrapper_uninitialized());
+  arg1 = *((PcmsOmegaHMeshHandle*)(farg1->cptr));
   arg2 = (double)(*farg2);
   result = pcms_create_interpolator(arg1, arg2);
   fresult.cptr = (PcmsInterpolatorHandle*)memcpy(

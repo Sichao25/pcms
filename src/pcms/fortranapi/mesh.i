@@ -6,20 +6,20 @@
 %include <stdint.i>
 %include <typemaps.i>
 
-struct PcmsInterpolatorOmega_hLibraryHandle
+struct PcmsOmegaHLibraryHandle
 {
   void* lib_handle;
 };
-typedef struct PcmsInterpolatorOmega_hLibraryHandle PcmsInterpolatorOmega_hLibraryHandle;
+typedef struct PcmsOmegaHLibraryHandle PcmsOmegaHLibraryHandle;
 
-struct PcmsInterpolatorOmega_hMeshHandle
+struct PcmsOmegaHMeshHandle
 {
   void* mesh_handle;
 };
-typedef struct PcmsInterpolatorOmega_hMeshHandle PcmsInterpolatorOmega_hMeshHandle;
+typedef struct PcmsOmegaHMeshHandle PcmsOmegaHMeshHandle;
 
 
-PcmsInterpolatorOmega_hLibraryHandle pcms_create_omega_h_library();
-PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(const char* filename, PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle);
-void pcms_destroy_omega_h_mesh(PcmsInterpolatorOmega_hMeshHandle oh_mesh);
-void pcms_destroy_omega_h_library(PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle);
+PcmsOmegaHLibraryHandle pcms_create_omega_h_library();
+PcmsOmegaHMeshHandle pcms_create_omega_h_mesh(const char* filename, PcmsOmegaHLibraryHandle oh_lib_handle);
+void pcms_destroy_omega_h_mesh(PcmsOmegaHMeshHandle oh_mesh);
+void pcms_destroy_omega_h_library(PcmsOmegaHLibraryHandle oh_lib_handle);

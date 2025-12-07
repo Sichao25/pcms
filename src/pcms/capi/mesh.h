@@ -5,29 +5,27 @@
 extern "C" {
 #endif
 
-struct PcmsInterpolatorOmega_hLibraryHandle
+struct PcmsOmegaHLibraryHandle
 {
   void* lib_handle;
 };
-typedef struct PcmsInterpolatorOmega_hLibraryHandle
-  PcmsInterpolatorOmega_hLibraryHandle;
+typedef struct PcmsOmegaHLibraryHandle PcmsOmegaHLibraryHandle;
 
 /**
  * @brief Holds void pointers of Omega_h Mesh object and the library
  * (communicator) handle
  */
-struct PcmsInterpolatorOmega_hMeshHandle
+struct PcmsOmegaHMeshHandle
 {
   void* mesh_handle;
 };
 
 /**
  * @brief Typedef for PcmsInterpolatorOmega_hMeshHandle struct
- * @copydetails PcmsInterpolatorOmega_hMeshHandle
+ * @copydetails PcmsOmegaHMeshHandle
  * @see PcmsInterpolatorOmega_hMeshHandle
  */
-typedef struct PcmsInterpolatorOmega_hMeshHandle
-  PcmsInterpolatorOmega_hMeshHandle;
+typedef struct PcmsOmegaHMeshHandle PcmsOmegaHMeshHandle;
 
 /**
  * @brief Create Omega_h library handle on MPI_COMM_SELF if MPI is enabled
@@ -37,7 +35,7 @@ typedef struct PcmsInterpolatorOmega_hMeshHandle
  * leaks.
  * @see pcms_create_omega_h_mesh, pcms_destroy_omega_h_library
  */
-PcmsInterpolatorOmega_hLibraryHandle pcms_create_omega_h_library();
+PcmsOmegaHLibraryHandle pcms_create_omega_h_library();
 
 /**
  * @brief Read Omega_h mesh from file
@@ -53,8 +51,8 @@ PcmsInterpolatorOmega_hLibraryHandle pcms_create_omega_h_library();
  * @see pcms_create_interpolator, pcms_create_omega_h_library,
  pcms_destroy_omega_h_mesh
  */
-PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(
-  const char* filename, PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle);
+PcmsOmegaHMeshHandle pcms_create_omega_h_mesh(
+  const char* filename, PcmsOmegaHLibraryHandle oh_lib_handle);
 
 /**
  * @brief Release Omega_h mesh
@@ -63,8 +61,7 @@ PcmsInterpolatorOmega_hMeshHandle pcms_create_omega_h_mesh(
  * @details Releases the Omega_h mesh associated with the given handle to
  * free up resources.
  */
-void pcms_destroy_omega_h_mesh(
-  PcmsInterpolatorOmega_hMeshHandle oh_mesh_handle);
+void pcms_destroy_omega_h_mesh(PcmsOmegaHMeshHandle oh_mesh_handle);
 
 /**
  * @brief Delete Omega_h library
@@ -72,8 +69,7 @@ void pcms_destroy_omega_h_mesh(
  *
  * @see pcms_create_omega_h_library
  */
-void pcms_destroy_omega_h_library(
-  PcmsInterpolatorOmega_hLibraryHandle oh_lib_handle);
+void pcms_destroy_omega_h_library(PcmsOmegaHLibraryHandle oh_lib_handle);
 
 #ifdef __cplusplus
 }

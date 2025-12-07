@@ -10,8 +10,8 @@
 #include <pcms/print.h>
 
 //[[nodiscard]]
-PcmsInterpolatorHandle pcms_create_interpolator(
-  PcmsInterpolatorOmega_hMeshHandle oh_mesh, double radius)
+PcmsInterpolatorHandle pcms_create_interpolator(PcmsOmegaHMeshHandle oh_mesh,
+                                                double radius)
 {
   auto* source_mesh = reinterpret_cast<Omega_h::Mesh*>(oh_mesh.mesh_handle);
   auto* interpolator = new MLSMeshInterpolation(*source_mesh, radius);

@@ -22,7 +22,7 @@ PcmsInterpolatorHandle pcms_create_degas2xgcnode_interpolator(void* target_point
                                                                 const char* dg2_mesh_filename, double radius, void* dg2_elem_count, int degree, int min_req_supports, double lambda, double decay_factor);
 PcmsInterpolatorHandle pcms_create_xgcnodedegas2_interpolator(const char* dg2_mesh_filename, void* source_points, int source_points_size,
                                                                 double radius, void* dg2_elem_count, int degree, int min_req_supports, double lambda, double decay_factor);
-PcmsInterpolatorHandle pcms_create_interpolator(PcmsInterpolatorOmega_hMeshHandle oh_mesh, double radius);
+PcmsInterpolatorHandle pcms_create_interpolator(PcmsOmegaHMeshHandle oh_mesh, double radius);
 void pcms_destroy_interpolator(PcmsInterpolatorHandle interpolator);
 
 void pcms_kokkos_initialize_without_args();

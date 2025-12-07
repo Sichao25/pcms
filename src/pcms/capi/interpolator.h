@@ -48,8 +48,8 @@ typedef struct PcmsInterpolatorHandle PcmsInterpolatorHandle;
  * @note Uses default parameters of MLSMeshInterpolation.
  * @see MLSMeshInterpolation
  */
-PcmsInterpolatorHandle pcms_create_interpolator(
-  PcmsInterpolatorOmega_hMeshHandle oh_mesh, double radius);
+PcmsInterpolatorHandle pcms_create_interpolator(PcmsOmegaHMeshHandle oh_mesh,
+                                                double radius);
 
 /**
  * @brief Create 2D point-based MLS interpolator for RBF interpolation
