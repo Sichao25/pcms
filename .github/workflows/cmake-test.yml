@@ -220,6 +220,7 @@ jobs:
       run: ctest --test-dir ${{ runner.temp }}/build-pcms --output-on-failure
 
     - name: Print Test
+      if: always()
       run: cat ${{ runner.temp }}/build-pcms/Testing/Temporary/LastTest.log
 
     - name: Test PCMS Installation
