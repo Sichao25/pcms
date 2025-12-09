@@ -118,7 +118,6 @@ redev::LOs ConstructPermutation(GlobalIDView<HostMemorySpace> local_gids,
       break;
   }
 
-  LO local_index = 0;
   redev::LOs permutation;
   permutation.reserve(local_gids.size());
   for (int e = 0; e < ent_offsets.size() - 1; ++e) {
