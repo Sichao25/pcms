@@ -30,7 +30,7 @@ set(INT_CAPI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/interpolator.h
 set_target_properties(pcms_interpolator_capi
   PROPERTIES PUBLIC_HEADERS "${INT_CAPI_HEADERS}"
              OUTPUT_NAME pcmsinterpolatorcapi
-             EXPORT_NAME interpolatorcapi)
+             EXPORT_NAME interpolator::capi)
 
 install(
   TARGETS pcms_capi pcms_interpolator_capi
