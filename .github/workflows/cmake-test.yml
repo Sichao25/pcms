@@ -82,7 +82,9 @@ jobs:
       with:
         repo-name: 'omega_h'
         repo-path: 'SCOREC/omega_h'
-        repo-ref: 'scorec-v11.0.0'
+        # set this to a version number when the following issue is closed
+        # https://github.com/SCOREC/omega_h/issues/195
+        repo-ref: 'f1eae45f11a166b3f01e2dace233643711ec92be'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
