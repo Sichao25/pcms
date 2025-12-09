@@ -234,5 +234,6 @@ jobs:
           -B ${{github.workspace}}/examples/external-usage-example/build \
           -S ${{github.workspace}}/examples/external-usage-example/ \
           -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
+          -DCMAKE_FIND_DEBUG_MODE=TRUE
 
         cmake --build ${{github.workspace}}/examples/external-usage-example/build
