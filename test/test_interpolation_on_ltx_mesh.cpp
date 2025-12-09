@@ -57,14 +57,22 @@ int main(const int argc, char* argv[])
   if (returnCode != 0)
     return returnCode;
 
+  printf("[INFO] degas2_mesh_filename=%s\n", degas2_mesh_filename.c_str());
+  printf("[INFO] ltx_mesh_base_filename=%s\n", ltx_mesh_base_filename.c_str());
+  printf("[INFO] data_root_dir=%s\n", data_root_dir.c_str());
+
   return session.run(argc, argv);
 }
 
 TEST_CASE("Test Interpolation on LTX Mesh", "[interpolation]")
 {
   // ---------------------------- Loading Mesh ------------------- //
+  printf("[INFO] Creating Omega_h Library\n");
   auto lib = Omega_h::Library{};
+  printf("[INFO] Creating Omega_h mesh\n");
   Omega_h::Mesh degas2_mesh(&lib);
+  printf("[INFO] Reading binary mesh with name %s\n",
+         degas2_mesh_filename.c_str());
   Omega_h::binary::read(degas2_mesh_filename, lib.world(), &degas2_mesh);
 
   // --------------------- Initialize Interpolators -------------- //
