@@ -145,7 +145,7 @@ jobs:
       with:
         repo-name: 'redev'
         repo-path: 'SCOREC/redev'
-        repo-ref: 'v4.3.1'
+        repo-ref: '1452ec290dc6f8638019e342758325611e16ad77'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
