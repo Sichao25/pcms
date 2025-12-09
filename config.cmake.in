@@ -3,6 +3,7 @@
 include(CMakeFindDependencyMacro)
 find_dependency(redev CONFIG HINTS @redev_DIR@)
 find_dependency(Kokkos CONFIG HINTS @Kokkos_DIR@)
+find_dependency(KokkosKernels CONFIG HINTS @KokkosKernels_DIR@)
 find_dependency(meshfields CONFIG HINTS @meshfields_DIR@)
 find_dependency(ADIOS2 CONFIG HINTS @ADIOS2_DIR@)
 find_dependency(MPI)
