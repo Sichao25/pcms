@@ -298,12 +298,9 @@ LocalizationHint OmegaHField2::GetLocalizationHint(
 
   auto coordinates = coordinate_view.GetCoordinates();
   Kokkos::View<Real* [2]> coords("coords", coordinates.size() / 2);
-  auto coordinates_host_tmp = Kokkos::create_mirror_view(coords);
-  Kokkos::deep_copy(
-    coordinates_host_tmp,
-    Kokkos::View<const Real**, HostMemorySpace>(
-      coordinates.data_handle(), coordinates.extent(0), coordinates.extent(1)));
-  Kokkos::deep_copy(coords, coordinates_host_tmp);
+  auto coordinates_host = Kokkos::View<const Real**, HostMemorySpace>(
+    coordinates.data_handle(), coordinates.extent(0), coordinates.extent(1));
+  deep_copy_mismatch_layouts(coords, coordinates_host);
   auto results = search_(coords);
   Kokkos::View<GridPointSearch::Result*, HostMemorySpace> results_h(
     "results_h", results.size());
@@ -330,19 +327,13 @@ void OmegaHField2::Evaluate(LocalizationHint location,
 
   Kokkos::View<Real**> coordinates_d(
     "coordinates_d", hint.coordinates_.extent(0), hint.coordinates_.extent(1));
-  auto coordinates_host_tmp = Kokkos::create_mirror_view(coordinates_d);
-  Kokkos::deep_copy(coordinates_host_tmp, hint.coordinates_);
-  Kokkos::deep_copy(coordinates_d, coordinates_host_tmp);
+  deep_copy_mismatch_layouts(coordinates_d, hint.coordinates_);
   Kokkos::View<LO*> offsets_d("offsets_d", hint.offsets_.extent(0));
   Kokkos::deep_copy(offsets_d, hint.offsets_);
   auto eval_results = mesh_field_->evaluate(coordinates_d, offsets_d);
-
-  auto eval_results_tmp =
-    Kokkos::create_mirror_view(Kokkos::HostSpace(), eval_results);
-  Kokkos::deep_copy(eval_results_tmp, eval_results);
   Kokkos::View<Real**, HostMemorySpace> eval_results_h(
-    "eval_results_h", eval_results_tmp.extent(0), eval_results_tmp.extent(1));
-  Kokkos::deep_copy(eval_results_h, eval_results_tmp);
+    "eval_results_h", eval_results.extent(0), eval_results.extent(1));
+  deep_copy_mismatch_layouts(eval_results_h, eval_results);
   Rank1View<Real, HostMemorySpace> values = results.GetValues();
   Kokkos::parallel_for(
     "CopyEvalResultsToValues",

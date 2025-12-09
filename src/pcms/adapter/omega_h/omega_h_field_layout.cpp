@@ -37,6 +37,8 @@ Omega_h::Write<Omega_h::GO> GetGidsHelper(LO total_ents,
   return owned_gids;
 }
 
+// this is a workaround to specify the parametric coordinates for MeshFields to
+// be replaced when https://github.com/SCOREC/meshFields/issues/70 is resolved
 struct ComputeVertexCoordsFunctor
 {
   Kokkos::View<Real**> dof_holder_coords_;
@@ -57,6 +59,8 @@ struct ComputeVertexCoordsFunctor
   }
 };
 
+// this is a workaround to specify the parametric coordinates for MeshFields to
+// be replaced when https://github.com/SCOREC/meshFields/issues/70 is resolved
 struct ComputeEdgeCoordsFunctor
 {
   Kokkos::View<Real**> dof_holder_coords_;
@@ -243,10 +247,7 @@ GlobalIDView<HostMemorySpace> OmegaHFieldLayout::GetGids() const
 CoordinateView<HostMemorySpace> OmegaHFieldLayout::GetDOFHolderCoordinates()
   const
 {
-  auto dof_holder_coords_device_tmp =
-    Kokkos::create_mirror_view(Kokkos::HostSpace(), dof_holder_coords_);
-  Kokkos::deep_copy(dof_holder_coords_device_tmp, dof_holder_coords_);
-  Kokkos::deep_copy(dof_holder_coords_host_, dof_holder_coords_device_tmp);
+  deep_copy_mismatch_layouts(dof_holder_coords_host_, dof_holder_coords_);
   Rank2View<const Real, HostMemorySpace> coords_view(
     dof_holder_coords_host_.data(), dof_holder_coords_host_.extent(0), 2);
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
