@@ -27,7 +27,7 @@ set_target_properties(pcms_interpolator PROPERTIES
         EXPORT_NAME interpolator)
 add_library(pcms::interpolator ALIAS pcms_interpolator)
 
-target_link_libraries(pcms_interpolator PUBLIC pcms::core Kokkos::kokkoskernels)
+target_link_libraries(pcms_interpolator PUBLIC pcms::core PRIVATE Kokkos::kokkoskernels)
 
 target_include_directories(pcms_interpolator INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
