@@ -244,7 +244,7 @@ TEST_CASE("uniform grid search")
     out_of_bounds = results_h(5);
     REQUIRE(out_of_bounds.dimensionality ==
             GridPointSearch2D::Result::Dimensionality::EDGE);
-    REQUIRE(out_of_bounds.element_id == 219);
+    REQUIRE(out_of_bounds.element_id == -219);
 
     out_of_bounds = results_h(6);
     REQUIRE(out_of_bounds.dimensionality ==

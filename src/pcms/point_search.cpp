@@ -3,17 +3,14 @@
 #include <bitset>
 
 // From
-// https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
+// https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
+template <Omega_h::Int dim>
 KOKKOS_INLINE_FUNCTION
-double distance_from_line(const double x0, const double y0, const double x1,
-                          const double y1, const double x2, const double y2)
+Omega_h::Real distance_from_line(const Omega_h::Vector<dim>& a, const Omega_h::Vector<dim>& b, const Omega_h::Vector<dim>& p)
 {
-  const Omega_h::Vector<2> p1 = {x1, y1};
-  const Omega_h::Vector<2> p2 = {x2, y2};
-  auto disp = p2 - p1;
-
-  return std::abs(disp[1] * x0 - disp[0] * y0 + x2 * y1 - y2 * x1) /
-         Omega_h::norm(disp);
+  Omega_h::Vector n = Omega_h::normalize(b - a);
+  Omega_h::Vector ap = a - p;
+  return Omega_h::norm(ap - (ap*n)*n);
 }
 
 // Law of Cosines, where a, b, c and gamma are defined here:
@@ -485,16 +482,8 @@ Kokkos::View<GridPointSearch2D::Result*> GridPointSearch2D::operator()(
           if (!normal_intersects_segment(point, vertex_a, vertex_b))
             continue;
 
-          const auto xa = vertex_a[0];
-          const auto ya = vertex_a[1];
-          const auto xb = vertex_b[0];
-          const auto yb = vertex_b[1];
-
-          const auto xp = point[0];
-          const auto yp = point[1];
-
           const auto distance_to_ab =
-            distance_from_line(xp, yp, xa, ya, xb, yb);
+            distance_from_line(vertex_a, vertex_b, point);
 
           if (distance_to_ab < distance_to_nearest) {
             dimensionality = GridPointSearch2D::Result::Dimensionality::EDGE;
