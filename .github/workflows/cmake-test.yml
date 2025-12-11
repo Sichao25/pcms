@@ -230,6 +230,13 @@ jobs:
       run: |
         # Configure and build the test
         # it should only ask for pcms_DIR/ROOT to find all dependencies
+        ls ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms
+        echo "-------- PCMS CONFIG -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-config.cmake
+        echo "-------- PCMS TARGETS -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-targets.cmake
+        echo "-------- PCMS INTERPOLATOR TARGETS -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms_interpolator-targets.cmake
         cmake \
           -B ${{github.workspace}}/examples/external-usage-example/build \
           -S ${{github.workspace}}/examples/external-usage-example/ \
