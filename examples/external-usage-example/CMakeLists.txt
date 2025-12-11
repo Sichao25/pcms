@@ -13,4 +13,4 @@ add_executable(pcms_test main.cpp)
 
 # Link the pcms library to the executable Other target names cound be found in
 # your installation's <pcms install dir>/lib64/cmake/pcms/pcms-targets.cmake
-target_link_libraries(pcms_test PUBLIC pcms::pcms pcms::interpolator)
+target_link_libraries(pcms_test PUBLIC pcms::pcms)
