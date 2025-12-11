@@ -22,7 +22,7 @@ set_target_properties(pcms_interpolator_fortranapi PROPERTIES Fortran_MODULE_DIR
         EXPORT_NAME interpolatorfortranapi)
 target_include_directories(pcms_interpolator_fortranapi PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:pcms::interpolator::fortranapi,Fortran_MODULE_DIRECTORY>>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}/fortran>)
-target_link_libraries(pcms_interpolator_fortranapi PRIVATE pcms::interpolator::capi PUBLIC Kokkos::kokkos)
+target_link_libraries(pcms_interpolator_fortranapi PRIVATE pcms::capi::interpolator PUBLIC Kokkos::kokkos)
 
 INSTALL(DIRECTORY $<TARGET_PROPERTY:pcms::fortranapi,Fortran_MODULE_DIRECTORY>
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
