@@ -398,7 +398,7 @@ if(Catch2_FOUND)
   endif()
   add_executable(unit_tests ${PCMS_UNIT_TEST_SOURCES})
   target_link_libraries(unit_tests PUBLIC Catch2::Catch2 pcms::core
-                                          pcms_interpolator)
+                                          pcms_interpolator Kokkos::kokkoskernels)
   target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
   add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
@@ -530,6 +530,8 @@ if(PCMS_ENABLE_Fortran)
       1)
   endif()
 endif()
+
+find_package(KokkosKernels REQUIRED)
 
 add_executable(xgc_n0_server xgc_n0_coupling_server.cpp)
 target_link_libraries(xgc_n0_server PUBLIC pcms::core test_support)
