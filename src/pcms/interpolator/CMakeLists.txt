@@ -26,6 +26,7 @@ set_target_properties(pcms_interpolator PROPERTIES
         OUTPUT_NAME pcmsinterpolator
         EXPORT_NAME interpolator)
 add_library(pcms::interpolator ALIAS pcms_interpolator)
+target_compile_features(pcms_interpolator PUBLIC cxx_std_17)
 
 target_link_libraries(pcms_interpolator PUBLIC pcms::core PRIVATE Kokkos::kokkoskernels)
 
