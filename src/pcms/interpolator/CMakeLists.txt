@@ -38,14 +38,13 @@ target_include_directories(pcms_interpolator INTERFACE
 
 install(
   TARGETS pcms_interpolator
-  EXPORT interpolatorTargets
+  EXPORT pcms_interpolator-targets
   INCLUDES
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pcms/interpolator
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 
 install(
-    EXPORT interpolatorTargets
-    FILE pcms_interpolator-targets.cmake
+    EXPORT pcms_interpolator-targets
     NAMESPACE pcms::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/pcms)
