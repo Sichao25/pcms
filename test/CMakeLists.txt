@@ -378,7 +378,7 @@ if(Catch2_FOUND)
   if(PCMS_ENABLE_OMEGA_H)
     add_executable(field_transfer_example field_transfer_example.cpp)
     target_link_libraries(field_transfer_example PUBLIC pcms::core
-                                                        pcms_interpolator)
+                                                        pcms::interpolator)
     list(
       APPEND
       PCMS_UNIT_TEST_SOURCES
@@ -398,13 +398,13 @@ if(Catch2_FOUND)
   endif()
   add_executable(unit_tests ${PCMS_UNIT_TEST_SOURCES})
   target_link_libraries(unit_tests PUBLIC Catch2::Catch2 pcms::core
-                                          pcms_interpolator Kokkos::kokkoskernels)
+                                          pcms::interpolator Kokkos::kokkoskernels)
   target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
   add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
   target_link_libraries(test_interpolation_on_ltx_mesh PUBLIC Catch2::Catch2WithMain
                                                         pcms::core
-                                                        pcms_interpolator)
+                                                        pcms::interpolator)
   target_include_directories(test_interpolation_on_ltx_mesh PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   add_test(NAME test_interpolation_on_ltx_mesh
           COMMAND test_interpolation_on_ltx_mesh
@@ -495,7 +495,7 @@ if(PCMS_ENABLE_Fortran)
   add_executable(test_interpolation_fortran_api
                  test_interpolation.f90)
   target_link_libraries(test_interpolation_fortran_api
-                        PUBLIC pcms::interpolator::fortranapi)
+                        PUBLIC pcms::fortranapi::interpolator)
   set_target_properties(test_interpolation_fortran_api
                        PROPERTIES LINKER_LANGUAGE Fortran)
   add_test(
