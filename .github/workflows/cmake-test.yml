@@ -227,6 +227,7 @@ jobs:
       run: ctest --test-dir ${{ runner.temp }}/build-pcms --output-on-failure
 
     - name: Print Test
+      if: always()
       run: cat ${{ runner.temp }}/build-pcms/Testing/Temporary/LastTest.log
 
     - name: Test PCMS Installation
@@ -234,9 +235,17 @@ jobs:
       run: |
         # Configure and build the test
         # it should only ask for pcms_DIR/ROOT to find all dependencies
+        ls ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms
+        echo "-------- PCMS CONFIG -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-config.cmake
+        echo "-------- PCMS TARGETS -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-targets.cmake
+        echo "-------- PCMS INTERPOLATOR TARGETS -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms_interpolator-targets.cmake
+        export VERBOSE=1
         cmake \
           -B ${{github.workspace}}/examples/external-usage-example/build \
           -S ${{github.workspace}}/examples/external-usage-example/ \
           -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
-
+          --debug-output
         cmake --build ${{github.workspace}}/examples/external-usage-example/build
