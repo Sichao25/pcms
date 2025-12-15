@@ -43,7 +43,7 @@ jobs:
                   -DKokkos_ENABLE_OPENMP=OFF
                   -DKokkos_ENABLE_CUDA=ON
                   -DKokkos_ENABLE_CUDA_LAMBDA=ON
-                  -DCMAKE_CXX_COMPILER=${{ runner.temp }}/kokkos/bin/nvcc_wrapper
+                  -DCMAKE_CXX_COMPILER=${{ runner.temp }}/kokkos-cuda/bin/nvcc_wrapper
                   -DKokkos_ENABLE_CUDA_CONSTEXPR=ON'
 
     - name: build kokkos-kernels
@@ -54,7 +54,7 @@ jobs:
         repo-ref: '4.6.01'
         cache: true
         options: '-DBUILD_SHARED_LIBS=OFF
-                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos'
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos-cuda/install/lib/cmake/Kokkos'
 
     - name: build omega_h
       uses: ./.github/actions/install-repo
@@ -71,7 +71,7 @@ jobs:
                   -DOmega_h_CUDA_ARCH=80
                   -DBUILD_TESTING=OFF
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
-                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos'
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos-cuda/install/lib/cmake/Kokkos'
 
     - name: build meshFields
       uses: ./.github/actions/install-repo
@@ -83,8 +83,8 @@ jobs:
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
-                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos
-                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h'
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos-cuda/install/lib/cmake/Kokkos
+                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h-cuda/install/lib/cmake/Omega_h'
 
     - name: build perfstubs
       uses: ./.github/actions/install-repo
@@ -109,7 +109,7 @@ jobs:
                   -DBUILD_TESTING=OFF
                   -DFLCL_BUILD_TESTS=OFF
                   -DFLCL_BUILD_EXAMPLE=OFF
-                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos'
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos-cuda/install/lib/cmake/Kokkos'
 
     - name: build ADIOS2
       uses: ./.github/actions/install-repo
@@ -131,15 +131,15 @@ jobs:
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
                   -DCMAKE_BUILD_TYPE=Release
                   -DBUILD_SHARED_LIBS=OFF
-                  -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2
-                  -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake'
+                  -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2-cuda/install/lib/cmake/adios2
+                  -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs-cuda/install/lib/cmake'
 
     - name: clone petsc
       id: clone-petsc
       run: |
         cd ${{ runner.temp }}
-        git clone -b v3.24.2 https://gitlab.com/petsc/petsc.git petsc
-        cd petsc
+        git clone -b v3.24.2 https://gitlab.com/petsc/petsc.git petsc-cuda
+        cd petsc-cuda
         echo "petsc-commit-hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
     - name: Cache PETSc
@@ -152,11 +152,11 @@ jobs:
     - name: build petsc
       if: steps.cache-petsc.outputs.cache-hit != 'true'
       run: |
-        cd ${{ runner.temp }}/petsc
+        cd ${{ runner.temp }}/petsc-cuda
         ./configure \
           PETSC_ARCH=ubuntu-kokkos \
-          --with-kokkos-dir="${{ runner.temp }}/build-kokkos/install/" \
-          --with-kokkos-kernels-dir="${{ runner.temp }}/build-kokkos-kernels/install/" \
+          --with-kokkos-dir="${{ runner.temp }}/build-kokkos-cuda/install/" \
+          --with-kokkos-kernels-dir="${{ runner.temp }}/build-kokkos-kernels-cuda/install/" \
           --with-cuda=1 \
           --with-shared-libraries=0 \
           --download-fblaslapack
@@ -184,18 +184,18 @@ jobs:
                   -DCMAKE_Fortran_COMPILER=`which mpifort`
                   -DMPIEXEC_PREFLAGS="--oversubscribe"
                   -DPCMS_ENABLE_PETSC=ON
-                  -DPETSC_DIR=${{ runner.temp }}/petsc
+                  -DPETSC_DIR=${{ runner.temp }}/petsc-cuda
                   -DPETSC_ARCH=ubuntu-kokkos
                   -DPCMS_TIMEOUT=20
                   -DPCMS_ENABLE_SPDLOG=OFF
-                  -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2
-                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h
-                  -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields
-                  -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev
-                  -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop/install/lib/cmake/flcl
+                  -DCatch2_DIR=${{ runner.temp }}/build-Catch2-cuda/install/lib/cmake/Catch2
+                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h-cuda/install/lib/cmake/Omega_h
+                  -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields-cuda/install/lib/cmake/meshfields
+                  -Dredev_DIR=${{ runner.temp }}/build-redev-cuda/install/lib/cmake/redev
+                  -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop-cuda/install/lib/cmake/flcl
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
-                  -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2
-                  -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake
-                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos
-                  -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels/install/lib/cmake/KokkosKernels/
+                  -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2-cuda/install/lib/cmake/adios2
+                  -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs-cuda/install/lib/cmake
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos-cuda/install/lib/cmake/Kokkos
+                  -DKokkosKernels_DIR=${{ runner.temp }}/build-kokkos-kernels-cuda/install/lib/cmake/KokkosKernels/
                   -DPCMS_TEST_DATA_DIR=$PWD/pcms_testcases'
