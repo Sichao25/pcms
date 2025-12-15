@@ -144,6 +144,85 @@ void adapt_radii(unsigned min_req_supports, unsigned max_allowed_supports,
   Kokkos::fence();
 }
 
+struct ScanSupportIdxFunctor
+{
+  Omega_h::Write<Omega_h::LO> support_ptr_l;
+  Omega_h::Write<Omega_h::LO> num_supports;
+
+  ScanSupportIdxFunctor(Omega_h::Write<Omega_h::LO> support_ptr_l_in,
+                        Omega_h::Write<Omega_h::LO> num_supports_in)
+    : support_ptr_l(support_ptr_l_in), num_supports(num_supports_in)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int& i, unsigned& update, const bool final) const
+  {
+    update += num_supports[i];
+    if (final) {
+      support_ptr_l[i + 1] = update;
+    }
+  }
+};
+
+struct FillSupportIdxFunctor
+{
+  const int dim;
+  const Omega_h::LO n_sources;
+  const Omega_h::Write<Omega_h::LO> support_ptr_l;
+  const Omega_h::Write<Omega_h::LO> supports_idx_l;
+  const Omega_h::Reals target_coords_l;
+  const Omega_h::Reals source_coords_l;
+  const Omega_h::Write<Omega_h::Real> radii2_l;
+
+  FillSupportIdxFunctor(int dim_in, Omega_h::LO n_sources_in,
+                        Omega_h::Write<Omega_h::LO> support_ptr_l_in,
+                        Omega_h::Write<Omega_h::LO> supports_idx_l_in,
+                        Omega_h::Reals target_coords_l_in,
+                        Omega_h::Reals source_coords_l_in,
+                        Omega_h::Write<Omega_h::Real> radii2_l_in)
+    : dim(dim_in),
+      n_sources(n_sources_in),
+      support_ptr_l(support_ptr_l_in),
+      supports_idx_l(supports_idx_l_in),
+      target_coords_l(target_coords_l_in),
+      source_coords_l(source_coords_l_in),
+      radii2_l(radii2_l_in)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int& target_id) const
+  {
+    auto target_radius2 = radii2_l[target_id];
+    auto target_coord = Omega_h::Vector<3>{0, 0, 0};
+    for (int d = 0; d < dim; ++d) {
+      target_coord[d] = target_coords_l[target_id * dim + d];
+    }
+
+    auto start_ptr = support_ptr_l[target_id];
+    auto end_ptr = support_ptr_l[target_id + 1];
+
+    for (int source_id = 0; source_id < n_sources; source_id++) {
+      auto source_coord = Omega_h::Vector<3>{0, 0, 0};
+      for (int d = 0; d < dim; ++d) {
+        source_coord[d] = source_coords_l[source_id * dim + d];
+      }
+      auto dist2 =
+        pointDistanceSquared(source_coord[0], source_coord[1], source_coord[2],
+                             target_coord[0], target_coord[1], target_coord[2]);
+      if (dist2 <= target_radius2) {
+        supports_idx_l[start_ptr] = source_id;
+        start_ptr++;
+        OMEGA_H_CHECK_PRINTF(
+          start_ptr <= end_ptr,
+          "Support index out of bounds:start %d end %d target_id %d\n",
+          start_ptr, end_ptr, target_id);
+      }
+    }
+  }
+};
+
 // TODO Merge this with distance based search like NeighborSearch for
 // consistency
 void MLSPointCloudInterpolation::fill_support_structure(
@@ -154,15 +233,8 @@ void MLSPointCloudInterpolation::fill_support_structure(
   auto support_ptr_l = Omega_h::Write<Omega_h::LO>(n_targets_ + 1, 0);
   unsigned total_supports = 0;
   Kokkos::fence();
-  Kokkos::parallel_scan(
-    "scan", n_targets_,
-    KOKKOS_LAMBDA(const int& i, unsigned& update, const bool final) {
-      update += num_supports[i];
-      if (final) {
-        support_ptr_l[i + 1] = update;
-      }
-    },
-    total_supports);
+  ScanSupportIdxFunctor scanFunctor(support_ptr_l, num_supports);
+  Kokkos::parallel_scan("scan", n_targets_, scanFunctor, total_supports);
 
   pcms::printInfo("Total supports found: %d\n", total_supports);
   // resize the support index
@@ -174,35 +246,10 @@ void MLSPointCloudInterpolation::fill_support_structure(
   const auto target_coords_l = target_coords_;
   const auto source_coords_l = source_coords_;
   const auto n_sources = n_sources_;
-  Kokkos::parallel_for(
-    "fill support index", n_targets_, KOKKOS_LAMBDA(const int& target_id) {
-      auto target_radius2 = radii2_l[target_id];
-      auto target_coord = Omega_h::Vector<3>{0, 0, 0};
-      for (int d = 0; d < dim; ++d) {
-        target_coord[d] = target_coords_l[target_id * dim + d];
-      }
-
-      auto start_ptr = support_ptr_l[target_id];
-      auto end_ptr = support_ptr_l[target_id + 1];
-
-      for (int source_id = 0; source_id < n_sources; source_id++) {
-        auto source_coord = Omega_h::Vector<3>{0, 0, 0};
-        for (int d = 0; d < dim; ++d) {
-          source_coord[d] = source_coords_l[source_id * dim + d];
-        }
-        auto dist2 = pointDistanceSquared(source_coord[0], source_coord[1],
-                                          source_coord[2], target_coord[0],
-                                          target_coord[1], target_coord[2]);
-        if (dist2 <= target_radius2) {
-          support_idx_l[start_ptr] = source_id;
-          start_ptr++;
-          OMEGA_H_CHECK_PRINTF(
-            start_ptr <= end_ptr,
-            "Support index out of bounds:start %d end %d target_id %d\n",
-            start_ptr, end_ptr, target_id);
-        }
-      }
-    });
+  FillSupportIdxFunctor fillSupportIdxFunctor(dim, n_sources, support_ptr_l,
+                                              support_idx_l, target_coords_l,
+                                              source_coords_l, radii2_l);
+  Kokkos::parallel_for("fill support index", n_targets_, fillSupportIdxFunctor);
   Kokkos::fence();
 
   // copy the support index to the supports
@@ -210,6 +257,54 @@ void MLSPointCloudInterpolation::fill_support_structure(
   supports_.supports_ptr = Omega_h::LOs(support_ptr_l);
   supports_.supports_idx = Omega_h::LOs(support_idx_l);
 }
+
+struct NSquareSearchFunctor
+{
+  const int dim;
+  const Omega_h::LO n_sources;
+  const Omega_h::Reals target_coords_l;
+  const Omega_h::Reals source_coords_l;
+  const Omega_h::Write<Omega_h::Real> radii2_l;
+  const Omega_h::Write<Omega_h::LO> num_supports_l;
+
+  NSquareSearchFunctor(int dim_in, Omega_h::LO n_sources_in,
+                       Omega_h::Reals target_coords_l_in,
+                       Omega_h::Reals source_coords_l_in,
+                       Omega_h::Write<Omega_h::Real> radii2_l_in,
+                       Omega_h::Write<Omega_h::LO> num_supports_l_in)
+    : dim(dim_in),
+      n_sources(n_sources_in),
+      target_coords_l(target_coords_l_in),
+      source_coords_l(source_coords_l_in),
+      radii2_l(radii2_l_in),
+      num_supports_l(num_supports_l_in)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int& target_id) const
+  {
+    auto target_coord = Omega_h::Vector<3>{0, 0, 0};
+    for (int d = 0; d < dim; ++d) {
+      target_coord[d] = target_coords_l[target_id * dim + d];
+    }
+    auto target_radius2 = radii2_l[target_id];
+
+    // TODO: parallel with kokkos parallel_for
+    for (int i = 0; i < n_sources; i++) {
+      auto source_coord = Omega_h::Vector<3>{0, 0, 0};
+      for (int d = 0; d < dim; ++d) {
+        source_coord[d] = source_coords_l[i * dim + d];
+      }
+      auto dist2 =
+        pointDistanceSquared(source_coord[0], source_coord[1], source_coord[2],
+                             target_coord[0], target_coord[1], target_coord[2]);
+      if (dist2 <= target_radius2) {
+        num_supports_l[target_id]++; // only one thread is updating
+      }
+    }
+  }
+};
 
 // use uniform grid based point search when available
 void MLSPointCloudInterpolation::distance_based_pointcloud_search(
@@ -222,30 +317,47 @@ void MLSPointCloudInterpolation::distance_based_pointcloud_search(
   const auto source_coords_l = source_coords_;
   const auto n_sources = n_sources_;
   const auto n_targets = n_targets_;
-  Kokkos::parallel_for(
-    "n^2 search", n_targets, KOKKOS_LAMBDA(const int& target_id) {
-      auto target_coord = Omega_h::Vector<3>{0, 0, 0};
-      for (int d = 0; d < dim; ++d) {
-        target_coord[d] = target_coords_l[target_id * dim + d];
-      }
-      auto target_radius2 = radii2_l[target_id];
-
-      // TODO: parallel with kokkos parallel_for
-      for (int i = 0; i < n_sources; ++i) {
-        auto source_coord = Omega_h::Vector<3>{0, 0, 0};
-        for (int d = 0; d < dim; ++d) {
-          source_coord[d] = source_coords_l[i * dim + d];
-        }
-        auto dist2 = pointDistanceSquared(source_coord[0], source_coord[1],
-                                          source_coord[2], target_coord[0],
-                                          target_coord[1], target_coord[2]);
-        if (dist2 <= target_radius2) {
-          num_supports[target_id]++; // only one thread is updating
-        }
-      }
-    });
+  NSquareSearchFunctor nSquareSearchFunctor(
+    dim, n_sources, target_coords_l, source_coords_l, radii2_l, num_supports);
+  Kokkos::parallel_for("n^2 search", n_targets, nSquareSearchFunctor);
   Kokkos::fence();
 }
+
+struct PrintTargetPointsFunctor
+{
+  const Omega_h::Reals target_coords_l;
+
+  PrintTargetPointsFunctor(Omega_h::Reals target_coords_l_in, int dim_in)
+    : target_coords_l(target_coords_l_in)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int& i) const
+  {
+    pcms::printDebugInfo("Target Point %d: (%f, %f)\n", i,
+                         target_coords_l[i * 2 + 0],
+                         target_coords_l[i * 2 + 1]);
+  }
+};
+
+struct PrintSourcePointsFunctor
+{
+  const Omega_h::Reals source_coords_l;
+
+  PrintSourcePointsFunctor(Omega_h::Reals source_coords_l_in)
+    : source_coords_l(source_coords_l_in)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int& i) const
+  {
+    pcms::printDebugInfo("Source Point %d: (%f, %f)\n", i,
+                         source_coords_l[i * 2 + 0],
+                         source_coords_l[i * 2 + 1]);
+  }
+};
 
 void MLSPointCloudInterpolation::find_supports(unsigned min_req_supports,
                                                unsigned max_allowed_supports,
@@ -254,19 +366,11 @@ void MLSPointCloudInterpolation::find_supports(unsigned min_req_supports,
   pcms::printDebugInfo("First 10 Target Points with %d points:\n", n_targets_);
   const auto target_coords_l = target_coords_;
   const auto source_coords_l = source_coords_;
-  Omega_h::parallel_for(
-    "print target points", 10, OMEGA_H_LAMBDA(const int& i) {
-      pcms::printDebugInfo("Target Point %d: (%f, %f)\n", i,
-                           target_coords_l[i * 2 + 0],
-                           target_coords_l[i * 2 + 1]);
-    });
+  PrintTargetPointsFunctor printTargetPointsFunctor(target_coords_l, dim_);
+  Kokkos::parallel_for("print target points", 10, printTargetPointsFunctor);
   pcms::printDebugInfo("First 10 Source Points with %d points:\n", n_sources_);
-  Omega_h::parallel_for(
-    "print source points", 10, OMEGA_H_LAMBDA(const int& i) {
-      pcms::printDebugInfo("Source Point %d: (%f, %f)\n", i,
-                           source_coords_l[i * 2 + 0],
-                           source_coords_l[i * 2 + 1]);
-    });
+  PrintSourcePointsFunctor printSourcePointsFunctor(source_coords_l);
+  Kokkos::parallel_for("print source points", 10, printSourcePointsFunctor);
 
   auto radii2_l = Omega_h::Write<Omega_h::Real>(n_targets_, radius_);
   auto num_supports = Omega_h::Write<Omega_h::LO>(n_targets_, 0);
