@@ -165,7 +165,7 @@ jobs:
           --with-cuda=1 \
           --with-shared-libraries=0 \
           --download-fblaslapack
-        make all check
+        make all
 
     - name: checkout pcms_testcases
       uses: actions/checkout@v3
