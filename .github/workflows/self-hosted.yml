@@ -45,6 +45,7 @@ jobs:
           module load cmake/3.30.5-5e54py4
           module load cuda/12.6.2-gqq65nw
           module load openblas/0.3.28-eubd5ed
+          export LD_LIBRARY_PATH=/opt/scorec/spack/rhel9/v0222_2/install/linux-rhel9-x86_64_v3/gcc-13.2.0/mpich-4.2.3-62uy3hdwqe75fjfskrrysco5i6gqjblv/lib:$LD_LIBRARY_PATH
           set -e
           EOF
 
