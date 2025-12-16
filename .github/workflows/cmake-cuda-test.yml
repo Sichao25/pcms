@@ -20,6 +20,9 @@ jobs:
     - name: Install CMake and ZLib
       run: apt update && apt install -y cmake git libopenmpi-dev openmpi-bin
 
+    - name: Setup Python
+      uses: actions/setup-python@v4
+
     - uses: actions/checkout@v4
 
     - name: build Catch2
@@ -29,10 +32,6 @@ jobs:
         repo-path: 'catchorg/Catch2'
         repo-ref: 'v3.11.0'
         cache: true
-
-    - name: cehck path
-      run: |
-        ls -la $GITHUB_WORKSPACE
 
     - name: build kokkos
       uses: ./.github/actions/install-repo
