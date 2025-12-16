@@ -216,12 +216,6 @@ jobs:
           echo "- Kokkos CUDA: ${{ steps.build_pcms_kokkos_cuda.outcome }}" >> ./pr/message
           echo "" >> ./pr/message
           echo "[(details)](https://github.com/${{github.repository}}/actions/runs/${{ github.run_id }})" >> ./pr/message
-      - name: Upload Result
-        if: ${{ !cancelled() }} #upload unless the job was cancelled
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr
-          path: pr/
 
       - name: Cleanup
         if: ${{ !cancelled() }}
