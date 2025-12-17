@@ -1,6 +1,9 @@
 #ifndef PCMS_COUPLING_ASSERT_H
 #define PCMS_COUPLING_ASSERT_H
 #include <cassert>
+#include <exception>
+#include <string>
+#include <sstream>
 #include <mpi.h>
 
 // https://stackoverflow.com/questions/16683146/can-macros-be-overloaded-by-number-of-arguments
@@ -44,6 +47,51 @@
 
 namespace pcms
 {
+enum class error_level
+{
+  recoverable,   // safe to continue
+  resource_leak, // may cause resource leaks
+  fatal          // undefined or broken state
+};
+
+enum class error_mode
+{
+  return_code,
+  throw_exception,
+  abort
+};
+
+class exception : public std::exception
+{
+public:
+  exception(std::string message, int error_code = 0,
+            error_level level = error_level::fatal, std::string specific = {})
+    : error_code_(error_code), level_(level)
+  {
+    std::ostringstream oss;
+    oss << message;
+    if (!specific.empty())
+      oss << " | Details: " << specific;
+    if (error_code_ != 0)
+      oss << " | Error code: " << error_code_;
+    error_message_ = oss.str();
+  }
+
+  const char* what() const noexcept override { return error_message_.c_str(); }
+
+  int code() const noexcept { return error_code_; }
+  error_level level() const noexcept { return level_; }
+
+private:
+  std::string error_message_;
+  int error_code_;
+  error_level level_;
+};
+
+void set_error_mode(error_mode mode);
+void handle_error(const exception& e);
+void handle_mpi_error(const exception& e);
+
 // from scorec/core/pcu_fail.h
 void Pcms_Assert_Fail(const char* msg) __attribute__((noreturn));
 } // namespace pcms
