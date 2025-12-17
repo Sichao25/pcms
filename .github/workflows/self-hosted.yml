@@ -184,9 +184,8 @@ jobs:
           git clone https://github.com/jacobmerson/pcms_testcases.git ${workDir}/pcms_testcases
 
           # pcms
-          git clone https://github.com/SCOREC/pcms.git ${workDir}/pcms
           bdir=${workDir}/build-pcms
-          cmake -S ${workDir}/pcms -B $bdir \
+          cmake -S ${{github.workspace}}/pcms_${{ github.event.id }} -B $bdir \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=mpicc \
             -DCMAKE_CXX_COMPILER=mpicxx \
