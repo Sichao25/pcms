@@ -82,7 +82,7 @@ jobs:
       with:
         repo-name: 'omega_h-openmpi'
         repo-path: 'SCOREC/omega_h'
-        repo-ref: 'scorec-v11.0.0'
+        repo-ref: '1765836a00b9a64b8b3791f1442ac52f147e43b2'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
@@ -98,7 +98,7 @@ jobs:
       with:
         repo-name: 'meshFields-openmpi'
         repo-path: 'SCOREC/meshFields'
-        repo-ref: ''
+        repo-ref: 'b1482bbba288df210784b2345eae08e34faabdc4'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
@@ -140,20 +140,26 @@ jobs:
         cache: true
         options: '-DADIOS2_USE_CUDA=OFF'
 
+    - name: clone petsc
+      id: clone-petsc
+      run: |
+        cd ${{ runner.temp }}
+        git clone -b v3.24.2 https://gitlab.com/petsc/petsc.git petsc-openmpi
+        cd petsc-openmpi
+        echo "petsc-commit-hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
     - name: Cache PETSc
       id: cache-petsc
       uses: actions/cache@v3
       with:
         path: ${{ runner.temp }}/petsc-openmpi
-        key: build-petsc-openmpi
+        key: build-petsc-openmpi-${{ steps.clone-petsc.outputs.petsc-commit-hash }}
     
     # PETSc check is removed due to a PETSc test failure using openmpi
     - name: build petsc
       if: steps.cache-petsc.outputs.cache-hit != 'true'
       run: |
-        cd ${{ runner.temp }}
-        git clone -b v3.24.2 https://gitlab.com/petsc/petsc.git petsc-openmpi
-        cd petsc-openmpi
+        cd ${{ runner.temp }}/petsc-openmpi
         ./configure \
           PETSC_ARCH=ubuntu-kokkos \
           --with-kokkos-dir="${{ runner.temp }}/build-kokkos-openmpi/install/" \
@@ -168,7 +174,7 @@ jobs:
       with:
         repo-name: 'redev-openmpi'
         repo-path: 'SCOREC/redev'
-        repo-ref: 'v4.3.1'
+        repo-ref: '1452ec290dc6f8638019e342758325611e16ad77'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
