@@ -1,6 +1,6 @@
 #include "point_cloud.h"
-#include "pcms/profile.h"
-#include "pcms/assert.h"
+#include "pcms/utility/profile.h"
+#include "pcms/utility/assert.h"
 
 namespace pcms
 {
