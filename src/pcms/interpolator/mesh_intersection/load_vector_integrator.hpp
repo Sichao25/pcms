@@ -165,7 +165,7 @@ struct IntegrationData
    */
   IntegrationData()
   {
-    auto ip_vec = MeshField::getIntegrationPoints(MeshField::Triangle, order);
+    auto ip_vec = MeshField::getIntegrationPoints<MeshField::Triangle>(order);
     std::size_t num_ip = ip_vec.size();
 
     bary_coords = Kokkos::View<MeshField::Vector3*>("bary_coords", num_ip);
