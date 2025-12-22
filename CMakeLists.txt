@@ -24,6 +24,7 @@ option(PCMS_ENABLE_CLIENT "enable the coupling client implementation" ON)
 option(PCMS_ENABLE_XGC "enable xgc field adapter" ON)
 option(PCMS_ENABLE_OMEGA_H "enable Omega_h field adapter" OFF)
 option(PCMS_ENABLE_C "Enable pcms C api" ON)
+option(PCMS_ENABLE_Python "Enable pcms Python api" OFF)
 
 option(PCMS_ENABLE_PRINT "PCMS print statements enabled" ON)
 option(PCMS_ENABLE_SPDLOG "use spdlog for logging" ON)
@@ -37,6 +38,10 @@ endif()
 # broken
 find_package(redev 4.3.0 REQUIRED)
 
+if (PCMS_ENABLE_Python)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
+  set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+endif ()
 if(PCMS_ENABLE_C)
   enable_language(C)
   option(PCMS_ENABLE_Fortran "Enable pcms fortran api" ON)
