@@ -23,9 +23,9 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
                                            pcms::CoordinateSystem::Cartesian);
   int ndata = layout->GetNumOwnedDofHolder() * num_components;
   Omega_h::HostWrite<Real> ids(ndata);
-  for (size_t i = 0; i < static_cast<size_t>(ndata); ++i) {
-    ids[i] = i;
-  }
+  Kokkos::parallel_for(
+    Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, ndata),
+    [=](int i) { ids[i] = i; });
 
   auto original = layout->CreateField();
   original->SetDOFHolderData(pcms::make_const_array_view(ids));
@@ -36,11 +36,12 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
 
   REQUIRE(copied_array.size() == ndata);
   int sum = 0;
-  for (size_t i = 0; i < static_cast<size_t>(ndata); ++i) {
-    if (std::abs(ids[i] - copied_array[i]) < 1e-12) {
-      sum++;
-    }
-  }
+  Kokkos::parallel_reduce(
+    Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, ndata),
+    [=](int i, int& local_sum) {
+      local_sum += std::abs(ids[i] - copied_array[i]) < 1e-12;
+    },
+    sum);
   REQUIRE(sum == ndata);
 }
 

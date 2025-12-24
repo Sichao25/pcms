@@ -33,7 +33,7 @@ public:
       "data_d", data.size());
     Kokkos::deep_copy(data_d, Kokkos::View<const Real*, HostMemorySpace>(
                                 data.data_handle(), data.size()));
-    Omega_h::parallel_for(
+    Kokkos::parallel_for(
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
           for (size_t c = 0; c < num_components; ++c) {
@@ -51,7 +51,7 @@ public:
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
     Kokkos::View<Real*, DefaultExecutionSpace::memory_space> data_d(
       "data_d", data.size());
-    Omega_h::parallel_for(
+    Kokkos::parallel_for(
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
           for (size_t c = 0; c < num_components; ++c) {
