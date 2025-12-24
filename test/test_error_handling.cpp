@@ -6,9 +6,7 @@
 int raise_error(int code)
 {
   if (code) {
-    pcms::handle_error(pcms::exception("Mesh validation failed", 1,
-                                       pcms::error_level::recoverable));
-
+    throw pcms::exception("Test exception", code, "Raising error for testing");
     return 1;
   }
   return 0;
