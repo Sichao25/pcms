@@ -11,6 +11,10 @@ namespace py = pybind11;
 namespace pcms {
 
 void bind_omega_h_field2(py::module& m) {
+  // Bind LocalizationHint
+  py::class_<LocalizationHint, std::shared_ptr<LocalizationHint>>(m, "LocalizationHint")
+    .def(py::init<>(), "Default constructor");
+  
   // Bind MeshFieldBackend interface
   py::class_<MeshFieldBackend, std::shared_ptr<MeshFieldBackend>>(m, "MeshFieldBackend")
     .def("evaluate", [](const MeshFieldBackend& self,
@@ -18,7 +22,14 @@ void bind_omega_h_field2(py::module& m) {
                        py::array_t<LO> offsets) {
       auto coords_view = numpy_to_kokkos_view_2d<Real>(local_coords);
       auto offsets_view = numpy_to_kokkos_view<LO>(offsets);
-      auto result = self.evaluate(coords_view, offsets_view);
+      auto coords_view_device = Kokkos::View<Real**>("coords_view_device", 
+                                                        coords_view.extent(0), 
+                                                        coords_view.extent(1));
+      Kokkos::deep_copy(coords_view_device, coords_view);
+      auto offsets_view_device = Kokkos::View<LO*>("offsets_view_device", 
+                                                        offsets_view.extent(0));
+      Kokkos::deep_copy(offsets_view_device, offsets_view);
+      auto result = self.evaluate(coords_view_device, offsets_view_device);
       
       // Convert result to numpy array
       Kokkos::View<Real**, HostMemorySpace> result_h("result_h", 
@@ -136,7 +147,7 @@ void bind_omega_h_field2(py::module& m) {
     .def("get_dof_holder_data", [](const OmegaHField2& self) {
       auto data = self.GetDOFHolderData();
       // Create a copy since we're returning to Python
-      py::array_t<Real> result = kokkos_view_to_numpy(data);
+      py::array_t<Real> result = view_to_numpy(data);
       return result;
     },
     "Get the DOF holder data")
@@ -152,7 +163,7 @@ void bind_omega_h_field2(py::module& m) {
   // Helper functions for creating views (if needed for testing)
   m.def("create_coordinate_view", [](py::array_t<Real> coordinates,
                                      const CoordinateSystem& coord_system) {
-    auto coords_view = numpy_to_view<const Real>(coordinates);
+    auto coords_view = numpy_to_view_2d<const Real>(coordinates);
     return CoordinateView<HostMemorySpace>(coord_system, coords_view);
   },
   py::arg("coordinates"),

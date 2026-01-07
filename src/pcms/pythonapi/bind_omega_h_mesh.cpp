@@ -5,6 +5,7 @@
 #include <Omega_h_file.hpp>
 #include <Omega_h_library.hpp>
 #include <Omega_h_build.hpp>
+#include <Omega_h_comm.hpp>
 #include "helpers.h"
 
 namespace py = pybind11;
@@ -20,69 +21,69 @@ void bind_omega_h_mesh_module(py::module& m) {
          "Get the world communicator");
   
   // Bind the Comm class
-  py::class_<Comm, std::shared_ptr<Comm>>(m, "Comm")
+  py::class_<Omega_h::Comm, std::shared_ptr<Omega_h::Comm>>(m, "Comm")
       // Constructors
 #ifdef OMEGA_H_USE_MPI
-      .def(py::init<Library*, MPI_Comm>(),
+      .def(py::init<Omega_h::Library*, MPI_Comm>(),
             py::arg("library"),
             py::arg("impl"))
-      .def(py::init([](Library* library, MPI_Comm impl, py::array_t<const pcms::I32> srcs,
-                       py::array_t<const pcms::I32> dsts) {
-        auto srcs_view = numpy_to_omega_h_read<const pcms::I32>(srcs);
-        auto dsts_view = numpy_to_omega_h_read<const pcms::I32>(dsts);
-        return new Comm(library, impl, srcs_view, dsts_view);
-      }),
-      .def("get_impl", &Comm::get_impl,
+      .def(py::init([](Omega_h::Library* library, MPI_Comm impl, py::array_t<const Omega_h::I32> srcs,
+                       py::array_t<const Omega_h::I32> dsts) {
+        auto srcs_view = numpy_to_omega_h_read<Omega_h::I32>(srcs);
+        auto dsts_view = numpy_to_omega_h_read<Omega_h::I32>(dsts);
+        return new Omega_h::Comm(library, impl, srcs_view, dsts_view);
+      }))
+      .def("get_impl", &Omega_h::Comm::get_impl,
             "Get the underlying MPI communicator")
 #else
-      .def(py::init<Library*, bool, bool>(),
+      .def(py::init<Omega_h::Library*, bool, bool>(),
             py::arg("library"),
             py::arg("is_graph"),
             py::arg("sends_to_self"))
 #endif
       // Methods
-      .def("library", &Comm::library,
+      .def("library", &Omega_h::Comm::library,
             py::return_value_policy::reference,
             "Get the library pointer")
-      .def("rank", &Comm::rank,
+      .def("rank", &Omega_h::Comm::rank,
             "Get the rank of this process")
-      .def("size", &Comm::size,
+      .def("size", &Omega_h::Comm::size,
             "Get the total number of processes")
-      .def("dup", &Comm::dup,
+      .def("dup", &Omega_h::Comm::dup,
             "Duplicate the communicator")
-      .def("split", &Comm::split,
+      .def("split", &Omega_h::Comm::split,
             py::arg("color"),
             py::arg("key"),
             "Split the communicator")
-      .def("graph", &Comm::graph,
+      .def("graph", &Omega_h::Comm::graph,
             py::arg("dsts"),
             "Create a graph communicator")
-      .def("graph_adjacent", &Comm::graph_adjacent,
+      .def("graph_adjacent", &Omega_h::Comm::graph_adjacent,
             py::arg("srcs"),
             py::arg("dsts"),
             "Create an adjacent graph communicator")
-      .def("graph_inverse", &Comm::graph_inverse,
+      .def("graph_inverse", &Omega_h::Comm::graph_inverse,
             "Get the inverse graph communicator")
-      .def("sources", &Comm::sources,
+      .def("sources", &Omega_h::Comm::sources,
             "Get source ranks")
-      .def("destinations", &Comm::destinations,
+      .def("destinations", &Omega_h::Comm::destinations,
             "Get destination ranks")
-      .def("reduce_or", &Comm::reduce_or,
+      .def("reduce_or", &Omega_h::Comm::reduce_or,
             py::arg("x"),
             "Reduce using logical OR")
-      .def("reduce_and", &Comm::reduce_and,
+      .def("reduce_and", &Omega_h::Comm::reduce_and,
             py::arg("x"),
             "Reduce using logical AND")
-      .def("add_int128", &Comm::add_int128,
+      .def("add_int128", &Omega_h::Comm::add_int128,
             py::arg("x"),
             "Add Int128 values across processes")
-      .def("bcast_string", &Comm::bcast_string,
+      .def("bcast_string", &Omega_h::Comm::bcast_string,
             py::arg("s"),
             py::arg("root_rank") = 0,
             "Broadcast a string")
-      .def("barrier", &Comm::barrier,
+      .def("barrier", &Omega_h::Comm::barrier,
             "Synchronize all processes");
-  m.def("build_box", &build_box,
+  m.def("build_box", &Omega_h::build_box,
         py::arg("comm"),
         py::arg("family"),
         py::arg("x"),

@@ -4,7 +4,6 @@
 #include <pybind11/numpy.h>
 #include "pcms/adapter/xgc/xgc_field_adapter.h"
 #include "helpers.h"
-#include "pcms/pythonapi/pythonapi.h"
 
 namespace py = pybind11;
 

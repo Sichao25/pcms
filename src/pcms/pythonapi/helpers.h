@@ -38,7 +38,7 @@ py::array_t<T> view_to_numpy(Rank1View<T, HostMemorySpace> view) {
   return py::array_t<T>(
     {static_cast<py::ssize_t>(view.size())},
     {sizeof(T)},
-    view.data(),
+    view.data_handle(),
     py::cast(view)
   );
 }
@@ -84,8 +84,11 @@ Omega_h::Read<T> numpy_to_omega_h_read(py::array_t<T> arr) {
   if (buf.ndim != 1) {
     throw std::runtime_error("Number of dimensions must be 1");
   }
-  Omega_h::Read<T> read_view(
+  Kokkos::View<T*, Kokkos::DefaultExecutionSpace::memory_space,
+    Kokkos::MemoryTraits<Kokkos::Unmanaged>> view(
     reinterpret_cast<T*>(buf.ptr), buf.shape[0]);
+  Omega_h::Write<T> write_view(view);
+  Omega_h::Read<T> read_view(write_view);
   return read_view;
 }
 
@@ -95,7 +98,7 @@ py::array_t<T> omega_h_read_to_numpy(Omega_h::Read<T> read_view) {
   return py::array_t<T>(
     {static_cast<py::ssize_t>(read_view.size())},
     {sizeof(T)},
-    read_view.data(),
+    read_view.data_handle(),
     py::cast(read_view)
   );
 }
@@ -107,8 +110,9 @@ Omega_h::Write<T> numpy_to_omega_h_write(py::array_t<T> arr) {
   if (buf.ndim != 1) {
     throw std::runtime_error("Number of dimensions must be 1");
   }
-  Omega_h::Write<T> write_view(
+  Kokkos::View<T*, HostMemorySpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> view(
     reinterpret_cast<T*>(buf.ptr), buf.shape[0]);
+  Omega_h::Write<T> write_view(view);
   return write_view;
 }
 
@@ -118,7 +122,7 @@ py::array_t<T> omega_h_write_to_numpy(Omega_h::Write<T> write_view) {
   return py::array_t<T>(
     {static_cast<py::ssize_t>(write_view.size())},
     {sizeof(T)},
-    write_view.data(),
+    write_view.data_handle(),
     py::cast(write_view)
   );
 }
@@ -141,7 +145,7 @@ py::array_t<T> view_2d_to_numpy(Rank2View<T, HostMemorySpace> view) {
   return py::array_t<T>(
     {static_cast<py::ssize_t>(view.extent(0)), static_cast<py::ssize_t>(view.extent(1))},
     {sizeof(T) * view.extent(1), sizeof(T)},
-    view.data(),
+    view.data_handle(),
     py::cast(view)
   );
 }
