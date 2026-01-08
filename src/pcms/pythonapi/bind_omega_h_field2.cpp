@@ -11,9 +11,6 @@ namespace py = pybind11;
 namespace pcms {
 
 void bind_omega_h_field2(py::module& m) {
-  // Bind LocalizationHint
-  py::class_<LocalizationHint, std::shared_ptr<LocalizationHint>>(m, "LocalizationHint")
-    .def(py::init<>(), "Default constructor");
   
   // Bind MeshFieldBackend interface
   py::class_<MeshFieldBackend, std::shared_ptr<MeshFieldBackend>>(m, "MeshFieldBackend")

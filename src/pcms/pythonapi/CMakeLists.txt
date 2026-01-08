@@ -39,6 +39,8 @@ endif()
 pybind11_add_module(py_pcms 
   pythonapi.cpp
   bind_coordinate_and_field.cpp
+  bind_field_layout.cpp
+  bind_field.cpp
   bind_interpolation_base.cpp
   bind_omega_h_field2.cpp
   bind_omega_h_field_layout.cpp
@@ -51,7 +53,7 @@ target_include_directories(py_pcms
     ${mpi4py_INCLUDE_DIRS}
 )
 set_target_properties(py_pcms PROPERTIES CXX_STANDARD 17)
-target_link_libraries(py_pcms PRIVATE Kokkos::kokkos pybind11::module MPI::MPI_C pcms::core)
+target_link_libraries(py_pcms PRIVATE Kokkos::kokkos pybind11::module MPI::MPI_C pcms::core pcms::interpolator)
 
 
 

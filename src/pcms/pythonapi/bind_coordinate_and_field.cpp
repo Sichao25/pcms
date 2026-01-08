@@ -130,36 +130,14 @@ void bind_coordinate_module(py::module& m) {
 
 void bind_create_field_module(py::module& m) {
   // Bind CreateLagrangeLayout function
-  m.def("create_lagrange_layout",
-        [](Omega_h::Mesh& mesh, 
-           int order, 
-           int num_components,
-           CoordinateSystem coordinate_system) {
-          return CreateLagrangeLayout(mesh, order, num_components, coordinate_system);
-        },
+  m.def("create_lagrange_layout", 
+        &CreateLagrangeLayout,
         py::arg("mesh"),
         py::arg("order"),
         py::arg("num_components"),
         py::arg("coordinate_system"),
-        R"doc(
-        Create a Lagrange field layout
-        
-        Parameters
-        ----------
-        mesh : OmegaHMesh
-            The mesh to create the layout on
-        order : int
-            The polynomial order of the Lagrange elements
-        num_components : int
-            Number of components per DOF
-        coordinate_system : CoordinateSystem
-            The coordinate system for the field
-        
-        Returns
-        -------
-        FieldLayout
-            A unique pointer to the created field layout
-        )doc");
+        py::return_value_policy::take_ownership,
+        py::keep_alive<0, 1>());
 }
 
 } // namespace pcms

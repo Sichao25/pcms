@@ -294,12 +294,6 @@ void bind_omega_h_mesh_module(py::module& m) {
         .value("MIXED", OMEGA_H_MIXED)
         .export_values();  // This allows using values without the class prefix
   
-  // Bind Omega_h_Family enum
-  py::enum_<Omega_h_Family>(m, "OmegaHFamily")
-    .value("SIMPLEX", OMEGA_H_SIMPLEX)
-    .value("HYPERCUBE", OMEGA_H_HYPERCUBE)
-    .export_values();
-  
   // Bind Omega_h_Parting enum
   py::enum_<Omega_h_Parting>(m, "OmegaHParting")
     .value("ELEM_BASED", OMEGA_H_ELEM_BASED)

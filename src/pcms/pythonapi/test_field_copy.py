@@ -6,40 +6,53 @@ def test_copy(world, dim, order, num_components):
     nx = 100
     ny = 100 if dim > 1 else 0
     nz = 100 if dim > 2 else 0
+    print(f"\nStarting test: dim={dim}, order={order}, num_components={num_components}")
     
     # Build mesh
     mesh = py_pcms.build_box(
         world, 
-        py_pcms.OMEGA_H_SIMPLEX, 
+        py_pcms.Family.SIMPLEX, 
         1.0, 1.0, 1.0, 
         nx, ny, nz, 
         False
     )
+    print(f"  Built {dim}D mesh with {nx}x{ny}x{nz} elements")
+    print(f"  Mesh type: {type(mesh)}")
+    print(f"  Mesh object: {mesh}")
     
     # Create layout
-    layout = py_pcms.CreateLagrangeLayout(
+    print("  About to create layout...")
+    layout = py_pcms.create_lagrange_layout(
         mesh, 
         order, 
         num_components,
         py_pcms.CoordinateSystem.Cartesian
     )
+    # IMPORTANT: Keep mesh reference alive - layout stores reference to mesh
+    layout._mesh = mesh
+    print(f"  Layout created successfully")
+    print(f"Testing dim={dim}, order={order}, num_components={num_components}...")
     
     # Get number of data points
-    ndata = layout.GetNumOwnedDofHolder() * num_components
+    ndata = layout.get_num_owned_dof_holder() * num_components
+    print(f"  Number of data points: {ndata}")
     
     # Create sequential array of IDs
     ids = np.arange(ndata, dtype=np.float64)
+    print(f"  Created array of IDs from 0 to {ndata-1}")
     
     # Create original field and set data
-    original = layout.CreateField()
-    original.SetDOFHolderData(ids)
+    original = layout.create_field()
+    original.set_dof_holder_data(ids)
+    print("  Set data in original field")
     
     # Create copied field and copy data
-    copied = layout.CreateField()
-    py_pcms.copy_field2(original, copied)
+    copied = layout.create_field()
+    py_pcms.copy_field2_Real(original, copied)
+    print("  Copied data to new field")
     
     # Get copied data
-    copied_array = copied.GetDOFHolderData()
+    copied_array = copied.get_dof_holder_data()
     
     # Verify the copy
     assert len(copied_array) == ndata, f"Expected {ndata} elements, got {len(copied_array)}"
@@ -57,11 +70,13 @@ def main():
     print("Testing copy omega_h_field2 data...")
     
     # Initialize Omega_h library
-    lib = py_pcms.Library()
+    lib = py_pcms.OmegaHLibrary()
     world = lib.world()
+    print("Initialized Omega_h library and world")
     
     # Run test cases
     test_copy(world, 2, 1, 1)
+    print("first passed")
     test_copy(world, 2, 2, 1)
     
     print("\nAll tests passed!")

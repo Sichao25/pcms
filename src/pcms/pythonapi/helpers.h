@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
+#include <Omega_h_array.hpp>
 #include "pcms/arrays.h"
 #include "pcms/types.h"
 
