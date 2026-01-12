@@ -43,6 +43,10 @@ jobs:
       run: sudo apt-get install -yq cmake
 
     - uses: actions/checkout@v4
+      with:
+        repository: SCOREC/pcms
+        ref: refs/pull/252/merge
+
 
     - name: build Catch2
       uses: ./.github/actions/install-repo
