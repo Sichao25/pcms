@@ -175,7 +175,7 @@ jobs:
       with:
         repo-name: 'redev-openmpi'
         repo-path: 'Sichao25/redev'
-        repo-ref: 'yus/debug'
+        repo-ref: 'main'
         cache: false
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
