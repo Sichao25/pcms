@@ -2,6 +2,7 @@
 #define PCMS_PARTITION_H
 #include "pcms/common.h"
 #include "pcms/profile.h"
+#include <redev_partition.h>
 
 namespace pcms
 {
