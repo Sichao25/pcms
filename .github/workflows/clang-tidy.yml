@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - yus/workflow_test
   pull_request:
     branches:
       - main
@@ -173,9 +174,9 @@ jobs:
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'redev-openmpi'
-        repo-path: 'SCOREC/redev'
-        repo-ref: '1452ec290dc6f8638019e342758325611e16ad77'
-        cache: true
+        repo-path: 'Sichao25/redev'
+        repo-ref: 'yus/debug'
+        cache: false
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
                   -DCMAKE_BUILD_TYPE=Release
