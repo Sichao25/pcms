@@ -54,7 +54,11 @@ if(PCMS_ENABLE_XGC)
   list(APPEND PCMS_HEADERS pcms/adapter/xgc/xgc_reverse_classification.h)
 endif()
 if(PCMS_ENABLE_OMEGA_H)
-  list(APPEND PCMS_SOURCES pcms/point_search.cpp)
+  list(APPEND PCMS_SOURCES 
+    pcms/point_search.cpp
+    pcms/adapter/uniform_grid/uniform_grid_field_layout.cpp
+    pcms/adapter/uniform_grid/uniform_grid_field.cpp
+  )
   list(
     APPEND
     PCMS_HEADERS
@@ -63,6 +67,8 @@ if(PCMS_ENABLE_OMEGA_H)
     pcms/transfer_field2.h
     pcms/uniform_grid.h
     pcms/point_search.h
+    pcms/adapter/uniform_grid/uniform_grid_field_layout.h
+    pcms/adapter/uniform_grid/uniform_grid_field.h
   )
 endif()
 

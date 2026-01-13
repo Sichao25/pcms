@@ -394,6 +394,7 @@ if(Catch2_FOUND)
       test_normalisation.cpp
       test_spline_interpolator.cpp
       test_svd_serial.cpp
+      test_uniform_grid_field.cpp
       test_interpolation_class.cpp)
   endif()
   add_executable(unit_tests ${PCMS_UNIT_TEST_SOURCES})
