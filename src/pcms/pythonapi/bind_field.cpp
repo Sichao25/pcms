@@ -99,17 +99,10 @@ void bind_field_module(py::module& m) {
          py::arg("coordinate_system"))
     .def("size", &FieldDataView<Real, HostMemorySpace>::Size)
     .def("get_coordinate_system", &FieldDataView<Real, HostMemorySpace>::GetCoordinateSystem)
-    .def("get_values", 
-         py::overload_cast<>(&FieldDataView<Real, HostMemorySpace>::GetValues, py::const_));
-  
-  py::class_<FieldDataView<float, HostMemorySpace>>(m, "FieldDataView_Float")
-    .def(py::init<Rank1View<float, HostMemorySpace>, CoordinateSystem>(),
-         py::arg("values"),
-         py::arg("coordinate_system"))
-    .def("size", &FieldDataView<float, HostMemorySpace>::Size)
-    .def("get_coordinate_system", &FieldDataView<float, HostMemorySpace>::GetCoordinateSystem)
-    .def("get_values", 
-         py::overload_cast<>(&FieldDataView<float, HostMemorySpace>::GetValues, py::const_));
+    // TODO: const GetValues?
+    .def("get_values", [](FieldDataView<Real, HostMemorySpace>& self) {
+      return view_to_numpy(self.GetValues());
+    });
   
   // Bind FieldT for common types
   // bind_field_t<Real>(m, "Real");
