@@ -155,37 +155,20 @@ void bind_omega_h_mesh_module(py::module& m) {
          "Get global number of entities")
     
     .def("coords", [](const Omega_h::Mesh& mesh) {
-      auto coords = mesh.coords();
-      // Convert to numpy array
-      py::array_t<Omega_h::Real> result(coords.size());
-      auto buf = result.request();
-      Omega_h::Real* ptr = static_cast<Omega_h::Real*>(buf.ptr);
-      for (Omega_h::LO i = 0; i < coords.size(); ++i) {
-        ptr[i] = coords[i];
-      }
-      return result;
+     auto coords = mesh.coords();
+     return omega_h_read_to_numpy(coords);
     },
     "Get mesh coordinates as numpy array")
     
     .def("set_coords", [](Omega_h::Mesh& mesh, py::array_t<Omega_h::Real> coords) {
-      auto buf = coords.request();
-      Omega_h::Write<Omega_h::Real> coords_write(buf.size);
-      Omega_h::Real* ptr = static_cast<Omega_h::Real*>(buf.ptr);
-      for (Omega_h::LO i = 0; i < buf.size; ++i) {
-        coords_write[i] = ptr[i];
-      }
+      auto coords_write = numpy_to_omega_h_write<Omega_h::Real>(coords);
       mesh.set_coords(Omega_h::Reals(coords_write));
     },
     py::arg("coords"),
     "Set mesh coordinates from numpy array")
     
     .def("add_coords", [](Omega_h::Mesh& mesh, py::array_t<Omega_h::Real> coords) {
-      auto buf = coords.request();
-      Omega_h::Write<Omega_h::Real> coords_write(buf.size);
-      Omega_h::Real* ptr = static_cast<Omega_h::Real*>(buf.ptr);
-      for (Omega_h::LO i = 0; i < buf.size; ++i) {
-        coords_write[i] = ptr[i];
-      }
+      auto coords_write = numpy_to_omega_h_write<Omega_h::Real>(coords);
       mesh.add_coords(Omega_h::Reals(coords_write));
     },
     py::arg("coords"),
@@ -211,25 +194,13 @@ void bind_omega_h_mesh_module(py::module& m) {
     
     .def("ask_lengths", [](Omega_h::Mesh& mesh) {
       auto lengths = mesh.ask_lengths();
-      py::array_t<Omega_h::Real> result(lengths.size());
-      auto buf = result.request();
-      Omega_h::Real* ptr = static_cast<Omega_h::Real*>(buf.ptr);
-      for (Omega_h::LO i = 0; i < lengths.size(); ++i) {
-        ptr[i] = lengths[i];
-      }
-      return result;
+      return omega_h_read_to_numpy(lengths);
     },
     "Get edge lengths")
     
     .def("ask_qualities", [](Omega_h::Mesh& mesh) {
       auto qualities = mesh.ask_qualities();
-      py::array_t<Omega_h::Real> result(qualities.size());
-      auto buf = result.request();
-      Omega_h::Real* ptr = static_cast<Omega_h::Real*>(buf.ptr);
-      for (Omega_h::LO i = 0; i < qualities.size(); ++i) {
-        ptr[i] = qualities[i];
-      }
-      return result;
+      return omega_h_read_to_numpy(qualities);
     },
     "Get element qualities")
     
@@ -257,13 +228,7 @@ void bind_omega_h_mesh_module(py::module& m) {
     
     .def("owned", [](Omega_h::Mesh& mesh, Omega_h::Int ent_dim) {
       auto owned = mesh.owned(ent_dim);
-      py::array_t<Omega_h::I8> result(owned.size());
-      auto buf = result.request();
-      Omega_h::I8* ptr = static_cast<Omega_h::I8*>(buf.ptr);
-      for (Omega_h::LO i = 0; i < owned.size(); ++i) {
-        ptr[i] = owned[i];
-      }
-      return result;
+      return omega_h_read_to_numpy(owned);
     },
     py::arg("ent_dim"),
     "Get ownership flags for entities");

@@ -16,8 +16,8 @@ Rank1View<T, HostMemorySpace> numpy_to_view(py::array_t<T> arr) {
   if (buf.ndim != 1) {
     throw std::runtime_error("Number of dimensions must be 1");
   }
-  Rank1View<T, HostMemorySpace> view(
-    reinterpret_cast<T*>(buf.ptr), buf.shape[0]);
+  T* data_ptr = reinterpret_cast<T*>(buf.ptr);
+  Rank1View<T, HostMemorySpace> view(data_ptr, buf.shape[0]);
   return view;
 }
 
@@ -33,15 +33,19 @@ Kokkos::View<T*, HostMemorySpace> numpy_to_kokkos_view(py::array_t<T> arr) {
   return view;
 }
 
-// Helper function to convert Rank1 View to array
+// Helper function to convert Rank1 View to array (creates a copy)
 template<typename T>
-py::array_t<T> view_to_numpy(Rank1View<T, HostMemorySpace> view) {
-  return py::array_t<T>(
-    {static_cast<py::ssize_t>(view.size())},
-    {sizeof(T)},
-    view.data_handle(),
-    py::cast(view)
-  );
+py::array_t<typename std::remove_const<T>::type> view_to_numpy(Rank1View<T, HostMemorySpace> view) {
+  // Create a copy to avoid lifetime issues and mdspan type registration
+  using NonConstT = typename std::remove_const<T>::type;
+  py::array_t<NonConstT> result(view.size());
+  auto buf = result.request();
+  NonConstT* ptr = static_cast<NonConstT*>(buf.ptr);
+  // Use element-wise copy to ensure proper mdspan access
+  for (size_t i = 0; i < view.size(); ++i) {
+    ptr[i] = view[i];
+  }
+  return result;
 }
 
 // Helper function to convert Kokkos View to array
@@ -96,12 +100,14 @@ Omega_h::Read<T> numpy_to_omega_h_read(py::array_t<T> arr) {
 // Helper to convert Omega_h::Read to numpy array
 template<typename T>
 py::array_t<T> omega_h_read_to_numpy(Omega_h::Read<T> read_view) {
-  return py::array_t<T>(
-    {static_cast<py::ssize_t>(read_view.size())},
-    {sizeof(T)},
-    read_view.data_handle(),
-    py::cast(read_view)
-  );
+  auto read_view_host = Omega_h::HostRead<T>(read_view);
+  py::array_t<T> result(read_view_host.size());
+  auto buf = result.request();
+  T* ptr = static_cast<T*>(buf.ptr);
+  for (Omega_h::LO i = 0; i < read_view_host.size(); ++i) {
+    ptr[i] = read_view_host[i];
+  }
+  return result;
 }
 
 // Helper to convert 1D numpy array to Omega_h::Write
@@ -111,9 +117,13 @@ Omega_h::Write<T> numpy_to_omega_h_write(py::array_t<T> arr) {
   if (buf.ndim != 1) {
     throw std::runtime_error("Number of dimensions must be 1");
   }
-  Kokkos::View<T*, HostMemorySpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> view(
-    reinterpret_cast<T*>(buf.ptr), buf.shape[0]);
-  Omega_h::Write<T> write_view(view);
+  // Get host mirror and copy data
+  auto write_view_host = Omega_h::HostWrite<T>(buf.shape[0]);
+  T* ptr = static_cast<T*>(buf.ptr);
+  for (Omega_h::LO i = 0; i < buf.shape[0]; ++i) {
+    write_view_host[i] = ptr[i];
+  }
+  auto write_view = Omega_h::Write<T>(write_view_host);
   return write_view;
 }
 

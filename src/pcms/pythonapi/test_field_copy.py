@@ -28,8 +28,6 @@ def test_copy(world, dim, order, num_components):
         num_components,
         py_pcms.CoordinateSystem.Cartesian
     )
-    # IMPORTANT: Keep mesh reference alive - layout stores reference to mesh
-    layout._mesh = mesh
     print(f"  Layout created successfully")
     print(f"Testing dim={dim}, order={order}, num_components={num_components}...")
     
@@ -43,6 +41,7 @@ def test_copy(world, dim, order, num_components):
     
     # Create original field and set data
     original = layout.create_field()
+    print("  Created original field")
     original.set_dof_holder_data(ids)
     print("  Set data in original field")
     

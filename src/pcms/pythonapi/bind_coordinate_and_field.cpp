@@ -129,15 +129,18 @@ void bind_coordinate_module(py::module& m) {
 }
 
 void bind_create_field_module(py::module& m) {
-  // Bind CreateLagrangeLayout function
+  // Bind CreateLagrangeLayout function with shared_ptr wrapper
+  // pybind11 handles shared_ptr better than unique_ptr for Python ownership
   m.def("create_lagrange_layout", 
-        &CreateLagrangeLayout,
+        [](Omega_h::Mesh& mesh, int order, int num_components,
+           CoordinateSystem coordinate_system) {
+          return std::shared_ptr<FieldLayout>(
+            CreateLagrangeLayout(mesh, order, num_components, coordinate_system));
+        },
         py::arg("mesh"),
         py::arg("order"),
         py::arg("num_components"),
-        py::arg("coordinate_system"),
-        py::return_value_policy::take_ownership,
-        py::keep_alive<0, 1>());
+        py::arg("coordinate_system"));
 }
 
 } // namespace pcms

@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include "pcms/adapter/omega_h/omega_h_field_layout.h"
+#include "pcms/field.h"
 #include "pcms/field_layout.h"
 #include "helpers.h"
 
@@ -20,7 +21,9 @@ void bind_omega_h_field_layout_module(py::module& m) {
          py::arg("global_id_name") = "global",
          "Constructor for OmegaHFieldLayout")
     
-    .def("create_field", &OmegaHFieldLayout::CreateField,
+    .def("create_field", [](OmegaHFieldLayout& self) {
+           return std::shared_ptr<FieldT<Real>>(self.CreateField());
+         },
          "Create a field with this layout")
     
     .def("get_num_components", &OmegaHFieldLayout::GetNumComponents,

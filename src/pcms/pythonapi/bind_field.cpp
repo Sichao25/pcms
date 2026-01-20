@@ -44,11 +44,11 @@ void bind_field_t(py::module& m, const std::string& type_suffix) {
     py::arg("coordinate_system"),
     "Evaluate the gradient of the field")
     
-    // .def("get_dof_holder_data", [](const FieldT<T>& self) {
-    //   auto data = self.GetDOFHolderData();
-    //   return view_to_numpy(data);
-    // },
-    // "Get the DOF holder data")
+    .def("get_dof_holder_data", [](const FieldT<T>& self) {
+      auto data = self.GetDOFHolderData();
+      return view_to_numpy(data);
+    },
+    "Get the DOF holder data")
     
     .def("set_dof_holder_data", [](FieldT<T>& self, py::array_t<const T> data) {
       auto data_view = numpy_to_view<const T>(data);

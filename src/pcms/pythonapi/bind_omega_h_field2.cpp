@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
+#include "pcms/arrays.h"
 #include "pcms/adapter/omega_h/omega_h_field2.h"
 #include "pcms/adapter/omega_h/omega_h_field_layout.h"
 #include "helpers.h"
@@ -12,62 +13,66 @@ namespace pcms {
 
 void bind_omega_h_field2(py::module& m) {
   
-  // Bind MeshFieldBackend interface
-  py::class_<MeshFieldBackend, std::shared_ptr<MeshFieldBackend>>(m, "MeshFieldBackend")
-    .def("evaluate", [](const MeshFieldBackend& self,
-                       py::array_t<Real> local_coords,
-                       py::array_t<LO> offsets) {
-      auto coords_view = numpy_to_kokkos_view_2d<Real>(local_coords);
-      auto offsets_view = numpy_to_kokkos_view<LO>(offsets);
-      auto coords_view_device = Kokkos::View<Real**>("coords_view_device", 
-                                                        coords_view.extent(0), 
-                                                        coords_view.extent(1));
-      Kokkos::deep_copy(coords_view_device, coords_view);
-      auto offsets_view_device = Kokkos::View<LO*>("offsets_view_device", 
-                                                        offsets_view.extent(0));
-      Kokkos::deep_copy(offsets_view_device, offsets_view);
-      auto result = self.evaluate(coords_view_device, offsets_view_device);
+  // // Bind MeshFieldBackend interface
+  // py::class_<MeshFieldBackend, std::shared_ptr<MeshFieldBackend>>(m, "MeshFieldBackend")
+  //   .def("evaluate", [](const MeshFieldBackend& self,
+  //                      py::array_t<Real> local_coords,
+  //                      py::array_t<LO> offsets) {
+  //     auto coords_view = numpy_to_kokkos_view_2d<Real>(local_coords);
+  //     auto offsets_view = numpy_to_kokkos_view<LO>(offsets);
+  //     auto coords_view_device = Kokkos::View<Real**>("coords_view_device", 
+  //                                                       coords_view.extent(0), 
+  //                                                       coords_view.extent(1));
+  //     Kokkos::deep_copy(coords_view_device, coords_view);
+  //     auto offsets_view_device = Kokkos::View<LO*>("offsets_view_device", 
+  //                                                       offsets_view.extent(0));
+  //     Kokkos::deep_copy(offsets_view_device, offsets_view);
+  //     auto result = self.evaluate(coords_view_device, offsets_view_device);
       
-      // Convert result to numpy array
-      Kokkos::View<Real**, HostMemorySpace> result_h("result_h", 
-                                                      result.extent(0), 
-                                                      result.extent(1));
-      Kokkos::deep_copy(result_h, result);
-      return kokkos_view_2d_to_numpy(result_h);
-    },
-    py::arg("local_coords"),
-    py::arg("offsets"),
-    "Evaluate the field at local coordinates")
+  //     // Convert result to numpy array
+  //     Kokkos::View<Real**, HostMemorySpace> result_h("result_h", 
+  //                                                     result.extent(0), 
+  //                                                     result.extent(1));
+  //     Kokkos::deep_copy(result_h, result);
+  //     return kokkos_view_2d_to_numpy(result_h);
+  //   },
+  //   py::arg("local_coords"),
+  //   py::arg("offsets"),
+  //   "Evaluate the field at local coordinates")
     
-    .def("set_data", [](MeshFieldBackend& self,
-                       py::array_t<const Real> data,
-                       size_t num_nodes,
-                       size_t num_components,
-                       int dim) {
-      auto data_view = numpy_to_view<const Real>(data);
-      self.SetData(data_view, num_nodes, num_components, dim);
-    },
-    py::arg("data"),
-    py::arg("num_nodes"),
-    py::arg("num_components"),
-    py::arg("dim"),
-    "Set the field data")
+  //   .def("set_data", [](MeshFieldBackend& self,
+  //                      py::array_t<Real> data,
+  //                      size_t num_nodes,
+  //                      size_t num_components,
+  //                      int dim) {
+  //     // Ensure array is contiguous
+  //     auto contiguous_data = py::array_t<Real, py::array::c_style | py::array::forcecast>(data);
+  //     auto data_view = numpy_to_view<Real>(contiguous_data);
+  //     // Create const view for SetData
+  //     Rank1View<const Real, HostMemorySpace> const_view(data_view.data_handle(), data_view.size());
+  //     self.SetData(const_view, num_nodes, num_components, dim);
+  //   },
+  //   py::arg("data"),
+  //   py::arg("num_nodes"),
+  //   py::arg("num_components"),
+  //   py::arg("dim"),
+  //   "Set the field data")
     
-    .def("get_data", [](const MeshFieldBackend& self,
-                       size_t total_size,
-                       size_t num_nodes,
-                       size_t num_components,
-                       int dim) {
-      Kokkos::View<Real*, HostMemorySpace> data("data", total_size);
-      Rank1View<Real, HostMemorySpace> data_view(data.data(), data.extent(0));
-      self.GetData(data_view, num_nodes, num_components, dim);
-      return kokkos_view_to_numpy(data);
-    },
-    py::arg("total_size"),
-    py::arg("num_nodes"),
-    py::arg("num_components"),
-    py::arg("dim"),
-    "Get the field data");
+  //   .def("get_data", [](const MeshFieldBackend& self,
+  //                      size_t total_size,
+  //                      size_t num_nodes,
+  //                      size_t num_components,
+  //                      int dim) {
+  //     Kokkos::View<Real*, HostMemorySpace> data("data", total_size);
+  //     Rank1View<Real, HostMemorySpace> data_view(data.data(), data.extent(0));
+  //     self.GetData(data_view, num_nodes, num_components, dim);
+  //     return kokkos_view_to_numpy(data);
+  //   },
+  //   py::arg("total_size"),
+  //   py::arg("num_nodes"),
+  //   py::arg("num_components"),
+  //   py::arg("dim"),
+  //   "Get the field data");
 
   // Bind OmegaHField2 class
   py::class_<OmegaHField2, FieldT<Real>, std::shared_ptr<OmegaHField2>>(m, "OmegaHField2")
@@ -142,17 +147,20 @@ void bind_omega_h_field2(py::module& m) {
     "Deserialize field data from buffer")
     
     .def("get_dof_holder_data", [](const OmegaHField2& self) {
-      auto data = self.GetDOFHolderData();
-      // Create a copy since we're returning to Python
-      py::array_t<Real> result = view_to_numpy(data);
-      return result;
+      auto const_data = self.GetDOFHolderData();
+      // Create a numpy array that owns its own data
+      return view_to_numpy<const Real>(const_data);
     },
     "Get the DOF holder data")
     
     .def("set_dof_holder_data", [](OmegaHField2& self,
-                                   py::array_t<const Real> data) {
-      auto data_view = numpy_to_view<const Real>(data);
-      self.SetDOFHolderData(data_view);
+                                   py::array_t<Real> data) {
+      // Ensure array is contiguous
+      auto contiguous_data = py::array_t<Real>(data);
+      auto data_view = numpy_to_view<Real>(contiguous_data);
+      // Create const view wrapper
+      Rank1View<const Real, HostMemorySpace> const_view(data_view.data_handle(), data_view.size());
+      self.SetDOFHolderData(const_view);
     },
     py::arg("data"),
     "Set the DOF holder data");
