@@ -10,7 +10,7 @@ program test_interpolation
     type(PcmsInterpolatorHandle) :: interpolator, point_cloud_interpolator
     type(PcmsOmegaHMeshHandle) :: mesh
     type(PcmsOmegaHLibraryHandle) :: omega_h_lib
-    character(len=100) :: filename, num_faces_str, num_vertices_str
+    character(len=150) :: filename, num_faces_str, num_vertices_str
     real(8) :: radius
     integer :: num_faces, num_vertices
     integer :: i
