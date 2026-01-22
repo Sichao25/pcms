@@ -16,6 +16,57 @@
 using pcms::CreateUniformGridBinaryField;
 using pcms::CreateUniformGridFromMesh;
 
+// Helper function to initialize omega_h field data with f(x,y) = x + 2*y
+std::vector<pcms::Real> CreateOmegaHFieldData(
+  const pcms::CoordinateView<pcms::HostMemorySpace>& coords, int num_nodes) {
+  auto coords_data = coords.GetCoordinates();
+  std::vector<pcms::Real> omega_h_data(num_nodes);
+  for (int i = 0; i < num_nodes; ++i) {
+    pcms::Real x = coords_data(i, 0);
+    pcms::Real y = coords_data(i, 1);
+    omega_h_data[i] = x + 2.0 * y; // f(x,y) = x + 2y
+  }
+  return omega_h_data;
+}
+
+// Helper function to verify ug_field values
+void VerifyUniformGridFieldValues(
+  const pcms::UniformGrid<2>& grid,
+  const pcms::CoordinateView<pcms::HostMemorySpace>& ug_coords,
+  const pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>& ug_field_data) {
+  fprintf(stderr, "\nVerifying ug_field values:\n");
+  for (int j = 0; j <= grid.divisions[1]; ++j) {
+    for (int i = 0; i <= grid.divisions[0]; ++i) {
+      int vertex_id = j * (grid.divisions[0] + 1) + i;
+      pcms::Real x = ug_coords.GetCoordinates()(vertex_id, 0);
+      pcms::Real y = ug_coords.GetCoordinates()(vertex_id, 1);
+      pcms::Real expected = x + 2.0 * y;
+      pcms::Real actual = ug_field_data(vertex_id);
+      fprintf(
+        stderr,
+        "ug_field Vertex (%d, %d) at (%.2f, %.2f): expected %.4f, got %.4f\n",
+        i, j, x, y, expected, actual);
+      REQUIRE(std::abs(expected - actual) <= 1e-10);
+    }
+  }
+}
+
+// Helper function to verify mask field values
+void VerifyMaskFieldValues(
+  const pcms::UniformGrid<2>& grid,
+  const std::vector<int>& mask_field) {
+  fprintf(stderr, "\nVerifying mask_field values:\n");
+  auto mask_data = mask_field.data();
+  for (int j = 0; j < grid.divisions[1]; ++j) {
+    for (int i = 0; i < grid.divisions[0]; ++i) {
+      int cell_id = j * grid.divisions[0] + i;
+      int mask_value = mask_data[cell_id];
+      fprintf(stderr, "Cell (%d, %d): mask = %d\n", i, j, mask_value);
+      REQUIRE(mask_value == 1);
+    }
+  }
+}
+
 TEST_CASE("UniformGrid field creation")
 {
   // Create a simple 2D uniform grid
@@ -263,17 +314,9 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   auto omega_h_field = omega_h_layout->CreateField();
 
   // Initialize omega_h field with a simple function f(x,y) = x + 2*y
-  // Get coordinates from the layout
   auto coords = omega_h_layout->GetDOFHolderCoordinates();
-  auto coords_data = coords.GetCoordinates();
   int num_nodes = omega_h_layout->GetNumOwnedDofHolder();
-
-  std::vector<pcms::Real> omega_h_data(num_nodes);
-  for (int i = 0; i < num_nodes; ++i) {
-    pcms::Real x = coords_data(i, 0);
-    pcms::Real y = coords_data(i, 1);
-    omega_h_data[i] = x + 2.0 * y; // f(x,y) = x + 2y
-  }
+  std::vector<pcms::Real> omega_h_data = CreateOmegaHFieldData(coords, num_nodes);
 
   auto omega_h_data_view =
     pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
@@ -620,17 +663,9 @@ TEST_CASE("UniformGrid workflow")
   auto omega_h_field = omega_h_layout->CreateField();
 
   // Initialize omega_h field with a simple function f(x,y) = x + 2*y
-  // Get coordinates from the layout
   auto coords = omega_h_layout->GetDOFHolderCoordinates();
-  auto coords_data = coords.GetCoordinates();
   int num_nodes = omega_h_layout->GetNumOwnedDofHolder();
-
-  std::vector<pcms::Real> omega_h_data(num_nodes);
-  for (int i = 0; i < num_nodes; ++i) {
-    pcms::Real x = coords_data(i, 0);
-    pcms::Real y = coords_data(i, 1);
-    omega_h_data[i] = x + 2.0 * y; // f(x,y) = x + 2y
-  }
+  std::vector<pcms::Real> omega_h_data = CreateOmegaHFieldData(coords, num_nodes);
 
   auto omega_h_data_view =
     pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
@@ -642,67 +677,14 @@ TEST_CASE("UniformGrid workflow")
                                             pcms::CoordinateSystem::Cartesian);
   auto ug_field = ug_layout.CreateField();
 
-  auto coords_interpolation = ug_layout.GetDOFHolderCoordinates();
-  std::vector<pcms::Real> evaluation(
-    coords_interpolation.GetCoordinates().size() / 2);
-  auto evaluation_view = pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(
-    evaluation.data(), evaluation.size());
-  pcms::FieldDataView<pcms::Real, pcms::HostMemorySpace> data_view{
-    evaluation_view, omega_h_field->GetCoordinateSystem()};
-  auto locale = omega_h_field->GetLocalizationHint(coords_interpolation);
-  omega_h_field->Evaluate(locale, data_view);
-  auto evaluation_view_const =
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(evaluation.data(),
-                                                             evaluation.size());
-  ug_field->SetDOFHolderData(evaluation_view_const);
-
-  // Verify transferred data at grid vertices using evaluation array
+  // Transfer from omega_h field to uniform grid field using interpolation
+  pcms::interpolate_field2(*omega_h_field, *ug_field);
   auto ug_coords = ug_layout.GetDOFHolderCoordinates();
-  for (int j = 0; j < grid.divisions[1]; ++j) {
-    for (int i = 0; i < grid.divisions[0]; ++i) {
-      int vertex_id = j * (grid.divisions[0] + 1) + i;
-      pcms::Real x = ug_coords.GetCoordinates()(vertex_id, 0);
-      pcms::Real y = ug_coords.GetCoordinates()(vertex_id, 1);
-      pcms::Real expected = x + 2.0 * y;
-      pcms::Real actual = evaluation[vertex_id];
-      fprintf(stderr,
-              "Vertex (%d, %d) at (%.2f, %.2f): expected %.4f, got %.4f\n", i,
-              j, x, y, expected, actual);
-      if (std::abs(expected - actual) > 1e-10) {
-        throw std::runtime_error("Data mismatch at vertex (" +
-                                 std::to_string(i) + ", " + std::to_string(j) +
-                                 "): expected " + std::to_string(expected) +
-                                 ", got " + std::to_string(actual));
-      }
-    }
-  }
 
   // Verify ug_field values directly from the field object
-  fprintf(stderr, "\nVerifying ug_field values:\n");
   auto ug_field_data = ug_field->GetDOFHolderData();
-  for (int j = 0; j <= grid.divisions[1]; ++j) {
-    for (int i = 0; i <= grid.divisions[0]; ++i) {
-      int vertex_id = j * (grid.divisions[0] + 1) + i;
-      pcms::Real x = ug_coords.GetCoordinates()(vertex_id, 0);
-      pcms::Real y = ug_coords.GetCoordinates()(vertex_id, 1);
-      pcms::Real expected = x + 2.0 * y;
-      pcms::Real actual = ug_field_data(vertex_id);
-      fprintf(
-        stderr,
-        "ug_field Vertex (%d, %d) at (%.2f, %.2f): expected %.4f, got %.4f\n",
-        i, j, x, y, expected, actual);
-      REQUIRE(std::abs(expected - actual) <= 1e-10);
-    }
-  }
+  VerifyUniformGridFieldValues(grid, ug_coords, ug_field_data);
+
   // Verify mask field values
-  fprintf(stderr, "\nVerifying mask_field values:\n");
-  auto mask_data = mask_field.data();
-  for (int j = 0; j < grid.divisions[1]; ++j) {
-    for (int i = 0; i < grid.divisions[0]; ++i) {
-      int cell_id = j * grid.divisions[0] + i;
-      int mask_value = mask_data[cell_id];
-      fprintf(stderr, "Cell (%d, %d): mask = %d\n", i, j, mask_value);
-      REQUIRE(mask_value == 1);
-    }
-  }
+  VerifyMaskFieldValues(grid, mask_field);
 }
