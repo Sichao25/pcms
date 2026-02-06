@@ -1,0 +1,526 @@
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/numpy.h>
+#include <Omega_h_mesh.hpp>
+#include <Omega_h_file.hpp>
+#include <Omega_h_library.hpp>
+#include <Omega_h_build.hpp>
+#include <Omega_h_comm.hpp>
+#ifdef OMEGA_H_USE_ADIOS2
+#include <Omega_h_adios2.hpp>
+#endif
+#include "numpy_array_transform.h"
+
+namespace py = pybind11;
+
+namespace pcms {
+
+void bind_omega_h_mesh_module(py::module& m) {
+  // Bind Omega_h::Library
+  py::class_<Omega_h::Library, std::shared_ptr<Omega_h::Library>>(m, "OmegaHLibrary")
+    .def(py::init<>(), "Default constructor")
+    .def("world", &Omega_h::Library::world,
+         py::return_value_policy::reference,
+         "Get the world communicator");
+
+  // Bind the Comm class
+  py::class_<Omega_h::Comm, std::shared_ptr<Omega_h::Comm>>(m, "Comm")
+      // Constructors
+#ifdef OMEGA_H_USE_MPI
+      .def(py::init<Omega_h::Library*, MPI_Comm>(),
+            py::arg("library"),
+            py::arg("impl"))
+      .def(py::init([](Omega_h::Library* library, MPI_Comm impl, py::array_t<const Omega_h::I32> srcs,
+                       py::array_t<const Omega_h::I32> dsts) {
+        auto srcs_view = numpy_to_omega_h_read<Omega_h::I32>(srcs);
+        auto dsts_view = numpy_to_omega_h_read<Omega_h::I32>(dsts);
+        return new Omega_h::Comm(library, impl, srcs_view, dsts_view);
+      }))
+      .def("get_impl", &Omega_h::Comm::get_impl,
+            "Get the underlying MPI communicator")
+#else
+      .def(py::init<Omega_h::Library*, bool, bool>(),
+            py::arg("library"),
+            py::arg("is_graph"),
+            py::arg("sends_to_self"))
+#endif
+      // Methods
+      .def("library", &Omega_h::Comm::library,
+            py::return_value_policy::reference,
+            "Get the library pointer")
+      .def("rank", &Omega_h::Comm::rank,
+            "Get the rank of this process")
+      .def("size", &Omega_h::Comm::size,
+            "Get the total number of processes")
+      .def("dup", &Omega_h::Comm::dup,
+            "Duplicate the communicator")
+      .def("split", &Omega_h::Comm::split,
+            py::arg("color"),
+            py::arg("key"),
+            "Split the communicator")
+      .def("graph", &Omega_h::Comm::graph,
+            py::arg("dsts"),
+            "Create a graph communicator")
+      .def("graph_adjacent", &Omega_h::Comm::graph_adjacent,
+            py::arg("srcs"),
+            py::arg("dsts"),
+            "Create an adjacent graph communicator")
+      .def("graph_inverse", &Omega_h::Comm::graph_inverse,
+            "Get the inverse graph communicator")
+      .def("sources", &Omega_h::Comm::sources,
+            "Get source ranks")
+      .def("destinations", &Omega_h::Comm::destinations,
+            "Get destination ranks")
+      .def("reduce_or", &Omega_h::Comm::reduce_or,
+            py::arg("x"),
+            "Reduce using logical OR")
+      .def("reduce_and", &Omega_h::Comm::reduce_and,
+            py::arg("x"),
+            "Reduce using logical AND")
+      .def("add_int128", &Omega_h::Comm::add_int128,
+            py::arg("x"),
+            "Add Int128 values across processes")
+      .def("bcast_string", &Omega_h::Comm::bcast_string,
+            py::arg("s"),
+            py::arg("root_rank") = 0,
+            "Broadcast a string")
+      .def("barrier", &Omega_h::Comm::barrier,
+            "Synchronize all processes");
+  m.def("build_box", &Omega_h::build_box,
+        py::arg("comm"),
+        py::arg("family"),
+        py::arg("x"),
+        py::arg("y"),
+        py::arg("z"),
+        py::arg("nx"),
+        py::arg("ny"),
+        py::arg("nz"),
+        py::arg("symmetric") = false,
+        "Build a box mesh with specified dimensions and discretization",
+        py::return_value_policy::move);
+
+  // Bind Omega_h::Mesh
+  py::class_<Omega_h::Mesh, std::shared_ptr<Omega_h::Mesh>>(m, "OmegaHMesh")
+    .def(py::init<>(), "Default constructor")
+    .def(py::init<Omega_h::Library*>(), py::arg("library"),
+         "Constructor with library")
+
+    .def("set_library", &Omega_h::Mesh::set_library,
+         py::arg("library"),
+         "Set the library")
+
+    .def("library", &Omega_h::Mesh::library,
+         py::return_value_policy::reference,
+         "Get the library")
+
+    .def("set_comm", &Omega_h::Mesh::set_comm,
+         py::arg("comm"),
+         "Set the communicator")
+
+    .def("comm", &Omega_h::Mesh::comm,
+         "Get the communicator")
+
+    .def("set_dim", &Omega_h::Mesh::set_dim,
+         py::arg("dim"),
+         "Set mesh dimension")
+
+    .def("dim", &Omega_h::Mesh::dim,
+         "Get mesh dimension")
+
+    .def("set_family", &Omega_h::Mesh::set_family,
+         py::arg("family"),
+         "Set mesh family (simplex, hypercube, etc.)")
+
+    .def("family", &Omega_h::Mesh::family,
+         "Get mesh family")
+
+    .def("nverts", &Omega_h::Mesh::nverts,
+         "Get number of vertices")
+
+    .def("nedges", &Omega_h::Mesh::nedges,
+         "Get number of edges")
+
+    .def("nfaces", &Omega_h::Mesh::nfaces,
+         "Get number of faces")
+
+    .def("nregions", &Omega_h::Mesh::nregions,
+         "Get number of regions")
+
+    .def("nelems", &Omega_h::Mesh::nelems,
+         "Get number of elements")
+
+    .def("nents", &Omega_h::Mesh::nents,
+         py::arg("ent_dim"),
+         "Get number of entities of given dimension")
+
+    .def("nglobal_ents", &Omega_h::Mesh::nglobal_ents,
+         py::arg("ent_dim"),
+         "Get global number of entities")
+
+    .def("coords", [](const Omega_h::Mesh& mesh) {
+     auto coords = mesh.coords();
+     return omega_h_read_to_numpy(coords);
+    },
+    "Get mesh coordinates as numpy array")
+
+    .def("set_coords", [](Omega_h::Mesh& mesh, py::array_t<Omega_h::Real> coords) {
+      auto coords_write = numpy_to_omega_h_write<Omega_h::Real>(coords);
+      mesh.set_coords(Omega_h::Reals(coords_write));
+    },
+    py::arg("coords"),
+    "Set mesh coordinates from numpy array")
+
+    .def("add_coords", [](Omega_h::Mesh& mesh, py::array_t<Omega_h::Real> coords) {
+      auto coords_write = numpy_to_omega_h_write<Omega_h::Real>(coords);
+      mesh.add_coords(Omega_h::Reals(coords_write));
+    },
+    py::arg("coords"),
+    "Add mesh coordinates from numpy array")
+
+    .def("has_tag", &Omega_h::Mesh::has_tag,
+         py::arg("ent_dim"),
+         py::arg("name"),
+         "Check if mesh has a tag")
+
+    .def("ntags", &Omega_h::Mesh::ntags,
+         py::arg("ent_dim"),
+         "Get number of tags for entity dimension")
+
+    .def("remove_tag", &Omega_h::Mesh::remove_tag,
+         py::arg("ent_dim"),
+         py::arg("name"),
+         "Remove a tag")
+
+    .def("has_ents", &Omega_h::Mesh::has_ents,
+         py::arg("ent_dim"),
+         "Check if mesh has entities of given dimension")
+
+    .def("ask_lengths", [](Omega_h::Mesh& mesh) {
+      auto lengths = mesh.ask_lengths();
+      return omega_h_read_to_numpy(lengths);
+    },
+    "Get edge lengths")
+
+    .def("ask_qualities", [](Omega_h::Mesh& mesh) {
+      auto qualities = mesh.ask_qualities();
+      return omega_h_read_to_numpy(qualities);
+    },
+    "Get element qualities")
+
+    .def("min_quality", &Omega_h::Mesh::min_quality,
+         "Get minimum element quality")
+
+    .def("max_length", &Omega_h::Mesh::max_length,
+         "Get maximum edge length")
+
+    .def("balance", py::overload_cast<bool>(&Omega_h::Mesh::balance),
+         py::arg("predictive") = false,
+         "Balance the mesh across processors")
+
+    .def("set_parting", 
+         py::overload_cast<Omega_h_Parting, bool>(&Omega_h::Mesh::set_parting),
+         py::arg("parting"),
+         py::arg("verbose") = false,
+         "Set mesh partitioning")
+
+    .def("parting", &Omega_h::Mesh::parting,
+         "Get mesh partitioning type")
+
+    .def("nghost_layers", &Omega_h::Mesh::nghost_layers,
+         "Get number of ghost layers")
+
+    .def("owned", [](Omega_h::Mesh& mesh, Omega_h::Int ent_dim) {
+      auto owned = mesh.owned(ent_dim);
+      return omega_h_read_to_numpy(owned);
+    },
+    py::arg("ent_dim"),
+    "Get ownership flags for entities");
+
+  // Bind mesh I/O functions
+  
+  // General mesh file reader (detects format)
+  m.def("read_mesh_file",
+        [](const std::string& filepath, std::shared_ptr<Omega_h::Comm> comm) {
+          return Omega_h::read_mesh_file(filepath, comm);
+        },
+        py::arg("filepath"),
+        py::arg("comm"),
+        "Read mesh from file (auto-detects format)",
+        py::return_value_policy::move);
+
+  // Binary format I/O
+  m.def("read_mesh_binary", 
+        [](const std::string& filepath, Omega_h::Library* lib) {
+          Omega_h::Mesh mesh(lib);
+          Omega_h::binary::read(filepath, lib->world(), &mesh);
+          return mesh;
+        },
+        py::arg("filepath"),
+        py::arg("library"),
+        "Read mesh from binary file",
+        py::return_value_policy::move);
+
+  m.def("read_mesh_binary", 
+        [](const std::string& filepath, std::shared_ptr<Omega_h::Comm> comm) {
+          return Omega_h::binary::read(filepath, comm);
+        },
+        py::arg("filepath"),
+        py::arg("comm"),
+        "Read mesh from binary file",
+        py::return_value_policy::move);
+
+  m.def("write_mesh_binary",
+        [](const std::string& filepath, Omega_h::Mesh& mesh) {
+          Omega_h::binary::write(filepath, &mesh);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        "Write mesh to binary file");
+
+  // Gmsh format I/O
+  m.def("read_mesh_gmsh",
+        [](const std::string& filepath, std::shared_ptr<Omega_h::Comm> comm) {
+          return Omega_h::gmsh::read(filepath, comm);
+        },
+        py::arg("filepath"),
+        py::arg("comm"),
+        "Read mesh from Gmsh file",
+        py::return_value_policy::move);
+
+  m.def("write_mesh_gmsh",
+        [](const std::string& filepath, Omega_h::Mesh& mesh) {
+          Omega_h::gmsh::write(filepath, &mesh);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        "Write mesh to Gmsh file");
+
+#ifdef OMEGA_H_USE_GMSH
+  m.def("read_mesh_gmsh_parallel",
+        [](const std::string& filepath, std::shared_ptr<Omega_h::Comm> comm) {
+          return Omega_h::gmsh::read_parallel(filepath, comm);
+        },
+        py::arg("filepath"),
+        py::arg("comm"),
+        "Read parallel Gmsh mesh (MSH 4.1+)",
+        py::return_value_policy::move);
+
+  m.def("write_mesh_gmsh_parallel",
+        [](const std::string& filepath, Omega_h::Mesh& mesh) {
+          Omega_h::gmsh::write_parallel(filepath, mesh);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        "Write parallel Gmsh mesh (MSH 4.1)");
+#endif
+
+  // VTK format I/O
+  m.def("write_mesh_vtu",
+        [](const std::string& filepath, Omega_h::Mesh& mesh, bool compress) {
+          Omega_h::vtk::write_vtu(filepath, &mesh, compress);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        py::arg("compress") = OMEGA_H_DEFAULT_COMPRESS,
+        "Write mesh to VTU file");
+
+  m.def("write_mesh_vtu",
+        [](const std::string& filepath, Omega_h::Mesh& mesh, Omega_h::Int cell_dim, bool compress) {
+          Omega_h::vtk::write_vtu(filepath, &mesh, cell_dim, compress);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        py::arg("cell_dim"),
+        py::arg("compress") = OMEGA_H_DEFAULT_COMPRESS,
+        "Write mesh to VTU file with specified cell dimension");
+
+  m.def("write_mesh_parallel_vtk",
+        [](const std::string& filepath, Omega_h::Mesh& mesh, bool compress) {
+          Omega_h::vtk::write_parallel(filepath, &mesh, compress);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        py::arg("compress") = OMEGA_H_DEFAULT_COMPRESS,
+        "Write mesh to parallel VTK files");
+
+  m.def("read_mesh_parallel_vtk",
+        [](const std::string& pvtupath, std::shared_ptr<Omega_h::Comm> comm) {
+          Omega_h::Mesh mesh;
+          Omega_h::vtk::read_parallel(pvtupath, comm, &mesh);
+          return mesh;
+        },
+        py::arg("pvtupath"),
+        py::arg("comm"),
+        "Read parallel VTK mesh",
+        py::return_value_policy::move);
+
+#ifdef OMEGA_H_USE_SEACASEXODUS
+  // Exodus ClassifyWith enum
+  py::enum_<Omega_h::exodus::ClassifyWith>(m, "ExodusClassifyWith")
+    .value("NODE_SETS", Omega_h::exodus::NODE_SETS)
+    .value("SIDE_SETS", Omega_h::exodus::SIDE_SETS)
+    .export_values();
+
+  // Exodus file operations
+  m.def("exodus_open",
+        [](const std::string& filepath, bool verbose) {
+          return Omega_h::exodus::open(filepath, verbose);
+        },
+        py::arg("filepath"),
+        py::arg("verbose") = false,
+        "Open an Exodus file and return file handle");
+
+  m.def("exodus_close",
+        [](int exodus_file) {
+          Omega_h::exodus::close(exodus_file);
+        },
+        py::arg("exodus_file"),
+        "Close an Exodus file");
+
+  m.def("exodus_get_num_time_steps",
+        [](int exodus_file) {
+          return Omega_h::exodus::get_num_time_steps(exodus_file);
+        },
+        py::arg("exodus_file"),
+        "Get the number of time steps in an Exodus file");
+
+  m.def("read_mesh_exodus",
+        [](int exodus_file, Omega_h::Mesh& mesh, bool verbose, int classify_with) {
+          Omega_h::exodus::read_mesh(exodus_file, &mesh, verbose, classify_with);
+        },
+        py::arg("exodus_file"),
+        py::arg("mesh"),
+        py::arg("verbose") = false,
+        py::arg("classify_with") = Omega_h::exodus::NODE_SETS | Omega_h::exodus::SIDE_SETS,
+        "Read mesh from an open Exodus file");
+
+  m.def("read_exodus_nodal_fields",
+        [](int exodus_file, Omega_h::Mesh& mesh, int time_step, 
+           const std::string& prefix, const std::string& postfix, bool verbose) {
+          Omega_h::exodus::read_nodal_fields(exodus_file, &mesh, time_step, 
+                                              prefix, postfix, verbose);
+        },
+        py::arg("exodus_file"),
+        py::arg("mesh"),
+        py::arg("time_step"),
+        py::arg("prefix") = "",
+        py::arg("postfix") = "",
+        py::arg("verbose") = false,
+        "Read nodal fields from an open Exodus file at a specific time step");
+
+  m.def("read_exodus_element_fields",
+        [](int exodus_file, Omega_h::Mesh& mesh, int time_step,
+           const std::string& prefix, const std::string& postfix, bool verbose) {
+          Omega_h::exodus::read_element_fields(exodus_file, &mesh, time_step,
+                                                prefix, postfix, verbose);
+        },
+        py::arg("exodus_file"),
+        py::arg("mesh"),
+        py::arg("time_step"),
+        py::arg("prefix") = "",
+        py::arg("postfix") = "",
+        py::arg("verbose") = false,
+        "Read element fields from an open Exodus file at a specific time step");
+
+  m.def("read_mesh_exodus_sliced",
+        [](const std::string& filepath, std::shared_ptr<Omega_h::Comm> comm,
+           bool verbose, int classify_with, int time_step) {
+          return Omega_h::exodus::read_sliced(filepath, comm, verbose, 
+                                               classify_with, time_step);
+        },
+        py::arg("filepath"),
+        py::arg("comm"),
+        py::arg("verbose") = false,
+        py::arg("classify_with") = Omega_h::exodus::NODE_SETS | Omega_h::exodus::SIDE_SETS,
+        py::arg("time_step") = -1,
+        "Read sliced Exodus mesh in parallel",
+        py::return_value_policy::move);
+
+  m.def("write_mesh_exodus",
+        [](const std::string& filepath, Omega_h::Mesh& mesh, bool verbose, int classify_with) {
+          Omega_h::exodus::write(filepath, &mesh, verbose, classify_with);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        py::arg("verbose") = false,
+        py::arg("classify_with") = Omega_h::exodus::NODE_SETS | Omega_h::exodus::SIDE_SETS,
+        "Write mesh to Exodus file");
+#endif
+
+#ifdef OMEGA_H_USE_LIBMESHB
+  // MESHB format I/O
+  m.def("read_mesh_meshb",
+        [](Omega_h::Mesh& mesh, const std::string& filepath) {
+          Omega_h::meshb::read(&mesh, filepath);
+        },
+        py::arg("mesh"),
+        py::arg("filepath"),
+        "Read mesh from MESHB file");
+
+  m.def("write_mesh_meshb",
+        [](Omega_h::Mesh& mesh, const std::string& filepath, int version) {
+          Omega_h::meshb::write(&mesh, filepath, version);
+        },
+        py::arg("mesh"),
+        py::arg("filepath"),
+        py::arg("version") = 2,
+        "Write mesh to MESHB file");
+
+  m.def("read_meshb_sol",
+        [](Omega_h::Mesh& mesh, const std::string& filepath, const std::string& sol_name) {
+          Omega_h::meshb::read_sol(&mesh, filepath, sol_name);
+        },
+        py::arg("mesh"),
+        py::arg("filepath"),
+        py::arg("sol_name"),
+        "Read solution/resolution data from MESHB .sol file");
+
+  m.def("write_meshb_sol",
+        [](Omega_h::Mesh& mesh, const std::string& filepath, const std::string& sol_name, int version) {
+          Omega_h::meshb::write_sol(&mesh, filepath, sol_name, version);
+        },
+        py::arg("mesh"),
+        py::arg("filepath"),
+        py::arg("sol_name"),
+        py::arg("version") = 2,
+        "Write solution/resolution data to MESHB .sol file");
+#endif
+
+#ifdef OMEGA_H_USE_ADIOS2
+  // ADIOS2 format I/O
+  m.def("read_mesh_adios2",
+        [](const std::string& filepath, Omega_h::Library* lib, const std::string& prefix) {
+          return Omega_h::adios::read(filepath, lib, prefix);
+        },
+        py::arg("filepath"),
+        py::arg("library"),
+        py::arg("prefix") = "",
+        "Read mesh from ADIOS2 file",
+        py::return_value_policy::move);
+
+  m.def("write_mesh_adios2",
+        [](const std::string& filepath, Omega_h::Mesh& mesh, const std::string& prefix) {
+          Omega_h::adios::write(filepath, &mesh, prefix);
+        },
+        py::arg("filepath"),
+        py::arg("mesh"),
+        py::arg("prefix") = "",
+        "Write mesh to ADIOS2 file");
+#endif
+
+  // Other utilities
+  py::enum_<Omega_h_Family>(m, "Family")
+        .value("SIMPLEX", OMEGA_H_SIMPLEX)
+        .value("HYPERCUBE", OMEGA_H_HYPERCUBE)
+        .value("MIXED", OMEGA_H_MIXED)
+        .export_values();  // This allows using values without the class prefix
+
+  // Bind Omega_h_Parting enum
+  py::enum_<Omega_h_Parting>(m, "OmegaHParting")
+    .value("ELEM_BASED", OMEGA_H_ELEM_BASED)
+    .value("VERT_BASED", OMEGA_H_VERT_BASED)
+    .value("GHOSTED", OMEGA_H_GHOSTED)
+    .export_values();
+}
+
+} // namespace pcms

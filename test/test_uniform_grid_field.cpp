@@ -54,15 +54,15 @@ void VerifyUniformGridFieldValues(
 // Helper function to verify mask field values
 void VerifyMaskFieldValues(
   const pcms::UniformGrid<2>& grid,
-  const std::vector<int>& mask_field) {
+  const pcms::UniformGridField<2>& mask_field) {
   fprintf(stderr, "\nVerifying mask_field values:\n");
-  auto mask_data = mask_field.data();
-  for (int j = 0; j < grid.divisions[1]; ++j) {
-    for (int i = 0; i < grid.divisions[0]; ++i) {
-      int cell_id = j * grid.divisions[0] + i;
-      int mask_value = mask_data[cell_id];
-      fprintf(stderr, "Cell (%d, %d): mask = %d\n", i, j, mask_value);
-      REQUIRE(mask_value == 1);
+  auto mask_data = mask_field.GetDOFHolderData();
+  for (int j = 0; j <= grid.divisions[1]; ++j) {
+    for (int i = 0; i <= grid.divisions[0]; ++i) {
+      int vertex_id = j * (grid.divisions[0] + 1) + i;
+      pcms::Real mask_value = mask_data(vertex_id);
+      fprintf(stderr, "Vertex (%d, %d): mask = %.0f\n", i, j, mask_value);
+      REQUIRE(mask_value == 1.0);
     }
   }
 }
@@ -371,20 +371,24 @@ TEST_CASE("Create binary field from uniform grid")
   auto lib = Omega_h::Library{};
   auto world = lib.world();
 
-  SECTION("Simple 2D box mesh - all cells inside")
+  SECTION("Simple 2D box mesh - all vertices inside")
   {
     // Create a mesh that fills the domain [0,1] x [0,1]
     auto mesh = Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 10,
                                    10, 0, false);
 
     // Create a 5x5 grid (coarser than mesh)
-    auto field = CreateUniformGridBinaryField<2>(mesh, {5, 5});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {5, 5});
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 25);
+    REQUIRE(field_data.extent(0) == 36);  // (5+1) * (5+1) = 36 vertices
 
-    // All grid cells should be inside the mesh
-    int sum = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(sum == 25);
+    // All grid vertices should be inside the mesh
+    pcms::Real sum = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      sum += field_data(i);
+    }
+    REQUIRE(sum == 36.0);
   }
 
   SECTION("Binary field with custom divisions")
@@ -392,14 +396,18 @@ TEST_CASE("Create binary field from uniform grid")
     auto mesh =
       Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 8, 8, 0, false);
 
-    auto field = CreateUniformGridBinaryField<2>(mesh, {10, 8});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {10, 8});
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 80);
+    REQUIRE(field_data.extent(0) == 99);  // (10+1) * (8+1) = 99 vertices
 
-    // Most cells should be inside
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(inside_count > 0);
-    REQUIRE(inside_count <= 80);
+    // Most vertices should be inside
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    REQUIRE(inside_count > 0.0);
+    REQUIRE(inside_count <= 99.0);
   }
 
   SECTION("Binary field with equal divisions convenience function")
@@ -407,12 +415,16 @@ TEST_CASE("Create binary field from uniform grid")
     auto mesh =
       Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 5, 5, 0, false);
 
-    auto field = CreateUniformGridBinaryField<2>(mesh, 8);
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, 8);
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 64);
+    REQUIRE(field_data.extent(0) == 81);  // (8+1) * (8+1) = 81 vertices
 
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(inside_count > 0);
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    REQUIRE(inside_count > 0.0);
   }
 
   SECTION("Fine grid over coarse mesh")
@@ -423,18 +435,19 @@ TEST_CASE("Create binary field from uniform grid")
 
     // Create a fine grid (20x20)
     auto grid = CreateUniformGridFromMesh<2>(mesh, {20, 20});
-    auto field = CreateUniformGridBinaryField<2>(mesh, {20, 20});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {20, 20});
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 400);
+    REQUIRE(field_data.extent(0) == 441);  // (20+1) * (20+1) = 441 vertices
 
-    // Verify consistency: check some specific cells
-    // Center cells should be inside
-    auto center_idx = grid.GetCellIndex({10, 10});
-    REQUIRE(field[center_idx] == 1);
+    // Verify consistency: check some specific vertices
+    // Center vertex should be inside (vertex at i=10, j=10)
+    int center_idx = 10 * 21 + 10;  // 21 vertices per row
+    REQUIRE(field_data(center_idx) == 1.0);
 
-    // Corner cells should be inside
-    auto corner_idx = grid.GetCellIndex({0, 0});
-    REQUIRE(field[corner_idx] == 1);
+    // Corner vertex should be inside
+    int corner_idx = 0;  // vertex (0, 0)
+    REQUIRE(field_data(corner_idx) == 1.0);
   }
 
   SECTION("Verify field values are binary")
@@ -442,15 +455,17 @@ TEST_CASE("Create binary field from uniform grid")
     auto mesh =
       Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 5, 5, 0, false);
 
-    auto field = CreateUniformGridBinaryField<2>(mesh, 10);
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, 10);
+    auto field_data = field->GetDOFHolderData();
 
     // All values should be 0 or 1
-    for (const auto& val : field) {
-      REQUIRE((val == 0 || val == 1));
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      pcms::Real val = field_data(i);
+      REQUIRE((val == 0.0 || val == 1.0));
     }
   }
 
-  SECTION("Grid extends beyond mesh - cells outside should be marked 0")
+  SECTION("Grid extends beyond mesh - vertices outside should be marked 0")
   {
     // Create a small mesh in the center of a domain
     auto mesh =
@@ -459,13 +474,17 @@ TEST_CASE("Create binary field from uniform grid")
     // The mesh occupies [0, 0.5] x [0, 0.5]
     // Create a grid that would cover this
     auto grid = CreateUniformGridFromMesh<2>(mesh, {10, 10});
-    auto field = CreateUniformGridBinaryField<2>(mesh, {10, 10});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {10, 10});
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 100);
+    REQUIRE(field_data.extent(0) == 121);  // (10+1) * (10+1) = 121 vertices
 
-    // All cells should be inside since grid is exactly on mesh bbox
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(inside_count > 0);
+    // All vertices should be inside since grid is exactly on mesh bbox
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    REQUIRE(inside_count > 0.0);
   }
 
   SECTION("Test with different aspect ratio")
@@ -474,16 +493,20 @@ TEST_CASE("Create binary field from uniform grid")
     auto mesh = Omega_h::build_box(world, OMEGA_H_SIMPLEX, 3.0, 1.0, 0.0, 12, 4,
                                    0, false);
 
-    auto field = CreateUniformGridBinaryField<2>(mesh, {30, 10});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {30, 10});
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 300);
+    REQUIRE(field_data.extent(0) == 341);  // (30+1) * (10+1) = 341 vertices
 
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(inside_count > 0);
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    REQUIRE(inside_count > 0.0);
 
     // Calculate percentage inside
-    double inside_percent = 100.0 * inside_count / field.size();
-    // Most cells should be inside
+    double inside_percent = 100.0 * inside_count / field_data.extent(0);
+    // Most vertices should be inside
     REQUIRE(inside_percent > 50.0);
   }
 }
@@ -496,56 +519,73 @@ TEST_CASE("Binary field integration with grid methods")
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 10, 10, 0, false);
 
-  SECTION("Query field value at specific grid cell")
+  SECTION("Query field value at specific grid vertex")
   {
     auto grid = CreateUniformGridFromMesh<2>(mesh, {8, 8});
-    auto field = CreateUniformGridBinaryField<2>(mesh, {8, 8});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {8, 8});
+    auto field_data = field->GetDOFHolderData();
 
-    // Get field value for a specific cell
-    pcms::LO cell_id = grid.GetCellIndex({4, 4}); // Middle cell
-    REQUIRE(field[cell_id] == 1);                 // Should be inside
+    // Get field value for a specific vertex (middle vertex at i=4, j=4)
+    pcms::LO vertex_id = 4 * 9 + 4;  // 9 = (8+1) vertices per row
+    REQUIRE(field_data(vertex_id) == 1.0);  // Should be inside
 
-    // Get bbox of that cell
-    auto bbox = grid.GetCellBBOX(cell_id);
+    // Compute vertex position
+    pcms::Real dx = grid.edge_length[0] / grid.divisions[0];
+    pcms::Real dy = grid.edge_length[1] / grid.divisions[1];
+    pcms::Real x = grid.bot_left[0] + 4 * dx;
+    pcms::Real y = grid.bot_left[1] + 4 * dy;
+    
     // Verify it's roughly in the middle
-    REQUIRE(bbox.center[0] == Catch::Approx(0.5).margin(0.1));
-    REQUIRE(bbox.center[1] == Catch::Approx(0.5).margin(0.1));
+    REQUIRE(x == Catch::Approx(0.5).margin(0.1));
+    REQUIRE(y == Catch::Approx(0.5).margin(0.1));
   }
 
-  SECTION("Count cells by region")
+  SECTION("Count vertices by region")
   {
     auto grid = CreateUniformGridFromMesh<2>(mesh, 10);
-    auto field = CreateUniformGridBinaryField<2>(mesh, 10);
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, 10);
+    auto field_data = field->GetDOFHolderData();
 
-    // Count cells in different quadrants
+    // Count vertices in different quadrants
     int q1 = 0, q2 = 0, q3 = 0, q4 = 0; // quadrants
 
-    for (pcms::LO i = 0; i < grid.GetNumCells(); ++i) {
-      if (field[i] == 1) {
-        auto bbox = grid.GetCellBBOX(i);
-        if (bbox.center[0] < 0.5 && bbox.center[1] < 0.5)
-          q1++;
-        else if (bbox.center[0] >= 0.5 && bbox.center[1] < 0.5)
-          q2++;
-        else if (bbox.center[0] < 0.5 && bbox.center[1] >= 0.5)
-          q3++;
-        else
-          q4++;
+    pcms::Real dx = grid.edge_length[0] / grid.divisions[0];
+    pcms::Real dy = grid.edge_length[1] / grid.divisions[1];
+    
+    for (int j = 0; j <= grid.divisions[1]; ++j) {
+      for (int i = 0; i <= grid.divisions[0]; ++i) {
+        pcms::LO vertex_id = j * (grid.divisions[0] + 1) + i;
+        if (field_data(vertex_id) == 1.0) {
+          pcms::Real x = grid.bot_left[0] + i * dx;
+          pcms::Real y = grid.bot_left[1] + j * dy;
+          
+          if (x < 0.5 && y < 0.5)
+            q1++;
+          else if (x >= 0.5 && y < 0.5)
+            q2++;
+          else if (x < 0.5 && y >= 0.5)
+            q3++;
+          else
+            q4++;
+        }
       }
     }
 
-    // All quadrants should have some inside cells
+    // All quadrants should have some inside vertices
     REQUIRE(q1 > 0);
     REQUIRE(q2 > 0);
     REQUIRE(q3 > 0);
     REQUIRE(q4 > 0);
 
-    // Distribution should be roughly equal
+    // For 11x11 vertices, boundary at x=0.5, y=0.5 splits asymmetrically:
+    // q1 (x<0.5, y<0.5): 5x5=25, q2 (x>=0.5, y<0.5): 6x5=30
+    // q3 (x<0.5, y>=0.5): 5x6=30, q4 (x>=0.5, y>=0.5): 6x6=36
     int total = q1 + q2 + q3 + q4;
-    REQUIRE(q1 == Catch::Approx(total / 4.0).margin(5));
-    REQUIRE(q2 == Catch::Approx(total / 4.0).margin(5));
-    REQUIRE(q3 == Catch::Approx(total / 4.0).margin(5));
-    REQUIRE(q4 == Catch::Approx(total / 4.0).margin(5));
+    REQUIRE(total == 121); // All vertices inside
+    REQUIRE(q1 == 25);
+    REQUIRE(q2 == 30);
+    REQUIRE(q3 == 30);
+    REQUIRE(q4 == 36);
   }
 }
 
@@ -560,12 +600,16 @@ TEST_CASE("Performance and edge cases")
       Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 5, 5, 0, false);
 
     // Create a very fine grid
-    auto field = CreateUniformGridBinaryField<2>(mesh, 50);
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, 50);
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 2500);
+    REQUIRE(field_data.extent(0) == 2601);  // (50+1) * (50+1) = 2601 vertices
 
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(inside_count > 0);
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    REQUIRE(inside_count > 0.0);
   }
 
   SECTION("Coarse grid")
@@ -574,13 +618,17 @@ TEST_CASE("Performance and edge cases")
                                    10, 0, false);
 
     // Very coarse grid
-    auto field = CreateUniformGridBinaryField<2>(mesh, {2, 2});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {2, 2});
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 4);
+    REQUIRE(field_data.extent(0) == 9);  // (2+1) * (2+1) = 9 vertices
 
-    // All 4 cells should be inside for this configuration
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(inside_count > 0);
+    // All vertices should be inside for this configuration
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    REQUIRE(inside_count > 0.0);
   }
 
   SECTION("Non-square domain")
@@ -588,15 +636,19 @@ TEST_CASE("Performance and edge cases")
     auto mesh = Omega_h::build_box(world, OMEGA_H_SIMPLEX, 5.0, 2.0, 0.0, 20, 8,
                                    0, false);
 
-    auto field = CreateUniformGridBinaryField<2>(mesh, {25, 10});
+    auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, {25, 10});
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 250);
+    REQUIRE(field_data.extent(0) == 286);  // (25+1) * (10+1) = 286 vertices
 
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    REQUIRE(inside_count > 0);
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    REQUIRE(inside_count > 0.0);
   }
 
-  SECTION("Grid larger than mesh - cells outside marked as 0")
+  SECTION("Grid larger than mesh - vertices outside marked as 0")
   {
     // Create a mesh covering [0, 0.5] x [0, 0.5]
     auto mesh =
@@ -609,40 +661,38 @@ TEST_CASE("Performance and edge cases")
     grid.divisions = {10, 10};
 
     // Create binary field on the larger grid
-    auto field = pcms::CreateUniformGridBinaryFieldFromGrid<2>(mesh, grid);
+    auto [layout, field] = pcms::CreateUniformGridBinaryFieldFromGrid<2>(mesh, grid);
+    auto field_data = field->GetDOFHolderData();
 
-    REQUIRE(field.size() == 100);
+    REQUIRE(field_data.extent(0) == 121);  // (10+1) * (10+1) = 121 vertices
 
-    // Count cells inside and outside
-    int inside_count = std::accumulate(field.begin(), field.end(), 0);
-    int outside_count = field.size() - inside_count;
+    // Count vertices inside and outside
+    pcms::Real inside_count = 0.0;
+    for (size_t i = 0; i < field_data.extent(0); ++i) {
+      inside_count += field_data(i);
+    }
+    pcms::Real outside_count = field_data.extent(0) - inside_count;
 
-    // Should have both inside (1) and outside (0) cells
-    REQUIRE(inside_count > 0);
-    REQUIRE(outside_count > 0);
+    // Should have both inside (1) and outside (0) vertices
+    REQUIRE(inside_count > 0.0);
+    REQUIRE(outside_count > 0.0);
 
-    // Check specific cells
-    // Bottom-left corner [0, 0.1] x [0, 0.1] should be inside (mesh covers [0,
-    // 0.5])
-    auto corner_id = grid.GetCellIndex({0, 0});
-    auto bbox = grid.GetCellBBOX(corner_id);
-    REQUIRE(field[corner_id] == 1);
+    // Check specific vertices
+    // Bottom-left corner should be inside (mesh covers [0, 0.5])
+    int corner_id = 0 * 11 + 0;  // vertex (0, 0)
+    REQUIRE(field_data(corner_id) == 1.0);
 
-    // Top-right corner [0.9, 1.0] x [0.9, 1.0] should be outside (mesh ends at
-    // 0.5)
-    corner_id = grid.GetCellIndex({9, 9});
-    bbox = grid.GetCellBBOX(corner_id);
-    REQUIRE(field[corner_id] == 0);
+    // Top-right corner should be outside (mesh ends at 0.5)
+    corner_id = 10 * 11 + 10;  // vertex (10, 10)
+    REQUIRE(field_data(corner_id) == 0.0);
 
-    // Cell at [0.5, 0.6] x [0.5, 0.6] should be outside
-    corner_id = grid.GetCellIndex({6, 6});
-    bbox = grid.GetCellBBOX(corner_id);
-    REQUIRE(field[corner_id] == 0);
+    // Vertex at i=6, j=6 (coords ~0.6, ~0.6) should be outside
+    corner_id = 6 * 11 + 6;
+    REQUIRE(field_data(corner_id) == 0.0);
 
-    // Cell at [0.2, 0.3] x [0.2, 0.3] should be inside
-    auto center_id = grid.GetCellIndex({2, 2});
-    bbox = grid.GetCellBBOX(center_id);
-    REQUIRE(field[center_id] == 1);
+    // Vertex at i=2, j=2 (coords ~0.2, ~0.2) should be inside
+    auto center_id = 2 * 11 + 2;
+    REQUIRE(field_data(center_id) == 1.0);
   }
 }
 
@@ -655,7 +705,7 @@ TEST_CASE("UniformGrid workflow")
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 4, 4, 0, false);
   auto grid = pcms::CreateUniformGridFromMesh<2>(mesh, {4, 4});
-  auto mask_field = pcms::CreateUniformGridBinaryField<2>(mesh, {4, 4});
+  auto [mask_layout, mask_field] = pcms::CreateUniformGridBinaryField<2>(mesh, {4, 4});
 
   // Create OmegaH field layout with linear elements
   auto omega_h_layout =
@@ -686,5 +736,5 @@ TEST_CASE("UniformGrid workflow")
   VerifyUniformGridFieldValues(grid, ug_coords, ug_field_data);
 
   // Verify mask field values
-  VerifyMaskFieldValues(grid, mask_field);
+  VerifyMaskFieldValues(grid, *mask_field);
 }

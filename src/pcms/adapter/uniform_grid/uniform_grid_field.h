@@ -39,6 +39,9 @@ public:
   Rank1View<const Real, HostMemorySpace> GetDOFHolderData() const override;
   void SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data) override;
 
+  View<Dim, Real, HostMemorySpace> to_mdspan();
+  View<Dim, const Real, HostMemorySpace> to_mdspan() const;
+
   ~UniformGridField() noexcept = default;
 
 private:

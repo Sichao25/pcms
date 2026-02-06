@@ -56,6 +56,44 @@ void UniformGridField<Dim>::SetDOFHolderData(
 }
 
 template <unsigned Dim>
+View<Dim, Real, HostMemorySpace> UniformGridField<Dim>::to_mdspan()
+{
+  PCMS_FUNCTION_TIMER;
+
+  if constexpr (Dim == 2) {
+    return View<Dim, Real, HostMemorySpace>(
+      dof_holder_data_.data(), grid_.divisions[0] + 1,
+      grid_.divisions[1] + 1);
+  } else if constexpr (Dim == 3) {
+    return View<Dim, Real, HostMemorySpace>(
+      dof_holder_data_.data(), grid_.divisions[0] + 1,
+      grid_.divisions[1] + 1, grid_.divisions[2] + 1);
+  } else {
+    static_assert(Dim == 2 || Dim == 3,
+                  "to_mdspan only supports 2D or 3D uniform grids");
+  }
+}
+
+template <unsigned Dim>
+View<Dim, const Real, HostMemorySpace> UniformGridField<Dim>::to_mdspan() const
+{
+  PCMS_FUNCTION_TIMER;
+
+  if constexpr (Dim == 2) {
+    return View<Dim, const Real, HostMemorySpace>(
+      dof_holder_data_.data(), grid_.divisions[0] + 1,
+      grid_.divisions[1] + 1);
+  } else if constexpr (Dim == 3) {
+    return View<Dim, const Real, HostMemorySpace>(
+      dof_holder_data_.data(), grid_.divisions[0] + 1,
+      grid_.divisions[1] + 1, grid_.divisions[2] + 1);
+  } else {
+    static_assert(Dim == 2 || Dim == 3,
+                  "to_mdspan only supports 2D or 3D uniform grids");
+  }
+}
+
+template <unsigned Dim>
 LocalizationHint UniformGridField<Dim>::GetLocalizationHint(
   CoordinateView<HostMemorySpace> coordinate_view) const
 {

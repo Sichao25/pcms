@@ -1,6 +1,8 @@
 #include "create_field.h"
 #include "adapter/omega_h/omega_h_field2.h"
 #include "adapter/omega_h/omega_h_field_layout.h"
+#include "adapter/uniform_grid/uniform_grid_field.h"
+#include "adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "uniform_grid.h"
 #include "point_search.h"
 
@@ -28,53 +30,74 @@ std::unique_ptr<FieldLayout> CreateLagrangeLayout(
 }
 
 template <>
-std::vector<int> CreateUniformGridBinaryFieldFromGrid<2>(
-  Omega_h::Mesh& mesh, const UniformGrid<2>& grid)
+std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
+          std::unique_ptr<UniformGridField<2>>>
+CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
+                                         UniformGrid<2>& grid)
 {
   constexpr unsigned dim = 2;
 
-  // Get total number of cells
-  const LO num_cells = grid.GetNumCells();
-
-  // Initialize result vector
-  std::vector<int> binary_field(num_cells, 0);
+  // Get total number of vertices
+  const LO num_vertices = (grid.divisions[0] + 1) * (grid.divisions[1] + 1);
 
   // Create GridPointSearch for point-in-mesh queries
   GridPointSearch point_search(mesh, grid.divisions[0], grid.divisions[1]);
 
-  // Create array of grid cell center points
-  Kokkos::View<Real* [dim]> cell_centers("cell centers", num_cells);
-  auto cell_centers_h = Kokkos::create_mirror_view(cell_centers);
+  // Create array of grid vertex points
+  Kokkos::View<Real* [dim]> vertices("vertices", num_vertices);
+  auto vertices_h = Kokkos::create_mirror_view(vertices);
 
-  // Fill cell center coordinates
-  for (LO i = 0; i < num_cells; ++i) {
-    auto bbox = grid.GetCellBBOX(i);
-    for (unsigned d = 0; d < dim; ++d) {
-      cell_centers_h(i, d) = bbox.center[d];
+  // Fill vertex coordinates
+  const Real dx = grid.edge_length[0] / grid.divisions[0];
+  const Real dy = grid.edge_length[1] / grid.divisions[1];
+  
+  for (LO j = 0; j <= grid.divisions[1]; ++j) {
+    for (LO i = 0; i <= grid.divisions[0]; ++i) {
+      const LO vertex_id = j * (grid.divisions[0] + 1) + i;
+      vertices_h(vertex_id, 0) = grid.bot_left[0] + i * dx;
+      vertices_h(vertex_id, 1) = grid.bot_left[1] + j * dy;
     }
   }
 
   // Copy to device
-  Kokkos::deep_copy(cell_centers, cell_centers_h);
+  Kokkos::deep_copy(vertices, vertices_h);
 
   // Perform point search
-  auto results = point_search(cell_centers);
+  auto results = point_search(vertices);
+  fprintf(stderr, "Completed point-in-mesh search for %d vertices.\n",
+          num_vertices);
 
   // Copy results back to host
   auto results_h = Kokkos::create_mirror_view(results);
   Kokkos::deep_copy(results_h, results);
+  fprintf(stderr, "Copied point search results back to host.\n");
 
-  // Process results: set field to 1 if point is inside mesh (tri_id >= 0)
-  for (LO i = 0; i < num_cells; ++i) {
-    binary_field[i] = (results_h(i).tri_id >= 0) ? 1 : 0;
+  // Create UniformGridFieldLayout and field
+  auto layout = std::make_unique<UniformGridFieldLayout<2>>(
+    grid, 1, CoordinateSystem::Cartesian);
+  auto field = std::make_unique<UniformGridField<2>>(*layout);
+
+  // Create binary data as Real values (0.0 or 1.0)
+  Kokkos::View<Real*, HostMemorySpace> binary_data("binary_data", num_vertices);
+  for (LO i = 0; i < num_vertices; ++i) {
+    binary_data(i) = (results_h(i).tri_id >= 0) ? 1.0 : 0.0;
   }
+  fprintf(stderr, "Generated binary inside/outside data for grid vertices.\n");
 
-  return binary_field;
+  // Set the DOF holder data
+  Rank1View<const Real, HostMemorySpace> data_view(
+    binary_data.data(), binary_data.extent(0));
+  field->SetDOFHolderData(data_view);
+  fprintf(stderr, "Set binary data on UniformGridField.\n");
+
+  return {std::move(layout), std::move(field)};
 }
 
 template <>
-std::vector<int> CreateUniformGridBinaryField<2>(
-  Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions)
+std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
+          std::unique_ptr<UniformGridField<2>>>
+CreateUniformGridBinaryField<2>(Omega_h::Mesh& mesh,
+                                 const std::array<LO, 2>& divisions)
 {
   constexpr unsigned dim = 2;
 
@@ -86,8 +109,9 @@ std::vector<int> CreateUniformGridBinaryField<2>(
 }
 
 template <>
-std::vector<int> CreateUniformGridBinaryField<2>(Omega_h::Mesh& mesh,
-                                                 LO cells_per_dim)
+std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
+          std::unique_ptr<UniformGridField<2>>>
+CreateUniformGridBinaryField<2>(Omega_h::Mesh& mesh, LO cells_per_dim)
 {
   std::array<LO, 2> divisions;
   divisions.fill(cells_per_dim);
