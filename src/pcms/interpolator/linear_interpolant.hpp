@@ -144,7 +144,7 @@ struct Result
   RealMatView parametric_coords;
 };
 
-Result parametric_indices(const RealMatView& points, const IntVecView& num_bins,
+inline Result parametric_indices(const RealMatView& points, const IntVecView& num_bins,
                           const RealVecView& range)
 {
 

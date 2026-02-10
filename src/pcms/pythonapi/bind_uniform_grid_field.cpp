@@ -108,7 +108,18 @@ void bind_uniform_grid_field_module(py::module& m) {
     .def("to_mdspan", [](const UniformGridField<2>& self) {
       return mdspan_view_to_numpy(self.to_mdspan());
     },
-    "Get the DOF holder data as a 2D numpy array (copy)");
+    "Get the DOF holder data as a 2D numpy array (copy)")
+
+    .def("set_out_of_bounds_mode", &UniformGridField<2>::SetOutOfBoundsMode,
+         py::arg("mode"),
+         py::arg("fill_value") = 0.0,
+         "Set the out-of-bounds mode and fill value")
+
+    .def("get_out_of_bounds_mode", &UniformGridField<2>::GetOutOfBoundsMode,
+         "Get the current out-of-bounds mode")
+
+    .def("get_fill_value", &UniformGridField<2>::GetFillValue,
+         "Get the current fill value for out-of-bounds points");
 
   // Bind UniformGridField class for 3D
   py::class_<UniformGridField<3>, FieldT<Real>, std::shared_ptr<UniformGridField<3>>>(
@@ -205,7 +216,18 @@ void bind_uniform_grid_field_module(py::module& m) {
     .def("to_mdspan", [](const UniformGridField<3>& self) {
       return mdspan_view_to_numpy(self.to_mdspan());
     },
-    "Get the DOF holder data as a 3D numpy array (copy)");
+    "Get the DOF holder data as a 3D numpy array (copy)")
+
+    .def("set_out_of_bounds_mode", &UniformGridField<3>::SetOutOfBoundsMode,
+         py::arg("mode"),
+         py::arg("fill_value") = 0.0,
+         "Set the out-of-bounds mode and fill value")
+
+    .def("get_out_of_bounds_mode", &UniformGridField<3>::GetOutOfBoundsMode,
+         "Get the current out-of-bounds mode")
+
+    .def("get_fill_value", &UniformGridField<3>::GetFillValue,
+         "Get the current fill value for out-of-bounds points");
 
   // Helper functions for creating views (if needed for testing)
   m.def("create_coordinate_view", [](py::array_t<Real> coordinates,

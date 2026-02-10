@@ -13,6 +13,13 @@ namespace pcms {
 
 void bind_omega_h_field2(py::module& m) {
 
+  // Bind OutOfBoundsMode enum
+  py::enum_<OutOfBoundsMode>(m, "OutOfBoundsMode")
+    .value("ERROR", OutOfBoundsMode::ERROR, "Raise error when points are out of bounds")
+    .value("FILL", OutOfBoundsMode::FILL, "Fill with a specified value when points are out of bounds")
+    .value("CLAMP", OutOfBoundsMode::CLAMP, "Clamp to nearest boundary cell (extrapolate)")
+    .export_values();
+
   // Bind OmegaHField2 class
   py::class_<OmegaHField2, FieldT<Real>, std::shared_ptr<OmegaHField2>>(m, "OmegaHField2")
     .def(py::init<const OmegaHFieldLayout&>(),
@@ -102,7 +109,18 @@ void bind_omega_h_field2(py::module& m) {
       self.SetDOFHolderData(const_view);
     },
     py::arg("data"),
-    "Set the DOF holder data");
+    "Set the DOF holder data")
+
+    .def("set_out_of_bounds_mode", &OmegaHField2::SetOutOfBoundsMode,
+         py::arg("mode"),
+         py::arg("fill_value") = 0.0,
+         "Set the out-of-bounds mode and fill value")
+
+    .def("get_out_of_bounds_mode", &OmegaHField2::GetOutOfBoundsMode,
+         "Get the current out-of-bounds mode")
+
+    .def("get_fill_value", &OmegaHField2::GetFillValue,
+         "Get the current fill value for out-of-bounds points");
 
   // Helper functions for creating views (if needed for testing)
   m.def("create_coordinate_view", [](py::array_t<Real> coordinates,

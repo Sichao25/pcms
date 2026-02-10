@@ -14,8 +14,17 @@ struct UniformGridFieldLocalizationHint
 {
   UniformGridFieldLocalizationHint(
     Kokkos::View<LO*, HostMemorySpace> cell_indices,
-    Kokkos::View<Real**, HostMemorySpace> coordinates)
-    : cell_indices_(cell_indices), coordinates_(coordinates)
+    Kokkos::View<Real**, HostMemorySpace> coordinates,
+    OutOfBoundsMode mode,
+    Real fill_value,
+    Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds,
+    size_t num_out_of_bounds)
+    : cell_indices_(cell_indices), 
+      coordinates_(coordinates),
+      mode_(mode),
+      fill_value_(fill_value),
+      is_out_of_bounds_(is_out_of_bounds),
+      num_out_of_bounds_(num_out_of_bounds)
   {
   }
 
@@ -23,6 +32,11 @@ struct UniformGridFieldLocalizationHint
   Kokkos::View<LO*, HostMemorySpace> cell_indices_;
   // Coordinates of each point
   Kokkos::View<Real**, HostMemorySpace> coordinates_;
+  // Out of bounds handling
+  OutOfBoundsMode mode_;
+  Real fill_value_;
+  Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds_;
+  size_t num_out_of_bounds_;
 };
 
 template <unsigned Dim>
@@ -33,6 +47,8 @@ UniformGridField<Dim>::UniformGridField(
     dof_holder_data_("dof_holder_data", static_cast<size_t>(layout.OwnedSize()))
 {
   PCMS_FUNCTION_TIMER;
+  // Default to CLAMP for uniform grid fields
+  out_of_bounds_mode_ = OutOfBoundsMode::CLAMP;
 }
 
 template <unsigned Dim>
@@ -111,19 +127,34 @@ LocalizationHint UniformGridField<Dim>::GetLocalizationHint(
   Kokkos::View<LO*, HostMemorySpace> cell_indices("cell_indices", num_points);
   Kokkos::View<Real**, HostMemorySpace> coords_copy("coords_copy", num_points,
                                                     Dim);
+  Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds", num_points);
+  size_t num_out_of_bounds = 0;
 
-  // Find which cell each point belongs to
+  // Find which cell each point belongs to and detect out-of-bounds
   for (LO i = 0; i < num_points; ++i) {
     Omega_h::Vector<Dim> point;
     for (unsigned d = 0; d < Dim; ++d) {
       point[d] = coordinates(i, d);
       coords_copy(i, d) = coordinates(i, d);
     }
+    
+    // Check if point is within grid bounds
+    bool out_of_bounds = !grid_.IsPointInBounds(point);
+    
+    is_out_of_bounds[i] = out_of_bounds;
+    if (out_of_bounds) {
+      num_out_of_bounds++;
+      if (out_of_bounds_mode_ == OutOfBoundsMode::ERROR) {
+        PCMS_ALWAYS_ASSERT(false && "Point found outside uniform grid domain");
+      }
+    }
+    
     cell_indices[i] = grid_.ClosestCellID(point);
   }
 
   auto hint = std::make_shared<UniformGridFieldLocalizationHint<Dim>>(
-    cell_indices, coords_copy);
+    cell_indices, coords_copy, out_of_bounds_mode_, fill_value_, 
+    is_out_of_bounds, num_out_of_bounds);
   return LocalizationHint{hint};
 }
 
@@ -203,8 +234,16 @@ void UniformGridField<Dim>::Evaluate(
   auto interpolated_values_host =
     Kokkos::create_mirror_view(interpolated_values);
   Kokkos::deep_copy(interpolated_values_host, interpolated_values);
+  
+  // Copy interpolated values and handle out-of-bounds points
   for (LO i = 0; i < evaluated_values.size(); ++i) {
-    evaluated_values[i] = interpolated_values_host[i];
+    if (hint.is_out_of_bounds_[i] && hint.mode_ == OutOfBoundsMode::FILL) {
+      // Fill out-of-bounds points with fill value
+      evaluated_values[i] = hint.fill_value_;
+    } else {
+      // Use interpolated value (for in-bounds or CLAMP mode)
+      evaluated_values[i] = interpolated_values_host[i];
+    }
   }
 }
 

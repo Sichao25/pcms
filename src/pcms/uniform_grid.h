@@ -71,6 +71,21 @@ public:
     return {.center = center, .half_width = half_width};
   }
 
+  /// Check if a point is within the grid bounds
+  [[nodiscard]] KOKKOS_INLINE_FUNCTION bool
+  IsPointInBounds(const Omega_h::Vector<dim>& point) const
+  {
+    for (size_t i = 0; i < dim; ++i) {
+      Real coord = point[i];
+      Real grid_min = bot_left[i];
+      Real grid_max = bot_left[i] + edge_length[i];
+      if (coord < grid_min || coord > grid_max) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   [[nodiscard]] KOKKOS_INLINE_FUNCTION std::array<LO, dim> GetDimensionedIndex(
     LO idx) const
   {
