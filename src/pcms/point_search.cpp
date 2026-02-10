@@ -13,27 +13,17 @@ Omega_h::Real distance_from_line(const Omega_h::Vector<dim>& a, const Omega_h::V
   return Omega_h::norm(ap - (ap*n)*n);
 }
 
-// Law of Cosines, where a, b, c and gamma are defined here:
-// https://en.wikipedia.org/wiki/Law_of_cosines#Use_in_solving_triangles
+template <Omega_h::Int dim>
 KOKKOS_INLINE_FUNCTION
-double angle_from_side_lengths(const double a, const double b, const double c)
+bool normal_intersects_segment(const Omega_h::Vector<dim> a,
+                               const Omega_h::Vector<dim> b,
+                               const Omega_h::Vector<dim> p)
 {
-  return std::acos((a * a + b * b - c * c) / 2 * a * b);
-}
-
-KOKKOS_INLINE_FUNCTION
-bool normal_intersects_segment(const Omega_h::Few<double, 2> a,
-                               const Omega_h::Few<double, 2> b,
-                               const Omega_h::Few<double, 2> c)
-{
-  const auto ab_len = Omega_h::norm(a - b);
-  const auto bc_len = Omega_h::norm(b - c);
-  const auto ac_len = Omega_h::norm(a - c);
-
-  const double angle1 = angle_from_side_lengths(bc_len, ac_len, ab_len);
-  const double angle2 = angle_from_side_lengths(bc_len, ab_len, ac_len);
-
-  return angle1 <= (Omega_h::PI / 2) && angle2 <= (Omega_h::PI / 2);
+  auto ab = b - a;
+  auto ba = a - b;
+  auto ap = p - a;
+  auto bp = p - b;
+  return (ap * ab) * (bp *  ba) >= 0;
 }
 
 namespace pcms
@@ -479,7 +469,7 @@ Kokkos::View<GridPointSearch2D::Result*> GridPointSearch2D::operator()(
           auto vertex_a = Omega_h::get_vector<2>(coords, vertex_a_id);
           auto vertex_b = Omega_h::get_vector<2>(coords, vertex_b_id);
 
-          if (!normal_intersects_segment(point, vertex_a, vertex_b))
+          if (!normal_intersects_segment(vertex_a, vertex_b, point))
             continue;
 
           const auto distance_to_ab =
