@@ -1,4 +1,4 @@
-import py_pcms
+import pcms
 import numpy as np
 
 def test_copy(world, dim, order, num_components):
@@ -9,9 +9,9 @@ def test_copy(world, dim, order, num_components):
     print(f"\nStarting test: dim={dim}, order={order}, num_components={num_components}")
 
     # Build mesh
-    mesh = py_pcms.build_box(
+    mesh = pcms.build_box(
         world, 
-        py_pcms.Family.SIMPLEX, 
+        pcms.Family.SIMPLEX, 
         1.0, 1.0, 1.0, 
         nx, ny, nz, 
         False
@@ -22,11 +22,11 @@ def test_copy(world, dim, order, num_components):
 
     # Create layout
     print("  About to create layout...")
-    layout = py_pcms.create_lagrange_layout(
+    layout = pcms.create_lagrange_layout(
         mesh, 
         order, 
         num_components,
-        py_pcms.CoordinateSystem.Cartesian
+        pcms.CoordinateSystem.Cartesian
     )
     print(f"  Layout created successfully")
     print(f"Testing dim={dim}, order={order}, num_components={num_components}...")
@@ -47,7 +47,7 @@ def test_copy(world, dim, order, num_components):
 
     # Create copied field and copy data
     copied = layout.create_field()
-    py_pcms.copy_field2_Real(original, copied)
+    pcms.copy_field(original, copied)
     print("  Copied data to new field")
 
     # Get copied data
@@ -69,7 +69,7 @@ def main():
     print("Testing copy omega_h_field2 data...")
 
     # Initialize Omega_h library
-    lib = py_pcms.OmegaHLibrary()
+    lib = pcms.OmegaHLibrary()
     world = lib.world()
     print("Initialized Omega_h library and world")
 
@@ -79,6 +79,9 @@ def main():
     test_copy(world, 2, 2, 1)
 
     print("\nAll tests passed!")
+
+    del world
+    del lib
 
 if __name__ == "__main__":
     main()

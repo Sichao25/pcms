@@ -3,7 +3,7 @@
 Test OmegaHFieldLayout Python bindings
 """
 
-import py_pcms
+import pcms
 import numpy as np
 
 def test_layout_methods(world, dim, order, num_components):
@@ -15,20 +15,20 @@ def test_layout_methods(world, dim, order, num_components):
     print(f"\nTesting layout: dim={dim}, order={order}, num_components={num_components}")
 
     # Build mesh
-    mesh = py_pcms.build_box(
+    mesh = pcms.build_box(
         world, 
-        py_pcms.Family.SIMPLEX, 
+        pcms.Family.SIMPLEX, 
         1.0, 1.0, 1.0, 
         nx, ny, nz, 
         False
     )
 
     # Create layout
-    layout = py_pcms.create_lagrange_layout(
+    layout = pcms.create_lagrange_layout(
         mesh, 
         order, 
         num_components,
-        py_pcms.CoordinateSystem.Cartesian
+        pcms.CoordinateSystem.Cartesian
     )
 
     # Test layout methods
@@ -116,20 +116,20 @@ def test_field_evaluation(world, dim, order, num_components):
     print(f"\nTesting field evaluation: dim={dim}, order={order}, num_components={num_components}")
 
     # Build mesh
-    mesh = py_pcms.build_box(
+    mesh = pcms.build_box(
         world, 
-        py_pcms.Family.SIMPLEX, 
+        pcms.Family.SIMPLEX, 
         1.0, 1.0, 1.0, 
         nx, ny, nz, 
         False
     )
 
     # Create layout
-    layout = py_pcms.create_lagrange_layout(
+    layout = pcms.create_lagrange_layout(
         mesh, 
         order, 
         num_components,
-        py_pcms.CoordinateSystem.Cartesian
+        pcms.CoordinateSystem.Cartesian
     )
 
     # Create field
@@ -199,7 +199,7 @@ def test_field_evaluation(world, dim, order, num_components):
     print(f"  Evaluating at {num_eval_points} points")
 
     # Get localization hint for the coordinates
-    coord_system = py_pcms.CoordinateSystem.Cartesian
+    coord_system = pcms.CoordinateSystem.Cartesian
     location_hint = field.get_localization_hint(eval_coords, coord_system)
     print(f"  Got localization hint")
 
@@ -253,7 +253,7 @@ def main():
     print("Testing OmegaHFieldLayout Python bindings...")
 
     # Initialize Omega_h library
-    lib = py_pcms.OmegaHLibrary()
+    lib = pcms.OmegaHLibrary()
     world = lib.world()
     print("Initialized Omega_h library and world")
 
@@ -271,6 +271,8 @@ def main():
     test_field_evaluation(world, 2, 2, 1)
 
     print("\n✓ All tests passed!")
+    del world
+    del lib
 
 if __name__ == "__main__":
     main()

@@ -140,8 +140,8 @@ void bind_create_field_module(py::module& m) {
         },
         py::arg("mesh"),
         py::arg("order"),
-        py::arg("num_components"),
-        py::arg("coordinate_system"));
+        py::arg("num_components") = 1,
+        py::arg("coordinate_system") = CoordinateSystem::Cartesian);
 
   // Bind CreateUniformGridFromMesh for 2D
   m.def("create_uniform_grid_from_mesh",
@@ -271,11 +271,7 @@ void bind_field_module(py::module& m) {
       return view_to_numpy(self.GetValues());
     });
 
-  // Bind FieldT for common types
-  // bind_field_t<Real>(m, "Real");
-  // bind_field_t<float>(m, "Float");
-
-  // Only bind double separately if Real is not already double
+  // Bind FieldT only for double (Real is defined as double in types.h)
   bind_field_t<double>(m, "Double");
 }
 

@@ -105,7 +105,7 @@ void bind_uniform_grid_field_module(py::module& m) {
     py::arg("data"),
     "Set the DOF holder data")
 
-    .def("to_mdspan", [](const UniformGridField<2>& self) {
+    .def("to_numpy", [](const UniformGridField<2>& self) {
       return mdspan_view_to_numpy(self.to_mdspan());
     },
     "Get the DOF holder data as a 2D numpy array (copy)")
@@ -213,7 +213,7 @@ void bind_uniform_grid_field_module(py::module& m) {
     py::arg("data"),
     "Set the DOF holder data")
 
-    .def("to_mdspan", [](const UniformGridField<3>& self) {
+    .def("to_numpy", [](const UniformGridField<3>& self) {
       return mdspan_view_to_numpy(self.to_mdspan());
     },
     "Get the DOF holder data as a 3D numpy array (copy)")

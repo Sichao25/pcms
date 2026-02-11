@@ -5,13 +5,13 @@ This demonstrates how to use the UniformGridField and UniformGridFieldLayout
 classes in Python, similar to how OmegaHField is used.
 """
 import numpy as np
-import py_pcms
+import pcms
 
 
 def test_uniform_grid_field_creation():
     """Test creating a 2D uniform grid field."""
     # Create a 2D uniform grid
-    grid = py_pcms.UniformGrid2D()
+    grid = pcms.UniformGrid2D()
     grid.bot_left = [0.0, 0.0]
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [4, 4]  # 4x4 cells
@@ -19,8 +19,8 @@ def test_uniform_grid_field_creation():
     print(f"Grid cells: {grid.get_num_cells()}")  # Should be 16
     
     # Create field layout with 1 component (scalar field)
-    layout = py_pcms.UniformGridFieldLayout2D(
-        grid, 1, py_pcms.CoordinateSystem.Cartesian
+    layout = pcms.UniformGridFieldLayout2D(
+        grid, 1, pcms.CoordinateSystem.Cartesian
     )
     
     print(f"Num components: {layout.get_num_components()}")
@@ -37,13 +37,13 @@ def test_uniform_grid_field_creation():
 def test_uniform_grid_field_data_operations():
     """Test setting and getting field data."""
     # Create a simple grid
-    grid = py_pcms.UniformGrid2D()
+    grid = pcms.UniformGrid2D()
     grid.bot_left = [0.0, 0.0]
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [2, 2]  # 2x2 cells, 3x3 vertices
     
-    layout = py_pcms.UniformGridFieldLayout2D(
-        grid, 1, py_pcms.CoordinateSystem.Cartesian
+    layout = pcms.UniformGridFieldLayout2D(
+        grid, 1, pcms.CoordinateSystem.Cartesian
     )
     ug_field = layout.create_field()
     
@@ -69,13 +69,13 @@ def test_uniform_grid_field_data_operations():
 
 def test_uniform_grid_field_mdspan_2d():
     """Test 2D mdspan output as numpy array."""
-    grid = py_pcms.UniformGrid2D()
+    grid = pcms.UniformGrid2D()
     grid.bot_left = [0.0, 0.0]
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [2, 3]  # 3x4 vertices
 
-    layout = py_pcms.UniformGridFieldLayout2D(
-        grid, 1, py_pcms.CoordinateSystem.Cartesian
+    layout = pcms.UniformGridFieldLayout2D(
+        grid, 1, pcms.CoordinateSystem.Cartesian
     )
     ug_field = layout.create_field()
 
@@ -83,7 +83,7 @@ def test_uniform_grid_field_mdspan_2d():
     data = np.arange(num_vertices, dtype=np.float64)
     ug_field.set_dof_holder_data(data)
 
-    mdspan = ug_field.to_mdspan()
+    mdspan = ug_field.to_numpy()
     expected = data.reshape((grid.divisions[0] + 1, grid.divisions[1] + 1))
     assert type(mdspan) == np.ndarray
 
@@ -95,13 +95,13 @@ def test_uniform_grid_field_mdspan_2d():
 def test_uniform_grid_field_evaluation():
     """Test evaluating field at specific coordinates."""
     # Create grid
-    grid = py_pcms.UniformGrid2D()
+    grid = pcms.UniformGrid2D()
     grid.bot_left = [0.0, 0.0]
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [2, 2]
     
-    layout = py_pcms.UniformGridFieldLayout2D(
-        grid, 1, py_pcms.CoordinateSystem.Cartesian
+    layout = pcms.UniformGridFieldLayout2D(
+        grid, 1, pcms.CoordinateSystem.Cartesian
     )
     ug_field = layout.create_field()
     
@@ -119,13 +119,13 @@ def test_uniform_grid_field_evaluation():
     
     # Get localization hint
     hint = ug_field.get_localization_hint(
-        eval_coords, py_pcms.CoordinateSystem.Cartesian
+        eval_coords, pcms.CoordinateSystem.Cartesian
     )
     
     # Evaluate field
     results = np.zeros(len(eval_coords))
     ug_field.evaluate(
-        hint, results, py_pcms.CoordinateSystem.Cartesian
+        hint, results, pcms.CoordinateSystem.Cartesian
     )
     
     print(f"Evaluation results: {results}")
@@ -134,7 +134,7 @@ def test_uniform_grid_field_evaluation():
 
 def test_uniform_grid_closest_cell():
     """Test finding closest cell to a point."""
-    grid = py_pcms.UniformGrid2D()
+    grid = pcms.UniformGrid2D()
     grid.bot_left = [0.0, 0.0]
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [4, 4]
@@ -152,15 +152,15 @@ def test_uniform_grid_closest_cell():
 
 def test_3d_uniform_grid():
     """Test 3D uniform grid field."""
-    grid = py_pcms.UniformGrid3D()
+    grid = pcms.UniformGrid3D()
     grid.bot_left = [0.0, 0.0, 0.0]
     grid.edge_length = [10.0, 10.0, 10.0]
     grid.divisions = [2, 2, 2]  # 2x2x2 cells
     
     print(f"3D Grid cells: {grid.get_num_cells()}")  # Should be 8
     
-    layout = py_pcms.UniformGridFieldLayout3D(
-        grid, 1, py_pcms.CoordinateSystem.Cartesian
+    layout = pcms.UniformGridFieldLayout3D(
+        grid, 1, pcms.CoordinateSystem.Cartesian
     )
     
     print(f"3D Grid vertices: {layout.get_num_vertices()}")  # 3x3x3 = 27
@@ -179,13 +179,13 @@ def test_3d_uniform_grid():
 
 def test_uniform_grid_field_mdspan_3d():
     """Test 3D mdspan output as numpy array."""
-    grid = py_pcms.UniformGrid3D()
+    grid = pcms.UniformGrid3D()
     grid.bot_left = [0.0, 0.0, 0.0]
     grid.edge_length = [10.0, 10.0, 10.0]
     grid.divisions = [2, 1, 3]  # 3x2x4 vertices
 
-    layout = py_pcms.UniformGridFieldLayout3D(
-        grid, 1, py_pcms.CoordinateSystem.Cartesian
+    layout = pcms.UniformGridFieldLayout3D(
+        grid, 1, pcms.CoordinateSystem.Cartesian
     )
     ug_field = layout.create_field()
 
@@ -193,7 +193,7 @@ def test_uniform_grid_field_mdspan_3d():
     data = np.arange(num_vertices, dtype=np.float64)
     ug_field.set_dof_holder_data(data)
 
-    mdspan = ug_field.to_mdspan()
+    mdspan = ug_field.to_numpy()
     expected = data.reshape(
         (grid.divisions[0] + 1, grid.divisions[1] + 1, grid.divisions[2] + 1)
     )
@@ -216,26 +216,26 @@ def test_uniform_grid_workflow(world):
     6. Verifies the transferred values
     """
     # Create a simple 2D box mesh: 1.0 x 1.0 domain with 4x4 elements
-    mesh = py_pcms.build_box(
+    mesh = pcms.build_box(
         world,
-        py_pcms.Family.SIMPLEX,
+        pcms.Family.SIMPLEX,
         1.0, 1.0, 0.0,
         4, 4, 0,
         False
     )
     
     # Create uniform grid from mesh with 4x4 divisions
-    grid = py_pcms.create_uniform_grid_from_mesh(mesh, [4, 4])
+    grid = pcms.create_uniform_grid_from_mesh(mesh, [4, 4])
     print(f"Created uniform grid with {grid.get_num_cells()} cells")
     
     # Create binary mask field (returns tuple of (layout, field))
-    mask_layout, mask_field = py_pcms.create_uniform_grid_binary_field(mesh, [4, 4])
+    mask_layout, mask_field = pcms.create_uniform_grid_binary_field(mesh, [4, 4])
     mask_data = mask_field.get_dof_holder_data()
     print(f"Created mask field with {len(mask_data)} vertices")
     
     # Create Omega_h field layout with linear elements
-    omega_h_layout = py_pcms.create_lagrange_layout(
-        mesh, 1, 1, py_pcms.CoordinateSystem.Cartesian
+    omega_h_layout = pcms.create_lagrange_layout(
+        mesh, 1
     )
     omega_h_field = omega_h_layout.create_field()
     
@@ -253,13 +253,13 @@ def test_uniform_grid_workflow(world):
     print(f"Initialized Omega_h field with {num_nodes} nodes")
     
     # Create uniform grid field layout
-    ug_layout = py_pcms.UniformGridFieldLayout2D(
-        grid, 1, py_pcms.CoordinateSystem.Cartesian
+    ug_layout = pcms.UniformGridFieldLayout2D(
+        grid, 1, pcms.CoordinateSystem.Cartesian
     )
     ug_field = ug_layout.create_field()
     
     # Transfer from omega_h field to uniform grid field using interpolation
-    py_pcms.interpolate_field(omega_h_field, ug_field)
+    pcms.interpolate_field(omega_h_field, ug_field)
     print("Field interpolation completed")
     
     # Get uniform grid field data and coordinates
@@ -367,29 +367,29 @@ def test_omega_h_to_omega_h_transfer_workflow(world):
     6. Verifies the transferred values at target DOF holders
     """
     # Source mesh (coarser)
-    src_mesh = py_pcms.build_box(
+    src_mesh = pcms.build_box(
         world,
-        py_pcms.Family.SIMPLEX,
+        pcms.Family.SIMPLEX,
         1.0, 1.0, 0.0,
         4, 4, 0,
         False
     )
 
     # Target mesh (finer)
-    tgt_mesh = py_pcms.build_box(
+    tgt_mesh = pcms.build_box(
         world,
-        py_pcms.Family.SIMPLEX,
+        pcms.Family.SIMPLEX,
         1.0, 1.0, 0.0,
         8, 8, 0,
         False
     )
 
     # Create Lagrange layouts and fields
-    src_layout = py_pcms.create_lagrange_layout(
-        src_mesh, 1, 1, py_pcms.CoordinateSystem.Cartesian
+    src_layout = pcms.create_lagrange_layout(
+        src_mesh, 1
     )
-    tgt_layout = py_pcms.create_lagrange_layout(
-        tgt_mesh, 1, 1, py_pcms.CoordinateSystem.Cartesian
+    tgt_layout = pcms.create_lagrange_layout(
+        tgt_mesh, 1
     )
     src_field = src_layout.create_field()
     tgt_field = tgt_layout.create_field()
@@ -405,7 +405,7 @@ def test_omega_h_to_omega_h_transfer_workflow(world):
     src_field.set_dof_holder_data(src_data)
 
     # Transfer field to target mesh
-    py_pcms.interpolate_field(src_field, tgt_field)
+    pcms.interpolate_field(src_field, tgt_field)
 
     # Verify target field values at target DOF holders
     tgt_coords = tgt_layout.get_dof_holder_coordinates()
@@ -422,7 +422,7 @@ def test_omega_h_to_omega_h_transfer_workflow(world):
 
 
 if __name__ == "__main__":
-    lib = py_pcms.OmegaHLibrary()
+    lib = pcms.OmegaHLibrary()
     world = lib.world()
     print("=" * 60)
     print("Testing UniformGrid Field Creation")
