@@ -17,11 +17,11 @@ The workflow allows you to:
 Initialize the Omega_h library which manages parallel communication.
 
 ```python
-import py_pcms
+import pcms
 import numpy as np
 
 # Create library and world communicator
-lib = py_pcms.OmegaHLibrary()
+lib = pcms.OmegaHLibrary()
 world = lib.world()
 ```
 
@@ -36,9 +36,9 @@ You can either create a mesh or read an existing mesh from a file.
 
 ```python
 # Create a 2D box mesh: 1.0 x 1.0 domain with 4x4 elements
-mesh = py_pcms.build_box(
+mesh = pcms.build_box(
     world,                          # Communicator
-    py_pcms.Family.SIMPLEX,        # Element type
+    pcms.Family.SIMPLEX,        # Element type
     1.0, 1.0, 0.0,                 # Domain size: x, y, z
     4, 4, 0,                       # Number of elements: nx, ny, nz
     False                          # Symmetric flag
@@ -49,37 +49,37 @@ mesh = py_pcms.build_box(
 
 ```python
 # Auto-detect file format and read
-mesh = py_pcms.read_mesh_file("my_mesh.osh", world)
+mesh = pcms.read_mesh_file("my_mesh.osh", world)
 
 # Or use format-specific readers for explicit control:
 
 # Binary format (.osh)
-mesh = py_pcms.read_mesh_binary("mesh.osh", lib)
+mesh = pcms.read_mesh_binary("mesh.osh", lib)
 
 # Gmsh format (.msh)
-mesh = py_pcms.read_mesh_gmsh("mesh.msh", world)
+mesh = pcms.read_mesh_gmsh("mesh.msh", world)
 
 # VTK format (.pvtu for parallel files)
-mesh = py_pcms.read_mesh_parallel_vtk("mesh.pvtu", world)
+mesh = pcms.read_mesh_parallel_vtk("mesh.pvtu", world)
 
 # Exodus format (.exo) - if SEACAS support is enabled
 # Using file handle API
-exo_handle = py_pcms.exodus_open("mesh.exo", verbose=False)
-num_steps = py_pcms.exodus_get_num_time_steps(exo_handle)
-mesh = py_pcms.OmegaHMesh(lib)
+exo_handle = pcms.exodus_open("mesh.exo", verbose=False)
+num_steps = pcms.exodus_get_num_time_steps(exo_handle)
+mesh = pcms.OmegaHMesh(lib)
 mesh.set_comm(world)
-py_pcms.read_mesh_exodus(exo_handle, mesh, verbose=False)
-py_pcms.exodus_close(exo_handle)
+pcms.read_mesh_exodus(exo_handle, mesh, verbose=False)
+pcms.exodus_close(exo_handle)
 
 # ADIOS2 format (.bp) - if ADIOS2 support is enabled
-mesh = py_pcms.read_mesh_adios2("mesh.bp", lib, prefix="")
+mesh = pcms.read_mesh_adios2("mesh.bp", lib, prefix="")
 
 # MESHB format (.mesh) - if LIBMESHB support is enabled
-mesh = py_pcms.OmegaHMesh(lib)
+mesh = pcms.OmegaHMesh(lib)
 mesh.set_comm(world)
-py_pcms.read_mesh_meshb(mesh, "mesh.mesh")
+pcms.read_mesh_meshb(mesh, "mesh.mesh")
 # Read solution/resolution data if available
-py_pcms.read_meshb_sol(mesh, "mesh.sol", sol_name="resolution")
+pcms.read_meshb_sol(mesh, "mesh.sol", sol_name="resolution")
 ```
 
 **PS**: File formats such as Exodus or libMeshB require that PCMS be built with the respective libraries enabled.
@@ -101,7 +101,7 @@ Generate a structured uniform grid that covers the bounding box of the mesh.
 
 ```python
 # Create uniform grid with 4x4 cell divisions
-grid = py_pcms.create_uniform_grid_from_mesh(mesh, [4, 4])
+grid = pcms.create_uniform_grid_from_mesh(mesh, [4, 4])
 print(f"Created uniform grid with {grid.get_num_cells()} cells")
 ```
 
@@ -114,7 +114,7 @@ Create a mask where each uniform grid vertex is marked as 1 (inside mesh) or 0 (
 ```python
 # Create binary mask indicating which vertices are inside the mesh
 # Returns tuple of (layout, field) - layout must be kept alive while using field
-mask_layout, mask_field = py_pcms.create_uniform_grid_binary_field(mesh, [4, 4])
+mask_layout, mask_field = pcms.create_uniform_grid_binary_field(mesh, [4, 4])
 print(f"Created mask field with {mask_layout.get_num_vertices()} vertices")
 ```
 
@@ -134,11 +134,11 @@ Create a field on the unstructured mesh and initialize it with data.
 
 ```python
 # Create field layout with linear (order=1) elements and 1 component (scalar)
-omega_h_layout = py_pcms.create_lagrange_layout(
+omega_h_layout = pcms.create_lagrange_layout(
     mesh, 
     1,
     1,
-    py_pcms.CoordinateSystem.Cartesian
+    pcms.CoordinateSystem.Cartesian
 )
 omega_h_field = omega_h_layout.create_field()
 
@@ -163,10 +163,10 @@ Set up the data structure for storing field values on the uniform grid vertices.
 
 ```python
 # Create uniform grid field layout
-ug_layout = py_pcms.UniformGridFieldLayout2D(
+ug_layout = pcms.UniformGridFieldLayout2D(
     grid, 
     1,                                      # Number of components
-    py_pcms.CoordinateSystem.Cartesian
+    pcms.CoordinateSystem.Cartesian
 )
 ug_field = ug_layout.create_field()
 ```
@@ -179,7 +179,7 @@ Interpolate field values from the unstructured mesh to the structured uniform gr
 
 ```python
 # Transfer field from Omega_h mesh to uniform grid
-py_pcms.interpolate_field(omega_h_field, ug_field)
+pcms.interpolate_field(omega_h_field, ug_field)
 ```
 
 ---
@@ -208,8 +208,8 @@ for downstream analyses.
 
 ```python
 # Convert field data to a structured array
-grid_values = ug_field.to_mdspan()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
-mask_values = mask_field.to_mdspan()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
+grid_values = ug_field.to_numpy()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
+mask_values = mask_field.to_numpy()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
 
 # Save to file (example)
 np.save('field_data.npy', grid_values)
