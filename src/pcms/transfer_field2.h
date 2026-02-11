@@ -4,7 +4,6 @@
 #include <typeinfo>
 #include "pcms/utility/arrays.h"
 #include "field.h"
-#include "pcms/utility/arrays.h"
 #include "pcms/field_evaluation_methods.h"
 #include "pcms/utility/profile.h"
 #include "pcms/field.h"
