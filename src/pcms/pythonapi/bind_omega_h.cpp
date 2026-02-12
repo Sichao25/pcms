@@ -6,6 +6,8 @@
 #include <Omega_h_library.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_comm.hpp>
+#include <Omega_h_defines.hpp>
+#include <Omega_h_tag.hpp>
 #ifdef OMEGA_H_USE_ADIOS2
 #include <Omega_h_adios2.hpp>
 #endif
@@ -99,6 +101,45 @@ void bind_omega_h_mesh_module(py::module& m) {
         "Build a box mesh with specified dimensions and discretization",
         py::return_value_policy::move);
 
+  // Bind Omega_h_Type enum for tag data types
+  py::enum_<Omega_h_Type>(m, "OmegaHType")
+    .value("I8", OMEGA_H_I8)
+    .value("I32", OMEGA_H_I32)
+    .value("I64", OMEGA_H_I64)
+    .value("F64", OMEGA_H_F64)
+    .value("REAL", OMEGA_H_REAL)
+    .export_values();
+
+  // Bind Omega_h_Op enum for reduction operations
+  py::enum_<Omega_h_Op>(m, "OmegaHOp")
+    .value("MIN", OMEGA_H_MIN)
+    .value("MAX", OMEGA_H_MAX)
+    .value("SUM", OMEGA_H_SUM)
+    .export_values();
+
+  // Bind ArrayType enum for tag array types
+  py::enum_<Omega_h::ArrayType>(m, "ArrayType")
+    .value("VectorND", Omega_h::ArrayType::VectorND)
+    .value("SymmetricSquareMatrix", Omega_h::ArrayType::SymmetricSquareMatrix)
+    .export_values();
+
+  // Bind TagBase class for tag metadata access
+  py::class_<Omega_h::TagBase>(m, "TagBase")
+    .def("name", &Omega_h::TagBase::name,
+         py::return_value_policy::reference,
+         "Get tag name")
+    .def("ncomps", &Omega_h::TagBase::ncomps,
+         "Get number of components")
+    .def("type", &Omega_h::TagBase::type,
+         "Get tag data type (Omega_h_Type)")
+    .def("array_type", &Omega_h::TagBase::array_type,
+         "Get array type (VectorND or SymmetricSquareMatrix)")
+    .def("class_ids", [](const Omega_h::TagBase& tag) {
+      auto class_ids = tag.class_ids();
+      return omega_h_read_to_numpy(class_ids);
+    },
+    "Get class IDs for rcField tags");
+
   // Bind Omega_h::Mesh
   py::class_<Omega_h::Mesh, std::shared_ptr<Omega_h::Mesh>>(m, "OmegaHMesh")
     .def(py::init<>(), "Default constructor")
@@ -186,10 +227,168 @@ void bind_omega_h_mesh_module(py::module& m) {
          py::arg("ent_dim"),
          "Get number of tags for entity dimension")
 
+    .def("nrctags", &Omega_h::Mesh::nrctags,
+         py::arg("ent_dim"),
+         "Get number of rcField tags for entity dimension")
+
+    .def("get_tag", [](const Omega_h::Mesh& mesh, Omega_h::Int dim, Omega_h::Int i) -> const Omega_h::TagBase* {
+      return mesh.get_tag(dim, i);
+    },
+    py::arg("ent_dim"),
+    py::arg("index"),
+    py::return_value_policy::reference,
+    "Get tag by index (for iterating through tags)")
+
+    .def("get_tagbase", [](const Omega_h::Mesh& mesh, Omega_h::Int dim, const std::string& name) -> const Omega_h::TagBase* {
+      return mesh.get_tagbase(dim, name);
+    },
+    py::arg("ent_dim"),
+    py::arg("name"),
+    py::return_value_policy::reference,
+    "Get tag metadata by name")
+
     .def("remove_tag", &Omega_h::Mesh::remove_tag,
          py::arg("ent_dim"),
          py::arg("name"),
          "Remove a tag")
+
+    // Tag creation with dtype string
+    .def("add_tag", [](Omega_h::Mesh& mesh, Omega_h::Int dim, const std::string& name, 
+                       Omega_h::Int ncomps, const std::string& dtype, Omega_h::ArrayType array_type) {
+      if (dtype == "int8" || dtype == "i1") {
+        mesh.add_tag<Omega_h::I8>(dim, name, ncomps, array_type);
+      } else if (dtype == "int32" || dtype == "i4") {
+        mesh.add_tag<Omega_h::I32>(dim, name, ncomps, array_type);
+      } else if (dtype == "int64" || dtype == "i8") {
+        mesh.add_tag<Omega_h::I64>(dim, name, ncomps, array_type);
+      } else if (dtype == "float64" || dtype == "f8" || dtype == "double") {
+        mesh.add_tag<Omega_h::Real>(dim, name, ncomps, array_type);
+      } else {
+        throw std::runtime_error("Unsupported dtype: " + dtype + ". Use 'int8', 'int32', 'int64', or 'float64'");
+      }
+    },
+    py::arg("ent_dim"),
+    py::arg("name"),
+    py::arg("ncomps"),
+    py::arg("dtype") = "float64",
+    py::arg("array_type") = Omega_h::ArrayType::VectorND,
+    "Add a tag with specified dtype (int8, int32, int64, float64)")
+
+    // Add tag with numpy array (auto-detect type)
+    .def("add_tag", [](Omega_h::Mesh& mesh, Omega_h::Int dim, const std::string& name, 
+                       Omega_h::Int ncomps, py::array array, bool internal, Omega_h::ArrayType array_type) {
+      auto dtype = array.dtype();
+      if (dtype.is(py::dtype::of<std::int8_t>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::I8>(array.cast<py::array_t<std::int8_t>>());
+        mesh.add_tag<Omega_h::I8>(dim, name, ncomps, array_view, internal, array_type);
+      } else if (dtype.is(py::dtype::of<std::int32_t>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::I32>(array.cast<py::array_t<std::int32_t>>());
+        mesh.add_tag<Omega_h::I32>(dim, name, ncomps, array_view, internal, array_type);
+      } else if (dtype.is(py::dtype::of<std::int64_t>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::I64>(array.cast<py::array_t<std::int64_t>>());
+        mesh.add_tag<Omega_h::I64>(dim, name, ncomps, array_view, internal, array_type);
+      } else if (dtype.is(py::dtype::of<double>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::Real>(array.cast<py::array_t<double>>());
+        mesh.add_tag<Omega_h::Real>(dim, name, ncomps, array_view, internal, array_type);
+      } else {
+        throw std::runtime_error("Unsupported numpy dtype. Use int8, int32, int64, or float64");
+      }
+    },
+    py::arg("ent_dim"),
+    py::arg("name"),
+    py::arg("ncomps"),
+    py::arg("array"),
+    py::arg("internal") = false,
+    py::arg("array_type") = Omega_h::ArrayType::VectorND,
+    "Add a tag with initial values from numpy array (auto-detects type)")
+
+    // Get tag data (auto-detect type from stored tag)
+    .def("get_tag", [](Omega_h::Mesh& mesh, Omega_h::Int dim, const std::string& name) -> py::array {
+      auto tagbase = mesh.get_tagbase(dim, name);
+      auto type = tagbase->type();
+      
+      if (type == OMEGA_H_I8) {
+        auto array = mesh.get_array<Omega_h::I8>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else if (type == OMEGA_H_I32) {
+        auto array = mesh.get_array<Omega_h::I32>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else if (type == OMEGA_H_I64) {
+        auto array = mesh.get_array<Omega_h::I64>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else if (type == OMEGA_H_F64) {
+        auto array = mesh.get_array<Omega_h::Real>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else {
+        throw std::runtime_error("Unsupported tag type");
+      }
+    },
+    py::arg("ent_dim"),
+    py::arg("name"),
+    "Get tag data as numpy array by name (auto-detects type)")
+
+    .def("get_tag_array", [](Omega_h::Mesh& mesh, Omega_h::Int dim, const std::string& name) -> py::array {
+      auto tagbase = mesh.get_tagbase(dim, name);
+      auto type = tagbase->type();
+      
+      if (type == OMEGA_H_I8) {
+        auto array = mesh.get_array<Omega_h::I8>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else if (type == OMEGA_H_I32) {
+        auto array = mesh.get_array<Omega_h::I32>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else if (type == OMEGA_H_I64) {
+        auto array = mesh.get_array<Omega_h::I64>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else if (type == OMEGA_H_F64) {
+        auto array = mesh.get_array<Omega_h::Real>(dim, name);
+        return omega_h_read_to_numpy(array);
+      } else {
+        throw std::runtime_error("Unsupported tag type");
+      }
+    },
+    py::arg("ent_dim"),
+    py::arg("name"),
+    "Get tag data as numpy array by name (alias for clarity)")
+
+    // Set tag data from numpy array (auto-detect type)
+    .def("set_tag", [](Omega_h::Mesh& mesh, Omega_h::Int dim, const std::string& name, py::array array,
+                        bool internal, Omega_h::ArrayType array_type) {
+      auto dtype = array.dtype();
+      if (dtype.is(py::dtype::of<std::int8_t>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::I8>(array.cast<py::array_t<std::int8_t>>());
+        mesh.set_tag<Omega_h::I8>(dim, name, array_view, internal, array_type);
+      } else if (dtype.is(py::dtype::of<std::int32_t>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::I32>(array.cast<py::array_t<std::int32_t>>());
+        mesh.set_tag<Omega_h::I32>(dim, name, array_view, internal, array_type);
+      } else if (dtype.is(py::dtype::of<std::int64_t>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::I64>(array.cast<py::array_t<std::int64_t>>());
+        mesh.set_tag<Omega_h::I64>(dim, name, array_view, internal, array_type);
+      } else if (dtype.is(py::dtype::of<double>())) {
+        auto array_view = numpy_to_omega_h_read<Omega_h::Real>(array.cast<py::array_t<double>>());
+        mesh.set_tag<Omega_h::Real>(dim, name, array_view, internal, array_type);
+      } else {
+        throw std::runtime_error("Unsupported numpy dtype. Use int8, int32, int64, or float64");
+      }
+    },
+    py::arg("ent_dim"),
+    py::arg("name"),
+    py::arg("array"),
+    py::arg("internal") = false,
+    py::arg("array_type") = Omega_h::ArrayType::VectorND,
+    "Set tag data from numpy array (auto-detects type)")
+
+    // Synchronize and reduce tags in parallel
+    .def("sync_tag", &Omega_h::Mesh::sync_tag,
+         py::arg("ent_dim"),
+         py::arg("name"),
+         "Synchronize tag values across processors")
+
+    .def("reduce_tag", &Omega_h::Mesh::reduce_tag,
+         py::arg("ent_dim"),
+         py::arg("name"),
+         py::arg("op"),
+         "Reduce tag values across processors with specified operation")
 
     .def("has_ents", &Omega_h::Mesh::has_ents,
          py::arg("ent_dim"),
@@ -234,7 +433,69 @@ void bind_omega_h_mesh_module(py::module& m) {
       return omega_h_read_to_numpy(owned);
     },
     py::arg("ent_dim"),
-    "Get ownership flags for entities");
+    "Get ownership flags for entities")
+
+    // Adjacency queries
+    .def("ask_verts_of", [](Omega_h::Mesh& mesh, Omega_h::Int dim) {
+      auto verts = mesh.ask_verts_of(dim);
+      return omega_h_read_to_numpy(verts);
+    },
+    py::arg("ent_dim"),
+    "Get vertex IDs for entities of given dimension")
+
+    .def("ask_elem_verts", [](Omega_h::Mesh& mesh) {
+      auto elem_verts = mesh.ask_elem_verts();
+      return omega_h_read_to_numpy(elem_verts);
+    },
+    "Get vertex IDs for elements")
+
+    .def("has_adj", &Omega_h::Mesh::has_adj,
+         py::arg("from_dim"),
+         py::arg("to_dim"),
+         "Check if adjacency information exists from one dimension to another")
+
+    // Global IDs
+    .def("globals", [](Omega_h::Mesh& mesh, Omega_h::Int dim) {
+      auto globals = mesh.globals(dim);
+      return omega_h_read_to_numpy(globals);
+    },
+    py::arg("ent_dim"),
+    "Get global IDs for entities")
+
+    // Mesh sizing queries
+    .def("ask_sizes", [](Omega_h::Mesh& mesh) {
+      auto sizes = mesh.ask_sizes();
+      return omega_h_read_to_numpy(sizes);
+    },
+    "Get element sizes");
+
+  // Mesh utility functions
+  m.def("average_field", 
+        [](Omega_h::Mesh* mesh, Omega_h::Int dim, Omega_h::Int ncomps, py::array_t<Omega_h::Real> v2x) {
+          auto v2x_view = numpy_to_omega_h_read<Omega_h::Real>(v2x);
+          auto result = Omega_h::average_field(mesh, dim, ncomps, v2x_view);
+          return omega_h_read_to_numpy(result);
+        },
+        py::arg("mesh"),
+        py::arg("ent_dim"),
+        py::arg("ncomps"),
+        py::arg("vertex_data"),
+        "Average vertex field data to entity centers (e.g., get face coordinates from vertex coordinates)");
+
+  m.def("average_field",
+        [](Omega_h::Mesh* mesh, Omega_h::Int dim, py::array_t<Omega_h::LO> a2e, 
+           Omega_h::Int ncomps, py::array_t<Omega_h::Real> v2x) {
+          auto a2e_view = numpy_to_omega_h_read<Omega_h::LO>(a2e);
+          auto v2x_view = numpy_to_omega_h_read<Omega_h::Real>(v2x);
+          auto result = Omega_h::average_field(mesh, dim, a2e_view, ncomps, v2x_view);
+          return omega_h_read_to_numpy(result);
+        },
+        py::arg("mesh"),
+        py::arg("ent_dim"),
+        py::arg("a2e"),
+        py::arg("ncomps"),
+        py::arg("vertex_data"),
+        "Average vertex field data to subset of entities specified by a2e");
 
   // Bind mesh I/O functions
   

@@ -248,6 +248,248 @@ def test_field_evaluation(world, dim, order, num_components):
 
     print(f"✓ Field evaluation test passed: dim={dim}, order={order}, num_components={num_components}")
 
+def test_tag_operations(world, dim):
+    """Test Omega_h mesh tag operations"""
+    nx = 5
+    ny = 5 if dim > 1 else 0
+    nz = 5 if dim > 2 else 0
+
+    print(f"\nTesting tag operations: dim={dim}")
+
+    # Build mesh
+    mesh = pcms.build_box(
+        world, 
+        pcms.Family.SIMPLEX, 
+        1.0, 1.0, 1.0, 
+        nx, ny, nz, 
+        False
+    )
+
+    print(f"  Mesh has {mesh.nverts()} vertices")
+    print(f"  Mesh has {mesh.nelems()} elements")
+
+    # Test 1: Create empty tags with different data types
+    print("\n  Test 1: Creating empty tags with different dtypes...")
+    mesh.add_tag(0, "test_float", 1, dtype="float64")
+    mesh.add_tag(0, "test_int32", 1, dtype="int32")
+    mesh.add_tag(0, "test_int64", 1, dtype="int64")
+    
+    assert mesh.has_tag(0, "test_float"), "Float tag should exist"
+    assert mesh.has_tag(0, "test_int32"), "Int32 tag should exist"
+    assert mesh.has_tag(0, "test_int64"), "Int64 tag should exist"
+    print("  ✓ Empty tags created successfully")
+
+    # Test 2: Create tags with initial data (auto-detect type)
+    print("\n  Test 2: Creating tags with initial numpy arrays...")
+    nverts = mesh.nverts()
+    
+    # Float64 array
+    temp_data = np.linspace(0.0, 100.0, nverts, dtype=np.float64)
+    mesh.add_tag(0, "temperature", 1, temp_data)
+    
+    # Int32 array
+    ids_data = np.arange(nverts, dtype=np.int32)
+    mesh.add_tag(0, "vertex_ids", 1, ids_data)
+    
+    # Multi-component vector
+    velocity_data = np.random.randn(nverts * dim).astype(np.float64)
+    mesh.add_tag(0, "velocity", dim, velocity_data)
+    
+    assert mesh.has_tag(0, "temperature"), "Temperature tag should exist"
+    assert mesh.has_tag(0, "vertex_ids"), "Vertex IDs tag should exist"
+    assert mesh.has_tag(0, "velocity"), "Velocity tag should exist"
+    print("  ✓ Tags with initial data created successfully")
+
+    # Test 3: Get tag data and verify
+    print("\n  Test 3: Getting tag data and verifying...")
+    retrieved_temp = mesh.get_tag(0, "temperature")
+    retrieved_ids = mesh.get_tag(0, "vertex_ids")
+    retrieved_vel = mesh.get_tag(0, "velocity")
+    
+    assert retrieved_temp.dtype == np.float64, "Temperature should be float64"
+    assert retrieved_ids.dtype == np.int32, "IDs should be int32"
+    assert retrieved_vel.shape[0] == nverts * dim, f"Velocity should have {nverts * dim} elements"
+    
+    np.testing.assert_allclose(retrieved_temp, temp_data, rtol=1e-15)
+    np.testing.assert_array_equal(retrieved_ids, ids_data)
+    print("  ✓ Tag data retrieved and verified successfully")
+
+    # Test 4: Set tag data
+    print("\n  Test 4: Setting tag data...")
+    new_temp = np.ones(nverts, dtype=np.float64) * 50.0
+    mesh.set_tag(0, "temperature", new_temp)
+    
+    updated_temp = mesh.get_tag(0, "temperature")
+    np.testing.assert_allclose(updated_temp, new_temp, rtol=1e-15)
+    print("  ✓ Tag data set and verified successfully")
+
+    # Test 5: ArrayType parameter
+    print("\n  Test 5: Testing ArrayType parameter...")
+    # Create a symmetric matrix tag (stress tensor)
+    if dim == 3:
+        ncomps = 6  # xx, yy, zz, xy, xz, yz
+        stress_data = np.random.randn(mesh.nelems() * ncomps).astype(np.float64)
+        mesh.add_tag(dim, "stress", ncomps, stress_data, 
+                     internal=False, 
+                     array_type=pcms.ArrayType.SymmetricSquareMatrix)
+        assert mesh.has_tag(dim, "stress"), "Stress tag should exist on elements"
+        print("  ✓ SymmetricSquareMatrix ArrayType tag created")
+    
+    # Create an internal tag (not written to file)
+    internal_data = np.zeros(nverts, dtype=np.float64)
+    mesh.add_tag(0, "internal_temp", 1, internal_data, internal=True)
+    assert mesh.has_tag(0, "internal_temp"), "Internal tag should exist"
+    print("  ✓ Internal tag created")
+
+    # Test 6: Tag removal
+    print("\n  Test 6: Removing tags...")
+    mesh.remove_tag(0, "test_float")
+    assert not mesh.has_tag(0, "test_float"), "test_float tag should be removed"
+    
+    # Other tags should still exist
+    assert mesh.has_tag(0, "temperature"), "temperature tag should still exist"
+    print("  ✓ Tag removal successful")
+
+    # Test 7: Number of tags
+    print("\n  Test 7: Counting tags...")
+    ntags = mesh.ntags(0)
+    print(f"  Number of vertex tags: {ntags}")
+    assert ntags > 0, "Should have at least one vertex tag"
+
+    # Test 8: Element tags
+    print("\n  Test 8: Testing element tags...")
+    nelems = mesh.nelems()
+    elem_quality = np.random.rand(nelems).astype(np.float64)
+    mesh.add_tag(dim, "quality", 1, elem_quality)
+    
+    retrieved_quality = mesh.get_tag(dim, "quality")
+    assert len(retrieved_quality) == nelems, f"Should have {nelems} quality values"
+    np.testing.assert_allclose(retrieved_quality, elem_quality, rtol=1e-15)
+    print("  ✓ Element tags working correctly")
+
+    # Test 9: Edge tags (if applicable)
+    if dim >= 2:
+        print("\n  Test 9: Testing edge tags...")
+        nedges = mesh.nedges()
+        edge_length = np.ones(nedges, dtype=np.float64)
+        mesh.add_tag(1, "edge_marker", 1, edge_length)
+        
+        retrieved_edge = mesh.get_tag(1, "edge_marker")
+        assert len(retrieved_edge) == nedges, f"Should have {nedges} edge values"
+        print("  ✓ Edge tags working correctly")
+
+    # Test 10: Adjacency and globals
+    print("\n  Test 10: Testing adjacency and global IDs...")
+    
+    # Get vertex connectivity of elements
+    elem_verts = mesh.ask_elem_verts()
+    print(f"  Element-vertex connectivity shape: {elem_verts.shape}")
+    assert len(elem_verts) > 0, "Should have element-vertex connectivity"
+    
+    # Get global IDs
+    global_ids = mesh.globals(0)
+    print(f"  Global vertex IDs shape: {global_ids.shape}")
+    assert len(global_ids) == nverts, f"Should have {nverts} global IDs"
+    
+    # Get verts of elements
+    verts_of_elems = mesh.ask_verts_of(dim)
+    print(f"  Verts of elements shape: {verts_of_elems.shape}")
+    assert len(verts_of_elems) > 0, "Should have vert connectivity"
+    
+    # Check adjacency existence
+    has_vert_to_elem = mesh.has_adj(0, dim)
+    print(f"  Has vertex-to-element adjacency: {has_vert_to_elem}")
+    
+    print("  ✓ Adjacency and global ID queries successful")
+
+    # Test 11: Ownership
+    print("\n  Test 12: Testing ownership...")
+    owned_verts = mesh.owned(0)
+    print(f"  Owned vertices shape: {owned_verts.shape}")
+    num_owned = np.sum(owned_verts)
+    print(f"  Number of owned vertices: {num_owned} / {nverts}")
+    assert len(owned_verts) == nverts, "Should have ownership flag for each vertex"
+    print("  ✓ Ownership queries successful")
+
+    print(f"\n✓ All tag operation tests passed for dim={dim}!")
+
+def test_entity_coordinates(world, dim):
+    """Test computing entity coordinates (face centers, edge midpoints, etc.)"""
+    nx = 4
+    ny = 4 if dim > 1 else 0
+    nz = 4 if dim > 2 else 0
+
+    print(f"\nTesting entity coordinate computation: dim={dim}")
+
+    # Build mesh
+    mesh = pcms.build_box(
+        world, 
+        pcms.Family.SIMPLEX, 
+        1.0, 1.0, 1.0, 
+        nx, ny, nz, 
+        False
+    )
+
+    print(f"  Mesh has {mesh.nverts()} vertices")
+    
+    # Get vertex coordinates
+    vertex_coords = mesh.coords()
+    print(f"  Vertex coordinates shape: {vertex_coords.shape}")
+    
+    # Test computing coordinates for different entity dimensions
+    if dim >= 2:
+        print(f"\n  Computing edge coordinates (midpoints)...")
+        nedges = mesh.nedges()
+        edge_coords = pcms.average_field(mesh, 1, dim, vertex_coords)
+        edge_coords_np = np.array(edge_coords).reshape(-1, dim)
+        print(f"    Number of edges: {nedges}")
+        print(f"    Edge coordinates shape: {edge_coords_np.shape}")
+        assert edge_coords_np.shape[0] == nedges, f"Should have {nedges} edge coordinates"
+        print(f"    First edge center: {edge_coords_np[0]}")
+    
+    if dim == 2:
+        print(f"\n  Computing element (face) coordinates (centroids)...")
+        nelems = mesh.nelems()
+        elem_coords = pcms.average_field(mesh, 2, dim, vertex_coords)
+        elem_coords_np = np.array(elem_coords).reshape(-1, dim)
+        print(f"    Number of elements: {nelems}")
+        print(f"    Element coordinates shape: {elem_coords_np.shape}")
+        assert elem_coords_np.shape[0] == nelems, f"Should have {nelems} element coordinates"
+        print(f"    First element center: {elem_coords_np[0]}")
+    
+    if dim == 3:
+        print(f"\n  Computing face coordinates (centroids)...")
+        nfaces = mesh.nfaces()
+        face_coords = pcms.average_field(mesh, 2, dim, vertex_coords)
+        face_coords_np = np.array(face_coords).reshape(-1, dim)
+        print(f"    Number of faces: {nfaces}")
+        print(f"    Face coordinates shape: {face_coords_np.shape}")
+        assert face_coords_np.shape[0] == nfaces, f"Should have {nfaces} face coordinates"
+        print(f"    First face center: {face_coords_np[0]}")
+        
+        print(f"\n  Computing region/element coordinates (centroids)...")
+        nregions = mesh.nregions()
+        region_coords = pcms.average_field(mesh, 3, dim, vertex_coords)
+        region_coords_np = np.array(region_coords).reshape(-1, dim)
+        print(f"    Number of regions: {nregions}")
+        print(f"    Region coordinates shape: {region_coords_np.shape}")
+        assert region_coords_np.shape[0] == nregions, f"Should have {nregions} region coordinates"
+        print(f"    First region center: {region_coords_np[0]}")
+    
+    # Test averaging a field from vertices to entities
+    print(f"\n  Testing field averaging from vertices to elements...")
+    nverts = mesh.nverts()
+    vertex_field = np.arange(nverts, dtype=np.float64)
+    mesh.add_tag(0, "test_vertex_field", 1, vertex_field)
+    
+    # Average to elements
+    elem_dim = dim  # elements are top-dimensional entities
+    averaged_field = pcms.average_field(mesh, elem_dim, 1, vertex_field)
+    print(f"    Averaged field shape: {averaged_field.shape}")
+    print(f"    First 5 values: {averaged_field[:5]}")
+    
+    print(f"\n✓ Entity coordinate computation tests passed for dim={dim}!")
+
 def main():
     """Run all test cases"""
     print("Testing OmegaHFieldLayout Python bindings...")
@@ -269,6 +511,20 @@ def main():
     print("="*60)
     test_field_evaluation(world, 2, 1, 1)
     test_field_evaluation(world, 2, 2, 1)
+
+    # Test tag operations
+    print("\n" + "="*60)
+    print("Testing tag operations...")
+    print("="*60)
+    test_tag_operations(world, 2)
+    test_tag_operations(world, 3)
+
+    # Test entity coordinate computation
+    print("\n" + "="*60)
+    print("Testing entity coordinate computation...")
+    print("="*60)
+    test_entity_coordinates(world, 2)
+    test_entity_coordinates(world, 3)
 
     print("\n✓ All tests passed!")
     del world
