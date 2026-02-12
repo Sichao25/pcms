@@ -1,6 +1,5 @@
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 REQUIRED)
-include(FindPythonModule.cmake)
 message(STATUS "Python_EXECUTABLE ${Python_EXECUTABLE}")
 
 pybind11_add_module(pcms 
