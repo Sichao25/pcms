@@ -159,32 +159,28 @@ struct OmegaHField2LocalizationHint
   OmegaHField2LocalizationHint(
     Omega_h::Mesh& mesh,
     Kokkos::View<GridPointSearch::Result*, HostMemorySpace> search_results,
-    OutOfBoundsMode mode,
-    Real fill_value)
-    : mode_(mode),
-      fill_value_(fill_value),
-      num_valid_(0),
-      num_missing_(0)
+    OutOfBoundsMode mode, Real fill_value)
+    : mode_(mode), fill_value_(fill_value), num_valid_(0), num_missing_(0)
   {
     // First pass: count valid and invalid points
     std::vector<size_t> valid_point_indices;
     std::vector<size_t> missing_point_indices;
-    
+
     for (size_t i = 0; i < search_results.size(); ++i) {
       auto [dim, elem_idx, coord] = search_results(i);
-      bool is_valid = (static_cast<int>(dim) == mesh.dim()) && 
+      bool is_valid = (static_cast<int>(dim) == mesh.dim()) &&
                       (elem_idx >= 0) && (elem_idx < mesh.nelems());
-      
+
       if (is_valid) {
         valid_point_indices.push_back(i);
       } else {
         missing_point_indices.push_back(i);
       }
     }
-    
+
     num_valid_ = valid_point_indices.size();
     num_missing_ = missing_point_indices.size();
-    
+
     // Handle missing points based on mode
     if (num_missing_ > 0 && mode_ == OutOfBoundsMode::ERROR) {
       PCMS_ALWAYS_ASSERT(false && "Points found outside mesh domain");
@@ -193,27 +189,30 @@ struct OmegaHField2LocalizationHint
     if (num_missing_ > 0 && mode_ == OutOfBoundsMode::CLAMP) {
       PCMS_ALWAYS_ASSERT(false && "CLAMP mode not implemented yet");
     }
-    
+
     // Allocate arrays for valid points only
     offsets_ = Kokkos::View<LO*, HostMemorySpace>("offsets", mesh.nelems() + 1);
-    coordinates_ = Kokkos::View<Real**, HostMemorySpace>("coordinates", num_valid_, mesh.dim() + 1);
+    coordinates_ = Kokkos::View<Real**, HostMemorySpace>(
+      "coordinates", num_valid_, mesh.dim() + 1);
     indices_ = Kokkos::View<LO*, HostMemorySpace>("indices", num_valid_);
-    
+
     // Store missing point indices
     if (num_missing_ > 0) {
-      missing_indices_ = Kokkos::View<LO*, HostMemorySpace>("missing_indices", num_missing_);
+      missing_indices_ =
+        Kokkos::View<LO*, HostMemorySpace>("missing_indices", num_missing_);
       for (size_t i = 0; i < num_missing_; ++i) {
         missing_indices_(i) = static_cast<LO>(missing_point_indices[i]);
       }
     }
-    
+
     // Count points per element (valid points only)
-    Kokkos::View<LO*, HostMemorySpace> elem_counts("elem_counts", mesh.nelems());
+    Kokkos::View<LO*, HostMemorySpace> elem_counts("elem_counts",
+                                                   mesh.nelems());
     for (size_t i = 0; i < num_valid_; ++i) {
       auto [dim, elem_idx, coord] = search_results(valid_point_indices[i]);
       elem_counts[elem_idx] += 1;
     }
-    
+
     // Compute offsets
     LO total;
     ComputeOffsetsFunctor functor(offsets_, elem_counts);
@@ -222,7 +221,7 @@ struct OmegaHField2LocalizationHint
       Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, mesh.nelems()),
       functor, total);
     offsets_(mesh.nelems()) = total;
-    
+
     // Fill coordinates and indices for valid points
     for (size_t i = 0; i < num_valid_; ++i) {
       size_t orig_idx = valid_point_indices[i];
@@ -240,7 +239,7 @@ struct OmegaHField2LocalizationHint
   Real fill_value_;
   size_t num_valid_;
   size_t num_missing_;
-  
+
   // offsets is the number of points in each element
   Kokkos::View<LO*, HostMemorySpace> offsets_;
   // coordinates are the parametric coordinates of each point
@@ -381,22 +380,22 @@ void OmegaHField2::Evaluate(LocalizationHint location,
     "eval_results_h", eval_results.extent(0), eval_results.extent(1));
   deep_copy_mismatch_layouts(eval_results_h, eval_results);
   Rank1View<Real, HostMemorySpace> values = results.GetValues();
-  
+
   // Copy results for valid points
   Kokkos::parallel_for(
     "CopyEvalResultsToValues",
     Kokkos::RangePolicy<HostMemorySpace::execution_space>(
       0, eval_results_h.extent(0)),
     KOKKOS_LAMBDA(LO i) { values[hint.indices_(i)] = eval_results_h(i, 0); });
-  
+
   // Handle missing points based on mode
   if (hint.num_missing_ > 0 && hint.mode_ == OutOfBoundsMode::FILL) {
     Kokkos::parallel_for(
       "FillMissingValues",
-      Kokkos::RangePolicy<HostMemorySpace::execution_space>(
-        0, hint.num_missing_),
-      KOKKOS_LAMBDA(LO i) { 
-        values[hint.missing_indices_(i)] = hint.fill_value_; 
+      Kokkos::RangePolicy<HostMemorySpace::execution_space>(0,
+                                                            hint.num_missing_),
+      KOKKOS_LAMBDA(LO i) {
+        values[hint.missing_indices_(i)] = hint.fill_value_;
       });
   }
 }

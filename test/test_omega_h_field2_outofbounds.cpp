@@ -21,9 +21,12 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
     pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   const auto nverts = mesh.nents(0);
   auto mesh_coords = mesh.coords();
-  
+
   // Set up a simple linear field
-  auto f = KOKKOS_LAMBDA(Real x, Real y) { return x + y; };
+  auto f = KOKKOS_LAMBDA(Real x, Real y)
+  {
+    return x + y;
+  };
   Omega_h::Write<Real> test_f(nverts);
   Omega_h::parallel_for(
     nverts, OMEGA_H_LAMBDA(int i) {
@@ -41,11 +44,11 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
 
   // Test points - mix of inside and outside
   std::vector<Real> coords = {
-    0.5, 0.5,    // inside - should evaluate normally
-    1.5, 0.5,    // outside (x > 1) - should return fill_value
-    0.5, -0.1,   // outside (y < 0) - should return fill_value
-    0.3, 0.7,    // inside - should evaluate normally
-    -0.1, 0.5,   // outside (x < 0) - should return fill_value
+    0.5,  0.5,  // inside - should evaluate normally
+    1.5,  0.5,  // outside (x > 1) - should return fill_value
+    0.5,  -0.1, // outside (y < 0) - should return fill_value
+    0.3,  0.7,  // inside - should evaluate normally
+    -0.1, 0.5,  // outside (x < 0) - should return fill_value
   };
 
   std::vector<Real> evaluation(coords.size() / 2);
@@ -64,16 +67,16 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
   // Check results
   // Point 0: (0.5, 0.5) - inside, should be close to f(0.5, 0.5) = 1.0
   REQUIRE(std::abs(evaluation[0] - 1.0) < 0.1);
-  
+
   // Point 1: (1.5, 0.5) - outside, should be fill_value
   REQUIRE(evaluation[1] == fill_value);
-  
+
   // Point 2: (0.5, -0.1) - outside, should be fill_value
   REQUIRE(evaluation[2] == fill_value);
-  
+
   // Point 3: (0.3, 0.7) - inside, should be close to f(0.3, 0.7) = 1.0
   REQUIRE(std::abs(evaluation[3] - 1.0) < 0.1);
-  
+
   // Point 4: (-0.1, 0.5) - outside, should be fill_value
   REQUIRE(evaluation[4] == fill_value);
 }

@@ -78,9 +78,9 @@ struct LocalizationHint
 
 enum class OutOfBoundsMode
 {
-  ERROR,  // Throw error when points are out of bounds
-  FILL,   // Fill out-of-bounds points with a fill value
-  CLAMP   // Clamp to nearest boundary cell (extrapolate)
+  ERROR, // Throw error when points are out of bounds
+  FILL,  // Fill out-of-bounds points with a fill value
+  CLAMP  // Clamp to nearest boundary cell (extrapolate)
 };
 
 class FieldLayout;
@@ -140,7 +140,7 @@ public:
     out_of_bounds_mode_ = mode;
     fill_value_ = fill_value;
   }
-  
+
   OutOfBoundsMode GetOutOfBoundsMode() const { return out_of_bounds_mode_; }
   Real GetFillValue() const { return fill_value_; }
 
