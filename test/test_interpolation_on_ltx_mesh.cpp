@@ -14,7 +14,7 @@
 #include <Omega_h_library.hpp>
 #include <Omega_h_vtk.hpp>
 #include <pcms/interpolator/interpolation_base.h>
-#include <pcms/print.h>
+#include <pcms/utility/print.h>
 
 #include <vector>
 #include <fstream>
