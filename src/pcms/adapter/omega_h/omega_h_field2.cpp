@@ -166,15 +166,26 @@ struct OmegaHField2LocalizationHint
     std::vector<size_t> valid_point_indices;
     std::vector<size_t> missing_point_indices;
 
-    for (size_t i = 0; i < search_results.size(); ++i) {
-      auto [dim, elem_idx, coord] = search_results(i);
-      bool is_valid = (static_cast<int>(dim) == mesh.dim()) &&
-                      (elem_idx >= 0) && (elem_idx < mesh.nelems());
-
-      if (is_valid) {
+    if (mode_ == OutOfBoundsMode::ERROR) {
+      // Error mode - throw error immediately if any point is out of bounds
+      for (size_t i = 0; i < search_results.size(); ++i) {
+        auto [dim, elem_idx, coord] = search_results(i);
+        bool is_missing =
+          (static_cast<int>(dim) != mesh.dim()) || (elem_idx < 0);
+        PCMS_ALWAYS_ASSERT(!is_missing && "Points found outside mesh domain");
         valid_point_indices.push_back(i);
-      } else {
-        missing_point_indices.push_back(i);
+      }
+    } else {
+      // Other modes - collect valid and missing points separately
+      for (size_t i = 0; i < search_results.size(); ++i) {
+        auto [dim, elem_idx, coord] = search_results(i);
+        bool is_missing =
+          (static_cast<int>(dim) != mesh.dim()) || (elem_idx < 0);
+        if (is_missing) {
+          missing_point_indices.push_back(i);
+        } else {
+          valid_point_indices.push_back(i);
+        }
       }
     }
 
@@ -182,12 +193,8 @@ struct OmegaHField2LocalizationHint
     num_missing_ = missing_point_indices.size();
 
     // Handle missing points based on mode
-    if (num_missing_ > 0 && mode_ == OutOfBoundsMode::ERROR) {
-      PCMS_ALWAYS_ASSERT(false && "Points found outside mesh domain");
-    }
-
-    if (num_missing_ > 0 && mode_ == OutOfBoundsMode::CLAMP) {
-      PCMS_ALWAYS_ASSERT(false && "CLAMP mode not implemented yet");
+    if (num_missing_ > 0 && mode_ == OutOfBoundsMode::NEAREST_BOUNDARY) {
+      PCMS_ALWAYS_ASSERT(false && "NEAREST_BOUNDARY mode not implemented yet");
     }
 
     // Allocate arrays for valid points only
