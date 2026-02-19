@@ -171,8 +171,10 @@ TEST_CASE("uniform grid search")
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 1, 10, 10, 0, false);
   auto tolerances =
     GridPointSearch2D::PointSearchTolerances{"point search 2d tolerances"};
-  tolerances(0) = 0.01;
-  tolerances(1) = 0.01;
+  auto tolerances_h = Kokkos::create_mirror_view(tolerances);
+  tolerances_h(0) = 0.01;
+  tolerances_h(1) = 0.01;
+  Kokkos::deep_copy(tolerances, tolerances_h);
 
   GridPointSearch2D search{mesh, 10, 10, tolerances};
 
