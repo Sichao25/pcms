@@ -6,7 +6,9 @@
 #include <Omega_h_library.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_comm.hpp>
+#include <Omega_h_array_ops.hpp>
 #include <Omega_h_defines.hpp>
+#include <Omega_h_graph.hpp>
 #include <Omega_h_tag.hpp>
 #ifdef OMEGA_H_USE_ADIOS2
 #include <Omega_h_adios2.hpp>
@@ -139,6 +141,24 @@ void bind_omega_h_mesh_module(py::module& m) {
       return omega_h_read_to_numpy(class_ids);
     },
     "Get class IDs for rcField tags");
+
+  py::class_<Omega_h::Graph>(m, "OmegaHGraph")
+    .def_property("a2ab",
+      [](const Omega_h::Graph& graph) {
+        return omega_h_read_to_numpy(graph.a2ab);
+      },
+      [](Omega_h::Graph& graph, py::array_t<Omega_h::LO> values) {
+        graph.a2ab = numpy_to_omega_h_read<Omega_h::LO>(values);
+      })
+    .def_property("ab2b",
+      [](const Omega_h::Graph& graph) {
+        return omega_h_read_to_numpy(graph.ab2b);
+      },
+      [](Omega_h::Graph& graph, py::array_t<Omega_h::LO> values) {
+        graph.ab2b = numpy_to_omega_h_read<Omega_h::LO>(values);
+      })
+    .def("nnodes", &Omega_h::Graph::nnodes,
+         "Get number of graph nodes");
 
   // Bind Omega_h::Mesh
   py::class_<Omega_h::Mesh, std::shared_ptr<Omega_h::Mesh>>(m, "OmegaHMesh")
@@ -448,6 +468,15 @@ void bind_omega_h_mesh_module(py::module& m) {
       return omega_h_read_to_numpy(elem_verts);
     },
     "Get vertex IDs for elements")
+
+    .def("get_vtx_patches", [](Omega_h::Mesh& mesh, Omega_h::LO min_patch_size,
+                                Omega_h::LO tgt_dim) {
+      return mesh.get_vtx_patches(min_patch_size, tgt_dim);
+    },
+    py::arg("min_patch_size"),
+    py::arg("tgt_dim"),
+    py::return_value_policy::move,
+    "Get vertex-centered patch graph")
 
     .def("has_adj", &Omega_h::Mesh::has_adj,
          py::arg("from_dim"),

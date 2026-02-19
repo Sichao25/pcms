@@ -27,6 +27,10 @@ void bind_uniform_grid_field_layout_module(py::module& m);
 
 void bind_uniform_grid_field_module(py::module& m);
 
+void bind_mls_interpolation_module(py::module& m);
+
+void bind_mesh_utilities_module(py::module& m);
+
 }
 PYBIND11_MODULE(pcms, m) {
   // Bind fundamental types first (coordinate systems, etc.)
@@ -47,4 +51,10 @@ PYBIND11_MODULE(pcms, m) {
 
   // Bind field operations
   pcms::bind_transfer_field2_module(m);
+
+  // Bind interpolator operations
+  pcms::bind_mls_interpolation_module(m);
+
+  // Bind mesh utility functions
+  pcms::bind_mesh_utilities_module(m);
 }

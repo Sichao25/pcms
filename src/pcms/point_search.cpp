@@ -41,7 +41,7 @@ bool normal_intersects_segment(const Omega_h::Few<double, 2> a,
 
 namespace pcms
 {
-constexpr Real fuzz = 1E-6;
+constexpr Real fuzz = 1E-12;
 
 KOKKOS_INLINE_FUNCTION
 AABBox<2> triangle_bbox(const Omega_h::Matrix<2, 3>& coords)
