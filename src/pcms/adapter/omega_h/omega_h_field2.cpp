@@ -159,8 +159,8 @@ struct OmegaHField2LocalizationHint
   OmegaHField2LocalizationHint(
     Omega_h::Mesh& mesh,
     Kokkos::View<GridPointSearch::Result*, HostMemorySpace> search_results,
-    OutOfBoundsMode mode, Real fill_value)
-    : mode_(mode), fill_value_(fill_value), num_valid_(0), num_missing_(0)
+    OutOfBoundsMode mode)
+    : mode_(mode), num_valid_(0), num_missing_(0)
   {
     // First pass: count valid and invalid points
     std::vector<size_t> valid_point_indices;
@@ -243,7 +243,6 @@ struct OmegaHField2LocalizationHint
   }
 
   OutOfBoundsMode mode_;
-  Real fill_value_;
   size_t num_valid_;
   size_t num_missing_;
 
@@ -357,7 +356,7 @@ LocalizationHint OmegaHField2::GetLocalizationHint(
     "results_h", results.size());
   Kokkos::deep_copy(results_h, results);
   auto hint = std::make_shared<OmegaHField2LocalizationHint>(
-    mesh_, results_h, out_of_bounds_mode_, fill_value_);
+    mesh_, results_h, out_of_bounds_mode_);
 
   return LocalizationHint{hint};
 }
@@ -397,13 +396,12 @@ void OmegaHField2::Evaluate(LocalizationHint location,
 
   // Handle missing points based on mode
   if (hint.num_missing_ > 0 && hint.mode_ == OutOfBoundsMode::FILL) {
+    auto fill_val = fill_value_;
     Kokkos::parallel_for(
       "FillMissingValues",
       Kokkos::RangePolicy<HostMemorySpace::execution_space>(0,
                                                             hint.num_missing_),
-      KOKKOS_LAMBDA(LO i) {
-        values[hint.missing_indices_(i)] = hint.fill_value_;
-      });
+      KOKKOS_LAMBDA(LO i) { values[hint.missing_indices_(i)] = fill_val; });
   }
 }
 
