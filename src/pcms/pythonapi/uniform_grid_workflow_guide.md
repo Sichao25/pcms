@@ -130,7 +130,7 @@ mask_value = mask_data[vertex_id]  # Returns 0.0 or 1.0
 
 ### Step 5: Create and Initialize Omega_h Field
 
-Create a field on the unstructured mesh and initialize it with data.
+#### Option A: Create Field Programmatically
 
 ```python
 # Create field layout with linear (order=1) elements and 1 component (scalar)
@@ -153,6 +153,32 @@ for i in range(num_nodes):
     omega_h_data[i] = x + 2.0 * y
 
 omega_h_field.set_dof_holder_data(omega_h_data)
+
+# Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
+omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
+```
+
+#### Option B: Use Existing Element/Face Field from Mesh Tags
+
+Fields data are saved as tags on mesh entities (e.g., vertices, edges, faces, elements). You can retrieve these fields and convert them to vertex-based fields for interpolation.
+
+```python
+# Get field from mesh tag (e.g., element-centered field).
+face_dim = 2
+tag_index = 0  # Index of the tag to use
+face_tag = mesh.get_tag(face_dim, tag_index)  # Get tag by index
+face_field = mesh.get_tag(face_dim, face_tag.name())
+
+# Convert element field to vertex field using averaging
+vertex_field = pcms.map_entity_field_to_vertices_average(mesh, face_field, face_dim)
+
+# Create vertex-based field layout and set data
+omega_h_layout = pcms.create_lagrange_layout(mesh, 1, 1, pcms.CoordinateSystem.Cartesian)
+omega_h_field = omega_h_layout.create_field()
+omega_h_field.set_dof_holder_data(vertex_field)
+
+# Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
+omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
 ```
 
 ---
@@ -233,7 +259,20 @@ np.save('field_data.npy', grid_values)
 - `field.set_dof_holder_data(data)` - Set field values
 - `field.get_dof_holder_data()` - Get field values
 - `field.to_mdspan()` - Get field values as a structured array
+- `field.set_out_of_bounds_mode(mode, fill_value=0.0)` - Set behavior for points outside mesh
 - `interpolate_field(source_field, target_field)` - Interpolate between fields
+- `map_entity_field_to_vertices_average(mesh, field_data, entity_dim)` - Convert element/face field to vertex field by averaging
+
+### Out-of-Bounds Modes
+- `OutOfBoundsMode.ERROR` - Raise error when points are outside mesh
+- `OutOfBoundsMode.FILL` - Fill with specified value when points are outside mesh
+- `OutOfBoundsMode.NEAREST_BOUNDARY` - Clamp to nearest boundary cell (extrapolate)
+
+### Mesh Tags
+- `mesh.ntags(dim)` - Number of tags on entities of dimension `dim`
+- `mesh.get_tag(dim, index_or_name)` - Get tag by index or name
+- `tag.name()` - Tag name
+- `tag.ncomps()` - Number of components in tag
 
 ### Exodus I/O (if OMEGA_H_USE_SEACASEXODUS enabled)
 - `exodus_open(filepath, verbose=False)` - Open Exodus file, returns file handle
