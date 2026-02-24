@@ -16,13 +16,11 @@ struct UniformGridFieldLocalizationHint
     Kokkos::View<LO*, HostMemorySpace> cell_indices,
     Kokkos::View<Real**, HostMemorySpace> coordinates,
     OutOfBoundsMode mode,
-    Real fill_value,
     Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds,
     size_t num_out_of_bounds)
     : cell_indices_(cell_indices), 
       coordinates_(coordinates),
       mode_(mode),
-      fill_value_(fill_value),
       is_out_of_bounds_(is_out_of_bounds),
       num_out_of_bounds_(num_out_of_bounds)
   {
@@ -34,7 +32,6 @@ struct UniformGridFieldLocalizationHint
   Kokkos::View<Real**, HostMemorySpace> coordinates_;
   // Out of bounds handling
   OutOfBoundsMode mode_;
-  Real fill_value_;
   Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds_;
   size_t num_out_of_bounds_;
 };
@@ -47,8 +44,8 @@ UniformGridField<Dim>::UniformGridField(
     dof_holder_data_("dof_holder_data", static_cast<size_t>(layout.OwnedSize()))
 {
   PCMS_FUNCTION_TIMER;
-  // Default to CLAMP for uniform grid fields
-  out_of_bounds_mode_ = OutOfBoundsMode::CLAMP;
+  // Default to NEAREST_BOUNDARY for uniform grid fields
+  out_of_bounds_mode_ = OutOfBoundsMode::NEAREST_BOUNDARY;
 }
 
 template <unsigned Dim>
@@ -153,7 +150,7 @@ LocalizationHint UniformGridField<Dim>::GetLocalizationHint(
   }
 
   auto hint = std::make_shared<UniformGridFieldLocalizationHint<Dim>>(
-    cell_indices, coords_copy, out_of_bounds_mode_, fill_value_, 
+    cell_indices, coords_copy, out_of_bounds_mode_, 
     is_out_of_bounds, num_out_of_bounds);
   return LocalizationHint{hint};
 }
@@ -239,9 +236,9 @@ void UniformGridField<Dim>::Evaluate(
   for (LO i = 0; i < evaluated_values.size(); ++i) {
     if (hint.is_out_of_bounds_[i] && hint.mode_ == OutOfBoundsMode::FILL) {
       // Fill out-of-bounds points with fill value
-      evaluated_values[i] = hint.fill_value_;
+      evaluated_values[i] = fill_value_;
     } else {
-      // Use interpolated value (for in-bounds or CLAMP mode)
+      // Use interpolated value (for in-bounds or NEAREST_BOUNDARY mode)
       evaluated_values[i] = interpolated_values_host[i];
     }
   }

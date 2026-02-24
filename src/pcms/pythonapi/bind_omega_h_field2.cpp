@@ -17,7 +17,7 @@ void bind_omega_h_field2(py::module& m) {
   py::enum_<OutOfBoundsMode>(m, "OutOfBoundsMode")
     .value("ERROR", OutOfBoundsMode::ERROR, "Raise error when points are out of bounds")
     .value("FILL", OutOfBoundsMode::FILL, "Fill with a specified value when points are out of bounds")
-    .value("CLAMP", OutOfBoundsMode::CLAMP, "Clamp to nearest boundary cell (extrapolate)")
+    .value("NEAREST_BOUNDARY", OutOfBoundsMode::NEAREST_BOUNDARY, "Clamp to nearest boundary cell (extrapolate)")
     .export_values();
 
   // Bind OmegaHField2 class
