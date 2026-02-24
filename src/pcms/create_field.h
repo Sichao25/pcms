@@ -45,7 +45,7 @@ template <unsigned dim = 2>
 std::pair<std::unique_ptr<UniformGridFieldLayout<dim>>,
           std::unique_ptr<UniformGridField<dim>>>
 CreateUniformGridBinaryField(Omega_h::Mesh& mesh,
-                              const std::array<LO, dim>& divisions);
+                             const std::array<LO, dim>& divisions);
 
 /**
  * \brief Create a binary field with equal divisions in all dimensions
@@ -83,7 +83,7 @@ template <unsigned dim = 2>
 std::pair<std::unique_ptr<UniformGridFieldLayout<dim>>,
           std::unique_ptr<UniformGridField<dim>>>
 CreateUniformGridBinaryFieldFromGrid(Omega_h::Mesh& mesh,
-                                      UniformGrid<dim>& grid);
+                                     UniformGrid<dim>& grid);
 
 } // namespace pcms
 

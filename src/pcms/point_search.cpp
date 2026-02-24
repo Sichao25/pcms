@@ -196,8 +196,7 @@ namespace detail
 struct GridTriIntersectionFunctor
 {
   GridTriIntersectionFunctor(Omega_h::Mesh& mesh,
-                             Kokkos::View<Uniform2DGrid[1]> grid,
-                             Real fuzz)
+                             Kokkos::View<Uniform2DGrid[1]> grid, Real fuzz)
     : mesh_(mesh),
       tris2verts_(mesh_.ask_elem_verts()),
       coords_(mesh_.coords()),
@@ -252,8 +251,7 @@ public:
 Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>
 construct_intersection_map(Omega_h::Mesh& mesh,
                            Kokkos::View<Uniform2DGrid[1]> grid,
-                           int num_grid_cells,
-                           Real fuzz)
+                           int num_grid_cells, Real fuzz)
 {
   Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO> intersection_map{};
   auto f = detail::GridTriIntersectionFunctor{mesh, grid, fuzz};
@@ -405,8 +403,8 @@ GridPointSearch::GridPointSearch(Omega_h::Mesh& mesh, LO Nx, LO Ny, Real fuzz)
                   .bot_left = {mesh_bbox.min[0], mesh_bbox.min[1]},
                   .divisions = {Nx, Ny}};
   Kokkos::deep_copy(grid_, grid_h);
-  candidate_map_ =
-    detail::construct_intersection_map(mesh, grid_, grid_h(0).GetNumCells(), fuzz_);
+  candidate_map_ = detail::construct_intersection_map(
+    mesh, grid_, grid_h(0).GetNumCells(), fuzz_);
   coords_ = mesh.coords();
   tris2verts_ = mesh.ask_elem_verts();
   tris2edges_adj_ = mesh.ask_down(Omega_h::FACE, Omega_h::EDGE);

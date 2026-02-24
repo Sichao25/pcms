@@ -14,11 +14,10 @@ struct UniformGridFieldLocalizationHint
 {
   UniformGridFieldLocalizationHint(
     Kokkos::View<LO*, HostMemorySpace> cell_indices,
-    Kokkos::View<Real**, HostMemorySpace> coordinates,
-    OutOfBoundsMode mode,
+    Kokkos::View<Real**, HostMemorySpace> coordinates, OutOfBoundsMode mode,
     Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds,
     size_t num_out_of_bounds)
-    : cell_indices_(cell_indices), 
+    : cell_indices_(cell_indices),
       coordinates_(coordinates),
       mode_(mode),
       is_out_of_bounds_(is_out_of_bounds),
@@ -75,12 +74,11 @@ View<Dim, Real, HostMemorySpace> UniformGridField<Dim>::to_mdspan()
 
   if constexpr (Dim == 2) {
     return View<Dim, Real, HostMemorySpace>(
-      dof_holder_data_.data(), grid_.divisions[0] + 1,
-      grid_.divisions[1] + 1);
+      dof_holder_data_.data(), grid_.divisions[0] + 1, grid_.divisions[1] + 1);
   } else if constexpr (Dim == 3) {
     return View<Dim, Real, HostMemorySpace>(
-      dof_holder_data_.data(), grid_.divisions[0] + 1,
-      grid_.divisions[1] + 1, grid_.divisions[2] + 1);
+      dof_holder_data_.data(), grid_.divisions[0] + 1, grid_.divisions[1] + 1,
+      grid_.divisions[2] + 1);
   } else {
     static_assert(Dim == 2 || Dim == 3,
                   "to_mdspan only supports 2D or 3D uniform grids");
@@ -94,12 +92,11 @@ View<Dim, const Real, HostMemorySpace> UniformGridField<Dim>::to_mdspan() const
 
   if constexpr (Dim == 2) {
     return View<Dim, const Real, HostMemorySpace>(
-      dof_holder_data_.data(), grid_.divisions[0] + 1,
-      grid_.divisions[1] + 1);
+      dof_holder_data_.data(), grid_.divisions[0] + 1, grid_.divisions[1] + 1);
   } else if constexpr (Dim == 3) {
     return View<Dim, const Real, HostMemorySpace>(
-      dof_holder_data_.data(), grid_.divisions[0] + 1,
-      grid_.divisions[1] + 1, grid_.divisions[2] + 1);
+      dof_holder_data_.data(), grid_.divisions[0] + 1, grid_.divisions[1] + 1,
+      grid_.divisions[2] + 1);
   } else {
     static_assert(Dim == 2 || Dim == 3,
                   "to_mdspan only supports 2D or 3D uniform grids");
@@ -124,7 +121,8 @@ LocalizationHint UniformGridField<Dim>::GetLocalizationHint(
   Kokkos::View<LO*, HostMemorySpace> cell_indices("cell_indices", num_points);
   Kokkos::View<Real**, HostMemorySpace> coords_copy("coords_copy", num_points,
                                                     Dim);
-  Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds", num_points);
+  Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds",
+                                                        num_points);
   size_t num_out_of_bounds = 0;
 
   // Find which cell each point belongs to and detect out-of-bounds
@@ -134,10 +132,10 @@ LocalizationHint UniformGridField<Dim>::GetLocalizationHint(
       point[d] = coordinates(i, d);
       coords_copy(i, d) = coordinates(i, d);
     }
-    
+
     // Check if point is within grid bounds
     bool out_of_bounds = !grid_.IsPointInBounds(point);
-    
+
     is_out_of_bounds[i] = out_of_bounds;
     if (out_of_bounds) {
       num_out_of_bounds++;
@@ -145,13 +143,13 @@ LocalizationHint UniformGridField<Dim>::GetLocalizationHint(
         PCMS_ALWAYS_ASSERT(false && "Point found outside uniform grid domain");
       }
     }
-    
+
     cell_indices[i] = grid_.ClosestCellID(point);
   }
 
   auto hint = std::make_shared<UniformGridFieldLocalizationHint<Dim>>(
-    cell_indices, coords_copy, out_of_bounds_mode_, 
-    is_out_of_bounds, num_out_of_bounds);
+    cell_indices, coords_copy, out_of_bounds_mode_, is_out_of_bounds,
+    num_out_of_bounds);
   return LocalizationHint{hint};
 }
 
@@ -231,7 +229,7 @@ void UniformGridField<Dim>::Evaluate(
   auto interpolated_values_host =
     Kokkos::create_mirror_view(interpolated_values);
   Kokkos::deep_copy(interpolated_values_host, interpolated_values);
-  
+
   // Copy interpolated values and handle out-of-bounds points
   for (LO i = 0; i < evaluated_values.size(); ++i) {
     if (hint.is_out_of_bounds_[i] && hint.mode_ == OutOfBoundsMode::FILL) {

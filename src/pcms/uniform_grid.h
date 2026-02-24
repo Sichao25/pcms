@@ -72,8 +72,8 @@ public:
   }
 
   /// Check if a point is within the grid bounds
-  [[nodiscard]] KOKKOS_INLINE_FUNCTION bool
-  IsPointInBounds(const Omega_h::Vector<dim>& point) const
+  [[nodiscard]] KOKKOS_INLINE_FUNCTION bool IsPointInBounds(
+    const Omega_h::Vector<dim>& point) const
   {
     for (size_t i = 0; i < dim; ++i) {
       Real coord = point[i];

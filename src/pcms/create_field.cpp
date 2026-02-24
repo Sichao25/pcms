@@ -33,7 +33,7 @@ template <>
 std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
           std::unique_ptr<UniformGridField<2>>>
 CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
-                                         UniformGrid<2>& grid)
+                                        UniformGrid<2>& grid)
 {
   constexpr unsigned dim = 2;
 
@@ -50,7 +50,7 @@ CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
   // Fill vertex coordinates
   const Real dx = grid.edge_length[0] / grid.divisions[0];
   const Real dy = grid.edge_length[1] / grid.divisions[1];
-  
+
   for (LO j = 0; j <= grid.divisions[1]; ++j) {
     for (LO i = 0; i <= grid.divisions[0]; ++i) {
       const LO vertex_id = j * (grid.divisions[0] + 1) + i;
@@ -85,8 +85,8 @@ CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
   fprintf(stderr, "Generated binary inside/outside data for grid vertices.\n");
 
   // Set the DOF holder data
-  Rank1View<const Real, HostMemorySpace> data_view(
-    binary_data.data(), binary_data.extent(0));
+  Rank1View<const Real, HostMemorySpace> data_view(binary_data.data(),
+                                                   binary_data.extent(0));
   field->SetDOFHolderData(data_view);
   fprintf(stderr, "Set binary data on UniformGridField.\n");
 
@@ -97,7 +97,7 @@ template <>
 std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
           std::unique_ptr<UniformGridField<2>>>
 CreateUniformGridBinaryField<2>(Omega_h::Mesh& mesh,
-                                 const std::array<LO, 2>& divisions)
+                                const std::array<LO, 2>& divisions)
 {
   constexpr unsigned dim = 2;
 

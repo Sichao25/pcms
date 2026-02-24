@@ -3,7 +3,8 @@
 
 namespace py = pybind11;
 
-namespace pcms {
+namespace pcms
+{
 
 void bind_omega_h_field2(py::module& m);
 
@@ -31,8 +32,9 @@ void bind_mls_interpolation_module(py::module& m);
 
 void bind_mesh_utilities_module(py::module& m);
 
-}
-PYBIND11_MODULE(pcms, m) {
+} // namespace pcms
+PYBIND11_MODULE(pcms, m)
+{
   // Bind fundamental types first (coordinate systems, etc.)
   pcms::bind_coordinate_system_module(m);
   pcms::bind_coordinate_module(m);

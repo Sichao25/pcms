@@ -140,7 +140,7 @@ public:
     out_of_bounds_mode_ = mode;
     fill_value_ = fill_value;
   }
-  
+
   OutOfBoundsMode GetOutOfBoundsMode() const { return out_of_bounds_mode_; }
   Real GetFillValue() const { return fill_value_; }
 
