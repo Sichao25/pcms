@@ -1,6 +1,6 @@
 #include "uniform_grid_field_layout.h"
 #include "uniform_grid_field.h"
-#include "pcms/profile.h"
+#include "pcms/utility/profile.h"
 #include <memory>
 
 namespace pcms

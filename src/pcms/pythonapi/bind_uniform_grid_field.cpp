@@ -2,7 +2,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
-#include "pcms/arrays.h"
+#include "pcms/utility/arrays.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_field.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "numpy_array_transform.h"

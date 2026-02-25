@@ -1,7 +1,7 @@
 #ifndef PCMS_UNIFORM_GRID_FIELD_LAYOUT_H
 #define PCMS_UNIFORM_GRID_FIELD_LAYOUT_H
 
-#include "pcms/arrays.h"
+#include "pcms/utility/arrays.h"
 #include "pcms/field_layout.h"
 #include "pcms/coordinate_system.h"
 #include "pcms/field.h"

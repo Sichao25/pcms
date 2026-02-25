@@ -10,7 +10,7 @@
 #include "pcms/adapter/omega_h/omega_h_field_layout.h"
 #include "pcms/adapter/omega_h/omega_h_field2.h"
 #include "pcms/create_field.h"
-#include "pcms/arrays.h"
+#include "pcms/utility/arrays.h"
 #include <cmath>
 
 using pcms::CreateUniformGridBinaryField;

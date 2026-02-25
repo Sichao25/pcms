@@ -2,8 +2,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <Omega_h_array.hpp>
-#include "pcms/arrays.h"
-#include "pcms/types.h"
+#include "pcms/utility/arrays.h"
+#include "pcms/utility/types.h"
 
 namespace py = pybind11;
 

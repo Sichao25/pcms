@@ -7,7 +7,7 @@
 #include "field_layout.h"
 #include "field.h"
 #include "coordinate_system.h"
-#include "types.h"
+#include "utility/types.h"
 #include "uniform_grid.h"
 
 #include <Omega_h_mesh.hpp>

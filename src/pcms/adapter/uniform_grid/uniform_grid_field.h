@@ -2,7 +2,7 @@
 #define PCMS_UNIFORM_GRID_FIELD_H
 
 #include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
-#include "pcms/types.h"
+#include "pcms/utility/types.h"
 #include "pcms/field.h"
 #include "pcms/coordinate_system.h"
 #include "pcms/uniform_grid.h"

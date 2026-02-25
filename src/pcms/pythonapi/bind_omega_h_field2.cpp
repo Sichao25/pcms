@@ -2,7 +2,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
-#include "pcms/arrays.h"
+#include "pcms/utility/arrays.h"
 #include "pcms/adapter/omega_h/omega_h_field2.h"
 #include "pcms/adapter/omega_h/omega_h_field_layout.h"
 #include "numpy_array_transform.h"
