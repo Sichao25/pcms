@@ -145,6 +145,8 @@ add_library(pcms_pcms INTERFACE)
 target_link_libraries(pcms_pcms INTERFACE pcms::core)
 set_target_properties(pcms_pcms PROPERTIES EXPORT_NAME pcms)
 if (PCMS_ENABLE_Python)
+  # Disable LTO/IPO before adding Python subdirectory to avoid fatbinData conflicts
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
   add_subdirectory(pcms/pythonapi)
   #target_link_libraries(pcms_pcms INTERFACE pcms::pythonapi)
 endif()
