@@ -5,25 +5,25 @@
 // From
 // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
 template <Omega_h::Int dim>
-KOKKOS_INLINE_FUNCTION
-Omega_h::Real distance_from_line(const Omega_h::Vector<dim>& a, const Omega_h::Vector<dim>& b, const Omega_h::Vector<dim>& p)
+KOKKOS_INLINE_FUNCTION Omega_h::Real distance_from_line(
+  const Omega_h::Vector<dim>& a, const Omega_h::Vector<dim>& b,
+  const Omega_h::Vector<dim>& p)
 {
-  Omega_h::Vector n = Omega_h::normalize(b - a);
-  Omega_h::Vector ap = a - p;
-  return Omega_h::norm(ap - (ap*n)*n);
+  Omega_h::Vector<dim> n = Omega_h::normalize(b - a);
+  Omega_h::Vector<dim> ap = a - p;
+  return Omega_h::norm(ap - (ap * n) * n);
 }
 
 template <Omega_h::Int dim>
-KOKKOS_INLINE_FUNCTION
-bool normal_intersects_segment(const Omega_h::Vector<dim> a,
-                               const Omega_h::Vector<dim> b,
-                               const Omega_h::Vector<dim> p)
+KOKKOS_INLINE_FUNCTION bool normal_intersects_segment(
+  const Omega_h::Vector<dim> a, const Omega_h::Vector<dim> b,
+  const Omega_h::Vector<dim> p)
 {
   auto ab = b - a;
   auto ba = a - b;
   auto ap = p - a;
   auto bp = p - b;
-  return (ap * ab) * (bp *  ba) >= 0;
+  return (ap * ab) * (bp * ba) >= 0;
 }
 
 namespace pcms
