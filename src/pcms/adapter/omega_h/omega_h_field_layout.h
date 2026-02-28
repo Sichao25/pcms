@@ -19,6 +19,11 @@ public:
                     int num_components, CoordinateSystem coordinate_system,
                     std::string global_id_name = "global");
 
+  OmegaHFieldLayout(Omega_h::Mesh& mesh, Omega_h::Read<Omega_h::I8> mask,
+                    std::array<int, 4> nodes_per_dim, int num_components,
+                    CoordinateSystem coordinate_system,
+                    std::string global_id_name = "global");
+
   std::unique_ptr<FieldT<Real>> CreateField() const override;
 
   int GetNumComponents() const override;
@@ -56,6 +61,7 @@ private:
   std::array<int, 4> nodes_per_dim_;
   Kokkos::View<Real**> dof_holder_coords_;
   Kokkos::View<Real**, HostMemorySpace> dof_holder_coords_host_;
+  Omega_h::Read<LO> mask_;
   Omega_h::Write<Omega_h::ClassId> class_ids_;
   Omega_h::Write<Omega_h::I8> class_dims_;
   Kokkos::View<bool*> owned_;
