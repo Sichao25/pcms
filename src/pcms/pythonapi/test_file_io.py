@@ -30,7 +30,7 @@ def test_binary_io(lib, world):
     
     # Create temporary directory for test files
     test_dir = "test_data"
-    os.makedirs(test_dir, exist_ok=True)
+    os.makedirs(test_dir)
     try:
         # Test binary write/read
         binary_file = os.path.join(test_dir, "test_mesh.osh")
@@ -82,7 +82,7 @@ def test_gmsh_io(lib, world):
     
     # Create temporary directory for test files
     test_dir = "test_data"
-    os.makedirs(test_dir, exist_ok=True)
+    os.makedirs(test_dir)
     try:
         # Test Gmsh write/read
         gmsh_file = os.path.join(test_dir, "test_mesh.msh")
@@ -136,7 +136,7 @@ def test_vtk_io(lib, world):
     
     # Create temporary directory for test files
     test_dir = "test_data"
-    os.makedirs(test_dir, exist_ok=True)
+    os.makedirs(test_dir)
     try:
         # Test VTU write (VTU is write-only in the API, typically for visualization)
         vtu_file = os.path.join(test_dir, "test_mesh.vtu")
@@ -199,7 +199,7 @@ def test_meshb_io(lib, world):
     
     # Create temporary directory for test files
     test_dir = "test_data"
-    os.makedirs(test_dir, exist_ok=True)
+    os.makedirs(test_dir)
     try:
         # Test MESHB write/read
         meshb_file = os.path.join(test_dir, "test_mesh.mesh")
@@ -259,7 +259,7 @@ def test_exodus_io(lib, world):
     
     # Create temporary directory for test files
     test_dir = "test_data"
-    os.makedirs(test_dir, exist_ok=True)
+    os.makedirs(test_dir)
     try:
         # Test Exodus write
         exodus_file = os.path.join(test_dir, "test_mesh.exo")
@@ -333,7 +333,7 @@ def test_adios2_io(lib, world):
     
     # Create temporary directory for test files
     test_dir = "test_data"
-    os.makedirs(test_dir, exist_ok=True)
+    os.makedirs(test_dir)
     try:
         # Test ADIOS2 write/read
         adios2_file = os.path.join(test_dir, "test_mesh.bp")
@@ -382,7 +382,7 @@ def test_read_mesh_file_auto_detect(lib, world):
     
     # Create temporary directory for test files
     test_dir = "test_data"
-    os.makedirs(test_dir, exist_ok=True)
+    os.makedirs(test_dir)
     try:
         # Write in different formats
         binary_file = os.path.join(test_dir, "mesh.osh")
