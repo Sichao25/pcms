@@ -45,7 +45,11 @@ if(PCMS_ENABLE_XGC)
   list(APPEND PCMS_HEADERS pcms/adapter/xgc/xgc_reverse_classification.h)
 endif()
 if(PCMS_ENABLE_OMEGA_H)
-  list(APPEND PCMS_SOURCES pcms/point_search.cpp)
+  list(APPEND PCMS_SOURCES 
+    pcms/point_search.cpp
+    pcms/adapter/uniform_grid/uniform_grid_field_layout.cpp
+    pcms/adapter/uniform_grid/uniform_grid_field.cpp
+  )
   list(
     APPEND
     PCMS_HEADERS
@@ -54,6 +58,8 @@ if(PCMS_ENABLE_OMEGA_H)
     pcms/transfer_field2.h
     pcms/uniform_grid.h
     pcms/point_search.h
+    pcms/adapter/uniform_grid/uniform_grid_field_layout.h
+    pcms/adapter/uniform_grid/uniform_grid_field.h
   )
 endif()
 
@@ -125,6 +131,12 @@ install(
 add_library(pcms_pcms INTERFACE)
 target_link_libraries(pcms_pcms INTERFACE pcms::core)
 set_target_properties(pcms_pcms PROPERTIES EXPORT_NAME pcms)
+if (PCMS_ENABLE_Python)
+  # Disable LTO/IPO before adding Python subdirectory to avoid fatbinData conflicts
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+  add_subdirectory(pcms/pythonapi)
+  #target_link_libraries(pcms_pcms INTERFACE pcms::pythonapi)
+endif()
 if(PCMS_ENABLE_C)
   add_subdirectory(pcms/capi)
   target_link_libraries(pcms_pcms INTERFACE pcms::capi)
