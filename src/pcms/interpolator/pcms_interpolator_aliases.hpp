@@ -2,7 +2,7 @@
 #define PCMS_INTERPOLATOR_ALIASES_HPP
 
 #include <Kokkos_Core.hpp>
-#include "pcms/arrays.h"
+#include "pcms/utility/arrays.h"
 
 namespace pcms
 {
@@ -39,9 +39,8 @@ using IntDeviceMatView = Kokkos::View<int**>;
 using IntDeviceVecView = Kokkos::View<int*>;
 using IntHostMatView = Kokkos::View<int**, Kokkos::HostSpace>;
 
-using RealDefaultScalarArrayView =
-  Rank1View<double, DefaultExecutionSpace>;
-using RealConstDefaultScalarArrayView =
+using RealDefaultRank1View = Rank1View<double, DefaultExecutionSpace>;
+using RealConstDefaultRank1View =
   Rank1View<const double, DefaultExecutionSpace>;
 
 } // namespace pcms

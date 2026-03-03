@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <Kokkos_Core.hpp>
 #include <Omega_h_mesh.hpp>
-#include "types.h"
+#include "pcms/utility/types.h"
 #include <Omega_h_bbox.hpp>
 #include <Omega_h_shape.hpp>
 #include "pcms/uniform_grid.h"
@@ -15,24 +15,30 @@ namespace pcms
 // TODO take a bounding box as we may want a bbox that's bigger than the mesh!
 // this function is in the public header for testing, but should not be directly
 // used
-namespace detail {
+namespace detail
+{
 Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>
-construct_intersection_map(Omega_h::Mesh& mesh, Kokkos::View<Uniform2DGrid[1]> grid, int num_grid_cells);
+construct_intersection_map(Omega_h::Mesh& mesh,
+                           Kokkos::View<Uniform2DGrid[1]> grid,
+                           int num_grid_cells, Real fuzz = 1E-12);
 }
 KOKKOS_FUNCTION
 Omega_h::Vector<3> barycentric_from_global(
   const Omega_h::Vector<2>& point, const Omega_h::Matrix<2, 3>& vertex_coords);
 
 [[nodiscard]] KOKKOS_FUNCTION bool triangle_intersects_bbox(
-  const Omega_h::Matrix<2, 3>& coords, const AABBox<2>& bbox);
+  const Omega_h::Matrix<2, 3>& coords, const AABBox<2>& bbox,
+  Real fuzz = 1E-12);
 
 class GridPointSearch
 {
-  using CandidateMapT = Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>;
+  using CandidateMapT =
+    Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>;
 
 public:
   static constexpr auto dim = 2;
-  struct Result {
+  struct Result
+  {
     enum class Dimensionality
     {
       VERTEX = 0,
@@ -45,7 +51,7 @@ public:
     Omega_h::Vector<dim + 1> parametric_coords;
   };
 
-  GridPointSearch(Omega_h::Mesh& mesh, LO Nx, LO Ny);
+  GridPointSearch(Omega_h::Mesh& mesh, LO Nx, LO Ny, Real fuzz = 1E-12);
   /**
    *  given a point in global coordinates give the id of the triangle that the
    * point lies within and the parametric coordinate of the point within the
@@ -53,10 +59,11 @@ public:
    * id will be a negative number and (TODO) will return a negative id of the
    * closest element
    */
-  Kokkos::View<Result*> operator()(Kokkos::View<Real*[dim] > point) const;
+  Kokkos::View<Result*> operator()(Kokkos::View<Real* [dim]> point) const;
 
 private:
   Omega_h::Mesh mesh_;
+  Real fuzz_;
   Omega_h::Adj tris2edges_adj_;
   Omega_h::Adj tris2verts_adj_;
   Omega_h::Adj edges2verts_adj_;
@@ -66,5 +73,5 @@ private:
   Omega_h::Reals coords_;
 };
 
-} // namespace detail
+} // namespace pcms
 #endif // PCMS_COUPLING_POINT_SEARCH_H

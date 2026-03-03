@@ -1,15 +1,15 @@
 #ifndef PCMS_COUPLING_XGC_FIELD_ADAPTER_H
 #define PCMS_COUPLING_XGC_FIELD_ADAPTER_H
 #include "pcms/adapter/omega_h/omega_h_field.h"
-#include "pcms/types.h"
-#include "pcms/memory_spaces.h"
+#include "pcms/utility/types.h"
+#include "pcms/utility/memory_spaces.h"
 #include "pcms/field.h"
 #include <vector>
 #include <redev_variant_tools.h>
 #include "xgc_reverse_classification.h"
-#include "pcms/assert.h"
-#include "pcms/array_mask.h"
-#include "pcms/profile.h"
+#include "pcms/utility/assert.h"
+#include "pcms/utility/array_mask.h"
+#include "pcms/utility/profile.h"
 
 namespace pcms
 {
@@ -72,8 +72,7 @@ public:
                   "gpu space unhandled\n");
     if (RankParticipatesCouplingCommunication()) {
       auto const_data =
-        Rank1View<const T, memory_space>{
-        data_.data_handle(), data_.size()};
+        Rank1View<const T, memory_space>{data_.data_handle(), data_.size()};
       if (buffer.size() > 0) {
         mask_.Apply(const_data, buffer, permutation);
       }
@@ -200,9 +199,8 @@ auto get_nodal_coordinates(
   return coordinates;
 }
 template <typename T, typename CoordinateElementType, typename MemorySpace>
-auto evaluate(
-  const XGCFieldAdapter<T, CoordinateElementType>& field,
-  Lagrange<1> /* method */,
+auto evaluate(const XGCFieldAdapter<T, CoordinateElementType>& field,
+              Lagrange<1> /* method */,
               Rank1View<const CoordinateElementType, MemorySpace> coordinates)
   -> Kokkos::View<T*, MemorySpace>
 {
@@ -213,9 +211,8 @@ auto evaluate(
   return values;
 }
 template <typename T, typename CoordinateElementType, typename MemorySpace>
-auto evaluate(
-  const XGCFieldAdapter<T, CoordinateElementType>& field,
-  NearestNeighbor /* method */,
+auto evaluate(const XGCFieldAdapter<T, CoordinateElementType>& field,
+              NearestNeighbor /* method */,
               Rank1View<const CoordinateElementType, MemorySpace> coordinates)
   -> Kokkos::View<T*, MemorySpace>
 {
@@ -229,8 +226,8 @@ auto evaluate(
 template <typename T, typename CoordinateElementType, typename U>
 auto set_nodal_data(
   const XGCFieldAdapter<T, CoordinateElementType>& field,
-  Rank1View<
-    const U, typename XGCFieldAdapter<T, CoordinateElementType>::memory_space>
+  Rank1View<const U,
+            typename XGCFieldAdapter<T, CoordinateElementType>::memory_space>
     data) -> void
 {
   PCMS_FUNCTION_TIMER;

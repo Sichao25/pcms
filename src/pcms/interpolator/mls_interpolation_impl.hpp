@@ -12,10 +12,11 @@
 #include <KokkosBlas.hpp>
 #include <KokkosBlas1_team_dot.hpp>
 #include <Kokkos_StdAlgorithms.hpp>
+#include <pcms/interpolator/mls_interpolation.hpp>
 #include <pcms/interpolator/pcms_interpolator_aliases.hpp>
 #include <pcms/interpolator/adj_search.hpp>
-#include <pcms/assert.h>
-#include <pcms/profile.h>
+#include <pcms/utility/assert.h>
+#include <pcms/utility/profile.h>
 #include <pcms/interpolator/pcms_interpolator_view_utils.hpp>
 #include <pcms/interpolator/pcms_interpolator_logger.hpp>
 
@@ -194,7 +195,6 @@ void create_vandermonde_matrix(const ScratchMatView& local_source_points, int j,
                                const IntDeviceMatView& slice_length,
                                ScratchMatView vandermonde_matrix)
 {
-  int N = local_source_points.extent(0);
   int dim = local_source_points.extent(1);
 
   double source_point[MAX_DIM] = {};
@@ -261,11 +261,11 @@ KOKKOS_INLINE_FUNCTION void compute_phi_vector(
  */
 KOKKOS_INLINE_FUNCTION
 void scale_column_trans_matrix(const ScratchMatView& matrix,
-                               const ScratchVecView& vector, member_type team,
-                               int j, ScratchMatView result_matrix)
+                               const ScratchVecView& vector,
+                               member_type /*unused*/, int j,
+                               ScratchMatView result_matrix)
 {
 
-  int M = matrix.extent(0);
   int N = matrix.extent(1);
 
   ScratchVecView matrix_row = Kokkos::subview(matrix, j, Kokkos::ALL());
@@ -408,13 +408,13 @@ void solve_matrix_svd(member_type team, const ScratchVecView& weight,
  *
  */
 template <typename Func>
-void mls_interpolation(RealConstDefaultScalarArrayView source_values,
-                       RealConstDefaultScalarArrayView source_coordinates,
-                       RealConstDefaultScalarArrayView target_coordinates,
+void mls_interpolation(RealConstDefaultRank1View source_values,
+                       RealConstDefaultRank1View source_coordinates,
+                       RealConstDefaultRank1View target_coordinates,
                        const SupportResults& support, const Omega_h::LO& dim,
                        const Omega_h::LO& degree, Func rbf_func,
-                       RealDefaultScalarArrayView approx_target_values,
-                       double lambda, double tol)
+                       RealDefaultRank1View approx_target_values, double lambda,
+                       double tol)
 {
   PCMS_FUNCTION_TIMER;
   static_assert(std::is_invocable_r_v<double, Func, double, double>,
@@ -658,22 +658,22 @@ Omega_h::Write<Omega_h::Real> mls_interpolation(
 
   const auto ntargets = target_coordinates.size() / dim;
 
-  RealConstDefaultScalarArrayView source_values_array_view(
-    source_values.data(), source_values.size());
+  RealConstDefaultRank1View source_values_array_view(source_values.data(),
+                                                     source_values.size());
 
-  RealConstDefaultScalarArrayView source_coordinates_array_view(
+  RealConstDefaultRank1View source_coordinates_array_view(
     source_coordinates.data(), source_coordinates.size());
 
-  RealConstDefaultScalarArrayView target_coordinates_array_view(
+  RealConstDefaultRank1View target_coordinates_array_view(
     target_coordinates.data(), target_coordinates.size());
 
-  RealDefaultScalarArrayView radii2_array_view(support.radii2.data(),
-                                               support.radii2.size());
+  RealDefaultRank1View radii2_array_view(support.radii2.data(),
+                                         support.radii2.size());
 
   Omega_h::Write<Omega_h::Real> interpolated_values(
     ntargets, 0, "approximated target values");
 
-  RealDefaultScalarArrayView interpolated_values_array_view(
+  RealDefaultRank1View interpolated_values_array_view(
     interpolated_values.data(), interpolated_values.size());
 
   mls_interpolation(source_values_array_view, source_coordinates_array_view,

@@ -2,16 +2,17 @@
 #define PCMS_COUPLING_XGC_REVERSE_CLASSIFICATION_H
 #include <Kokkos_Core.hpp>
 #include <mpi.h>
-#include "pcms/types.h"
+#include "pcms/utility/types.h"
 #include <unordered_map>
 #include <set>
 #include "mdspan/mdspan.hpp"
-#include "pcms/arrays.h"
-#include "pcms/memory_spaces.h"
-//#include <filesystem>
-#ifdef PCMS_HAS_OMEGA_H
+#include "pcms/utility/arrays.h"
+#include "pcms/utility/memory_spaces.h"
+#include "pcms/configuration.h"
+// #include <filesystem>
+#ifdef PCMS_ENABLE_OMEGA_H
 #include <Omega_h_mesh.hpp>
-#include "pcms/assert.h"
+#include "pcms/utility/assert.h"
 #endif
 
 namespace pcms
@@ -82,20 +83,24 @@ ReverseClassificationVertex ReadReverseClassificationVertex(std::istream&);
 ReverseClassificationVertex ReadReverseClassificationVertex(std::istream&,
                                                             MPI_Comm,
                                                             int root = 0);
-ReverseClassificationVertex ReadReverseClassificationVertex(std::string, MPI_Comm, int root = 0);
+ReverseClassificationVertex ReadReverseClassificationVertex(std::string,
+                                                            MPI_Comm,
+                                                            int root = 0);
 
-#ifdef PCMS_HAS_OMEGA_H
-enum class IndexBase {
+#ifdef PCMS_ENABLE_OMEGA_H
+enum class IndexBase
+{
   Zero = 0,
   One = 1
 };
 template <typename T = Omega_h::LO>
 [[nodiscard]] ReverseClassificationVertex ConstructRCFromOmegaHMesh(
-  Omega_h::Mesh& mesh, std::string numbering = "simNumbering", IndexBase index_base=IndexBase::One)
+  Omega_h::Mesh& mesh, std::string numbering = "simNumbering",
+  IndexBase index_base = IndexBase::One)
 {
   // transfer vtx classification to host
-  auto classIds_h =
-    Omega_h::HostRead<Omega_h::ClassId>(mesh.get_array<Omega_h::ClassId>(0, "class_id"));
+  auto classIds_h = Omega_h::HostRead<Omega_h::ClassId>(
+    mesh.get_array<Omega_h::ClassId>(0, "class_id"));
   auto classDims_h =
     Omega_h::HostRead<Omega_h::I8>(mesh.get_array<Omega_h::I8>(0, "class_dim"));
   auto vertid = Omega_h::HostRead<T>(mesh.get_array<T>(0, numbering));
@@ -103,7 +108,7 @@ template <typename T = Omega_h::LO>
   PCMS_ALWAYS_ASSERT(classDims_h.size() == classIds_h.size());
   for (int i = 0; i < classDims_h.size(); ++i) {
     pcms::DimID geom{classDims_h[i], classIds_h[i]};
-    if(index_base == IndexBase::Zero) {
+    if (index_base == IndexBase::Zero) {
       rc.Insert(geom, vertid[i]);
     } else {
       PCMS_ALWAYS_ASSERT(vertid[i] > 0);

@@ -11,7 +11,7 @@ on:
 
 jobs:
   test-build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     defaults:
@@ -35,8 +35,11 @@ jobs:
     - name: Update packages
       run: sudo apt-get update
 
-    - name: Install mpi
-      run: sudo apt-get install -yq mpich
+    - name: Install openmpi
+      run: sudo apt-get install -yq libopenmpi-dev openmpi-bin
+
+    - name: Install cmake
+      run: sudo apt-get install -yq cmake
 
     - uses: actions/checkout@v4
 
@@ -45,7 +48,7 @@ jobs:
       with:
         repo-name: 'Catch2'
         repo-path: 'catchorg/Catch2'
-        repo-ref: ''
+        repo-ref: 'v3.11.0'
         cache: true
 
     - name: build kokkos
@@ -79,7 +82,7 @@ jobs:
       with:
         repo-name: 'omega_h'
         repo-path: 'SCOREC/omega_h'
-        repo-ref: ''
+        repo-ref: '1765836a00b9a64b8b3791f1442ac52f147e43b2'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
@@ -90,12 +93,25 @@ jobs:
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos'
     
+    - name: build meshFields
+      uses: ./.github/actions/install-repo
+      with:
+        repo-name: 'meshFields'
+        repo-path: 'SCOREC/meshFields'
+        repo-ref: 'b1482bbba288df210784b2345eae08e34faabdc4'
+        cache: true
+        options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
+                  -DCMAKE_C_COMPILER=`which mpicc`
+                  -DMPIEXEC_EXECUTABLE=`which mpirun`
+                  -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos
+                  -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h'
+
     - name: build perfstubs
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'perfstubs'
         repo-path: 'UO-OACISS/perfstubs'
-        repo-ref: ''
+        repo-ref: 'a1fa3feb1d89214e28047f166500351074b5f0c2'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=mpicxx'
 
@@ -104,7 +120,7 @@ jobs:
       with:
         repo-name: 'kokkos-fortran-interop'
         repo-path: 'kokkos/kokkos-fortran-interop'
-        repo-ref: ''
+        repo-ref: 'abae737ce1159c4d7a9165c5629e6f5e6ae91d87'
         cache: true
         options: '-DCMAKE_BUILD_TYPE=Release
                   -DCMAKE_CXX_COMPILER=`which mpicxx`
@@ -120,7 +136,7 @@ jobs:
       with:
         repo-name: 'ADIOS2'
         repo-path: 'ornladios/ADIOS2'
-        repo-ref: ''
+        repo-ref: 'v2.10.2'
         cache: true
         options: '-DADIOS2_USE_CUDA=OFF'
 
@@ -129,7 +145,7 @@ jobs:
       with:
         repo-name: 'redev'
         repo-path: 'SCOREC/redev'
-        repo-ref: ''
+        repo-ref: 'ac09848a5f9b89493e8b679c9080b9efe5538376'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
@@ -137,6 +153,34 @@ jobs:
                   -DBUILD_SHARED_LIBS=OFF
                   -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake'
+
+    - name: clone petsc
+      id: clone-petsc
+      run: |
+        cd ${{ runner.temp }}
+        git clone -b v3.24.2 https://gitlab.com/petsc/petsc.git petsc
+        cd petsc
+        echo "petsc-commit-hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Cache PETSc
+      id: cache-petsc
+      uses: actions/cache@v3
+      with:
+        path: ${{ runner.temp }}/petsc
+        key: build-petsc-${{ steps.clone-petsc.outputs.petsc-commit-hash }}
+    
+    - name: build petsc
+      if: steps.cache-petsc.outputs.cache-hit != 'true'
+      run: |
+        cd ${{ runner.temp }}/petsc
+        ./configure \
+          PETSC_ARCH=ubuntu-kokkos \
+          --with-kokkos-dir="${{ runner.temp }}/build-kokkos/install/" \
+          --with-kokkos-kernels-dir="${{ runner.temp }}/build-kokkos-kernels/install/" \
+          --with-cuda=0 \
+          --with-shared-libraries=0 \
+          --download-fblaslapack
+        make all check
 
     - name: checkout pcms_testcases
       uses: actions/checkout@v3
@@ -154,13 +198,19 @@ jobs:
         repo-path: 'SCOREC/pcms'
         repo-ref: ''
         cache: false
-        options: '-DCMAKE_BUILD_TYPE=Release
+        options: '-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
                   -DCMAKE_C_COMPILER=`which mpicc`
                   -DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_Fortran_COMPILER=`which mpifort`
-                  -DPCMS_TIMEOUT=5
+                  -DMPIEXEC_PREFLAGS="--oversubscribe"
+                  -DPCMS_ENABLE_PETSC=ON
+                  -DPETSC_DIR=${{ runner.temp }}/petsc
+                  -DPETSC_ARCH=ubuntu-kokkos
+                  -DPCMS_TIMEOUT=10
+                  -DPCMS_ENABLE_SPDLOG=OFF
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h
+                  -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields
                   -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev
                   -Dflcl_DIR=${{ runner.temp }}/build-kokkos-fortran-interop/install/lib/cmake/flcl
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
@@ -173,9 +223,29 @@ jobs:
     # - name: Install Valgrind
     #   run: sudo apt-get install -yq valgrind
 
-    # - name: Run CTest
-    #   run: ctest --test-dir ${{ runner.temp }}/build-pcms
+    - name: Run CTest
+      run: ctest --test-dir ${{ runner.temp }}/build-pcms --output-on-failure
 
-    # - name: Print Test
-    #   if: always()
-    #   run: cat ${{ runner.temp }}/build-pcms/Testing/Temporary/LastTest.log
+    - name: Print Test
+      if: always()
+      run: cat ${{ runner.temp }}/build-pcms/Testing/Temporary/LastTest.log
+
+    - name: Test PCMS Installation
+      shell: bash
+      run: |
+        # Configure and build the test
+        # it should only ask for pcms_DIR/ROOT to find all dependencies
+        ls ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms
+        echo "-------- PCMS CONFIG -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-config.cmake
+        echo "-------- PCMS TARGETS -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-targets.cmake
+        echo "-------- PCMS INTERPOLATOR TARGETS -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms_interpolator-targets.cmake
+        export VERBOSE=1
+        cmake \
+          -B ${{github.workspace}}/examples/external-usage-example/build \
+          -S ${{github.workspace}}/examples/external-usage-example/ \
+          -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
+          --debug-output
+        cmake --build ${{github.workspace}}/examples/external-usage-example/build

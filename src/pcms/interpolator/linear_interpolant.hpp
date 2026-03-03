@@ -111,7 +111,7 @@ public:
     : parametric_coords(parametric_coords_),
       values(values_),
       indices(indices_),
-      dimensions(dimensions_) {};
+      dimensions(dimensions_){};
 
   RealVecView linear_interpolation()
   {
@@ -144,8 +144,9 @@ struct Result
   RealMatView parametric_coords;
 };
 
-Result parametric_indices(const RealMatView& points, const IntVecView& num_bins,
-                          const RealVecView& range)
+inline Result parametric_indices(const RealMatView& points,
+                                 const IntVecView& num_bins,
+                                 const RealVecView& range)
 {
 
   int dim = num_bins.extent(0);

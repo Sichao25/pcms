@@ -5,21 +5,15 @@
 #include <redev_variant_tools.h>
 #include <fstream>
 #include "pcms/adapter/xgc/xgc_reverse_classification.h"
-#include "pcms/dummy_field_adapter.h"
-#include "pcms/assert.h"
+#include "pcms/adapter/dummy_field_adapter.h"
+#include "pcms/utility/assert.h"
 namespace pcms
 {
 // Note that we have a closed set of types that can be used in the C interface
 using FieldAdapterVariant =
   std::variant<std::monostate, pcms::XGCFieldAdapter<double>,
                pcms::XGCFieldAdapter<float>, pcms::XGCFieldAdapter<int>,
-               pcms::XGCFieldAdapter<long>, pcms::DummyFieldAdapter
-               // #ifdef PCMS_HAS_OMEGA_H
-               //                ,
-               //                pcms::OmegaHFieldAdapter<double>,
-               //                pcms::OmegaHFieldAdapter<int>
-               // #endif
-               >;
+               pcms::XGCFieldAdapter<long>, pcms::DummyFieldAdapter>;
 
 } // namespace pcms
 
@@ -128,7 +122,7 @@ void pcms_create_xgc_field_adapter_t(
   const pcms::ReverseClassificationVertex& reverse_classification,
   in_overlap_function in_overlap, pcms::FieldAdapterVariant& field_adapter)
 {
-  PCMS_ALWAYS_ASSERT((size >0) ? (data!=nullptr) : true);
+  PCMS_ALWAYS_ASSERT((size > 0) ? (data != nullptr) : true);
   pcms::Rank1View<T, pcms::HostMemorySpace> data_view(
     reinterpret_cast<T*>(data), size);
   field_adapter.emplace<pcms::XGCFieldAdapter<T>>(
@@ -165,7 +159,8 @@ PcmsFieldAdapterHandle pcms_create_xgc_field_adapter(
                                                 in_overlap, *field_adapter);
       break;
     default:
-      PCMS_ALWAYS_ASSERT(false, MPI_COMM_WORLD, "tyring to create XGC adapter with invalid type!\n");
+      PCMS_ALWAYS_ASSERT(false, MPI_COMM_WORLD,
+                         "tyring to create XGC adapter with invalid type!\n");
   }
   return {reinterpret_cast<void*>(field_adapter)};
 }
