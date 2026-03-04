@@ -135,7 +135,7 @@ if (PCMS_ENABLE_Python)
   # Disable LTO/IPO before adding Python subdirectory to avoid fatbinData conflicts
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
   add_subdirectory(pcms/pythonapi)
-  #target_link_libraries(pcms_pcms INTERFACE pcms::pythonapi)
+  target_link_libraries(pcms_pcms INTERFACE pcms::pythonapi)
 endif()
 if(PCMS_ENABLE_C)
   add_subdirectory(pcms/capi)

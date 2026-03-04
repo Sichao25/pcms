@@ -81,15 +81,19 @@ def test_mls_interpolation_polynomial_reproduction():
                 f"func_degree={func_degree}: max_abs_err={max_abs_err}"
             )
 
-
-def main():
+if __name__ == "__main__":
     lib = pcms.OmegaHLibrary()
     world = lib.world()
-    test_mls_interpolation_polynomial_reproduction()
-    print("MLS interpolation test passed")
-    del lib
-    del world
-
-
-if __name__ == "__main__":
-    main()
+    
+    try:
+        test_mls_interpolation_polynomial_reproduction()
+        print("MLS interpolation test passed")
+    except Exception as e:
+        print(f"MLS interpolation test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)
+    finally:
+        # Explicitly delete objects to avoid an MPI finalizing issue
+        del world
+        del lib

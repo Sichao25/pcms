@@ -30,20 +30,41 @@ void bind_omega_h_mesh_module(py::module& m)
          "Get the world communicator");
 
   // Bind the Comm class
+#ifdef OMEGA_H_USE_MPI
+  using CommHandle = std::uintptr_t;
+#endif
+
   py::class_<Omega_h::Comm, std::shared_ptr<Omega_h::Comm>>(m, "Comm")
   // Constructors
 #ifdef OMEGA_H_USE_MPI
-    .def(py::init<Omega_h::Library*, MPI_Comm>(), py::arg("library"),
-         py::arg("impl"))
-    .def(py::init([](Omega_h::Library* library, MPI_Comm impl,
+    .def(py::init([](Omega_h::Library* library, CommHandle impl_handle) {
+           MPI_Comm impl;
+           std::memcpy(&impl, &impl_handle, sizeof(MPI_Comm));
+           return new Omega_h::Comm(library, impl);
+         }),
+         py::arg("library"), py::arg("impl_handle"))
+
+    .def(py::init([](Omega_h::Library* library, CommHandle impl_handle,
                      py::array_t<const Omega_h::I32> srcs,
                      py::array_t<const Omega_h::I32> dsts) {
-      auto srcs_view = numpy_to_omega_h_read<Omega_h::I32>(srcs);
-      auto dsts_view = numpy_to_omega_h_read<Omega_h::I32>(dsts);
-      return new Omega_h::Comm(library, impl, srcs_view, dsts_view);
-    }))
-    .def("get_impl", &Omega_h::Comm::get_impl,
-         "Get the underlying MPI communicator")
+           MPI_Comm impl;
+           std::memcpy(&impl, &impl_handle, sizeof(MPI_Comm));
+           auto srcs_view = numpy_to_omega_h_read<Omega_h::I32>(srcs);
+           auto dsts_view = numpy_to_omega_h_read<Omega_h::I32>(dsts);
+           return new Omega_h::Comm(library, impl, srcs_view, dsts_view);
+         }),
+         py::arg("library"), py::arg("impl_handle"), py::arg("srcs"),
+         py::arg("dsts"))
+
+    .def(
+      "get_impl_handle",
+      [](Omega_h::Comm const& self) -> CommHandle {
+        MPI_Comm impl = self.get_impl();
+        CommHandle handle = 0;
+        std::memcpy(&handle, &impl, sizeof(MPI_Comm));
+        return handle;
+      },
+      "Get the underlying MPI communicator as an opaque integer handle")
 #else
     .def(py::init<Omega_h::Library*, bool, bool>(), py::arg("library"),
          py::arg("is_graph"), py::arg("sends_to_self"))
