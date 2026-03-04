@@ -110,9 +110,9 @@ class GridPointSearch3D : public PointLocalizationSearch3D
 public:
   using Result = PointLocalizationSearch3D::Result;
 
-  GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz);
+  GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz, Real fuzz = 1E-12);
   GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
-                    const PointSearchTolerances& tolerances);
+                    const PointSearchTolerances& tolerances, Real fuzz = 1E-12);
 
   /**
    *  Given a point in global coordinates, returns the id of the tetrahedron (3D
@@ -133,6 +133,7 @@ private:
   CandidateMapT candidate_map_;
   Omega_h::LOs tris2verts_;
   Omega_h::Reals coords_;
+  Real fuzz_;
 };
 
 } // namespace pcms

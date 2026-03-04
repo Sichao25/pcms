@@ -171,7 +171,7 @@ template <unsigned dim>
 
 template <int dim>
 [[nodiscard]] KOKKOS_INLINE_FUNCTION bool bbox_verts_within_simplex(
-  const AABBox<dim>& bbox, const Omega_h::Matrix<dim, dim + 1>& coords)
+  const AABBox<dim>& bbox, const Omega_h::Matrix<dim, dim + 1>& coords, Real fuzz)
 {
   // each dimension has a pair of opposing "walls"
   // 2D: { [left, right], [top, bottom] } -> { left, right, top, bottom }
@@ -535,6 +535,7 @@ GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny, const Po
   tris2edges_adj_ = mesh.ask_down(Omega_h::FACE, Omega_h::EDGE);
   tris2verts_adj_ = mesh.ask_down(Omega_h::FACE, Omega_h::VERT);
   edges2verts_adj_ = mesh.ask_down(Omega_h::EDGE, Omega_h::VERT);
+  fuzz_ = fuzz;
 }
 
 Kokkos::View<GridPointSearch3D::Result*> GridPointSearch3D::operator()(
@@ -551,6 +552,7 @@ Kokkos::View<GridPointSearch3D::Result*> GridPointSearch3D::operator()(
   auto tris2edges_adj = tris2edges_adj_;
   auto edges2verts_adj = edges2verts_adj_;
   auto coords = coords_;
+  auto fuzz = fuzz_;
   Kokkos::parallel_for(
     points.extent(0), KOKKOS_LAMBDA(int p) {
       Omega_h::Vector<DIM> point;
@@ -599,15 +601,15 @@ Kokkos::View<GridPointSearch3D::Result*> GridPointSearch3D::operator()(
   return results;
 }
 
-GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz)
+GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz, Real fuzz)
   : GridPointSearch3D(mesh, Nx, Ny, Nz,
-                      PointSearchTolerances{"point search 3d tolerances"})
+                      PointSearchTolerances{"point search 3d tolerances"}, fuzz)
 {
   Kokkos::deep_copy(tolerances_, 0);
 }
 
 GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
-                                     const PointSearchTolerances& tolerances)
+                                     const PointSearchTolerances& tolerances, Real fuzz)
   : PointLocalizationSearch(tolerances)
 {
   auto mesh_bbox = Omega_h::get_bounding_box<3>(&mesh);
@@ -633,5 +635,6 @@ GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
   tris2edges_adj_ = mesh.ask_down(Omega_h::FACE, Omega_h::EDGE);
   tris2verts_adj_ = mesh.ask_down(Omega_h::FACE, Omega_h::VERT);
   edges2verts_adj_ = mesh.ask_down(Omega_h::EDGE, Omega_h::VERT);
+  fuzz_ = fuzz;
 }
 } // namespace pcms
