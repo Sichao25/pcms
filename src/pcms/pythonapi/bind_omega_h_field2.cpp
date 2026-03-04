@@ -25,15 +25,15 @@ void bind_omega_h_field2(py::module& m)
            "Clamp to nearest boundary cell (extrapolate)")
     .export_values();
 
-  // Bind OmegaHField2 class
-  py::class_<OmegaHField2, FieldT<Real>, std::shared_ptr<OmegaHField2>>(
+  // Bind OmegaHField2 class template instantiation for Real type
+  py::class_<OmegaHField2<Real>, FieldT<Real>, std::shared_ptr<OmegaHField2<Real>>>(
     m, "OmegaHField2")
     .def(py::init<const OmegaHFieldLayout&>(), py::arg("layout"),
          "Constructor for OmegaHField2")
 
     .def(
       "get_localization_hint",
-      [](const OmegaHField2& self, py::array_t<Real> coordinates,
+      [](const OmegaHField2<Real>& self, py::array_t<Real> coordinates,
          const CoordinateSystem& coord_system) {
         // Create CoordinateView from numpy array
         auto coords_view = numpy_to_view_2d<const Real>(coordinates);
@@ -45,7 +45,7 @@ void bind_omega_h_field2(py::module& m)
 
     .def(
       "evaluate",
-      [](const OmegaHField2& self, const LocalizationHint& location,
+      [](const OmegaHField2<Real>& self, const LocalizationHint& location,
          py::array_t<Real> values, const CoordinateSystem& coord_system) {
         // Create FieldDataView
         auto values_view = numpy_to_view<Real>(values);
@@ -58,7 +58,7 @@ void bind_omega_h_field2(py::module& m)
 
     .def(
       "evaluate_gradient",
-      [](OmegaHField2& self, py::array_t<Real> gradients,
+      [](OmegaHField2<Real>& self, py::array_t<Real> gradients,
          const CoordinateSystem& coord_system) {
         auto gradients_view = numpy_to_view<Real>(gradients);
         FieldDataView<Real, HostMemorySpace> field_data_view(gradients_view,
@@ -68,15 +68,15 @@ void bind_omega_h_field2(py::module& m)
       py::arg("gradients"), py::arg("coordinate_system"),
       "Evaluate gradient of the field")
 
-    .def("get_layout", &OmegaHField2::GetLayout,
+    .def("get_layout", &OmegaHField2<Real>::GetLayout,
          py::return_value_policy::reference, "Get the field layout")
 
-    .def("can_evaluate_gradient", &OmegaHField2::CanEvaluateGradient,
+    .def("can_evaluate_gradient", &OmegaHField2<Real>::CanEvaluateGradient,
          "Check if gradient evaluation is supported")
 
     .def(
       "serialize",
-      [](const OmegaHField2& self, py::array_t<Real> buffer,
+      [](const OmegaHField2<Real>& self, py::array_t<Real> buffer,
          py::array_t<const pcms::LO> permutation) {
         auto buffer_view = numpy_to_view<Real>(buffer);
         auto perm_view = numpy_to_view<const pcms::LO>(permutation);
@@ -87,7 +87,7 @@ void bind_omega_h_field2(py::module& m)
 
     .def(
       "deserialize",
-      [](OmegaHField2& self, py::array_t<const Real> buffer,
+      [](OmegaHField2<Real>& self, py::array_t<const Real> buffer,
          py::array_t<const pcms::LO> permutation) {
         auto buffer_view = numpy_to_view<const Real>(buffer);
         auto perm_view = numpy_to_view<const pcms::LO>(permutation);
@@ -98,7 +98,7 @@ void bind_omega_h_field2(py::module& m)
 
     .def(
       "get_dof_holder_data",
-      [](const OmegaHField2& self) {
+      [](const OmegaHField2<Real>& self) {
         auto const_data = self.GetDOFHolderData();
         // Create a numpy array that owns its own data
         return view_to_numpy<const Real>(const_data);
@@ -107,7 +107,7 @@ void bind_omega_h_field2(py::module& m)
 
     .def(
       "set_dof_holder_data",
-      [](OmegaHField2& self, py::array_t<Real> data) {
+      [](OmegaHField2<Real>& self, py::array_t<Real> data) {
         // Ensure array is contiguous
         auto contiguous_data = py::array_t<Real>(data);
         auto data_view = numpy_to_view<Real>(contiguous_data);
@@ -118,14 +118,14 @@ void bind_omega_h_field2(py::module& m)
       },
       py::arg("data"), "Set the DOF holder data")
 
-    .def("set_out_of_bounds_mode", &OmegaHField2::SetOutOfBoundsMode,
+    .def("set_out_of_bounds_mode", &OmegaHField2<Real>::SetOutOfBoundsMode,
          py::arg("mode"), py::arg("fill_value") = 0.0,
          "Set the out-of-bounds mode and fill value")
 
-    .def("get_out_of_bounds_mode", &OmegaHField2::GetOutOfBoundsMode,
+    .def("get_out_of_bounds_mode", &OmegaHField2<Real>::GetOutOfBoundsMode,
          "Get the current out-of-bounds mode")
 
-    .def("get_fill_value", &OmegaHField2::GetFillValue,
+    .def("get_fill_value", &OmegaHField2<Real>::GetFillValue,
          "Get the current fill value for out-of-bounds points");
 
   // Helper functions for creating views (if needed for testing)

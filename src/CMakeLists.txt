@@ -13,8 +13,10 @@ set(
   pcms/field_evaluation_methods.h
   pcms/partition.h
   pcms/coupler.h
+  pcms/coupler2.h
   pcms/coordinate_system.h
   pcms/field_layout.h
+  pcms/field_layout_communicator.h
   pcms/adapter/point_cloud/point_cloud_layout.h
   pcms/adapter/point_cloud/point_cloud.h
   pcms/adapter/omega_h/omega_h_field_layout.h
@@ -25,6 +27,8 @@ set(
   PCMS_SOURCES
   pcms.cpp
   pcms/create_field.cpp
+  pcms/coupler2.cpp
+  pcms/field_layout_communicator.cpp
   pcms/adapter/xgc/xgc_field_adapter.h
   pcms/adapter/point_cloud/point_cloud_layout.cpp
   pcms/adapter/point_cloud/point_cloud.cpp
