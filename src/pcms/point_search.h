@@ -21,8 +21,8 @@ namespace detail
 {
 Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>
 construct_intersection_map_2d(Omega_h::Mesh& mesh,
-                           Kokkos::View<Uniform2DGrid[1]> grid,
-                           int num_grid_cells, Real fuzz = 1E-12);
+                              Kokkos::View<Uniform2DGrid[1]> grid,
+                              int num_grid_cells, Real fuzz = 1E-12);
 }
 
 [[nodiscard]] KOKKOS_FUNCTION bool triangle_intersects_bbox(
@@ -78,7 +78,8 @@ public:
   using Result = PointLocalizationSearch2D::Result;
 
   GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny, Real fuzz = 1E-12);
-  GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny, const PointSearchTolerances& tolerances, Real fuzz = 1E-12);
+  GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny,
+                    const PointSearchTolerances& tolerances, Real fuzz = 1E-12);
 
   /**
    *  given a point in global coordinates give the id of the triangle that the
@@ -110,7 +111,8 @@ class GridPointSearch3D : public PointLocalizationSearch3D
 public:
   using Result = PointLocalizationSearch3D::Result;
 
-  GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz, Real fuzz = 1E-12);
+  GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
+                    Real fuzz = 1E-12);
   GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
                     const PointSearchTolerances& tolerances, Real fuzz = 1E-12);
 

@@ -171,7 +171,8 @@ template <unsigned dim>
 
 template <int dim>
 [[nodiscard]] KOKKOS_INLINE_FUNCTION bool bbox_verts_within_simplex(
-  const AABBox<dim>& bbox, const Omega_h::Matrix<dim, dim + 1>& coords, Real fuzz)
+  const AABBox<dim>& bbox, const Omega_h::Matrix<dim, dim + 1>& coords,
+  Real fuzz)
 {
   // each dimension has a pair of opposing "walls"
   // 2D: { [left, right], [top, bottom] } -> { left, right, top, bottom }
@@ -256,7 +257,7 @@ namespace detail
 struct GridTriIntersectionFunctor2D
 {
   GridTriIntersectionFunctor2D(Omega_h::Mesh& mesh,
-                             Kokkos::View<Uniform2DGrid[1]> grid, Real fuzz)
+                               Kokkos::View<Uniform2DGrid[1]> grid, Real fuzz)
     : mesh_(mesh),
       tris2verts_(mesh_.ask_elem_verts()),
       coords_(mesh_.coords()),
@@ -360,8 +361,8 @@ public:
 // avoid extra copy of grid from gpu to cpu
 Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO>
 construct_intersection_map_2d(Omega_h::Mesh& mesh,
-                           Kokkos::View<Uniform2DGrid[1]> grid,
-                           int num_grid_cells, Real fuzz)
+                              Kokkos::View<Uniform2DGrid[1]> grid,
+                              int num_grid_cells, Real fuzz)
 {
   Kokkos::Crs<LO, Kokkos::DefaultExecutionSpace, void, LO> intersection_map{};
   auto f = detail::GridTriIntersectionFunctor2D{mesh, grid, fuzz};
@@ -407,12 +408,14 @@ Kokkos::View<GridPointSearch2D::Result*> GridPointSearch2D::operator()(
   auto coords = coords_;
   auto tolerances = tolerances_;
   auto fuzz = fuzz_;
-  Kokkos::parallel_for(points.extent(0), KOKKOS_LAMBDA(int p) {
-    Omega_h::Vector<2> point(std::initializer_list<double>{points(p,0), points(p,1)});
-    auto cell_id = grid(0).ClosestCellID(point);
-    assert(cell_id < num_rows && cell_id >= 0);
-    auto candidates_begin = candidate_map.row_map(cell_id);
-    auto candidates_end = candidate_map.row_map(cell_id + 1);
+  Kokkos::parallel_for(
+    points.extent(0), KOKKOS_LAMBDA(int p) {
+      Omega_h::Vector<2> point(
+        std::initializer_list<double>{points(p, 0), points(p, 1)});
+      auto cell_id = grid(0).ClosestCellID(point);
+      assert(cell_id < num_rows && cell_id >= 0);
+      auto candidates_begin = candidate_map.row_map(cell_id);
+      auto candidates_end = candidate_map.row_map(cell_id + 1);
 
       bool vertex_found = false;
       bool edge_found = false;
@@ -495,10 +498,6 @@ Kokkos::View<GridPointSearch2D::Result*> GridPointSearch2D::operator()(
           nearest_element_id = triangleID;
           parametric_coords_to_nearest = parametric_coords;
           inside_cell = true;
-
-          // results(p) =
-          // GridPointSearch2D::Result{GridPointSearch2D::Result::Dimensionality::FACE,
-          // triangleID, parametric_coords}; return;
         }
       }
 
@@ -512,13 +511,17 @@ Kokkos::View<GridPointSearch2D::Result*> GridPointSearch2D::operator()(
   return results;
 }
 
-GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny, Real fuzz)
-  : GridPointSearch2D(mesh, Nx, Ny, PointSearchTolerances { "point search 2d tolerances" }, fuzz)
+GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny,
+                                     Real fuzz)
+  : GridPointSearch2D(mesh, Nx, Ny,
+                      PointSearchTolerances{"point search 2d tolerances"}, fuzz)
 {
   Kokkos::deep_copy(tolerances_, 0);
 }
 
-GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny, const PointSearchTolerances& tolerances, Real fuzz)
+GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny,
+                                     const PointSearchTolerances& tolerances,
+                                     Real fuzz)
   : PointLocalizationSearch(tolerances)
 {
   auto mesh_bbox = Omega_h::get_bounding_box<2>(&mesh);
@@ -529,7 +532,8 @@ GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny, const Po
                   .bot_left = {mesh_bbox.min[0], mesh_bbox.min[1]},
                   .divisions = {Nx, Ny}};
   Kokkos::deep_copy(grid_, grid_h);
-  candidate_map_ = detail::construct_intersection_map_2d(mesh, grid_, grid_h(0).GetNumCells(), fuzz_);
+  candidate_map_ = detail::construct_intersection_map_2d(
+    mesh, grid_, grid_h(0).GetNumCells(), fuzz_);
   coords_ = mesh.coords();
   tris2verts_ = mesh.ask_elem_verts();
   tris2edges_adj_ = mesh.ask_down(Omega_h::FACE, Omega_h::EDGE);
@@ -601,7 +605,8 @@ Kokkos::View<GridPointSearch3D::Result*> GridPointSearch3D::operator()(
   return results;
 }
 
-GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz, Real fuzz)
+GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
+                                     Real fuzz)
   : GridPointSearch3D(mesh, Nx, Ny, Nz,
                       PointSearchTolerances{"point search 3d tolerances"}, fuzz)
 {
@@ -609,7 +614,8 @@ GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz, R
 }
 
 GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
-                                     const PointSearchTolerances& tolerances, Real fuzz)
+                                     const PointSearchTolerances& tolerances,
+                                     Real fuzz)
   : PointLocalizationSearch(tolerances)
 {
   auto mesh_bbox = Omega_h::get_bounding_box<3>(&mesh);
