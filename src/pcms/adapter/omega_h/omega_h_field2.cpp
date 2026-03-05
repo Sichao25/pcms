@@ -97,11 +97,11 @@ struct ComputeOffsetsFunctor
 struct CountPointsPerElementFunctor
 {
   Kokkos::View<LO*> elem_counts_;
-  Kokkos::View<GridPointSearch::Result*> search_results_;
+  Kokkos::View<GridPointSearch2D::Result*> search_results_;
 
   CountPointsPerElementFunctor(
     Kokkos::View<LO*> elem_counts,
-    Kokkos::View<GridPointSearch::Result*> search_results)
+    Kokkos::View<GridPointSearch2D::Result*> search_results)
     : elem_counts_(elem_counts), search_results_(search_results)
   {
   }
@@ -121,14 +121,14 @@ struct FillCoordinatesAndIndicesFunctor
   Kokkos::View<LO*> offsets_;
   Kokkos::View<Real**> coordinates_;
   Kokkos::View<LO*> indices_;
-  Kokkos::View<GridPointSearch::Result*> search_results_;
+  Kokkos::View<GridPointSearch2D::Result*> search_results_;
   Omega_h::Int dim_;
 
   FillCoordinatesAndIndicesFunctor(
     Omega_h::Mesh& mesh, Kokkos::View<LO*> elem_counts,
     Kokkos::View<LO*> offsets, Kokkos::View<Real**> coordinates,
     Kokkos::View<LO*> indices,
-    Kokkos::View<GridPointSearch::Result*> search_results)
+    Kokkos::View<GridPointSearch2D::Result*> search_results)
     : mesh_(mesh),
       elem_counts_(elem_counts),
       offsets_(offsets),
@@ -161,7 +161,7 @@ struct OmegaHField2LocalizationHint
 {
   OmegaHField2LocalizationHint(
     Omega_h::Mesh& mesh,
-    Kokkos::View<GridPointSearch::Result*, HostMemorySpace> search_results,
+    Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> search_results,
     OutOfBoundsMode mode)
     : mode_(mode), num_valid_(0), num_missing_(0)
   {
@@ -355,7 +355,7 @@ LocalizationHint OmegaHField2::GetLocalizationHint(
     coordinates.data_handle(), coordinates.extent(0), coordinates.extent(1));
   deep_copy_mismatch_layouts(coords, coordinates_host);
   auto results = search_(coords);
-  Kokkos::View<GridPointSearch::Result*, HostMemorySpace> results_h(
+  Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> results_h(
     "results_h", results.size());
   Kokkos::deep_copy(results_h, results);
   auto hint = std::make_shared<OmegaHField2LocalizationHint>(
