@@ -226,7 +226,7 @@ OmegaHFieldLayout::OmegaHFieldLayout(Omega_h::Mesh& mesh,
   gids_host_ = Omega_h::HostWrite<Omega_h::GO>(gids_);
 }
 
-std::unique_ptr<FieldT<Real>> OmegaHFieldLayout::CreateField() const
+std::unique_ptr<FieldT<Real>> OmegaHFieldLayout::CreateFieldReal() const
 {
   return std::make_unique<OmegaHField2<Real>>(*this);
 }

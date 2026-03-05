@@ -33,8 +33,8 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     "gids",
     pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
 
-  app->AddField("gids", layout.CreateField());
-  app->AddField("gids2", layout.CreateField());
+  app->AddField("gids", layout.CreateFieldReal());
+  app->AddField("gids2", layout.CreateFieldReal());
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginSendPhase();
@@ -58,7 +58,7 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     "gids",
     pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
 
-  app->AddField("gids", layout.CreateField());
+  app->AddField("gids", layout.CreateFieldReal());
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginSendPhase();
@@ -89,9 +89,9 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     "gids",
     pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
   // TODO, fields should have a transfer policy rather than parameters
-  total_f->AddField("gids", layout_total.CreateField());
-  delta_f->AddField("gids", layout_delta.CreateField());
-  delta_f->AddField("gids2", layout_delta.CreateField());
+  total_f->AddField("gids", layout_total.CreateFieldReal());
+  delta_f->AddField("gids", layout_delta.CreateFieldReal());
+  delta_f->AddField("gids2", layout_delta.CreateFieldReal());
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       total_f->BeginReceivePhase();

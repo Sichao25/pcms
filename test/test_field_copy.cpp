@@ -27,10 +27,10 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
     Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, ndata),
     [=](int i) { ids[i] = i; });
 
-  auto original = layout->CreateField();
+  auto original = layout->CreateFieldReal();
   original->SetDOFHolderData(pcms::make_const_array_view(ids));
 
-  auto copied = layout->CreateField();
+  auto copied = layout->CreateFieldReal();
   pcms::copy_field2(*original, *copied);
   auto copied_array = copied->GetDOFHolderData();
 

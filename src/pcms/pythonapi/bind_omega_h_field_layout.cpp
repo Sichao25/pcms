@@ -25,7 +25,7 @@ void bind_omega_h_field_layout_module(py::module& m)
     .def(
       "create_field",
       [](OmegaHFieldLayout& self) {
-        return std::shared_ptr<FieldT<Real>>(self.CreateField());
+        return std::shared_ptr<FieldT<Real>>(self.CreateFieldReal());
       },
       "Create a field with this layout")
 
