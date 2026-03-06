@@ -14,7 +14,8 @@ namespace pcms
 
 std::unique_ptr<FieldLayout> CreateLagrangeLayout(
   Omega_h::Mesh& mesh, int order, int num_components,
-  CoordinateSystem coordinate_system, std::string global_id_name)
+  CoordinateSystem coordinate_system,
+  std::string global_id_name)
 {
 
   std::array<int, 4> nodes_per_dim;
