@@ -19,8 +19,7 @@ namespace pcms
 {
 std::unique_ptr<FieldLayout> CreateLagrangeLayout(
   Omega_h::Mesh& mesh, int order, int num_components,
-  CoordinateSystem coordinate_system,
-  std::string global_id_name="global");
+  CoordinateSystem coordinate_system, std::string global_id_name = "global");
 
 /**
  * \brief Create a binary field on a uniform grid indicating inside/outside mesh
