@@ -202,12 +202,31 @@ ctest --test-dir build-pcms --output-on-failure
    $ git clone https://github.com/jacobmerson/pcms-spack.git
    $ spack repo add pcms-spack/spack_repo/pcms
    ```
+3. Install compilers / add compilers to spack
+   ```console
+   $ sudo apt install gcc g++ gfortran
+   $ spack compiler find
+   ```
+   You should see a message stating that a compiler was added to your `packages.yaml` file. You can confirm this by looking in your spack packages with `spack config edit packages`. It should contain something similar to the following:
+   ```yaml
+   packages:
+     gcc:
+       externals:
+       - spec: gcc@13.3.0 languages:='c,c++,fortran'
+         prefix: /usr
+         extra_attributes:
+           compilers:
+             c: /usr/bin/gcc
+             cxx: /usr/bin/g++
+             fortran: /usr/bin/gfortran
+   ```
+
    
-3. Install PCMS repo
+4. Install PCMS repo
     ```console
     $ mkdir /lore/$USER/pcms-coupler
     $ cd /lore/$USER/pcms-coupler
-    $ git clone -b pcms-spack https://github.com/SCOREC/pcms.git
+    $ git clone https://github.com/SCOREC/pcms.git
     $ cd pcms/spack
     $ spack env create -d env spack.yaml
     $ cd env
