@@ -2,6 +2,7 @@
 #define ADJ_SEARCH_HPP
 
 #include <pcms/localization/point_search.h>
+#include <pcms/utility/mesh_geometry.h>
 #include <pcms/utility/print.h>
 #include "interpolation_helpers.h" // for helper functions
 
@@ -11,22 +12,6 @@
 namespace pcms {
 
 static constexpr int max_dim = 3;
-
-// TODO change this into span/mdspan
-OMEGA_H_INLINE
-Omega_h::Real calculateDistance(const Omega_h::Real* p1,
-                                const Omega_h::Real* p2, const int dim)
-{
-  Omega_h::Real dx, dy, dz;
-  dx = p1[0] - p2[0];
-  dy = p1[1] - p2[1];
-  if (dim != 3) {
-    dz = 0.0;
-  } else {
-    dz = p1[2] - p2[2];
-  }
-  return dx * dx + dy * dy + dz * dz;
-}
 
 inline void checkTargetPoints(
   const Kokkos::View<pcms::GridPointSearch2D::Result*>& results)
@@ -178,7 +163,7 @@ inline void FindSupports::adjBasedSearch(
         }
 
         Omega_h::Real dist =
-          calculateDistance(target_coords, support_coords, dim);
+          pcms::distance_squared(target_coords, support_coords, dim);
         if (dist <= cutoffDistance) {
           count++;
           if (count >= 500) {
@@ -217,7 +202,7 @@ inline void FindSupports::adjBasedSearch(
             }
 
             Omega_h::Real dist =
-              calculateDistance(target_coords, support_coords, dim);
+              pcms::distance_squared(target_coords, support_coords, dim);
 
             if (dist <= cutoffDistance) {
               count++;
@@ -296,7 +281,7 @@ inline void FindSupports::adjBasedSearchCentroidNodes(
         }
 
         Omega_h::Real dist =
-          calculateDistance(target_coords, support_coords, dim);
+          pcms::distance_squared(target_coords, support_coords, dim);
         if (dist <= cutoffDistance) {
           count++;
           queue.push_back(cell_id);
@@ -332,7 +317,7 @@ inline void FindSupports::adjBasedSearchCentroidNodes(
               }
 
               Omega_h::Real dist =
-                calculateDistance(target_coords, support_coords, dim);
+                pcms::distance_squared(target_coords, support_coords, dim);
 
               if (dist <= cutoffDistance) {
                 count++;
