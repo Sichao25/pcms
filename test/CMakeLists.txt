@@ -408,7 +408,7 @@ if(Catch2_FOUND)
   add_executable(unit_tests ${PCMS_UNIT_TEST_SOURCES})
   
   if (PCMS_ENABLE_MESHFIELDS)
-  target_link_libraries(unit_tests PUBLIC meshfields::meshfields)
+    target_link_libraries(unit_tests PUBLIC meshfields::meshfields)
   endif()
 
   if (PCMS_ENABLE_PETSC)
@@ -419,6 +419,8 @@ if(Catch2_FOUND)
   target_link_libraries(unit_tests PUBLIC Catch2::Catch2 pcms::core
           pcms::transfer Kokkos::kokkoskernels)
   target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+  target_link_libraries(unit_tests PRIVATE PETSc::PETSc)
 
   target_link_libraries(unit_tests PUBLIC 
     Catch2::Catch2 

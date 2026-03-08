@@ -208,6 +208,7 @@ jobs:
                   -DCMAKE_Fortran_COMPILER=`which mpifort`
                   -DMPIEXEC_PREFLAGS="--oversubscribe"
                   -DPCMS_ENABLE_PETSC=ON
+                  -DPCMS_LINK_PETSC_STATIC=ON
                   -DPETSC_DIR=${{ runner.temp }}/petsc
                   -DPETSC_ARCH=ubuntu-kokkos
                   -DPCMS_TIMEOUT=10

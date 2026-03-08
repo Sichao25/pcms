@@ -50,6 +50,17 @@ option(PCMS_ENABLE_Python "Enable pcms Python api" OFF)
 option(PCMS_ENABLE_PRINT "PCMS print statements enabled" ON)
 option(PCMS_ENABLE_SPDLOG "use spdlog for logging" ON)
 
+if(DEFINED BUILD_SHARED_LIBS)
+  set(_pcms_link_petsc_static_default "${BUILD_SHARED_LIBS}")
+else()
+  set(_pcms_link_petsc_static_default OFF)
+endif()
+
+option(PCMS_LINK_PETSC_STATIC "Use pkg-config --static results for PETSc"
+       ${_pcms_link_petsc_static_default})
+
+unset(_pcms_link_petsc_static_default)
+
 if(PCMS_ENABLE_SPDLOG)
   find_package(spdlog REQUIRED)
 endif()
@@ -125,6 +136,8 @@ endif()
 find_package(ADIOS2 CONFIG 2.10.2 REQUIRED)
 find_package(Kokkos CONFIG 4.5 REQUIRED)
 
+# note, building without PETSC / MESHFields likely doesn't work
+# TODO, resolve build to gate features based on petsc/meshfields support
 option(PCMS_ENABLE_MESHFIELDS "Enable MeshFields support" ON)
 option(PCMS_ENABLE_PETSC "Enable PETSc support" ON)
 
@@ -133,28 +146,8 @@ if (PCMS_ENABLE_MESHFIELDS)
   message(STATUS "Found MeshFields: ${meshfields_DIR} (found version ${meshfields_VERSION})")
 endif()
 
-if (PCMS_ENABLE_PETSC)
-  if (NOT PETSC_DIR OR NOT PETSC_ARCH)
-    message(FATAL_ERROR "PETSC_DIR and PETSC_ARCH must be provided when PETSc is not CMake-enabled")
-  endif()
-  message(STATUS "PETSC_DIR = ${PETSC_DIR}")
-  message(STATUS "PETSC_ARCH = ${PETSC_ARCH}")
-  
-  set(PETSC_INCLUDE_DIRS "${PETSC_DIR}/include" "${PETSC_DIR}/${PETSC_ARCH}/include")
-  set(PETSC_LIB_DIR "${PETSC_DIR}/${PETSC_ARCH}/lib")
+find_package(PETSc REQUIRED)
 
-  message(STATUS "PETSC_LIB_DIR = ${PETSC_LIB_DIR}")
-  find_library(PETSC_LIBRARY petsc HINTS ${PETSC_LIB_DIR})
-
-  if (NOT PETSC_LIBRARY)
-    message(FATAL_ERROR "Could not find libpetsc in ${PETSC_LIB_DIR}")
-  endif()
-
-  set(PCMS_PETSC_INCLUDES ${PETSC_INCLUDE_DIRS} CACHE INTERNAL "")
-
-  set(PCMS_PETSC_LIBRARIES ${PETSC_LIBRARY} CACHE INTERNAL "")
-
-endif()
 add_subdirectory(src)
 
 include(CTest)
