@@ -8,6 +8,8 @@
 #include "queue_visited.hpp"
 #include <Kokkos_MathematicalFunctions.hpp>
 
+namespace pcms {
+
 static constexpr int max_dim = 3;
 
 // TODO change this into span/mdspan
@@ -550,6 +552,7 @@ inline SupportResults searchNeighbors(Omega_h::Mesh& mesh,
 
   mesh.add_tag<Omega_h::Real>(Omega_h::VERT, "support_radius", 1, radii2);
   return SupportResults{read(supports_ptr), read(supports_idx), radii2};
+}
 }
 
 #endif
