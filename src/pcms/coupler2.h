@@ -147,7 +147,7 @@ public:
   {
     PCMS_FUNCTION_TIMER;
     auto key = path + name;
-    auto [it, inserted] = applications_.template try_emplace(
+    auto [it, inserted] = applications_.try_emplace(
       key, std::move(name), mpi_comm_, redev_, std::move(params),
       transport_type, std::move(path));
     if (!inserted) {

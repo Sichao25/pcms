@@ -118,32 +118,40 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
 
 int main(int argc, char** argv)
 {
-  auto lib = Omega_h::Library(&argc, &argv);
-  auto world = lib.world();
-  const int rank = world->rank();
-  if (argc != 4) {
-    if (!rank) {
-      std::cerr << "Usage: " << argv[0]
-                << " <clientId=-1|0|1> /path/to/omega_h/mesh "
-                   "/path/to/partitionFile.cpn\n";
-    }
-    exit(EXIT_FAILURE);
-  }
-  OMEGA_H_CHECK(argc == 4);
-  const auto clientId = atoi(argv[1]);
-  REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 1);
-  const auto meshFile = argv[2];
-  const auto classPartitionFile = argv[3];
-  Omega_h::Mesh mesh(&lib);
-  Omega_h::binary::read(meshFile, lib.world(), &mesh);
-  MPI_Comm mpi_comm = lib.world()->get_impl();
-  switch (clientId) {
-    case -1: xgc_coupler(mpi_comm, mesh, classPartitionFile); break;
-    case 0: xgc_delta_f(mpi_comm, mesh); break;
-    case 1: xgc_total_f(mpi_comm, mesh); break;
-    default:
-      std::cerr << "Unhandled client id (should be -1, 0,1)\n";
+  try {
+    auto lib = Omega_h::Library(&argc, &argv);
+    auto world = lib.world();
+    const int rank = world->rank();
+    if (argc != 4) {
+      if (!rank) {
+        std::cerr << "Usage: " << argv[0]
+                  << " <clientId=-1|0|1> /path/to/omega_h/mesh "
+                     "/path/to/partitionFile.cpn\n";
+      }
       exit(EXIT_FAILURE);
+    }
+    OMEGA_H_CHECK(argc == 4);
+    const auto clientId = atoi(argv[1]);
+    REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 1);
+    const auto meshFile = argv[2];
+    const auto classPartitionFile = argv[3];
+    Omega_h::Mesh mesh(&lib);
+    Omega_h::binary::read(meshFile, lib.world(), &mesh);
+    MPI_Comm mpi_comm = lib.world()->get_impl();
+    switch (clientId) {
+      case -1: xgc_coupler(mpi_comm, mesh, classPartitionFile); break;
+      case 0: xgc_delta_f(mpi_comm, mesh); break;
+      case 1: xgc_total_f(mpi_comm, mesh); break;
+      default:
+        std::cerr << "Unhandled client id (should be -1, 0,1)\n";
+        exit(EXIT_FAILURE);
+    }
+    return 0;
+  } catch (const std::exception& e) {
+    std::cerr << "Exception caught in main: " << e.what() << std::endl;
+    return 1;
+  } catch (...) {
+    std::cerr << "Unknown exception caught in main" << std::endl;
+    return 1;
   }
-  return 0;
 }
