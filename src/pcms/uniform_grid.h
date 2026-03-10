@@ -8,7 +8,7 @@
 namespace pcms
 {
 
-template <unsigned dim = 2>
+template <unsigned dim>
 struct UniformGrid
 {
   // Make private?
@@ -134,7 +134,8 @@ private:
   }
 };
 
-using Uniform2DGrid = UniformGrid<>;
+using Uniform2DGrid = UniformGrid<2>;
+using Uniform3DGrid = UniformGrid<3>;
 
 /**
  * \brief Create a uniform grid layout from an Omega_h mesh as a bounding box

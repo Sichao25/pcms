@@ -14,7 +14,7 @@ namespace pcms
 
 std::unique_ptr<FieldLayout> CreateLagrangeLayout(
   Omega_h::Mesh& mesh, int order, int num_components,
-  CoordinateSystem coordinate_system)
+  CoordinateSystem coordinate_system, std::string global_id_name)
 {
 
   std::array<int, 4> nodes_per_dim;
@@ -25,8 +25,8 @@ std::unique_ptr<FieldLayout> CreateLagrangeLayout(
     default: throw std::runtime_error("Unimplemented order");
   }
 
-  return std::make_unique<OmegaHFieldLayout>(mesh, nodes_per_dim,
-                                             num_components, coordinate_system);
+  return std::make_unique<OmegaHFieldLayout>(
+    mesh, nodes_per_dim, num_components, coordinate_system, global_id_name);
 }
 
 template <>
@@ -41,7 +41,7 @@ CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
   const LO num_vertices = (grid.divisions[0] + 1) * (grid.divisions[1] + 1);
 
   // Create GridPointSearch for point-in-mesh queries
-  GridPointSearch point_search(mesh, grid.divisions[0], grid.divisions[1]);
+  GridPointSearch2D point_search(mesh, grid.divisions[0], grid.divisions[1]);
 
   // Create array of grid vertex points
   Kokkos::View<Real* [dim]> vertices("vertices", num_vertices);
@@ -80,7 +80,7 @@ CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
   // Create binary data as Real values (0.0 or 1.0)
   Kokkos::View<Real*, HostMemorySpace> binary_data("binary_data", num_vertices);
   for (LO i = 0; i < num_vertices; ++i) {
-    binary_data(i) = (results_h(i).tri_id >= 0) ? 1.0 : 0.0;
+    binary_data(i) = (results_h(i).element_id >= 0) ? 1.0 : 0.0;
   }
   fprintf(stderr, "Generated binary inside/outside data for grid vertices.\n");
 
