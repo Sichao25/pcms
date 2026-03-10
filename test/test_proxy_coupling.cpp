@@ -1,7 +1,7 @@
 #include <Omega_h_mesh.hpp>
 #include <iostream>
 #include <pcms.h>
-#include <pcms/types.h>
+#include <pcms/utility/types.h>
 #include <Omega_h_file.hpp>
 #include <Omega_h_for.hpp>
 #include <redev_variant_tools.h>
@@ -120,7 +120,6 @@ int main(int argc, char** argv)
   Omega_h::Mesh mesh(&lib);
   Omega_h::binary::read(meshFile, lib.world(), &mesh);
   MPI_Comm mpi_comm = lib.world()->get_impl();
-  const std::string name = "meshVtxIds";
   switch (clientId) {
     case -1: xgc_coupler(mpi_comm, mesh, classPartitionFile); break;
     case 0: xgc_delta_f(mpi_comm, mesh); break;
