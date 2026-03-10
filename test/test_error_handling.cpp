@@ -1,18 +1,31 @@
 #include <catch2/catch_test_macros.hpp>
-#include "pcms/assert.h"
-#include "pcms/print.h"
+#include "pcms/utility/assert.h"
+#include "pcms/utility/print.h"
 #include <iostream>
 
 int raise_error(int code)
 {
   if (code) {
-    throw pcms::exception("Test exception", code, "Raising error for testing");
+    throw pcms::pcms_error("Test exception - Raising error for testing");
     return 1;
   }
   return 0;
 }
 
-TEST_CASE("pcms error handling test")
+TEST_CASE("pcms error handling test with try-catch")
 {
-  REQUIRE_THROWS_AS(raise_error(1), pcms::exception);
+  bool exception_caught = false;
+  bool correct_exception_type = false;
+
+  try {
+    raise_error(1);
+    FAIL("Expected exception was not thrown");
+  } catch (const pcms::pcms_error& e) {
+    exception_caught = true;
+    correct_exception_type = true;
+    std::cout << "Caught pcms_error: " << e.what() << std::endl;
+  }
+
+  REQUIRE(exception_caught);
+  REQUIRE(correct_exception_type);
 }
