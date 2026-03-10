@@ -105,7 +105,7 @@ public:
 
   size_t GetMsgSize() const { return msg_size_; }
 
-    redev::Channel& GetChannel() { return channel_; }
+  redev::Channel& GetChannel() { return channel_; }
 
   MPI_Comm& GetMPIComm() { return mpi_comm_; }
 

@@ -22,7 +22,7 @@ class MeshFieldBackend
 public:
   virtual ~MeshFieldBackend() = default;
   virtual Kokkos::View<T* [1]> evaluate(Kokkos::View<T**> localCoords,
-                                           Kokkos::View<LO*> offsets) const = 0;
+                                        Kokkos::View<LO*> offsets) const = 0;
   virtual void SetData(Rank1View<const T, HostMemorySpace> data,
                        size_t num_nodes, size_t num_components, int dim) = 0;
   virtual void GetData(Rank1View<T, HostMemorySpace> data, size_t num_nodes,
@@ -41,7 +41,7 @@ public:
   }
 
   Kokkos::View<T* [1]> evaluate(Kokkos::View<T**> localCoords,
-                                   Kokkos::View<LO*> offsets) const override
+                                Kokkos::View<LO*> offsets) const override
   {
     auto self = const_cast<MeshFieldBackendImpl<T, Dim, Order>*>(this);
     return self->mesh_field_.triangleLocalPointEval(localCoords, offsets,
@@ -53,8 +53,8 @@ public:
   {
     size_t stride = num_nodes * num_components;
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
-    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d(
-      "data_d", data.size());
+    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d("data_d",
+                                                                 data.size());
     Kokkos::deep_copy(data_d, Kokkos::View<const T*, HostMemorySpace>(
                                 data.data_handle(), data.size()));
     Kokkos::parallel_for(
@@ -73,8 +73,8 @@ public:
   {
     size_t stride = num_nodes * num_components;
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
-    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d(
-      "data_d", data.size());
+    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d("data_d",
+                                                                 data.size());
     Kokkos::parallel_for(
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
@@ -365,7 +365,8 @@ inline OmegaHField2<T>::OmegaHField2(const OmegaHFieldLayout& layout)
 }
 
 template <typename T>
-inline Rank1View<const T, HostMemorySpace> OmegaHField2<T>::GetDOFHolderData() const
+inline Rank1View<const T, HostMemorySpace> OmegaHField2<T>::GetDOFHolderData()
+  const
 {
   PCMS_FUNCTION_TIMER;
   auto nodes_per_dim = layout_.GetNodesPerDim();
@@ -387,7 +388,8 @@ inline Rank1View<const T, HostMemorySpace> OmegaHField2<T>::GetDOFHolderData() c
 }
 
 template <typename T>
-inline void OmegaHField2<T>::SetDOFHolderData(Rank1View<const T, HostMemorySpace> data)
+inline void OmegaHField2<T>::SetDOFHolderData(
+  Rank1View<const T, HostMemorySpace> data)
 {
   PCMS_FUNCTION_TIMER;
 
@@ -401,8 +403,8 @@ inline void OmegaHField2<T>::SetDOFHolderData(Rank1View<const T, HostMemorySpace
       size_t len = static_cast<size_t>(mesh_.nents(i)) *
                    static_cast<size_t>(nodes_per_dim[i]) *
                    static_cast<size_t>(num_components);
-      Rank1View<const T, HostMemorySpace> subspan{
-        data.data_handle() + offset, len};
+      Rank1View<const T, HostMemorySpace> subspan{data.data_handle() + offset,
+                                                  len};
       mesh_field_->SetData(subspan, nodes_per_dim[i], num_components, i);
       offset += len;
     }
@@ -438,8 +440,8 @@ inline LocalizationHint OmegaHField2<T>::GetLocalizationHint(
 }
 
 template <typename T>
-inline void OmegaHField2<T>::Evaluate(LocalizationHint location,
-                            FieldDataView<T, HostMemorySpace> results) const
+inline void OmegaHField2<T>::Evaluate(
+  LocalizationHint location, FieldDataView<T, HostMemorySpace> results) const
 {
   PCMS_FUNCTION_TIMER;
   // TODO decide if we want to implicitly perform the coordinate transformations
@@ -539,60 +541,60 @@ inline void OmegaHField2<T>::Deserialize(
 
 template <typename T>
 std::array<Kokkos::View<LO*>, 4> OmegaHField2<T>::create_dim_masks(
-    Omega_h::Mesh& mesh, const Kokkos::View<Omega_h::I8*> elem_mask,
-    std::array<int, 4> nodes_per_dim)
+  Omega_h::Mesh& mesh, const Kokkos::View<Omega_h::I8*> elem_mask,
+  std::array<int, 4> nodes_per_dim)
+{
+  PCMS_ALWAYS_ASSERT(mesh.nelems() == elem_mask.extent(0));
+  std::array<Kokkos::View<LO*>, 4> masks;
+
+  struct Helper
   {
-    PCMS_ALWAYS_ASSERT(mesh.nelems() == elem_mask.extent(0));
-    std::array<Kokkos::View<LO*>, 4> masks;
-
-    struct Helper
+    static int factorial(int n)
     {
-      static int factorial(int n)
-      {
-        int f = 1;
-        while (n) {
-          f *= n;
-          --n;
-        }
-        return f;
+      int f = 1;
+      while (n) {
+        f *= n;
+        --n;
       }
-
-      static int ents_per_elem(int dim, int ent_dim)
-      {
-        int n = dim + 1;
-        int m = ent_dim + 1;
-        return factorial(n) / (factorial(m) * factorial(n - m));
-      }
-    };
-
-    for (int d = 0; d <= mesh.dim(); ++d) {
-      if (nodes_per_dim[d]) {
-        Kokkos::realloc(masks[d], mesh.nents(d));
-
-        if (d == mesh.dim()) {
-          Kokkos::parallel_for(
-            masks[d].extent(0),
-            KOKKOS_LAMBDA(LO i) { masks[d](i) = elem_mask(i); });
-        } else {
-          auto adj = mesh.ask_down(mesh.dim(), d).ab2b;
-          int nents = Helper::ents_per_elem(mesh.dim(), d);
-
-          Kokkos::parallel_for(
-            masks[d].extent(0), KOKKOS_LAMBDA(LO i) { masks[d](i) = 0; });
-
-          Kokkos::parallel_for(
-            elem_mask.extent(0), KOKKOS_LAMBDA(LO i) {
-              if (elem_mask(i)) {
-                for (int e = 0; e < nents; ++e)
-                  masks[d](adj[i * nents + e]) = 1;
-              }
-            });
-        }
-      }
+      return f;
     }
 
-    return masks;
+    static int ents_per_elem(int dim, int ent_dim)
+    {
+      int n = dim + 1;
+      int m = ent_dim + 1;
+      return factorial(n) / (factorial(m) * factorial(n - m));
+    }
+  };
+
+  for (int d = 0; d <= mesh.dim(); ++d) {
+    if (nodes_per_dim[d]) {
+      Kokkos::realloc(masks[d], mesh.nents(d));
+
+      if (d == mesh.dim()) {
+        Kokkos::parallel_for(
+          masks[d].extent(0),
+          KOKKOS_LAMBDA(LO i) { masks[d](i) = elem_mask(i); });
+      } else {
+        auto adj = mesh.ask_down(mesh.dim(), d).ab2b;
+        int nents = Helper::ents_per_elem(mesh.dim(), d);
+
+        Kokkos::parallel_for(
+          masks[d].extent(0), KOKKOS_LAMBDA(LO i) { masks[d](i) = 0; });
+
+        Kokkos::parallel_for(
+          elem_mask.extent(0), KOKKOS_LAMBDA(LO i) {
+            if (elem_mask(i)) {
+              for (int e = 0; e < nents; ++e)
+                masks[d](adj[i * nents + e]) = 1;
+            }
+          });
+      }
+    }
   }
+
+  return masks;
+}
 
 } // namespace pcms
 

@@ -26,8 +26,8 @@ void bind_omega_h_field2(py::module& m)
     .export_values();
 
   // Bind OmegaHField2 class template instantiation for Real type
-  py::class_<OmegaHField2<Real>, FieldT<Real>, std::shared_ptr<OmegaHField2<Real>>>(
-    m, "OmegaHField2")
+  py::class_<OmegaHField2<Real>, FieldT<Real>,
+             std::shared_ptr<OmegaHField2<Real>>>(m, "OmegaHField2")
     .def(py::init<const OmegaHFieldLayout&>(), py::arg("layout"),
          "Constructor for OmegaHField2")
 

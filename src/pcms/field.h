@@ -165,7 +165,6 @@ using OwnedFieldPtr =
                OwnedFieldPtrT<int64_t>, OwnedFieldPtrT<float>,
                OwnedFieldPtrT<double>>;
 
-
 } // namespace pcms
 
 #endif // PCMS_COUPLING_FIELD_H

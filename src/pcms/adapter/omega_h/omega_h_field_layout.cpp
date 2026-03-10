@@ -193,7 +193,7 @@ OmegaHFieldLayout::OmegaHFieldLayout(Omega_h::Mesh& mesh,
     offset += mesh.nents(i);
   }
 
-    if (mask.exists()) {
+  if (mask.exists()) {
     PCMS_ALWAYS_ASSERT(false);
     // using ExecutionSpace = HostMemorySpace::execution_space;
     // auto policy = Kokkos::RangePolicy<ExecutionSpace>(0, mask.size());

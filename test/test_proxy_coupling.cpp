@@ -38,7 +38,7 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginSendPhase();
-      app->SendField("gids");  //(Alt) df_gid_field->Send();
+      app->SendField("gids"); //(Alt) df_gid_field->Send();
       // app->SendField("gids2"); //(Alt) df_gid_field->Send();
       app->EndSendPhase();
       app->BeginReceivePhase();
