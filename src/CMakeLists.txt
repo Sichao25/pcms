@@ -11,16 +11,13 @@ set(
   pcms/field_communicator.h
   pcms/field_communicator2.h
   pcms/field_evaluation_methods.h
+  pcms/field_layout_communicator.h
   pcms/partition.h
   pcms/coupler.h
   pcms/coupler2.h
   pcms/coordinate_system.h
   pcms/field_layout.h
   pcms/field_layout_communicator.h
-  pcms/adapter/point_cloud/point_cloud_layout.h
-  pcms/adapter/point_cloud/point_cloud.h
-  pcms/adapter/omega_h/omega_h_field_layout.h
-  pcms/adapter/omega_h/omega_h_field2.h
 )
 
 set(
@@ -29,10 +26,16 @@ set(
   pcms/create_field.cpp
   pcms/coupler2.cpp
   pcms/field_layout_communicator.cpp
-  pcms/adapter/xgc/xgc_field_adapter.h
   pcms/adapter/point_cloud/point_cloud_layout.cpp
   pcms/adapter/point_cloud/point_cloud.cpp
   pcms/adapter/omega_h/omega_h_field_layout.cpp
+)
+set(
+  ADAPTER_HEADERS
+  pcms/adapter/point_cloud/point_cloud_layout.h
+  pcms/adapter/point_cloud/point_cloud.h
+  pcms/adapter/omega_h/omega_h_field_layout.h
+  pcms/adapter/omega_h/omega_h_field2.h
   pcms/adapter/xgc/xgc_field_adapter.h
 )
 
@@ -42,10 +45,9 @@ list(APPEND PCMS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/pcms/version.h ${CMAKE_CURR
 
 add_subdirectory(pcms/utility)
 
-
 if(PCMS_ENABLE_XGC)
   list(APPEND PCMS_SOURCES pcms/adapter/xgc/xgc_reverse_classification.cpp)
-  list(APPEND PCMS_HEADERS pcms/adapter/xgc/xgc_reverse_classification.h)
+  list(APPEND ADAPTER_HEADERS pcms/adapter/xgc/xgc_reverse_classification.h)
 endif()
 if(PCMS_ENABLE_OMEGA_H)
   list(APPEND PCMS_SOURCES 
@@ -56,11 +58,13 @@ if(PCMS_ENABLE_OMEGA_H)
   list(
     APPEND
     PCMS_HEADERS
-    pcms/adapter/omega_h/omega_h_field.h
     pcms/transfer_field.h
     pcms/transfer_field2.h
     pcms/uniform_grid.h
     pcms/point_search.h
+  )
+  list(APPEND ADAPTER_HEADERS
+    pcms/adapter/omega_h/omega_h_field.h
     pcms/adapter/uniform_grid/uniform_grid_field_layout.h
     pcms/adapter/uniform_grid/uniform_grid_field.h
   )
@@ -99,6 +103,11 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
   "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
+target_sources(pcms_core PUBLIC
+        FILE_SET adapters
+        TYPE HEADERS
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/pcms
+        FILES ${ADAPTER_HEADERS})
 install(
   TARGETS pcms_core
   EXPORT pcms_core-targets
@@ -108,6 +117,7 @@ install(
   INCLUDES
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pcms
+  FILE_SET adapters DESTINATION  ${CMAKE_INSTALL_INCLUDEDIR}/pcms
 )
 
 configure_package_config_file(
@@ -161,7 +171,10 @@ install(
   INCLUDES
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pcms
+  FILE_SET adapters DESTINATION  ${CMAKE_INSTALL_INCLUDEDIR}/pcms
 )
+
+
 # install external headers
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/pcms/external/
