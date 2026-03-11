@@ -24,8 +24,70 @@ static constexpr bool done = true;
 static constexpr int COMM_ROUNDS = 4;
 namespace ts = test_support;
 
+void initializeFieldWithGids(pcms::FieldT<pcms::Real>* field,
+                             pcms::Real multiplier = 1.0)
+{
+  auto& layout = field->GetLayout();
+  auto gids = layout.GetGids();
+  const auto n = layout.GetNumOwnedDofHolder();
+
+  Omega_h::HostWrite<pcms::Real> ids(n);
+  PCMS_ALWAYS_ASSERT(n == gids.size());
+  Kokkos::parallel_for(
+    "init gid",
+    Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
+    [=](int i) { ids[i] = gids[i] * multiplier; });
+
+  field->SetDOFHolderData(pcms::make_const_array_view(ids));
+}
+
+bool validateField(pcms::FieldT<pcms::Real>* field,
+                   const std::string& field_name, int rank,
+                   pcms::Real multiplier = 1.0)
+{
+  auto& layout = field->GetLayout();
+  auto gids = layout.GetGids();
+  auto copied_array = field->GetDOFHolderData();
+  auto owned = layout.GetOwned();
+  const auto n = layout.GetNumOwnedDofHolder();
+
+  PCMS_ALWAYS_ASSERT(copied_array.size() == gids.size());
+  PCMS_ALWAYS_ASSERT(owned.size() == gids.size());
+
+  int expected = 0;
+  int sum = 0;
+  Kokkos::parallel_reduce(
+    "count_owned",
+    Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0,
+                                                                owned.size()),
+    KOKKOS_LAMBDA(int i, int& local_sum) { local_sum += owned[i] != 0; },
+    expected);
+  Kokkos::parallel_reduce(
+    "count_match",
+    Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
+    KOKKOS_LAMBDA(int i, int& local_sum) {
+      if (owned[i])
+        local_sum += (int)copied_array[i] == (int)(gids[i] * multiplier);
+    },
+    sum);
+
+  if (sum != expected) {
+    std::cerr << "Rank " << rank << " - Field '" << field_name
+              << "' validation FAILED: expected " << expected
+              << " matches, got " << sum << std::endl;
+    return false;
+  } else {
+    std::cerr << "Rank " << rank << " - Field '" << field_name
+              << "' validation PASSED (" << sum << " values)\n";
+    return true;
+  }
+}
+
 void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
 {
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+
   pcms::Coupler2 coupler("proxy_couple", comm, false, {});
   pcms::Application2* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
@@ -33,24 +95,40 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     "gids",
     pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
 
-  app->AddField("gids", layout.CreateFieldReal());
-  app->AddField("gids2", layout.CreateFieldReal());
+  auto gids_field = layout.CreateFieldReal();
+  auto gids2_field = layout.CreateFieldReal();
+
+  auto* gids_ptr = gids_field.get();
+  auto* gids2_ptr = gids2_field.get();
+
+  initializeFieldWithGids(gids_ptr, 1.0);
+  initializeFieldWithGids(gids2_ptr, 2.0);
+
+  app->AddField("gids", std::move(gids_field));
+  app->AddField("gids2", std::move(gids2_field));
+
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginSendPhase();
       app->SendField("gids"); //(Alt) df_gid_field->Send();
-      // app->SendField("gids2"); //(Alt) df_gid_field->Send();
       app->EndSendPhase();
       app->BeginReceivePhase();
       app->ReceiveField("gids"); //(Alt) df_gid_field->Receive();
-      // app->ReceiveField("gids2"); //(Alt) df_gid_field->Receive();
       app->EndReceivePhase();
-      // cpl.ReceiveField("gids2"); //(Alt) df_gid_field->Receive();
+
+      if (!validateField(gids_ptr, "gids", rank, 1.0)) {
+        std::cerr << "xgc_delta_f: Field validation failed at round " << i
+                  << std::endl;
+        exit(EXIT_FAILURE);
+      }
     }
   } while (!done);
 }
 void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
 {
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+
   pcms::Coupler2 coupler("proxy_couple", comm, false, {});
   pcms::Application2* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
@@ -58,7 +136,14 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     "gids",
     pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
 
-  app->AddField("gids", layout.CreateFieldReal());
+  auto gids_field = layout.CreateFieldReal();
+
+  auto* gids_ptr = gids_field.get();
+
+  initializeFieldWithGids(gids_ptr, 10.0);
+
+  app->AddField("gids", std::move(gids_field));
+
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginSendPhase();
@@ -67,11 +152,20 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
       app->BeginReceivePhase();
       app->ReceiveField("gids"); //(Alt) tf_gid_field->Receive();
       app->EndReceivePhase();
+
+      if (!validateField(gids_ptr, "gids", rank, 10.0)) {
+        std::cerr << "xgc_total_f: Field validation failed at round " << i
+                  << std::endl;
+        exit(EXIT_FAILURE);
+      }
     }
   } while (!done);
 }
 void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
 {
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+
   // coupling server using same mesh as application
   // note the xgc_coupler stores a reference to the internal mesh and it is the
   // user responsibility to keep it alive!
@@ -89,19 +183,39 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     "gids",
     pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
   // TODO, fields should have a transfer policy rather than parameters
-  total_f->AddField("gids", layout_total.CreateFieldReal());
-  delta_f->AddField("gids", layout_delta.CreateFieldReal());
-  delta_f->AddField("gids2", layout_delta.CreateFieldReal());
+  auto total_gids_field = layout_total.CreateFieldReal();
+  auto delta_gids_field = layout_delta.CreateFieldReal();
+  auto delta_gids2_field = layout_delta.CreateFieldReal();
+
+  auto* total_gids_ptr = total_gids_field.get();
+  auto* delta_gids_ptr = delta_gids_field.get();
+  auto* delta_gids2_ptr = delta_gids2_field.get();
+
+  total_f->AddField("gids", std::move(total_gids_field));
+  delta_f->AddField("gids", std::move(delta_gids_field));
+  delta_f->AddField("gids2", std::move(delta_gids2_field));
+
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       total_f->BeginReceivePhase();
       total_f->ReceiveField("gids");
       total_f->EndReceivePhase();
 
+      if (!validateField(total_gids_ptr, "gids", rank, 10.0)) {
+        std::cerr << "xgc_coupler: total_f field validation failed at round "
+                  << i << std::endl;
+        exit(EXIT_FAILURE);
+      }
+
       delta_f->BeginReceivePhase();
       delta_f->ReceiveField("gids");
-      // delta_f->ReceiveField("gids2");
       delta_f->EndReceivePhase();
+
+      if (!validateField(delta_gids_ptr, "gids", rank, 1.0)) {
+        std::cerr << "xgc_coupler: delta_f field validation failed at round "
+                  << i << std::endl;
+        exit(EXIT_FAILURE);
+      }
 
       total_f->BeginSendPhase();
       total_f->SendField("gids");
@@ -109,7 +223,6 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
 
       delta_f->BeginSendPhase();
       delta_f->SendField("gids", pcms::Mode::Deferred);
-      // delta_f->SendField("gids2", pcms::Mode::Deferred);
       delta_f->EndSendPhase();
     }
   } while (!done);
