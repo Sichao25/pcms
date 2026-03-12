@@ -165,6 +165,13 @@ using OwnedFieldPtr =
                OwnedFieldPtrT<int64_t>, OwnedFieldPtrT<float>,
                OwnedFieldPtrT<double>>;
 
+// Helper function to extract raw pointer from OwnedFieldPtr variant
+inline FieldPtr GetRawPointer(const OwnedFieldPtr& owned_ptr)
+{
+  return std::visit([](auto& field_ptr) -> FieldPtr { return field_ptr.get(); },
+                    owned_ptr);
+}
+
 } // namespace pcms
 
 #endif // PCMS_COUPLING_FIELD_H

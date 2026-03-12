@@ -34,19 +34,7 @@ void Application2::AddField(std::string name, OwnedFieldPtr field,
 
   fields_.push_back(std::move(field));
 
-  FieldPtr field_ptr = std::visit(
-    [this, name](auto& field_ptr) -> FieldPtr { return field_ptr.get(); },
-    fields_.back());
-
-  // FieldCommunicator2Ptr field_communicator = std::visit(
-  //   [this, name](auto &field_ptr) -> FieldCommunicator2Ptr {
-  //     using T = std::remove_pointer_t<decltype(field_ptr.get())>::value_type;
-  //     FieldLayoutCommunicator& layout_communicator =
-  //       GetLayoutCommunicator(field_ptr->GetLayout());
-  //     return std::make_unique<FieldCommunicator2<T>>(layout_communicator,
-  //                                                    fields_.back());
-  //   },
-  //   fields_.back());
+  FieldPtr field_ptr = GetRawPointer(fields_.back());
 
   FieldCommunicator2Ptr field_communicator = std::visit(
     [this, name](auto* field_ptr) -> FieldCommunicator2Ptr {
