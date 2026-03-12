@@ -382,6 +382,7 @@ if(Catch2_FOUND)
     list(
       APPEND
       PCMS_UNIT_TEST_SOURCES
+      test_error_handling.cpp
       test_field_transfer.cpp
       test_uniform_grid.cpp
       test_omega_h_copy.cpp
