@@ -19,6 +19,10 @@ set(PCMS_FIELD_TRANSFER_SOURCES
     interpolation_base.cpp
 )
 
+add_subdirectory(mesh_intersection)
+install(FILES ${PCMS_FIELD_TRANSFER_HEADERS}
+        DESTINATION include/pcms/interpolator)
+
 add_library(pcms_interpolator ${PCMS_FIELD_TRANSFER_SOURCES})
 set_target_properties(pcms_interpolator PROPERTIES
         OUTPUT_NAME pcmsinterpolator
@@ -38,6 +42,7 @@ target_include_directories(pcms_interpolator INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../..>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
+target_link_libraries(pcms_interpolator PUBLIC pcms::core Kokkos::kokkoskernels pcms_mesh_intersection)
 
 install(
   TARGETS pcms_interpolator
