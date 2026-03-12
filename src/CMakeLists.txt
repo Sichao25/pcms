@@ -28,14 +28,14 @@ set(
   pcms/field_layout_communicator.cpp
   pcms/adapter/point_cloud/point_cloud_layout.cpp
   pcms/adapter/point_cloud/point_cloud.cpp
-  pcms/adapter/omega_h/omega_h_field_layout.cpp
+  pcms/adapter/meshfields/mesh_fields_adapter_layout.cpp
 )
 set(
   ADAPTER_HEADERS
   pcms/adapter/point_cloud/point_cloud_layout.h
   pcms/adapter/point_cloud/point_cloud.h
-  pcms/adapter/omega_h/omega_h_field_layout.h
-  pcms/adapter/omega_h/omega_h_field2.h
+  pcms/adapter/meshfields/mesh_fields_adapter_layout.h
+  pcms/adapter/meshfields/mesh_fields_adapter2.h
   pcms/adapter/xgc/xgc_field_adapter.h
 )
 
@@ -64,7 +64,7 @@ if(PCMS_ENABLE_OMEGA_H)
     pcms/point_search.h
   )
   list(APPEND ADAPTER_HEADERS
-    pcms/adapter/omega_h/omega_h_field.h
+    pcms/adapter/meshfields/mesh_fields_adapter.h
     pcms/adapter/uniform_grid/uniform_grid_field_layout.h
     pcms/adapter/uniform_grid/uniform_grid_field.h
   )

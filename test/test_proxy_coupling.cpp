@@ -15,7 +15,7 @@ using pcms::Copy;
 using pcms::GO;
 using pcms::Lagrange;
 using pcms::make_array_view;
-using pcms::OmegaHField;
+using pcms::MeshFieldsAdapter;
 using pcms::OmegaHFieldAdapter;
 
 using namespace std::chrono_literals;

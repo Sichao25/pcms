@@ -1,5 +1,5 @@
-#ifndef PCMS_OMEGA_H_FIELD_LAYOUT_H
-#define PCMS_OMEGA_H_FIELD_LAYOUT_H
+#ifndef PCMS_MESH_FIELDS_ADAPTER_LAYOUT_H
+#define PCMS_MESH_FIELDS_ADAPTER_LAYOUT_H
 
 #include <Omega_h_mesh.hpp>
 
@@ -12,12 +12,13 @@
 
 namespace pcms
 {
-class OmegaHFieldLayout : public FieldLayout
+class MeshFieldsAdapterLayout : public FieldLayout
 {
 public:
-  OmegaHFieldLayout(Omega_h::Mesh& mesh, std::array<int, 4> nodes_per_dim,
-                    int num_components, CoordinateSystem coordinate_system,
-                    std::string global_id_name = "global");
+  MeshFieldsAdapterLayout(Omega_h::Mesh& mesh, std::array<int, 4> nodes_per_dim,
+                          int num_components,
+                          CoordinateSystem coordinate_system,
+                          std::string global_id_name = "global");
 
   std::unique_ptr<FieldT<Real>> CreateFieldReal() const override;
 
@@ -63,4 +64,4 @@ private:
 };
 
 } // namespace pcms
-#endif // PCMS_OMEGA_H_FIELD_LAYOUT_H
+#endif // PCMS_MESH_FIELDS_ADAPTER_LAYOUT_H

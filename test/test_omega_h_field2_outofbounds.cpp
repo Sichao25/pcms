@@ -3,7 +3,7 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include "pcms/adapter/omega_h/omega_h_field2.h"
+#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/create_field.h"
 #include <Kokkos_Core.hpp>
 #include <vector>

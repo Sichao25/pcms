@@ -1,12 +1,12 @@
-#ifndef PCMS_OMEGA_H_FIELD2_H
-#define PCMS_OMEGA_H_FIELD2_H
+#ifndef PCMS_MESH_FIELDS_ADAPTER2_H
+#define PCMS_MESH_FIELDS_ADAPTER2_H
 
 #include <Kokkos_Core.hpp>
 #include <MeshField.hpp>
 #include <memory>
 
-#include "pcms/adapter/omega_h/omega_h_field.h"
-#include "pcms/adapter/omega_h/omega_h_field_layout.h"
+#include "pcms/adapter/meshfields/mesh_fields_adapter.h"
+#include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "pcms/utility/types.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/profile.h"
@@ -181,9 +181,9 @@ struct FillCoordinatesAndIndicesFunctor
   }
 };
 
-struct OmegaHField2LocalizationHint
+struct MeshFieldsAdapter2LocalizationHint
 {
-  OmegaHField2LocalizationHint(
+  MeshFieldsAdapter2LocalizationHint(
     Omega_h::Mesh& mesh,
     Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> search_results,
     OutOfBoundsMode mode)
@@ -283,12 +283,12 @@ struct OmegaHField2LocalizationHint
   Kokkos::View<LO*, HostMemorySpace> missing_indices_;
 };
 
-// TODO template over possible OmegaHField2Types
+// TODO template over possible MeshFieldsAdapter2Types
 template <typename T>
-class OmegaHField2 : public FieldT<T>
+class MeshFieldsAdapter2 : public FieldT<T>
 {
 public:
-  OmegaHField2(const OmegaHFieldLayout& layout);
+  MeshFieldsAdapter2(const MeshFieldsAdapterLayout& layout);
 
   LocalizationHint GetLocalizationHint(
     CoordinateView<HostMemorySpace> coordinate_view) const override;
@@ -313,10 +313,10 @@ public:
   Rank1View<const T, HostMemorySpace> GetDOFHolderData() const override;
   void SetDOFHolderData(Rank1View<const T, HostMemorySpace> data) override;
 
-  ~OmegaHField2() noexcept = default;
+  ~MeshFieldsAdapter2() noexcept = default;
 
 private:
-  const OmegaHFieldLayout& layout_;
+  const MeshFieldsAdapterLayout& layout_;
   Omega_h::Mesh& mesh_;
   std::unique_ptr<MeshFieldBackend<T>> mesh_field_;
   GridPointSearch2D search_;
@@ -324,10 +324,11 @@ private:
 };
 
 /*
- * OmegaHField2 Implementation
+ * MeshFieldsAdapter2 Implementation
  */
 template <typename T>
-inline OmegaHField2<T>::OmegaHField2(const OmegaHFieldLayout& layout)
+inline MeshFieldsAdapter2<T>::MeshFieldsAdapter2(
+  const MeshFieldsAdapterLayout& layout)
   : layout_(layout),
     mesh_(layout.GetMesh()),
     search_(mesh_, 10, 10),
@@ -360,8 +361,8 @@ inline OmegaHField2<T>::OmegaHField2(const OmegaHFieldLayout& layout)
 }
 
 template <typename T>
-inline Rank1View<const T, HostMemorySpace> OmegaHField2<T>::GetDOFHolderData()
-  const
+inline Rank1View<const T, HostMemorySpace>
+MeshFieldsAdapter2<T>::GetDOFHolderData() const
 {
   PCMS_FUNCTION_TIMER;
   auto nodes_per_dim = layout_.GetNodesPerDim();
@@ -383,7 +384,7 @@ inline Rank1View<const T, HostMemorySpace> OmegaHField2<T>::GetDOFHolderData()
 }
 
 template <typename T>
-inline void OmegaHField2<T>::SetDOFHolderData(
+inline void MeshFieldsAdapter2<T>::SetDOFHolderData(
   Rank1View<const T, HostMemorySpace> data)
 {
   PCMS_FUNCTION_TIMER;
@@ -407,7 +408,7 @@ inline void OmegaHField2<T>::SetDOFHolderData(
 }
 
 template <typename T>
-inline LocalizationHint OmegaHField2<T>::GetLocalizationHint(
+inline LocalizationHint MeshFieldsAdapter2<T>::GetLocalizationHint(
   CoordinateView<HostMemorySpace> coordinate_view) const
 {
   PCMS_FUNCTION_TIMER;
@@ -428,14 +429,14 @@ inline LocalizationHint OmegaHField2<T>::GetLocalizationHint(
   Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> results_h(
     "results_h", results.size());
   Kokkos::deep_copy(results_h, results);
-  auto hint = std::make_shared<OmegaHField2LocalizationHint>(
+  auto hint = std::make_shared<MeshFieldsAdapter2LocalizationHint>(
     mesh_, results_h, this->out_of_bounds_mode_);
 
   return LocalizationHint{hint};
 }
 
 template <typename T>
-inline void OmegaHField2<T>::Evaluate(
+inline void MeshFieldsAdapter2<T>::Evaluate(
   LocalizationHint location, FieldDataView<T, HostMemorySpace> results) const
 {
   PCMS_FUNCTION_TIMER;
@@ -447,8 +448,8 @@ inline void OmegaHField2<T>::Evaluate(
     throw std::runtime_error("Coordinate system mismatch");
   }
 
-  OmegaHField2LocalizationHint hint =
-    *reinterpret_cast<OmegaHField2LocalizationHint*>(location.data.get());
+  MeshFieldsAdapter2LocalizationHint hint =
+    *reinterpret_cast<MeshFieldsAdapter2LocalizationHint*>(location.data.get());
 
   Kokkos::View<Real**> coordinates_d(
     "coordinates_d", hint.coordinates_.extent(0), hint.coordinates_.extent(1));
@@ -480,7 +481,7 @@ inline void OmegaHField2<T>::Evaluate(
 }
 
 template <typename T>
-inline void OmegaHField2<T>::EvaluateGradient(
+inline void MeshFieldsAdapter2<T>::EvaluateGradient(
   FieldDataView<T, HostMemorySpace> /* unused */)
 {
   // TODO when moved to PCMS throw PCMS exception
@@ -488,20 +489,20 @@ inline void OmegaHField2<T>::EvaluateGradient(
 }
 
 template <typename T>
-inline const FieldLayout& OmegaHField2<T>::GetLayout() const
+inline const FieldLayout& MeshFieldsAdapter2<T>::GetLayout() const
 {
   return layout_;
 }
 
 template <typename T>
-inline bool OmegaHField2<T>::CanEvaluateGradient()
+inline bool MeshFieldsAdapter2<T>::CanEvaluateGradient()
 {
   // TODO compute the gradient field using element shape functions
   return false;
 }
 
 template <typename T>
-inline int OmegaHField2<T>::Serialize(
+inline int MeshFieldsAdapter2<T>::Serialize(
   Rank1View<T, pcms::HostMemorySpace> buffer,
   Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) const
 {
@@ -519,7 +520,7 @@ inline int OmegaHField2<T>::Serialize(
 }
 
 template <typename T>
-inline void OmegaHField2<T>::Deserialize(
+inline void MeshFieldsAdapter2<T>::Deserialize(
   Rank1View<const T, pcms::HostMemorySpace> buffer,
   Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
 {
@@ -536,4 +537,4 @@ inline void OmegaHField2<T>::Deserialize(
 
 } // namespace pcms
 
-#endif // PCMS_OMEGA_H_FIELD2_H
+#endif // PCMS_MESH_FIELDS_ADAPTER2_H

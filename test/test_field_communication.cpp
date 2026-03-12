@@ -7,7 +7,7 @@
 #include <Omega_h_for.hpp>
 #include <redev.h>
 #include <vector>
-#include "pcms/adapter/omega_h/omega_h_field2.h"
+#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/field_communicator2.h"
 #include "pcms/field_communicator.h"
 #include "pcms/create_field.h"

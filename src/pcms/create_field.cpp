@@ -1,6 +1,6 @@
 #include "create_field.h"
-#include "adapter/omega_h/omega_h_field2.h"
-#include "adapter/omega_h/omega_h_field_layout.h"
+#include "adapter/meshfields/mesh_fields_adapter2.h"
+#include "adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "adapter/uniform_grid/uniform_grid_field.h"
 #include "adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "uniform_grid.h"
@@ -25,7 +25,7 @@ std::unique_ptr<FieldLayout> CreateLagrangeLayout(
     default: throw std::runtime_error("Unimplemented order");
   }
 
-  return std::make_unique<OmegaHFieldLayout>(
+  return std::make_unique<MeshFieldsAdapterLayout>(
     mesh, nodes_per_dim, num_components, coordinate_system, global_id_name);
 }
 
