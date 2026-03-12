@@ -31,6 +31,7 @@ set(
 )
 set(
   ADAPTER_HEADERS
+  pcms/adapter/dummy_field_adapter.h
   pcms/adapter/point_cloud/point_cloud_layout.h
   pcms/adapter/point_cloud/point_cloud.h
   pcms/adapter/meshfields/mesh_fields_adapter_layout.h
@@ -169,8 +170,6 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   INCLUDES
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pcms
-  FILE_SET adapters DESTINATION  ${CMAKE_INSTALL_INCLUDEDIR}/pcms
 )
 
 

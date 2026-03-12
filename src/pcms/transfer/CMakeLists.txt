@@ -16,6 +16,7 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     calculate_load_vector.hpp
     calculate_mass_matrix.hpp
     conservative_projection_solver.hpp
+    coo_assembly_utils.hpp
     load_vector_integrator.hpp
     mass_matrix_integrator.hpp
     mesh_intersection.hpp)
@@ -30,9 +31,6 @@ set(PCMS_FIELD_TRANSFER_SOURCES
     mesh_intersection.cpp
     mls_interpolation.cpp
     interpolation_base.cpp)
-
-install(FILES ${PCMS_FIELD_TRANSFER_HEADERS}
-        DESTINATION include/pcms/transfer)
 
 add_library(pcms_transfer ${PCMS_FIELD_TRANSFER_SOURCES})
 set_target_properties(pcms_transfer PROPERTIES
