@@ -264,5 +264,6 @@ jobs:
           -B ${{github.workspace}}/examples/external-usage-example/build \
           -S ${{github.workspace}}/examples/external-usage-example/ \
           -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
+          -DPCMS_LINK_PETSC_STATIC=ON \
           --debug-output
         cmake --build ${{github.workspace}}/examples/external-usage-example/build
