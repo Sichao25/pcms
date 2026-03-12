@@ -190,12 +190,13 @@ ctest --test-dir build-pcms --output-on-failure
 ## Spack based build
 1. Install spack
    ```console
-   $ mkdir /lore/$USER/spack
-   $ cd /lore/$USER/spack
+   $ mkdir $HOME/$USER/spack
+   $ cd $HOME/$USER/spack
    $ git clone -c feature.manyFiles=true -b v1.0.4 https://github.com/spack/spack.git
    $ . spack/share/spack/setup-env.sh
+   $ spack repo add https://github.com/spack/spack-packages
    ```
-   We can also add the spack setup line into the `~/.bashrc` with `echo ". spack/share/spack/setup-env.sh" >> ~/.bashrc"`. This will load the spack setup script every time we start our terminal session. To make sure latest version of spack packages are available, we can run `spack repo add https://github.com/spack/spack-packages` after loading spack.
+   We can also add the spack setup line into the `~/.bashrc` with `echo ". spack/share/spack/setup-env.sh" >> ~/.bashrc"`. This will load the spack setup script every time we start our terminal session.
 2. Get PCMS spack repo
    The following commands will add the pcms recipe files to spack. They are not currently installed inthe upstream spack repository.
    ```console
@@ -224,8 +225,8 @@ ctest --test-dir build-pcms --output-on-failure
    
 4. Install PCMS repo
     ```console
-    $ mkdir /lore/$USER/pcms-coupler
-    $ cd /lore/$USER/pcms-coupler
+    $ mkdir $HOME/$USER/pcms-coupler
+    $ cd $HOME/$USER/pcms-coupler
     $ git clone https://github.com/SCOREC/pcms.git
     $ cd pcms/spack
     $ spack env create -d env spack.yaml
@@ -234,7 +235,7 @@ ctest --test-dir build-pcms --output-on-failure
     $ spack install
     ```
     
-At this point hopefully, spack will now install all of the relavant dependencies and a baseline build of PCMS. The default environment has PCMS in develop mode. To modify and recompile PCMS you can modify the code and rerun `spack install`.
+If work in SCOREC system, you can directly use the spack-scorec.yaml which contains compilers information. At this point hopefully, spack will now install all of the relavant dependencies and a baseline build of PCMS. The default environment has PCMS in develop mode. To modify and recompile PCMS you can modify the code and rerun `spack install`.
 
 4. Python API (optional)
    If you want to use the python API, you can install the `pcms+python` package with spack instaed of `pcms`. This will install the python bindings for PCMS and all of the dependencies needed to use them.
