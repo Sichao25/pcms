@@ -50,8 +50,7 @@ void Application2::AddField(std::string name, OwnedFieldPtr field,
     field_communicators_.insert_or_assign(name, std::move(field_communicator));
 
   if (!inserted) {
-    std::cerr << "Field with this name" << name << "already exists!\n";
-    std::terminate();
+    throw pcms_error("Field with this name already exists");
   }
 }
 

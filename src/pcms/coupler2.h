@@ -8,6 +8,7 @@
 #include "pcms/field_layout.h"
 #include "pcms/field_layout_communicator.h"
 #include "pcms/field_communicator2.h"
+#include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/profile.h"
 #include <memory>

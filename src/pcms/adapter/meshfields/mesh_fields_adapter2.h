@@ -334,6 +334,9 @@ inline MeshFieldsAdapter2<T>::MeshFieldsAdapter2(
     search_(mesh_, 10, 10),
     dof_holder_data_("dof_holder_data", static_cast<size_t>(layout.OwnedSize()))
 {
+  if (mesh_.dim() == 3) {
+    throw pcms_error("MeshFieldsAdapter2 does not support 3D meshes");
+  }
   auto nodes_per_dim = layout.GetNodesPerDim();
   if (nodes_per_dim[2] == 0 && nodes_per_dim[3] == 0) {
     if (nodes_per_dim[0] == 1 && nodes_per_dim[1] == 0) {
@@ -416,8 +419,7 @@ inline LocalizationHint MeshFieldsAdapter2<T>::GetLocalizationHint(
   // when possible
   if (coordinate_view.GetCoordinateSystem() !=
       layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
-    // TODO when moved to PCMS throw PCMS exception
-    throw std::runtime_error("Coordinate system mismatch");
+    throw pcms_error("Coordinate system mismatch");
   }
 
   auto coordinates = coordinate_view.GetCoordinates();
@@ -444,8 +446,7 @@ inline void MeshFieldsAdapter2<T>::Evaluate(
   // when possible
   if (results.GetCoordinateSystem() !=
       layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
-    // TODO when moved to PCMS exception throw PCMS exception
-    throw std::runtime_error("Coordinate system mismatch");
+    throw pcms_error("Coordinate system mismatch");
   }
 
   MeshFieldsAdapter2LocalizationHint hint =
@@ -484,8 +485,7 @@ template <typename T>
 inline void MeshFieldsAdapter2<T>::EvaluateGradient(
   FieldDataView<T, HostMemorySpace> /* unused */)
 {
-  // TODO when moved to PCMS throw PCMS exception
-  throw std::runtime_error("Not implemented");
+  throw pcms_error("EvaluateGradient not implemented for MeshFieldsAdapter2");
 }
 
 template <typename T>
