@@ -2,7 +2,7 @@
 #define PCMS_INTERPOLATOR_MESH_INTERSECTION_HPP
 
 #include <pcms/localization/point_search.h>
-#include <pcms/interpolator/queue_visited.hpp>
+#include <pcms/transfer/queue_visited.hpp>
 #include <Omega_h_fail.hpp>
 #include <Omega_h_int_scan.hpp>
 #include <r3d.hpp>
@@ -10,6 +10,7 @@
 #include <Omega_h_for.hpp>
 #include <Kokkos_MathematicalFunctions.hpp>
 
+namespace pcms {
 constexpr static double abs_tol = 1e-18; /// abs tolerance
 constexpr static double rel_tol = 1e-12; /// rel tolerance
 
@@ -269,5 +270,5 @@ IntersectionResults intersectTargets(Omega_h::Mesh& source_mesh,
   return {.tgt2src_offsets = tgt2src_offsets,
           .tgt2src_indices = Omega_h::read(tgt2src_indices)};
 }
-
+}
 #endif

@@ -378,7 +378,7 @@ if(Catch2_FOUND)
   if(PCMS_ENABLE_OMEGA_H)
     add_executable(field_transfer_example field_transfer_example.cpp)
     target_link_libraries(field_transfer_example PUBLIC pcms::core
-                                                        pcms::interpolator)
+                                                        pcms::transfer)
     list(
       APPEND
       PCMS_UNIT_TEST_SOURCES
@@ -416,26 +416,30 @@ if(Catch2_FOUND)
     target_link_libraries(unit_tests PUBLIC ${PCMS_PETSC_LIBRARIES})
   endif()
 
+  target_link_libraries(unit_tests PUBLIC Catch2::Catch2 pcms::core
+          pcms::transfer Kokkos::kokkoskernels)
+  target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
   target_link_libraries(unit_tests PUBLIC 
     Catch2::Catch2 
     pcms::core
-    pcms_interpolator
-    pcms_mesh_intersection
+    pcms_transfer
+    pcms_transfer
   )
  
  target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
- add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
- target_link_libraries(test_interpolation_on_ltx_mesh PUBLIC Catch2::Catch2WithMain
-                                                       pcms::core
-                                                       pcms::interpolator)
- target_include_directories(test_interpolation_on_ltx_mesh PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
- add_test(NAME test_interpolation_on_ltx_mesh
-         COMMAND test_interpolation_on_ltx_mesh
-                 --degas2_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx_graded_gauss.osh
-                 --ltx_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx
-                 --data_root ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/
- )
+  add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
+  target_link_libraries(test_interpolation_on_ltx_mesh PUBLIC Catch2::Catch2WithMain
+                                                        pcms::core
+                                                        pcms::transfer)
+  target_include_directories(test_interpolation_on_ltx_mesh PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+  add_test(NAME test_interpolation_on_ltx_mesh
+          COMMAND test_interpolation_on_ltx_mesh
+                  --degas2_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx_graded_gauss.osh
+                  --ltx_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx
+                  --data_root ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/
+  )
 
  include(Catch)
    Catch_discover_tests(unit_tests)
@@ -519,7 +523,7 @@ if(PCMS_ENABLE_Fortran)
   add_executable(test_interpolation_fortran_api
                  test_interpolation.f90)
   target_link_libraries(test_interpolation_fortran_api
-                        PUBLIC pcms::fortranapi::interpolator)
+                        PUBLIC pcms::fortranapi::transfer)
   set_target_properties(test_interpolation_fortran_api
                        PROPERTIES LINKER_LANGUAGE Fortran)
   add_test(

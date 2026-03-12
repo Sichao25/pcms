@@ -16,7 +16,7 @@ pybind11_add_module(pcms
         bind_mesh_utilities.cpp
 )
 set_target_properties(pcms PROPERTIES CXX_STANDARD 17)
-target_link_libraries(pcms PRIVATE Kokkos::kokkos pybind11::module MPI::MPI_C pcms::core pcms::interpolator)
+target_link_libraries(pcms PRIVATE Kokkos::kokkos pybind11::module MPI::MPI_C pcms::core pcms::transfer)
 
 # if we are building as a python package from the pyproject.toml
 # scikit-build-core will set this variable

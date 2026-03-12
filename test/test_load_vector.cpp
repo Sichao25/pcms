@@ -8,7 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
-#include <pcms/interpolator/mesh_intersection/load_vector_integrator.hpp>
+#include <pcms/transfer/load_vector_integrator.hpp>
 
 TEST_CASE("Load vector computation on intersected regions", "[load_vector]")
 {
@@ -48,7 +48,7 @@ TEST_CASE("Load vector computation on intersected regions", "[load_vector]")
 
   int num_tgt_elems = target_mesh.nelems();
 
-  auto intersection = intersectTargets(source_mesh, target_mesh);
+  auto intersection = pcms::intersectTargets(source_mesh, target_mesh);
   SECTION("check localization routine for coincident cases")
   {
     Kokkos::View<Omega_h::Real* [2]> points("test_points", 3);
