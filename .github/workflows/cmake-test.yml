@@ -257,8 +257,8 @@ jobs:
         cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-config.cmake
         echo "-------- PCMS TARGETS -------------"
         cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms-targets.cmake
-        echo "-------- PCMS INTERPOLATOR TARGETS -------------"
-        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms_interpolator-targets.cmake
+        echo "-------- PCMS TRANSFER TARGETS -------------"
+        cat ${{ runner.temp }}/build-pcms/install/lib/cmake/pcms/pcms_transfer-targets.cmake
         export VERBOSE=1
         cmake \
           -B ${{github.workspace}}/examples/external-usage-example/build \
