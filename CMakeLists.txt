@@ -50,16 +50,8 @@ option(PCMS_ENABLE_Python "Enable pcms Python api" OFF)
 option(PCMS_ENABLE_PRINT "PCMS print statements enabled" ON)
 option(PCMS_ENABLE_SPDLOG "use spdlog for logging" ON)
 
-if(DEFINED BUILD_SHARED_LIBS)
-  set(_pcms_link_petsc_static_default "${BUILD_SHARED_LIBS}")
-else()
-  set(_pcms_link_petsc_static_default OFF)
-endif()
-
-option(PCMS_LINK_PETSC_STATIC "Use pkg-config --static results for PETSc"
+option(PETSC_LINK_STATIC "Use pkg-config --static results for PETSc"
        ${_pcms_link_petsc_static_default})
-
-unset(_pcms_link_petsc_static_default)
 
 if(PCMS_ENABLE_SPDLOG)
   find_package(spdlog REQUIRED)

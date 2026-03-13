@@ -135,6 +135,9 @@ install(
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/pcms
 )
 
+install(FILES "${CMAKE_SOURCE_DIR}/cmake/FindPETSc.cmake"
+          DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/pcms)
+
 install(
   EXPORT pcms_core-targets
   NAMESPACE pcms::
@@ -148,7 +151,6 @@ if (PCMS_ENABLE_Python)
   # Disable LTO/IPO before adding Python subdirectory to avoid fatbinData conflicts
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
   add_subdirectory(pcms/pythonapi)
-  target_link_libraries(pcms_pcms INTERFACE pcms::pythonapi)
 endif()
 if(PCMS_ENABLE_C)
   add_subdirectory(pcms/capi)

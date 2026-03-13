@@ -413,11 +413,6 @@ if(Catch2_FOUND)
     target_link_libraries(unit_tests PUBLIC meshfields::meshfields)
   endif()
 
-  if (PCMS_ENABLE_PETSC)
-    target_include_directories(unit_tests PUBLIC ${PCMS_PETSC_INCLUDES})
-    target_link_libraries(unit_tests PUBLIC ${PCMS_PETSC_LIBRARIES})
-  endif()
-
   target_link_libraries(unit_tests PUBLIC Catch2::Catch2 pcms::core
           pcms::transfer Kokkos::kokkoskernels)
   target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
