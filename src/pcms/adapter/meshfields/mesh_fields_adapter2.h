@@ -1,5 +1,5 @@
-#ifndef PCMS_MESH_FIELDS_ADAPTER2_H
-#define PCMS_MESH_FIELDS_ADAPTER2_H
+#ifndef PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER2_H
+#define PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER2_H
 
 #include <Kokkos_Core.hpp>
 #include <MeshField.hpp>
@@ -537,4 +537,4 @@ inline void MeshFieldsAdapter2<T>::Deserialize(
 
 } // namespace pcms
 
-#endif // PCMS_MESH_FIELDS_ADAPTER2_H
+#endif // PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER2_H

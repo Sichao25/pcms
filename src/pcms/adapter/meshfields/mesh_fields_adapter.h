@@ -1,5 +1,5 @@
-#ifndef PCMS_MESH_FIELDS_ADAPTER_H
-#define PCMS_MESH_FIELDS_ADAPTER_H
+#ifndef PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER_H 
+#define PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER_H 
 #include "pcms/utility/types.h"
 #include <Omega_h_mesh.hpp>
 #include "pcms/field.h"
@@ -593,4 +593,4 @@ private:
 };
 } // namespace pcms
 
-#endif // PCMS_MESH_FIELDS_ADAPTER_H
+#endif // PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER_H 
