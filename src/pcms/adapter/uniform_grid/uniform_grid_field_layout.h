@@ -18,7 +18,7 @@ public:
   UniformGridFieldLayout(UniformGrid<Dim>& grid, int num_components,
                          CoordinateSystem coordinate_system);
 
-  std::unique_ptr<FieldT<Real>> CreateField() const override;
+  std::unique_ptr<FieldT<Real>> CreateFieldReal() const override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;

@@ -2,7 +2,7 @@
 #define PCMS_COUPLER_H
 #include "pcms/utility/common.h"
 #include "pcms/field_communicator.h"
-#include "pcms/adapter/omega_h/omega_h_field.h"
+#include "pcms/adapter/meshfields/mesh_fields_adapter.h"
 #include "pcms/utility/profile.h"
 
 namespace pcms

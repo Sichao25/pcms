@@ -1,7 +1,7 @@
 #ifndef CREATE_FIELD_H_
 #define CREATE_FIELD_H_
 
-#include "adapter/omega_h/omega_h_field_layout.h"
+#include "adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "adapter/uniform_grid/uniform_grid_field.h"
 #include "adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "field_layout.h"

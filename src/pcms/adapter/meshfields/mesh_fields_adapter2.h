@@ -1,37 +1,61 @@
-#include "omega_h_field2.h"
-#include "omega_h_field.h"
-#include "pcms/adapter/omega_h/omega_h_field2.h"
+#ifndef PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER2_H
+#define PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER2_H
+
+#include <Kokkos_Core.hpp>
+#include <MeshField.hpp>
 #include <memory>
+
+#include "pcms/adapter/meshfields/mesh_fields_adapter.h"
+#include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
+#include "pcms/utility/types.h"
+#include "pcms/utility/assert.h"
+#include "pcms/utility/profile.h"
+#include "pcms/field.h"
+#include "pcms/coordinate_system.h"
+#include "pcms/point_search.h"
 
 namespace pcms
 {
-template <int Dim, int Order>
-class MeshFieldBackendImpl : public MeshFieldBackend
+template <typename T>
+class MeshFieldBackend
+{
+public:
+  virtual ~MeshFieldBackend() = default;
+  virtual Kokkos::View<T* [1]> evaluate(Kokkos::View<T**> localCoords,
+                                        Kokkos::View<LO*> offsets) const = 0;
+  virtual void SetData(Rank1View<const T, HostMemorySpace> data,
+                       size_t num_nodes, size_t num_components, int dim) = 0;
+  virtual void GetData(Rank1View<T, HostMemorySpace> data, size_t num_nodes,
+                       size_t num_components, int dim) const = 0;
+};
+
+template <typename T, int Dim, int Order>
+class MeshFieldBackendImpl : public MeshFieldBackend<T>
 {
 public:
   MeshFieldBackendImpl(Omega_h::Mesh& mesh)
     : mesh_(mesh),
       mesh_field_(mesh),
-      shape_field_(mesh_field_.template CreateLagrangeField<Real, Order, 1>())
+      shape_field_(mesh_field_.template CreateLagrangeField<T, Order, 1>())
   {
   }
 
-  Kokkos::View<Real* [1]> evaluate(Kokkos::View<Real**> localCoords,
-                                   Kokkos::View<LO*> offsets) const override
+  Kokkos::View<T* [1]> evaluate(Kokkos::View<T**> localCoords,
+                                Kokkos::View<LO*> offsets) const override
   {
-    auto self = const_cast<MeshFieldBackendImpl<Dim, Order>*>(this);
+    auto self = const_cast<MeshFieldBackendImpl<T, Dim, Order>*>(this);
     return self->mesh_field_.triangleLocalPointEval(localCoords, offsets,
                                                     shape_field_);
   }
 
-  void SetData(Rank1View<const Real, HostMemorySpace> data, size_t num_nodes,
+  void SetData(Rank1View<const T, HostMemorySpace> data, size_t num_nodes,
                size_t num_components, int dim) override
   {
     size_t stride = num_nodes * num_components;
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
-    Kokkos::View<Real*, DefaultExecutionSpace::memory_space> data_d(
-      "data_d", data.size());
-    Kokkos::deep_copy(data_d, Kokkos::View<const Real*, HostMemorySpace>(
+    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d("data_d",
+                                                                 data.size());
+    Kokkos::deep_copy(data_d, Kokkos::View<const T*, HostMemorySpace>(
                                 data.data_handle(), data.size()));
     Kokkos::parallel_for(
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
@@ -44,13 +68,13 @@ public:
       });
   }
 
-  void GetData(Rank1View<Real, HostMemorySpace> data, size_t num_nodes,
+  void GetData(Rank1View<T, HostMemorySpace> data, size_t num_nodes,
                size_t num_components, int dim) const override
   {
     size_t stride = num_nodes * num_components;
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
-    Kokkos::View<Real*, DefaultExecutionSpace::memory_space> data_d(
-      "data_d", data.size());
+    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d("data_d",
+                                                                 data.size());
     Kokkos::parallel_for(
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
@@ -61,7 +85,7 @@ public:
         }
       });
     Kokkos::deep_copy(
-      Kokkos::View<Real*, HostMemorySpace>(data.data_handle(), data.size()),
+      Kokkos::View<T*, HostMemorySpace>(data.data_handle(), data.size()),
       data_d);
   }
 
@@ -69,7 +93,7 @@ private:
   Omega_h::Mesh& mesh_;
   MeshField::OmegahMeshField<DefaultExecutionSpace, Dim> mesh_field_;
   using ShapeField =
-    decltype(mesh_field_.template CreateLagrangeField<Real, Order, 1>());
+    decltype(mesh_field_.template CreateLagrangeField<T, Order, 1>());
   ShapeField shape_field_;
 };
 
@@ -157,9 +181,9 @@ struct FillCoordinatesAndIndicesFunctor
   }
 };
 
-struct OmegaHField2LocalizationHint
+struct MeshFieldsAdapter2LocalizationHint
 {
-  OmegaHField2LocalizationHint(
+  MeshFieldsAdapter2LocalizationHint(
     Omega_h::Mesh& mesh,
     Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> search_results,
     OutOfBoundsMode mode)
@@ -259,34 +283,79 @@ struct OmegaHField2LocalizationHint
   Kokkos::View<LO*, HostMemorySpace> missing_indices_;
 };
 
+// TODO template over possible MeshFieldsAdapter2Types
+template <typename T>
+class MeshFieldsAdapter2 : public FieldT<T>
+{
+public:
+  MeshFieldsAdapter2(const MeshFieldsAdapterLayout& layout);
+
+  LocalizationHint GetLocalizationHint(
+    CoordinateView<HostMemorySpace> coordinate_view) const override;
+
+  void Evaluate(LocalizationHint location,
+                FieldDataView<T, HostMemorySpace> results) const override;
+
+  void EvaluateGradient(FieldDataView<T, HostMemorySpace> results) override;
+
+  const FieldLayout& GetLayout() const override;
+
+  bool CanEvaluateGradient() override;
+
+  int Serialize(Rank1View<T, pcms::HostMemorySpace> buffer,
+                Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
+    const override;
+
+  void Deserialize(
+    Rank1View<const T, pcms::HostMemorySpace> buffer,
+    Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) override;
+
+  Rank1View<const T, HostMemorySpace> GetDOFHolderData() const override;
+  void SetDOFHolderData(Rank1View<const T, HostMemorySpace> data) override;
+
+  ~MeshFieldsAdapter2() noexcept = default;
+
+private:
+  const MeshFieldsAdapterLayout& layout_;
+  Omega_h::Mesh& mesh_;
+  std::unique_ptr<MeshFieldBackend<T>> mesh_field_;
+  GridPointSearch2D search_;
+  Kokkos::View<T*, HostMemorySpace> dof_holder_data_;
+};
+
 /*
- * Field
+ * MeshFieldsAdapter2 Implementation
  */
-OmegaHField2::OmegaHField2(const OmegaHFieldLayout& layout)
+template <typename T>
+inline MeshFieldsAdapter2<T>::MeshFieldsAdapter2(
+  const MeshFieldsAdapterLayout& layout)
   : layout_(layout),
     mesh_(layout.GetMesh()),
     search_(mesh_, 10, 10),
     dof_holder_data_("dof_holder_data", static_cast<size_t>(layout.OwnedSize()))
 {
+  if (mesh_.dim() == 3) {
+    throw pcms_error("MeshFieldsAdapter2 does not support 3D meshes");
+  }
   auto nodes_per_dim = layout.GetNodesPerDim();
   if (nodes_per_dim[2] == 0 && nodes_per_dim[3] == 0) {
     if (nodes_per_dim[0] == 1 && nodes_per_dim[1] == 0) {
       switch (mesh_.dim()) {
         case 1:
-          mesh_field_ = std::make_unique<MeshFieldBackendImpl<1, 1>>(mesh_);
+          mesh_field_ = std::make_unique<MeshFieldBackendImpl<T, 1, 1>>(mesh_);
           break;
         case 2:
-          mesh_field_ = std::make_unique<MeshFieldBackendImpl<2, 1>>(mesh_);
+          mesh_field_ = std::make_unique<MeshFieldBackendImpl<T, 2, 1>>(mesh_);
           break;
         default: break; // backend is null
       }
     } else if (nodes_per_dim[0] == 1 && nodes_per_dim[1] == 1) {
       switch (mesh_.dim()) {
         case 2:
-          mesh_field_ = std::make_unique<MeshFieldBackendImpl<2, 2>>(mesh_);
+          mesh_field_ = std::make_unique<MeshFieldBackendImpl<T, 2, 2>>(mesh_);
           break;
         case 3:
-          mesh_field_ = std::make_unique<MeshFieldBackendImpl<3, 2>>(mesh_);
+          mesh_field_ = std::make_unique<MeshFieldBackendImpl<T, 3, 2>>(mesh_);
           break;
         default: break; // backend is null
       }
@@ -294,7 +363,9 @@ OmegaHField2::OmegaHField2(const OmegaHFieldLayout& layout)
   }
 }
 
-Rank1View<const Real, HostMemorySpace> OmegaHField2::GetDOFHolderData() const
+template <typename T>
+inline Rank1View<const T, HostMemorySpace>
+MeshFieldsAdapter2<T>::GetDOFHolderData() const
 {
   PCMS_FUNCTION_TIMER;
   auto nodes_per_dim = layout_.GetNodesPerDim();
@@ -305,7 +376,7 @@ Rank1View<const Real, HostMemorySpace> OmegaHField2::GetDOFHolderData() const
       size_t len = static_cast<size_t>(mesh_.nents(i)) *
                    static_cast<size_t>(nodes_per_dim[i]) *
                    static_cast<size_t>(num_components);
-      Rank1View<Real, HostMemorySpace> subspan{
+      Rank1View<T, HostMemorySpace> subspan{
         std::data(dof_holder_data_) + offset, len};
       mesh_field_->GetData(subspan, nodes_per_dim[i], num_components, i);
       offset += len;
@@ -313,9 +384,11 @@ Rank1View<const Real, HostMemorySpace> OmegaHField2::GetDOFHolderData() const
   }
 
   return make_const_array_view(dof_holder_data_);
-};
+}
 
-void OmegaHField2::SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data)
+template <typename T>
+inline void MeshFieldsAdapter2<T>::SetDOFHolderData(
+  Rank1View<const T, HostMemorySpace> data)
 {
   PCMS_FUNCTION_TIMER;
 
@@ -329,15 +402,16 @@ void OmegaHField2::SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data)
       size_t len = static_cast<size_t>(mesh_.nents(i)) *
                    static_cast<size_t>(nodes_per_dim[i]) *
                    static_cast<size_t>(num_components);
-      Rank1View<const Real, HostMemorySpace> subspan{
-        data.data_handle() + offset, len};
+      Rank1View<const T, HostMemorySpace> subspan{data.data_handle() + offset,
+                                                  len};
       mesh_field_->SetData(subspan, nodes_per_dim[i], num_components, i);
       offset += len;
     }
   }
 }
 
-LocalizationHint OmegaHField2::GetLocalizationHint(
+template <typename T>
+inline LocalizationHint MeshFieldsAdapter2<T>::GetLocalizationHint(
   CoordinateView<HostMemorySpace> coordinate_view) const
 {
   PCMS_FUNCTION_TIMER;
@@ -345,8 +419,7 @@ LocalizationHint OmegaHField2::GetLocalizationHint(
   // when possible
   if (coordinate_view.GetCoordinateSystem() !=
       layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
-    // TODO when moved to PCMS throw PCMS exception
-    throw std::runtime_error("Coordinate system mismatch");
+    throw pcms_error("Coordinate system mismatch");
   }
 
   auto coordinates = coordinate_view.GetCoordinates();
@@ -358,26 +431,26 @@ LocalizationHint OmegaHField2::GetLocalizationHint(
   Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> results_h(
     "results_h", results.size());
   Kokkos::deep_copy(results_h, results);
-  auto hint = std::make_shared<OmegaHField2LocalizationHint>(
-    mesh_, results_h, out_of_bounds_mode_);
+  auto hint = std::make_shared<MeshFieldsAdapter2LocalizationHint>(
+    mesh_, results_h, this->out_of_bounds_mode_);
 
   return LocalizationHint{hint};
 }
 
-void OmegaHField2::Evaluate(LocalizationHint location,
-                            FieldDataView<Real, HostMemorySpace> results) const
+template <typename T>
+inline void MeshFieldsAdapter2<T>::Evaluate(
+  LocalizationHint location, FieldDataView<T, HostMemorySpace> results) const
 {
   PCMS_FUNCTION_TIMER;
   // TODO decide if we want to implicitly perform the coordinate transformations
   // when possible
   if (results.GetCoordinateSystem() !=
       layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
-    // TODO when moved to PCMS throw PCMS exception
-    throw std::runtime_error("Coordinate system mismatch");
+    throw pcms_error("Coordinate system mismatch");
   }
 
-  OmegaHField2LocalizationHint hint =
-    *reinterpret_cast<OmegaHField2LocalizationHint*>(location.data.get());
+  MeshFieldsAdapter2LocalizationHint hint =
+    *reinterpret_cast<MeshFieldsAdapter2LocalizationHint*>(location.data.get());
 
   Kokkos::View<Real**> coordinates_d(
     "coordinates_d", hint.coordinates_.extent(0), hint.coordinates_.extent(1));
@@ -385,10 +458,10 @@ void OmegaHField2::Evaluate(LocalizationHint location,
   Kokkos::View<LO*> offsets_d("offsets_d", hint.offsets_.extent(0));
   Kokkos::deep_copy(offsets_d, hint.offsets_);
   auto eval_results = mesh_field_->evaluate(coordinates_d, offsets_d);
-  Kokkos::View<Real**, HostMemorySpace> eval_results_h(
+  Kokkos::View<T**, HostMemorySpace> eval_results_h(
     "eval_results_h", eval_results.extent(0), eval_results.extent(1));
   deep_copy_mismatch_layouts(eval_results_h, eval_results);
-  Rank1View<Real, HostMemorySpace> values = results.GetValues();
+  Rank1View<T, HostMemorySpace> values = results.GetValues();
 
   // Copy results for valid points
   Kokkos::parallel_for(
@@ -399,7 +472,7 @@ void OmegaHField2::Evaluate(LocalizationHint location,
 
   // Handle missing points based on mode
   if (hint.num_missing_ > 0 && hint.mode_ == OutOfBoundsMode::FILL) {
-    auto fill_val = fill_value_;
+    auto fill_val = this->fill_value_;
     Kokkos::parallel_for(
       "FillMissingValues",
       Kokkos::RangePolicy<HostMemorySpace::execution_space>(0,
@@ -408,26 +481,29 @@ void OmegaHField2::Evaluate(LocalizationHint location,
   }
 }
 
-void OmegaHField2::EvaluateGradient(
-  FieldDataView<Real, HostMemorySpace> /* unused */)
+template <typename T>
+inline void MeshFieldsAdapter2<T>::EvaluateGradient(
+  FieldDataView<T, HostMemorySpace> /* unused */)
 {
-  // TODO when moved to PCMS throw PCMS exception
-  throw std::runtime_error("Not implemented");
+  throw pcms_error("EvaluateGradient not implemented for MeshFieldsAdapter2");
 }
 
-const FieldLayout& OmegaHField2::GetLayout() const
+template <typename T>
+inline const FieldLayout& MeshFieldsAdapter2<T>::GetLayout() const
 {
   return layout_;
 }
 
-bool OmegaHField2::CanEvaluateGradient()
+template <typename T>
+inline bool MeshFieldsAdapter2<T>::CanEvaluateGradient()
 {
   // TODO compute the gradient field using element shape functions
   return false;
 }
 
-int OmegaHField2::Serialize(
-  Rank1View<Real, pcms::HostMemorySpace> buffer,
+template <typename T>
+inline int MeshFieldsAdapter2<T>::Serialize(
+  Rank1View<T, pcms::HostMemorySpace> buffer,
   Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) const
 {
   PCMS_FUNCTION_TIMER;
@@ -443,12 +519,13 @@ int OmegaHField2::Serialize(
   return array_h.size();
 }
 
-void OmegaHField2::Deserialize(
-  Rank1View<const Real, pcms::HostMemorySpace> buffer,
+template <typename T>
+inline void MeshFieldsAdapter2<T>::Deserialize(
+  Rank1View<const T, pcms::HostMemorySpace> buffer,
   Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
 {
   PCMS_FUNCTION_TIMER;
-  Omega_h::HostWrite<Real> sorted_buffer(permutation.size());
+  Omega_h::HostWrite<T> sorted_buffer(permutation.size());
   auto owned = layout_.GetOwned();
   for (LO i = 0; i < sorted_buffer.size(); ++i) {
     if (owned[i])
@@ -459,3 +536,5 @@ void OmegaHField2::Deserialize(
 }
 
 } // namespace pcms
+
+#endif // PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER2_H
