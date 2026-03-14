@@ -93,7 +93,7 @@ TEST_CASE("Load vector computation on intersected regions", "[load_vector]")
     auto load_vector_host = Kokkos::create_mirror(load_vector);
     Kokkos::deep_copy(load_vector_host, load_vector);
 
-    REQUIRE(load_vector_host.extent(0) == num_tgt_elems * 3);
+    REQUIRE(static_cast<int>(load_vector_host.extent(0)) == num_tgt_elems * 3);
 
     for (int i = 0; i < load_vector_host.extent(0); ++i)
       REQUIRE(load_vector_host(i) >=
