@@ -95,18 +95,7 @@ TEST_CASE("test_mls_interpolation")
   const auto& ntargets = mesh.nverts();
 
   const auto& faces2nodes = mesh.ask_down(Omega_h::FACE, Omega_h::VERT).ab2b;
-
-  Kokkos::parallel_for(
-    "calculate the centroid in each tri element", nfaces,
-    OMEGA_H_LAMBDA(const Omega_h::LO id) {
-      const auto current_el_verts = Omega_h::gather_verts<3>(faces2nodes, id);
-      const Omega_h::Few<Omega_h::Vector<2>, 3> current_el_vert_coords =
-        Omega_h::gather_vectors<3, 2>(target_coordinates, current_el_verts);
-      auto centroid = Omega_h::average(current_el_vert_coords);
-      int index = 2 * id;
-      source_coordinates[index] = centroid[0];
-      source_coordinates[index + 1] = centroid[1];
-    });
+  const auto source_coordinates = pcms::get_entity_centroids(mesh, 2);
 
   pcms::Points source_points;
   source_points.coordinates =
