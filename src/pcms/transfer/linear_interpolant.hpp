@@ -6,7 +6,8 @@
 #include "multidimarray.hpp"
 #define MAX_DIM 10
 
-namespace pcms {
+namespace pcms
+{
 
 KOKKOS_INLINE_FUNCTION
 void find_indices(const IntVecView& num_bins, const RealVecView& range,
@@ -185,6 +186,6 @@ double test_function(double* coord)
   }
   return fun_value;
 }
-}
+} // namespace pcms
 
 #endif // PCMS_TRANSFER_LINEAR_INTERPOLANT_HPP

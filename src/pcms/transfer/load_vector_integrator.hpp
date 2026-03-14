@@ -41,7 +41,6 @@ namespace pcms
  * @note Currently this method works for a two-dimensional linear triangles.
  */
 
-
 /**
  * @brief Provides barycentric integration points and weights for a triangle
  * element.

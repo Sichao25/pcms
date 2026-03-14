@@ -94,12 +94,12 @@ TEST_CASE("Test Interpolation on LTX Mesh", "[interpolation]")
     pcms::Rank1View<const double, pcms::HostMemorySpace>(
       xgc_mesh_points.data(), xgc_mesh_points.size());
 
-  auto xgc_to_degas2_interpolator =
-    pcms::MLSPointCloudInterpolation(xgc_mesh_points_view, degas2_mesh_centroids_view,
-                               2, 0.000001, 10, 1, true, 0.0, 50.0);
-  auto degas2_to_xgc_interpolator =
-    pcms::MLSPointCloudInterpolation(degas2_mesh_centroids_view, xgc_mesh_points_view,
-                               2, 0.01, 10, 1, true, 1e-3, 50.0);
+  auto xgc_to_degas2_interpolator = pcms::MLSPointCloudInterpolation(
+    xgc_mesh_points_view, degas2_mesh_centroids_view, 2, 0.000001, 10, 1, true,
+    0.0, 50.0);
+  auto degas2_to_xgc_interpolator = pcms::MLSPointCloudInterpolation(
+    degas2_mesh_centroids_view, xgc_mesh_points_view, 2, 0.01, 10, 1, true,
+    1e-3, 50.0);
   printf("[INFO] Interpolators initialized.\n");
 
   // ---------------------- Load Data ---------------------- //

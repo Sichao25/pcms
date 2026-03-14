@@ -19,7 +19,8 @@
 #include "pcms/utility/arrays.h"
 #include <string>
 
-namespace pcms {
+namespace pcms
+{
 /**
  * @brief Pure virtual base class for interpolation methods
  * @details Provides external interface for interpolation methods.
@@ -294,6 +295,6 @@ private:
   void find_supports(unsigned min_req_supports = 10,
                      unsigned max_allowed_supports = 30);
 };
-}
+} // namespace pcms
 
 #endif // PCMS_TRANSFER_INTERPOLATION_BASE_H

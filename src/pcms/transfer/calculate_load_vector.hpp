@@ -50,9 +50,10 @@
 namespace pcms
 {
 // FIXME use PCMS error handling rather than returning a PETSC error code
-PetscErrorCode calculateLoadVector(
-  Omega_h::Mesh& target_mesh, Omega_h::Mesh& source_mesh,
-  const IntersectionResults& intersection, const Omega_h::Reals& source_values,
-  Vec* loadVec_out);
+PetscErrorCode calculateLoadVector(Omega_h::Mesh& target_mesh,
+                                   Omega_h::Mesh& source_mesh,
+                                   const IntersectionResults& intersection,
+                                   const Omega_h::Reals& source_values,
+                                   Vec* loadVec_out);
 } // namespace pcms
 #endif // PCMS_TRANSFER_CALCULATE_LOAD_VECTOR_HPP

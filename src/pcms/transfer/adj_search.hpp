@@ -9,7 +9,8 @@
 #include "queue_visited.hpp"
 #include <Kokkos_MathematicalFunctions.hpp>
 
-namespace pcms {
+namespace pcms
+{
 
 static constexpr int max_dim = 3;
 
@@ -46,16 +47,16 @@ struct SupportResults
 };
 
 SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
-                                      Omega_h::Mesh& target_mesh,
-                                      Omega_h::Real& cutoffDistance,
-                                      Omega_h::LO min_req_support = 12,
-                                      Omega_h::LO max_allowed_support = 36,
-                                      bool adapt_radius = true);
+                               Omega_h::Mesh& target_mesh,
+                               Omega_h::Real& cutoffDistance,
+                               Omega_h::LO min_req_support = 12,
+                               Omega_h::LO max_allowed_support = 36,
+                               bool adapt_radius = true);
 
 SupportResults searchNeighbors(Omega_h::Mesh& mesh,
-                                      Omega_h::Real cutoffDistance,
-                                      Omega_h::LO min_support = 12,
-                                      bool adapt_radius = true);
-}
+                               Omega_h::Real cutoffDistance,
+                               Omega_h::LO min_support = 12,
+                               bool adapt_radius = true);
+} // namespace pcms
 
 #endif // PCMS_TRANSFER_ADJ_SEARCH_HPP

@@ -10,7 +10,8 @@
 #define MAX_SIZE_QUEUE 500
 #define MAX_SIZE_TRACK 800
 
-namespace pcms {
+namespace pcms
+{
 
 class Queue
 {
@@ -135,5 +136,5 @@ int Track::size()
 {
   return count;
 }
-}
+} // namespace pcms
 #endif // PCMS_TRANSFER_QUEUE_VISITED_HPP

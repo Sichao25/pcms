@@ -7,7 +7,8 @@
 #include "pcms/utility/mesh_geometry.h"
 
 #include <execution>
-namespace pcms {
+namespace pcms
+{
 
 MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
                                            double radius,
@@ -516,4 +517,4 @@ size_t MLSMeshInterpolation::getTargetSize() const
     return target_mesh_.nverts();
   }
 }
-}
+} // namespace pcms

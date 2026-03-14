@@ -442,7 +442,8 @@ inline Omega_h::Reals get_ent_centroids(Omega_h::Mesh& mesh, int entity_type)
 {
   PCMS_FUNCTION_TIMER;
   PCMS_ALWAYS_ASSERT(entity_type >= 0 && entity_type <= 3);
-  return pcms::get_entity_centroids(mesh, static_cast<Omega_h::Int>(entity_type));
+  return pcms::get_entity_centroids(mesh,
+                                    static_cast<Omega_h::Int>(entity_type));
 }
 } // namespace Omega_h
 

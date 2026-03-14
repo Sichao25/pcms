@@ -3,7 +3,8 @@
 
 #include <Kokkos_Core.hpp>
 
-namespace pcms{
+namespace pcms
+{
 
 using RealMatView = Kokkos::View<double**, Kokkos::LayoutRight>;
 using IntMatView = Kokkos::View<int**, Kokkos::LayoutRight>;
@@ -35,5 +36,5 @@ inline int calculateTotalSize(const HostIntVecView& dimensions)
   }
   return size;
 }
-}
+} // namespace pcms
 #endif // PCMS_TRANSFER_MULTIDIMARRAY_HPP

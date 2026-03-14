@@ -10,18 +10,19 @@
 #include <Omega_h_for.hpp>
 #include <Kokkos_MathematicalFunctions.hpp>
 
-namespace pcms {
+namespace pcms
+{
 constexpr static double abs_tol = 1e-18; /// abs tolerance
 constexpr static double rel_tol = 1e-12; /// rel tolerance
 
 [[nodiscard]] OMEGA_H_INLINE r3d::Few<r3d::Vector<2>, 3>
-get_vert_coords_of_elem(const Omega_h::Reals &coords,
-                        const Omega_h::LOs &faces2nodes,
-                        const int id) {
+get_vert_coords_of_elem(const Omega_h::Reals& coords,
+                        const Omega_h::LOs& faces2nodes, const int id)
+{
   const auto elm_verts = Omega_h::gather_verts<3>(faces2nodes, id);
 
   const Omega_h::Matrix<2, 3> elm_vert_coords =
-      Omega_h::gather_vectors<3, 2>(coords, elm_verts);
+    Omega_h::gather_vectors<3, 2>(coords, elm_verts);
 
   r3d::Few<r3d::Vector<2>, 3> r3d_vector;
   for (int i = 0; i < 3; ++i) {
@@ -62,20 +63,20 @@ public:
   }
 
   /**
-   * @brief Performs adjacency-based intersection search between target and source
-   * elements.
+   * @brief Performs adjacency-based intersection search between target and
+   * source elements.
    *
    * For each target element, starting from the source element that contains its
    * centroid, a queue-based BFS traversal is used over the adjacency graph of
-   * source elements. If an element intersects the target triangle (based on area
-   * tolerance), it is included.
+   * source elements. If an element intersects the target triangle (based on
+   * area tolerance), it is included.
    *
    * @param tgt2src_offsets Offsets array (only used when writing indices).
-   * @param[out] nIntersections Number of intersecting source elements per target
-   * element.
+   * @param[out] nIntersections Number of intersecting source elements per
+   * target element.
    * @param[out] tgt2src_indices Indices of intersecting source elements.
-   * @param is_count_only If true, only counts intersections; if false, also fills
-   * tgt2src_indices.
+   * @param is_count_only If true, only counts intersections; if false, also
+   * fills tgt2src_indices.
    *
    * @note This method assumes 2D linear triangles and uses
    * `r3d::intersect_simplices` for geometric intersection.
@@ -87,8 +88,6 @@ public:
                                Omega_h::Write<Omega_h::LO>& tgt2src_indices,
                                bool is_count_only);
 };
-
-
 
 /**
  * @brief Computes source-target element intersections for conservative
@@ -112,5 +111,5 @@ public:
 
 IntersectionResults intersectTargets(Omega_h::Mesh& source_mesh,
                                      Omega_h::Mesh& target_mesh);
-}
+} // namespace pcms
 #endif // PCMS_TRANSFER_MESH_INTERSECTION_HPP

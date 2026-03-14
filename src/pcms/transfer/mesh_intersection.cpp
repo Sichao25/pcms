@@ -1,7 +1,8 @@
 #include "pcms/transfer/mesh_intersection.hpp"
 #include "pcms/utility/mesh_geometry.h"
 
-namespace pcms {
+namespace pcms
+{
 void FindIntersections::adjBasedIntersectSearch(
   const Omega_h::LOs& tgt2src_offsets,
   Omega_h::Write<Omega_h::LO>& nIntersections,
@@ -23,7 +24,7 @@ void FindIntersections::adjBasedIntersectSearch(
 
   const auto flat_centroids =
     pcms::get_entity_centroids(target_mesh_, Omega_h::FACE);
-  auto centroids = Kokkos::View<const Omega_h::Real *[2]>(
+  auto centroids = Kokkos::View<const Omega_h::Real* [2]>(
     flat_centroids.data(), target_mesh_.nfaces());
 
   pcms::GridPointSearch2D search_cell(source_mesh_, 20, 20);
@@ -110,7 +111,9 @@ void FindIntersections::adjBasedIntersectSearch(
     }, // end of lambda
     "count the number of intersections for each target element");
 }
-IntersectionResults intersectTargets(Omega_h::Mesh &source_mesh, Omega_h::Mesh &target_mesh) {
+IntersectionResults intersectTargets(Omega_h::Mesh& source_mesh,
+                                     Omega_h::Mesh& target_mesh)
+{
   FindIntersections intersect(source_mesh, target_mesh);
 
   auto nfaces_target = target_mesh.nfaces();
@@ -137,6 +140,6 @@ IntersectionResults intersectTargets(Omega_h::Mesh &source_mesh, Omega_h::Mesh &
   intersect.adjBasedIntersectSearch(tgt2src_offsets, nIntersections,
                                     tgt2src_indices, false);
   return {.tgt2src_offsets = tgt2src_offsets,
-    .tgt2src_indices = Omega_h::read(tgt2src_indices)};
+          .tgt2src_indices = Omega_h::read(tgt2src_indices)};
 }
-}
+} // namespace pcms

@@ -313,8 +313,8 @@ Kokkos::View<MeshField::Real*> buildLoadVector(
   int npts = integrationPoints.size();
 
   // TODO: Make it generalised; hardcoded for liner 2D
-  Kokkos::View<MeshField::Real*> elmLoadVector("elmLoadVector",
-                                               static_cast<long>(target_mesh.nelems()) * 3);
+  Kokkos::View<MeshField::Real*> elmLoadVector(
+    "elmLoadVector", static_cast<long>(target_mesh.nelems()) * 3);
   Kokkos::parallel_for(
     "calculate load vector", target_mesh.nelems(),
     KOKKOS_LAMBDA(const int& elm) {
