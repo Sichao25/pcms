@@ -17,7 +17,7 @@ template <typename FieldElement>
 class MassMatrixIntegrator : public MeshField::Integrator
 {
 public:
-  MassMatrixIntegrator(Omega_h::Mesh mesh_in, FieldElement& fe_in,
+  MassMatrixIntegrator(Omega_h::Mesh& mesh_in, FieldElement& fe_in,
                        int order = 2)
     : mesh(mesh_in),
       fe(fe_in),
@@ -39,8 +39,14 @@ public:
     assert(numPtsPerElem >= 1);
     const size_t ptDim = p.extent(1);
     assert(ptDim == fe.MeshEntDim + 1);
+    // Copy values needed in the kernel to avoid capturing host references
+    // (mesh and fe are host objects and cannot be dereferenced on the device)
+    const auto numElems = mesh.nelems();
+    const auto shapeFn = fe.shapeFn;
+    const auto subMat = subMatrixSize;
+    auto massMatrix = elmMassMatrix;
     Kokkos::parallel_for(
-      "eval", mesh.nelems(), KOKKOS_CLASS_LAMBDA(const int& elm) {
+      "eval", numElems, KOKKOS_LAMBDA(const int& elm) {
         const auto first = elm * numPtsPerElem;
         const auto last = first + numPtsPerElem;
         for (auto pt = first; pt < last; pt++) {
@@ -50,14 +56,14 @@ public:
           for (auto i = 0; i < localCoord.size(); i++) {
             localCoord[i] = p(pt, i);
           }
-          const auto N = fe.shapeFn.getValues(localCoord);
+          const auto N = shapeFn.getValues(localCoord);
           const auto wPt = w(pt);
           const auto dVPt = dV(pt);
           //       printf("Shape Functions: %f, %f, %f \n", N[0], N[1], N[2]);
           //       printf("wPt, dVPt: %f, %f \n", wPt, dVPt);
           for (auto i = 0; i < N.size(); i++) {
             for (auto j = 0; j < N.size(); j++) {
-              elmMassMatrix(elm * subMatrixSize + i * 3 + j) +=
+              massMatrix(elm * subMat + i * 3 + j) +=
                 N[i] * N[j] * wPt * dVPt;
             }
           }

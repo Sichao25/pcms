@@ -181,6 +181,7 @@ jobs:
           git clone https://github.com/jacobmerson/pcms_testcases.git ${workDir}/pcms_testcases
 
           # pcms
+          export PETSC_OPTIONS="-use_gpu_aware_mpi 0"
           bdir=${workDir}/build-pcms
           cmake -S ${{github.workspace}}/pcms_${{ github.event.id }} -B $bdir \
             -DCMAKE_BUILD_TYPE=Debug \

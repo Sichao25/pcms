@@ -9,7 +9,7 @@ int main(int argc, char* argv[])
   int result = 0;
   {
     // petsc uses kokkos, so it must be initialized before petsc
-    Kokkos::ScopeGuard kokkos{};
+    Kokkos::ScopeGuard kokkos{argc, argv};
     PetscBool petsc_initialized = PETSC_FALSE;
     PetscBool petsc_initialized_by_main = PETSC_FALSE;
     PetscInitialized(&petsc_initialized);
