@@ -19,7 +19,8 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     coo_assembly_utils.hpp
     load_vector_integrator.hpp
     mass_matrix_integrator.hpp
-    mesh_intersection.hpp)
+    mesh_intersection.hpp
+    petsc_utils.hpp)
 
 
 set(PCMS_FIELD_TRANSFER_SOURCES
@@ -27,6 +28,7 @@ set(PCMS_FIELD_TRANSFER_SOURCES
     calculate_load_vector.cpp
     calculate_mass_matrix.cpp
     conservative_projection_solver.cpp
+    petsc_utils.cpp
     coo_assembly_utils.cpp
     load_vector_integrator.cpp
     mesh_intersection.cpp

@@ -1,6 +1,7 @@
 #include "pcms/transfer/calculate_load_vector.hpp"
 #include "pcms/transfer/coo_assembly_utils.hpp"
 #include "pcms/transfer/load_vector_integrator.hpp"
+#include "pcms/transfer/petsc_utils.hpp"
 
 namespace pcms
 {
@@ -35,10 +36,7 @@ PetscErrorCode calculateLoadVector(Omega_h::Mesh& target_mesh,
 
   // create vector with preallocated COO structure
   Vec vec;
-  PetscCall(VecCreate(PETSC_COMM_WORLD, &vec));
-  PetscCall(VecSetSizes(vec, target_mesh.nverts(), PETSC_DECIDE));
-  PetscCall(VecSetType(vec, VECKOKKOS));
-  //  PetscCall(VecSetFromOptions(vec));
+  PetscCall(createSeqVec(PETSC_COMM_WORLD, target_mesh.nverts(), &vec));
   PetscCall(VecSetPreallocationCOO(vec, nnz, coo_i));
   PetscCall(VecSetValuesCOO(vec, coo_vals, ADD_VALUES));
   PetscCall(PetscFree(coo_i));

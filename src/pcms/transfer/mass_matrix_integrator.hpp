@@ -63,8 +63,7 @@ public:
           //       printf("wPt, dVPt: %f, %f \n", wPt, dVPt);
           for (auto i = 0; i < N.size(); i++) {
             for (auto j = 0; j < N.size(); j++) {
-              massMatrix(elm * subMat + i * 3 + j) +=
-                N[i] * N[j] * wPt * dVPt;
+              massMatrix(elm * subMat + i * 3 + j) += N[i] * N[j] * wPt * dVPt;
             }
           }
         }

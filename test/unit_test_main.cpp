@@ -1,6 +1,6 @@
 #include <catch2/catch_session.hpp>
-#include <Kokkos_Core.hpp>
 #include <mpi.h>
+#include <Kokkos_Core.hpp>
 #include <petscsys.h>
 
 int main(int argc, char* argv[])

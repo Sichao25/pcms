@@ -262,3 +262,12 @@ Assign the full path of testdatas to test_dir in the test_init.cc file; Use "mpi
 
 ## Creating Archive for Release
 `git archive --format=tar.gz -o /tmp/pcms.tar.gz --prefix=pcms/ develop`
+
+## Running clang format on SCOREC
+```console
+module use /opt/scorec/spack/rhel9/v0222_2/lmod/linux-rhel9-x86_64/Core/
+module load clang-format
+module load llvm
+find . -regex '.*\.\(cpp\|cxx\|cc\|c\|hpp\|h\)' -exec clang-format -style=file -i {} \;
+```
+

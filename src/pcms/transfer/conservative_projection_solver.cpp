@@ -1,8 +1,7 @@
-#include <petscvec_kokkos.hpp>
-#include <petscmat_kokkos.hpp>
 #include <petscksp.h>
 
 #include "pcms/transfer/conservative_projection_solver.hpp"
+#include "pcms/transfer/petsc_utils.hpp"
 #include "pcms/transfer/calculate_load_vector.hpp"
 #include "pcms/transfer/calculate_mass_matrix.hpp"
 
@@ -27,7 +26,7 @@ static Vec solveLinearSystem(Mat A, Vec b)
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
 
   Vec x;
-  ierr = VecCreateSeqKokkos(PETSC_COMM_WORLD, n, &x);
+  ierr = createSeqVec(PETSC_COMM_WORLD, n, &x);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
 
   KSP ksp;

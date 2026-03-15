@@ -1,6 +1,7 @@
 #include "pcms/transfer/calculate_mass_matrix.hpp"
 #include "pcms/transfer/coo_assembly_utils.hpp"
 #include "pcms/transfer/mass_matrix_integrator.hpp"
+#include "pcms/transfer/petsc_utils.hpp"
 #include "pcms/utility/memory_spaces.h"
 
 namespace pcms
@@ -23,12 +24,8 @@ static PetscErrorCode create_linear_triangle_coo_matrix(Omega_h::Mesh& mesh,
   PetscInt* coo_cols = nullptr;
   PetscInt matSize = 0;
   PetscFunctionBeginUser;
-  PetscCall(MatCreate(PETSC_COMM_WORLD, A));
-  PetscCall(
-    MatSetSizes(*A, mesh.nverts(), mesh.nverts(), PETSC_DECIDE, PETSC_DECIDE));
-
-  PetscCall(MatSetType(*A, MATAIJKOKKOS));
-  //  PetscCall(MatSetFromOptions(*A));
+  PetscCall(createSeqAIJMat(PETSC_COMM_WORLD, mesh.nverts(), mesh.nverts(), 0,
+                            nullptr, A));
   PetscCall(
     build_linear_triangle_coo_rows_cols(mesh, &coo_rows, &coo_cols, &matSize));
   PetscCall(MatSetPreallocationCOO(*A, matSize, coo_rows, coo_cols));
