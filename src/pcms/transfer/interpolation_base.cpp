@@ -4,30 +4,11 @@
 
 #include "interpolation_base.h"
 #include "interpolation_helpers.h"
+#include "pcms/utility/mesh_geometry.h"
 
 #include <execution>
-
-Omega_h::Reals getCentroids(Omega_h::Mesh& mesh)
+namespace pcms
 {
-  OMEGA_H_CHECK_PRINTF(
-    mesh.dim() == 2, "Only 2D meshes are supported but found %d\n", mesh.dim());
-
-  const auto& coords = mesh.coords();
-  Omega_h::Write<Omega_h::Real> centroids(mesh.nfaces() * mesh.dim(), 0.0);
-
-  auto face2node = mesh.ask_down(Omega_h::FACE, Omega_h::VERT).ab2b;
-  Omega_h::parallel_for(
-    mesh.nfaces(), OMEGA_H_LAMBDA(Omega_h::LO face) {
-      auto nodes = Omega_h::gather_verts<3>(face2node, face);
-      Omega_h::Few<Omega_h::Vector<2>, 3> face_coords =
-        Omega_h::gather_vectors<3, 2>(coords, nodes);
-      Omega_h::Vector<2> centroid = Omega_h::average(face_coords);
-      centroids[2 * face + 0] = centroid[0];
-      centroids[2 * face + 1] = centroid[1];
-    });
-
-  return {centroids};
-}
 
 MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
                                            double radius,
@@ -45,11 +26,11 @@ MLSMeshInterpolation::MLSMeshInterpolation(Omega_h::Mesh& source_mesh,
 {
   single_mesh_ = true;
   target_coords_ = source_mesh_.coords();
-  source_coords_ = getCentroids(source_mesh_);
 
   OMEGA_H_CHECK_PRINTF(source_mesh_.dim() == 2,
                        "Only 2D meshes are supported but found %d\n",
                        source_mesh_.dim());
+  source_coords_ = pcms::get_entity_centroids(source_mesh_, Omega_h::FACE);
 
   source_field_ =
     Omega_h::HostWrite<Omega_h::Real>(source_mesh_.nfaces(), "source field");
@@ -86,13 +67,6 @@ MLSMeshInterpolation::MLSMeshInterpolation(
     Omega_h::HostWrite<Omega_h::Real>(target_mesh_.nverts(), "target field");
 
   find_supports(min_req_supports_, 3 * min_req_supports_);
-}
-
-KOKKOS_INLINE_FUNCTION
-double pointDistanceSquared(const double x1, const double y1, const double z1,
-                            const double x2, const double y2, const double z2)
-{
-  return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) + (z1 - z2) * (z1 - z2);
 }
 
 // replace with Kokkos::minmax_element when out of experimental
@@ -165,6 +139,15 @@ struct ScanSupportIdxFunctor
   }
 };
 
+KOKKOS_INLINE_FUNCTION
+Omega_h::Vector<3> load_point(const Omega_h::Reals& coords, int id, int dim)
+{
+  Omega_h::Vector<3> p{0, 0, 0};
+  for (int d = 0; d < dim; ++d)
+    p[d] = coords[id * dim + d];
+  return p;
+}
+
 struct FillSupportIdxFunctor
 {
   const int dim;
@@ -195,22 +178,15 @@ struct FillSupportIdxFunctor
   void operator()(const int& target_id) const
   {
     auto target_radius2 = radii2_l[target_id];
-    auto target_coord = Omega_h::Vector<3>{0, 0, 0};
-    for (int d = 0; d < dim; ++d) {
-      target_coord[d] = target_coords_l[target_id * dim + d];
-    }
+    auto target_coord = load_point(target_coords_l, target_id, dim);
 
     auto start_ptr = support_ptr_l[target_id];
     auto end_ptr = support_ptr_l[target_id + 1];
 
     for (int source_id = 0; source_id < n_sources; source_id++) {
-      auto source_coord = Omega_h::Vector<3>{0, 0, 0};
-      for (int d = 0; d < dim; ++d) {
-        source_coord[d] = source_coords_l[source_id * dim + d];
-      }
+      auto source_coord = load_point(source_coords_l, source_id, dim);
       auto dist2 =
-        pointDistanceSquared(source_coord[0], source_coord[1], source_coord[2],
-                             target_coord[0], target_coord[1], target_coord[2]);
+        pcms::distance_squared(&source_coord[0], &target_coord[0], dim);
       if (dist2 <= target_radius2) {
         supports_idx_l[start_ptr] = source_id;
         start_ptr++;
@@ -284,21 +260,14 @@ struct NSquareSearchFunctor
   KOKKOS_INLINE_FUNCTION
   void operator()(const int& target_id) const
   {
-    auto target_coord = Omega_h::Vector<3>{0, 0, 0};
-    for (int d = 0; d < dim; ++d) {
-      target_coord[d] = target_coords_l[target_id * dim + d];
-    }
+    auto target_coord = load_point(target_coords_l, target_id, dim);
     auto target_radius2 = radii2_l[target_id];
 
     // TODO: parallel with kokkos parallel_for
     for (int i = 0; i < n_sources; i++) {
-      auto source_coord = Omega_h::Vector<3>{0, 0, 0};
-      for (int d = 0; d < dim; ++d) {
-        source_coord[d] = source_coords_l[i * dim + d];
-      }
+      auto source_coord = load_point(source_coords_l, i, dim);
       auto dist2 =
-        pointDistanceSquared(source_coord[0], source_coord[1], source_coord[2],
-                             target_coord[0], target_coord[1], target_coord[2]);
+        pcms::distance_squared(&source_coord[0], &target_coord[0], dim);
       if (dist2 <= target_radius2) {
         num_supports_l[target_id]++; // only one thread is updating
       }
@@ -474,8 +443,8 @@ void MLSPointCloudInterpolation::eval(
 
   // TODO: make the basis function a template or pass it as a parameter
   auto target_field_write = mls_interpolation(
-    Omega_h::Reals(source_field_), source_coords_, target_coords_, supports_, 2,
-    degree_, pcms::RadialBasisFunction::RBF_GAUSSIAN, lambda_, 1e-6,
+    Omega_h::Reals(source_field_), source_coords_, target_coords_, supports_,
+    dim_, degree_, pcms::RadialBasisFunction::RBF_GAUSSIAN, lambda_, 1e-6,
     decay_factor_);
 
   target_field_ = Omega_h::HostWrite<Omega_h::Real>(target_field_write);
@@ -548,3 +517,4 @@ size_t MLSMeshInterpolation::getTargetSize() const
     return target_mesh_.nverts();
   }
 }
+} // namespace pcms

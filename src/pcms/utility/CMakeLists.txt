@@ -2,13 +2,16 @@ set(
         PCMS_UTILITY_HEADERS
         arrays.h
         assert.h
+        bounding_box.h
         common.h
+        mesh_geometry.h
         memory_spaces.h
         types.h
         array_mask.h
         inclusive_scan.h
         profile.h
         print.h
+        uniform_grid.h
 )
 
 set(

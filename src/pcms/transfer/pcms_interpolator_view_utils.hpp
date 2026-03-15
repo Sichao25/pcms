@@ -1,7 +1,7 @@
-#ifndef PCMS_INTERPOLATOR_ARRAY_OPS_HPP
-#define PCMS_INTERPOLATOR_ARRAY_OPS_HPP
+#ifndef PCMS_TRANSFER_PCMS_INTERPOLATOR_VIEW_UTILS_HPP
+#define PCMS_TRANSFER_PCMS_INTERPOLATOR_VIEW_UTILS_HPP
 
-#include <pcms/interpolator/pcms_interpolator_aliases.hpp>
+#include <pcms/transfer/pcms_interpolator_aliases.hpp>
 #include <Omega_h_array_ops.hpp>
 #include <cmath>
 #include <Omega_h_fail.hpp>
@@ -49,6 +49,13 @@ void fill(double value, member_type team, ScratchVecView vector)
                        [=](int j) { vector(j) = value; });
 }
 
+/**
+ * @brief Evaluates the square root of each element in scratch view
+ *
+ * @param team The team member
+ * @param array The scratch vector
+ *
+ */
 KOKKOS_INLINE_FUNCTION
 void find_sq_root_each(member_type team, ScratchVecView& array)
 {
@@ -267,4 +274,4 @@ void scale_and_adjust(member_type team, ScratchVecView& diagonal_entries,
 } // namespace detail
 } // namespace pcms
 
-#endif
+#endif // PCMS_TRANSFER_PCMS_INTERPOLATOR_VIEW_UTILS_HPP

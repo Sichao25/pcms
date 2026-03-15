@@ -1,5 +1,5 @@
-#ifndef PCMS_INTERPOLATOR_MLS_INTERPOLATION_IMP_HPP
-#define PCMS_INTERPOLATOR_MLS_INTERPOLATION_IMP_HPP
+#ifndef PCMS_TRANSFER_MLS_INTERPOLATION_IMPL_HPP
+#define PCMS_TRANSFER_MLS_INTERPOLATION_IMPL_HPP
 
 #include <cmath>
 #include <Omega_h_fail.hpp>
@@ -12,13 +12,13 @@
 #include <KokkosBlas.hpp>
 #include <KokkosBlas1_team_dot.hpp>
 #include <Kokkos_StdAlgorithms.hpp>
-#include <pcms/interpolator/mls_interpolation.hpp>
-#include <pcms/interpolator/pcms_interpolator_aliases.hpp>
-#include <pcms/interpolator/adj_search.hpp>
+#include <pcms/transfer/mls_interpolation.hpp>
+#include <pcms/transfer/pcms_interpolator_aliases.hpp>
+#include <pcms/transfer/adj_search.hpp>
 #include <pcms/utility/assert.h>
 #include <pcms/utility/profile.h>
-#include <pcms/interpolator/pcms_interpolator_view_utils.hpp>
-#include <pcms/interpolator/pcms_interpolator_logger.hpp>
+#include <pcms/transfer/pcms_interpolator_view_utils.hpp>
+#include <pcms/transfer/pcms_interpolator_logger.hpp>
 
 #include <KokkosBlas2_gemv.hpp> //KokkosBlas::gemv
 #include <KokkosBatched_SVD_Decl.hpp>
@@ -33,7 +33,9 @@ static constexpr int MAX_DIM = 6;
  * eval_basis_vector are needed to evaluate the polynomial basis for any degree
  * and dimension For instance, polynomial basis vector for dim = 2 and degree =
  * 3 at the point (x,y) looks like {1, x, y, xx, xy, yy, xxx, xxy, xyy,yyy}. The
- * slices can be written as [1]                      degree 0 [x] & [y] degree 1
+ * slices can be written as
+ * [1]                      degree 0
+ * [x] & [y]         degree 1
  * [xx] &  [xy, yy]         degree 2
  * [xxx] & [xxy,xyy, yyy]   degree 3
  *
@@ -56,6 +58,7 @@ namespace pcms
 
 namespace detail
 {
+
 /**
  * @brief Computes the slice lengths of the polynomial basis
  *
@@ -160,7 +163,7 @@ void eval_basis_vector(const IntDeviceMatView& slice_length, const double* p,
  *  @param[in, out] pivot The Coord object that stores the coordinate of the
  *target pivot
  *  @param[in,out] support_coordinates The orginal coordinates when in, when out
- *  		normalized coordinates
+ *      normalized coordinates
  **
  */
 KOKKOS_INLINE_FUNCTION
@@ -461,21 +464,25 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
     calculate_scratch_shared_size(support, ntargets, basis_size, dim);
 
   team_policy tp(ntargets, Kokkos::AUTO);
+  // printf("num of targets: ", ntargets);
 
   int scratch_size = tp.scratch_size_max(1);
   // printf("Scratch Size = %d\n", scratch_size);
   // printf("Shared Size = %d\n", shared_size);
+  // printf("Shared Size to be set = %d bytes (%.2f KB)\n", shared_size,
+  // shared_size / 1024.0);
   PCMS_ALWAYS_ASSERT(scratch_size > shared_size);
 
   // calculates the interpolated values
   Kokkos::parallel_for(
-    "MLS coefficients", tp.set_scratch_size(1, Kokkos::PerTeam(scratch_size)),
+    "MLS coefficients", tp.set_scratch_size(1, Kokkos::PerTeam(shared_size)),
     KOKKOS_LAMBDA(const member_type& team) {
       int league_rank = team.league_rank();
       int start_ptr = support.supports_ptr[league_rank];
       int end_ptr = support.supports_ptr[league_rank + 1];
       int nsupports = end_ptr - start_ptr;
 
+      //      Logger logger(0);
       //  local_source_point stores the coordinates of source supports of a
       //  given target
       ScratchMatView local_source_points(team.team_scratch(1), nsupports, dim);
@@ -483,6 +490,7 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
       // rbf function values of source supports Phi(n,n)
       ScratchVecView phi_vector(team.team_scratch(1), nsupports);
 
+      // rbf function values of source supports Phi(n,n)
       //  vondermonde matrix P from the vectors of basis vector of supports
       ScratchMatView vandermonde_matrix(team.team_scratch(1), nsupports,
                                         basis_size);
@@ -503,8 +511,6 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
       fill(0.0, team, target_basis_vector);
       fill(0.0, team, solution_coefficients);
 
-      // Logger logger(15);
-
       /**
        *
        * the local_source_points is of the type ScratchMatView with
@@ -516,22 +522,21 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
       for (int j = start_ptr; j < end_ptr; ++j) {
         count++;
         auto index = support.supports_idx[j];
-
         for (int i = 0; i < dim; ++i) {
           local_source_points(count, i) = source_coordinates[index * dim + i];
         }
       }
 
-      // logger.logMatrix(team, LogLevel::DEBUG, local_source_points,
-      //                  "Support Coordinates");
+      //       logger.logMatrix(team, LogLevel::DEBUG, local_source_points,
+      //                        "Support Coordinates");
       double target_point[MAX_DIM] = {};
 
       for (int i = 0; i < dim; ++i) {
         target_point[i] = target_coordinates[league_rank * dim + i];
       }
 
-      // logger.logArray(team, LogLevel::DEBUG, target_point, dim,
-      //                 "Target points");
+      //       logger.logArray(team, LogLevel::DEBUG, target_point, dim,
+      //                       "Target points");
 
       /** phi(nsupports) is the array of rbf functions evaluated at the
        * source supports In the actual implementation, Phi(nsupports,
@@ -565,9 +570,9 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
 
       team.team_barrier();
 
-      // logger.log(team, LogLevel::DEBUG, "The search  starts");
-      // logger.logVector(team, LogLevel::DEBUG, support_values, "Support
-      // values");
+      //      logger.log(team, LogLevel::DEBUG, "The search  starts");
+      //      logger.logVector(team, LogLevel::DEBUG, support_values, "Support
+      //      values");
 
       /**
        * step 3: normalize local source supports and target point
@@ -598,8 +603,8 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
 
       team.team_barrier();
 
-      // logger.logMatrix(team, LogLevel::DEBUG, vandermonde_matrix,
-      //                  "vandermonde matrix");
+      //       logger.logMatrix(team, LogLevel::DEBUG, vandermonde_matrix,
+      //                        "vandermonde matrix");
 
       OMEGA_H_CHECK_PRINTF(
 
@@ -620,8 +625,8 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
 
       // printf("Target Point : %d \t\t Value: %5.6f\n", league_rank,
       // target_value);
-      // logger.logScalar(team, LogLevel::DEBUG, target_value,
-      //                  "interpolated value");
+      //       logger.logScalar(team, LogLevel::DEBUG, target_value,
+      //                        "interpolated value");
       if (team.team_rank() == 0) {
         OMEGA_H_CHECK_PRINTF(!std::isnan(target_value), "Nan at %d\n",
                              league_rank);
@@ -686,4 +691,4 @@ Omega_h::Write<Omega_h::Real> mls_interpolation(
 } // namespace detail
 } // namespace pcms
 
-#endif
+#endif // PCMS_TRANSFER_MLS_INTERPOLATION_IMPL_HPP

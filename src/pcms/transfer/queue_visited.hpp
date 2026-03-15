@@ -1,5 +1,5 @@
-#ifndef QUEUE_VISITED_HPP
-#define QUEUE_VISITED_HPP
+#ifndef PCMS_TRANSFER_QUEUE_VISITED_HPP
+#define PCMS_TRANSFER_QUEUE_VISITED_HPP
 
 #include <Omega_h_build.hpp>
 #include <Omega_h_file.hpp>
@@ -9,6 +9,9 @@
 #include <Omega_h_reduce.hpp>
 #define MAX_SIZE_QUEUE 500
 #define MAX_SIZE_TRACK 800
+
+namespace pcms
+{
 
 class Queue
 {
@@ -133,5 +136,5 @@ int Track::size()
 {
   return count;
 }
-
-#endif
+} // namespace pcms
+#endif // PCMS_TRANSFER_QUEUE_VISITED_HPP

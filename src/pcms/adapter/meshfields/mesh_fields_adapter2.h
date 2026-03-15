@@ -12,7 +12,7 @@
 #include "pcms/utility/profile.h"
 #include "pcms/field.h"
 #include "pcms/coordinate_system.h"
-#include "pcms/point_search.h"
+#include "pcms/localization/point_search.h"
 
 namespace pcms
 {

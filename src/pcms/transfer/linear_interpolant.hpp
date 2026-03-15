@@ -1,10 +1,13 @@
 
-#ifndef INTERPOLANT_HPP
-#define INTERPOLANT_HPP
+#ifndef PCMS_TRANSFER_LINEAR_INTERPOLANT_HPP
+#define PCMS_TRANSFER_LINEAR_INTERPOLANT_HPP
 
 #include <iostream>
 #include "multidimarray.hpp"
 #define MAX_DIM 10
+
+namespace pcms
+{
 
 KOKKOS_INLINE_FUNCTION
 void find_indices(const IntVecView& num_bins, const RealVecView& range,
@@ -183,5 +186,6 @@ double test_function(double* coord)
   }
   return fun_value;
 }
+} // namespace pcms
 
-#endif
+#endif // PCMS_TRANSFER_LINEAR_INTERPOLANT_HPP

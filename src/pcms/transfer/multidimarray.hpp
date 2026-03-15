@@ -1,7 +1,10 @@
-#ifndef MULTIDIMARRAY_HPP
-#define MULTIDIMARRAY_HPP
+#ifndef PCMS_TRANSFER_MULTIDIMARRAY_HPP
+#define PCMS_TRANSFER_MULTIDIMARRAY_HPP
 
 #include <Kokkos_Core.hpp>
+
+namespace pcms
+{
 
 using RealMatView = Kokkos::View<double**, Kokkos::LayoutRight>;
 using IntMatView = Kokkos::View<int**, Kokkos::LayoutRight>;
@@ -33,4 +36,5 @@ inline int calculateTotalSize(const HostIntVecView& dimensions)
   }
   return size;
 }
-#endif
+} // namespace pcms
+#endif // PCMS_TRANSFER_MULTIDIMARRAY_HPP

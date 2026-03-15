@@ -2,12 +2,15 @@
 // Created by hasanm4 on 10/10/25.
 //
 
-#ifndef PCMS_INTERPOLATION_HELPERS_H
-#define PCMS_INTERPOLATION_HELPERS_H
+#ifndef PCMS_TRANSFER_INTERPOLATION_HELPERS_H
+#define PCMS_TRANSFER_INTERPOLATION_HELPERS_H
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_array.hpp>
+
+namespace pcms
+{
 
 void copyHostScalarArrayView2HostWrite(
   pcms::Rank1View<double, pcms::HostMemorySpace> source,
@@ -16,8 +19,6 @@ void copyHostScalarArrayView2HostWrite(
 void copyHostWrite2ScalarArrayView(
   const Omega_h::HostWrite<Omega_h::Real>& source,
   pcms::Rank1View<double, pcms::HostMemorySpace> target);
-
-Omega_h::Reals getCentroids(Omega_h::Mesh& mesh);
 
 inline bool within_number_of_support_range(unsigned min_supports_found,
                                            unsigned max_supports_found,
@@ -33,5 +34,5 @@ void minmax(Omega_h::Read<Omega_h::LO> num_supports,
 void adapt_radii(unsigned min_req_supports, unsigned max_allowed_supports,
                  Omega_h::LO n_targets, Omega_h::Write<Omega_h::Real> radii2_l,
                  Omega_h::Write<Omega_h::LO> num_supports);
-
-#endif // PCMS_INTERPOLATION_HELPERS_H
+} // namespace pcms
+#endif // PCMS_TRANSFER_INTERPOLATION_HELPERS_H

@@ -50,6 +50,9 @@ option(PCMS_ENABLE_Python "Enable pcms Python api" OFF)
 option(PCMS_ENABLE_PRINT "PCMS print statements enabled" ON)
 option(PCMS_ENABLE_SPDLOG "use spdlog for logging" ON)
 
+option(PETSC_LINK_STATIC "Use pkg-config --static results for PETSc"
+       ${_pcms_link_petsc_static_default})
+
 if(PCMS_ENABLE_SPDLOG)
   find_package(spdlog REQUIRED)
 endif()
@@ -125,7 +128,17 @@ endif()
 find_package(ADIOS2 CONFIG 2.10.2 REQUIRED)
 find_package(Kokkos CONFIG 4.5 REQUIRED)
 
-find_package(meshfields REQUIRED)
+# note, building without PETSC / MESHFields likely doesn't work
+# TODO, resolve build to gate features based on petsc/meshfields support
+option(PCMS_ENABLE_MESHFIELDS "Enable MeshFields support" ON)
+option(PCMS_ENABLE_PETSC "Enable PETSc support" ON)
+
+if (PCMS_ENABLE_MESHFIELDS)
+  find_package(meshfields REQUIRED)
+  message(STATUS "Found MeshFields: ${meshfields_DIR} (found version ${meshfields_VERSION})")
+endif()
+
+find_package(PETSc REQUIRED)
 
 add_subdirectory(src)
 
