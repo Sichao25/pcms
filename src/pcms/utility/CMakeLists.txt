@@ -37,10 +37,6 @@ set_target_properties(
         utility
 )
 
-if (PCMS_ENABLE_SPDLOG)
-    target_link_libraries(pcms_utility PUBLIC spdlog::spdlog)
-endif ()
-
 ## export the library
 target_sources(pcms_utility PUBLIC
         FILE_SET utilities

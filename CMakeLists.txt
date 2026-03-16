@@ -48,14 +48,9 @@ option(PCMS_ENABLE_C "Enable pcms C api" ON)
 option(PCMS_ENABLE_Python "Enable pcms Python api" OFF)
 
 option(PCMS_ENABLE_PRINT "PCMS print statements enabled" ON)
-option(PCMS_ENABLE_SPDLOG "use spdlog for logging" ON)
 
 option(PETSC_LINK_STATIC "Use pkg-config --static results for PETSc"
        ${_pcms_link_petsc_static_default})
-
-if(PCMS_ENABLE_SPDLOG)
-  find_package(spdlog REQUIRED)
-endif()
 
 # find package before fortran enabled, so we don't require the adios2 fortran
 # interfaces this is important because adios2 build with clang/gfortran is

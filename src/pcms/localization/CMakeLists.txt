@@ -25,10 +25,6 @@ set_target_properties(
         localization
 )
 
-if (PCMS_ENABLE_SPDLOG)
-    target_link_libraries(pcms_localization PUBLIC spdlog::spdlog)
-endif ()
-
 ## export the library
 set_target_properties(pcms_localization PROPERTIES PUBLIC_HEADER "${PCMS_LOCALIZATION_HEADERS}")
 
