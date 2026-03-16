@@ -63,6 +63,11 @@ jobs:
           # Built artifacts are located in the $DEPENDENCY_DIR
           DEPENDENCY_DIR=/users/mersoj2/laces-software/build/
           DEVICE_ARCH=AMPERE80
+          # debug output, check if this directory is readable
+          ls $DEPENDENCY_DIR/${DEVICE_ARCH}
+          ls $DEPENDENCY_DIR/${DEVICE_ARCH}/redev/install/lib64/cmake/redev/
+          echo $DEPENDENCY_DIR/${DEVICE_ARCH}/redev/install/lib64/cmake/redev/
+
           cmake -S ${{github.workspace}}/pcms_${{ github.event.id }} -B $bdir \
             -DCMAKE_CXX_COMPILER=`which mpicxx` \
             -DCMAKE_C_COMPILER=`which mpicc` \
