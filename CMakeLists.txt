@@ -123,10 +123,8 @@ endif()
 find_package(ADIOS2 CONFIG 2.10.2 REQUIRED)
 find_package(Kokkos CONFIG 4.5 REQUIRED)
 
-# note, building without PETSC / MESHFields likely doesn't work
-# TODO, resolve build to gate features based on petsc/meshfields support
 option(PCMS_ENABLE_MESHFIELDS "Enable MeshFields support" ON)
-option(PCMS_ENABLE_PETSC "Enable PETSc support" ON)
+option(PCMS_ENABLE_PETSC "Enable PETSc support" OFF)
 
 if(PCMS_ENABLE_MESHFIELDS)
   find_package(meshfields REQUIRED)
