@@ -46,8 +46,6 @@ jobs:
           #module load openblas/0.3.23-wqm7iud
           module load netlib-lapack/3.11.0-b22mgwg #netlib-lapack includes blas
           module load netlib-scalapack/2.2.0-fzd4jvl
-          echo "NVCC_WRAPPER_DEFAULT_COMPILER=`which mpicxx`" >> $GITHUB_ENV
-          echo "PETSC_OPTIONS='-use_gpu_aware_mpi 0'" >> $GITHUB_ENV
           set -e
           EOF
 
@@ -59,6 +57,10 @@ jobs:
           source $workDir/envGcc13.sh
           bdir=${workDir}/build-pcms
 
+          export NVCC_WRAPPER_DEFAULT_COMPILER=`which mpicxx`
+          export PETSC_OPTIONS='-use_gpu_aware_mpi 0'
+
+          git clone https://github.com/jacobmerson/pcms_testcases.git ${workDir}/pcms_testcases
           # PCMS dependencies are built with https://github.com/LACES-LAB/software-dependencies/blob/main/build-deps-rhel9.sh
           # Built artifacts are located in the $DEPENDENCY_DIR
           DEPENDENCY_DIR=/users/mersoj2/laces-software/build/
@@ -89,7 +91,7 @@ jobs:
             -DPETSC_DIR=$DEPENDENCY_DIR/${DEVICE_ARCH}/petsc/install \
             -DPCMS_ENABLE_SPDLOG=OFF
 
-          cmake --build $bdir
+          cmake --build $bdir -j 4
           ctest --test-dir $bdir --output-on-failure
 
 
