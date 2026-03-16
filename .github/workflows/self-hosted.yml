@@ -164,6 +164,27 @@ jobs:
           cmake --build $c2bdir --target install -j 4
           echo "CATCH2_BUILD=$c2bdir" >> $GITHUB_ENV
 
+          # pcms - petsc off
+          bdir=${workDir}/build-pcms-petsc-off
+          cmake -S ${{github.workspace}}/pcms_${{ github.event.id }} -B $bdir \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=mpicc \
+            -DCMAKE_CXX_COMPILER=mpicxx \
+            -DPCMS_TIMEOUT=20 \
+            -DPCMS_ENABLE_PETSC=OFF \
+            -Dredev_DIR=$rdbdir/install/lib64/cmake/redev/ \
+            -DOmega_h_DIR=$ohbdir/install/lib64/cmake/Omega_h/ \
+            -Dperfstubs_DIR=$psbdir/install/lib/cmake/ \
+            -DADIOS2_DIR=$adiosbdir/install/lib64/cmake/adios2/ \
+            -DCatch2_DIR=$c2bdir/install/lib64/cmake/Catch2/ \
+            -DKokkos_DIR=$kkbdir/install/lib64/cmake/Kokkos/ \
+            -DKokkosKernels_DIR=$kkkbdir/install/lib64/cmake/KokkosKernels/ \
+            -Dmeshfields_DIR=$mfbdir/install/lib64/cmake/meshfields/ \
+            -DPCMS_TEST_DATA_DIR=${workDir}/pcms_testcases/ \
+            -DCMAKE_CXX_EXTENSIONS=Off
+          cmake --build $bdir
+          ctest --test-dir $bdir --output-on-failure
+
           # petsc
           git clone --branch v3.24.2 https://gitlab.com/petsc/petsc.git ${workDir}/petsc
           cd ${workDir}/petsc
