@@ -44,10 +44,11 @@ AABBox<2> triangle_bbox(const Omega_h::Matrix<2, 3>& coords)
 }
 
 template <unsigned dim>
-AABBox<dim> simplex_bbox(const Omega_h::Matrix<dim, dim + 1>& coords)
+KOKKOS_INLINE_FUNCTION AABBox<dim> simplex_bbox(
+  const Omega_h::Matrix<dim, dim + 1>& coords)
 {
-  std::array<Real, dim> max;
-  std::array<Real, dim> min;
+  Kokkos::Array<Real, dim> max;
+  Kokkos::Array<Real, dim> min;
   for (int j = 0; j < dim; ++j) {
     max[j] = coords(j, 0);
     min[j] = coords(j, 0);
@@ -59,8 +60,8 @@ AABBox<dim> simplex_bbox(const Omega_h::Matrix<dim, dim + 1>& coords)
     }
   }
 
-  std::array<Real, dim> center;
-  std::array<Real, dim> half_width;
+  Kokkos::Array<Real, dim> center;
+  Kokkos::Array<Real, dim> half_width;
 
   for (int j = 0; j < dim; ++j) {
     center[j] = (max[j] + min[j]) / 2.0;
@@ -208,8 +209,7 @@ template <int dim>
  * Check if a triangle element represented by 3 coordinates in two dimensions
  * intersects with a bounding box
  */
-[[nodiscard]]
-KOKKOS_FUNCTION bool triangle_intersects_bbox(
+[[nodiscard]] KOKKOS_FUNCTION bool triangle_intersects_bbox(
   const Omega_h::Matrix<2, 3>& coords, const AABBox<2>& bbox, Real fuzz)
 {
   // triangle and grid cell bounding box intersect
@@ -234,8 +234,7 @@ KOKKOS_FUNCTION bool triangle_intersects_bbox(
 }
 
 template <unsigned dim>
-[[nodiscard]]
-KOKKOS_FUNCTION bool simplex_intersects_bbox(
+[[nodiscard]] KOKKOS_FUNCTION bool simplex_intersects_bbox(
   const Omega_h::Matrix<dim, dim + 1>& coords, const AABBox<dim>& bbox)
 {
   return intersects(simplex_bbox<dim>(coords), bbox);
