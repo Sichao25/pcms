@@ -25,10 +25,6 @@ if(@PCMS_ENABLE_PETSC@)
     find_dependency(PETSc)
 endif()
 
-if(@PCMS_ENABLE_SPDLOG@)
-    find_dependency(spdlog CONFIG HINTS @spdlog_DIR@)
-endif()
-
 if(@PCMS_ENABLE_OMEGA_H@)
     find_dependency(Omega_h CONFIG HINTS @Omega_h_DIR@)
 endif()

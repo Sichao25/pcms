@@ -212,7 +212,6 @@ jobs:
                   -DPETSC_DIR=${{ runner.temp }}/petsc
                   -DPETSC_ARCH=ubuntu-kokkos
                   -DPCMS_TIMEOUT=10
-                  -DPCMS_ENABLE_SPDLOG=OFF
                   -DPCMS_ENABLE_Python=${{ matrix.python_api }}
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h
