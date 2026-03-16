@@ -164,6 +164,22 @@ jobs:
           cmake --build $c2bdir --target install -j 4
           echo "CATCH2_BUILD=$c2bdir" >> $GITHUB_ENV
 
+          # petsc
+          git clone --branch v3.24.2 https://gitlab.com/petsc/petsc.git ${workDir}/petsc
+          cd ${workDir}/petsc
+          ./configure \
+            PETSC_ARCH=cuda-kokkos \
+            --with-kokkos-dir=$kkbdir/install/ \
+            --with-kokkos-kernels-dir=$kkkbdir/install/ \
+            --with-cuda=1 \
+            --with-shared-libraries=0 \
+            --with-openblas-dir="${OPENBLAS_RHEL9_ROOT}"
+          make all check
+          cd $workDir
+          echo "PETSC_BUILD=${workDir}/petsc/cuda-kokkos" >> $GITHUB_ENV
+
+          git clone https://github.com/jacobmerson/pcms_testcases.git ${workDir}/pcms_testcases
+
           # pcms - petsc off
           bdir=${workDir}/build-pcms-petsc-off
           cmake -S ${{github.workspace}}/pcms_${{ github.event.id }} -B $bdir \
@@ -184,22 +200,6 @@ jobs:
             -DCMAKE_CXX_EXTENSIONS=Off
           cmake --build $bdir
           ctest --test-dir $bdir --output-on-failure
-
-          # petsc
-          git clone --branch v3.24.2 https://gitlab.com/petsc/petsc.git ${workDir}/petsc
-          cd ${workDir}/petsc
-          ./configure \
-            PETSC_ARCH=cuda-kokkos \
-            --with-kokkos-dir=$kkbdir/install/ \
-            --with-kokkos-kernels-dir=$kkkbdir/install/ \
-            --with-cuda=1 \
-            --with-shared-libraries=0 \
-            --with-openblas-dir="${OPENBLAS_RHEL9_ROOT}"
-          make all check
-          cd $workDir
-          echo "PETSC_BUILD=${workDir}/petsc/cuda-kokkos" >> $GITHUB_ENV
-
-          git clone https://github.com/jacobmerson/pcms_testcases.git ${workDir}/pcms_testcases
 
           # pcms
           export PETSC_OPTIONS="-use_gpu_aware_mpi 0"
