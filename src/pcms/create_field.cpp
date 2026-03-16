@@ -33,7 +33,7 @@ template <>
 std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
           std::unique_ptr<UniformGridField<2>>>
 CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
-                                        UniformGrid<2>& grid)
+                                        const UniformGrid<2>& grid)
 {
   constexpr unsigned dim = 2;
 

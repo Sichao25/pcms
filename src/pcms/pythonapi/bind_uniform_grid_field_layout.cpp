@@ -72,7 +72,7 @@ void bind_uniform_grid_field_layout_module(py::module& m)
   py::class_<UniformGridFieldLayout<2>, FieldLayout,
              std::shared_ptr<UniformGridFieldLayout<2>>>(
     m, "UniformGridFieldLayout2D")
-    .def(py::init<UniformGrid<2>&, int, CoordinateSystem>(), py::arg("grid"),
+    .def(py::init<UniformGrid<2>, int, CoordinateSystem>(), py::arg("grid"),
          py::arg("num_components"), py::arg("coordinate_system"),
          "Constructor for UniformGridFieldLayout2D")
 
@@ -157,7 +157,7 @@ void bind_uniform_grid_field_layout_module(py::module& m)
   py::class_<UniformGridFieldLayout<3>, FieldLayout,
              std::shared_ptr<UniformGridFieldLayout<3>>>(
     m, "UniformGridFieldLayout3D")
-    .def(py::init<UniformGrid<3>&, int, CoordinateSystem>(), py::arg("grid"),
+    .def(py::init<UniformGrid<3>, int, CoordinateSystem>(), py::arg("grid"),
          py::arg("num_components"), py::arg("coordinate_system"),
          "Constructor for UniformGridFieldLayout3D")
 

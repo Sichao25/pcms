@@ -83,7 +83,7 @@ template <unsigned dim = 2>
 std::pair<std::unique_ptr<UniformGridFieldLayout<dim>>,
           std::unique_ptr<UniformGridField<dim>>>
 CreateUniformGridBinaryFieldFromGrid(Omega_h::Mesh& mesh,
-                                     UniformGrid<dim>& grid);
+                                     const UniformGrid<dim>& grid);
 
 } // namespace pcms
 

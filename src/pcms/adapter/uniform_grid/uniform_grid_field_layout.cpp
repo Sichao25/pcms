@@ -8,9 +8,9 @@ namespace pcms
 
 template <unsigned Dim>
 UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
-  UniformGrid<Dim>& grid, int num_components,
+  UniformGrid<Dim> grid, int num_components,
   CoordinateSystem coordinate_system)
-  : grid_(grid),
+  : grid_(std::move(grid)),
     num_components_(num_components),
     coordinate_system_(coordinate_system),
     gids_("gids", GetNumVertices()),
@@ -116,7 +116,7 @@ bool UniformGridFieldLayout<Dim>::IsDistributed()
 }
 
 template <unsigned Dim>
-UniformGrid<Dim>& UniformGridFieldLayout<Dim>::GetGrid() const
+const UniformGrid<Dim>& UniformGridFieldLayout<Dim>::GetGrid() const
 {
   return grid_;
 }

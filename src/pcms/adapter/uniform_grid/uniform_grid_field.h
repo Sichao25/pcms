@@ -46,7 +46,7 @@ public:
 
 private:
   const UniformGridFieldLayout<Dim>& layout_;
-  UniformGrid<Dim>& grid_;
+  const UniformGrid<Dim>& grid_;
   Kokkos::View<Real*, HostMemorySpace> dof_holder_data_;
 };
 

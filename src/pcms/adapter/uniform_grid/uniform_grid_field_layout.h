@@ -15,7 +15,7 @@ template <unsigned Dim = 2>
 class UniformGridFieldLayout : public FieldLayout
 {
 public:
-  UniformGridFieldLayout(UniformGrid<Dim>& grid, int num_components,
+  UniformGridFieldLayout(UniformGrid<Dim> grid, int num_components,
                          CoordinateSystem coordinate_system);
 
   std::unique_ptr<FieldT<Real>> CreateFieldReal() const override;
@@ -35,12 +35,12 @@ public:
   ReversePartitionMap2 GetReversePartitionMap(
     const redev::Partition& partition) const override;
 
-  UniformGrid<Dim>& GetGrid() const;
+  const UniformGrid<Dim>& GetGrid() const;
   LO GetNumCells() const;
   LO GetNumVertices() const;
 
 private:
-  UniformGrid<Dim>& grid_;
+  UniformGrid<Dim> grid_;
   int num_components_;
   CoordinateSystem coordinate_system_;
   Kokkos::View<GO*, HostMemorySpace> gids_;
