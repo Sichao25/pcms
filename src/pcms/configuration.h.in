@@ -6,3 +6,5 @@
 #cmakedefine PCMS_ENABLE_PRINT
 #cmakedefine PCMS_ENABLE_SPDLOG
 #cmakedefine PCMS_ENABLE_Fortran
+#cmakedefine PCMS_ENABLE_MESHFIELDS
+#cmakedefine PCMS_ENABLE_PETSC

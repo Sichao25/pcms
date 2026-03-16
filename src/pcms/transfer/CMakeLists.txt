@@ -13,27 +13,33 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     interpolation_base.h
     interpolation_helpers.h
     spline_interpolator.hpp
-    calculate_load_vector.hpp
-    calculate_mass_matrix.hpp
-    conservative_projection_solver.hpp
-    coo_assembly_utils.hpp
     load_vector_integrator.hpp
     mass_matrix_integrator.hpp
     mesh_intersection.hpp
-    petsc_utils.hpp)
+)
 
 
 set(PCMS_FIELD_TRANSFER_SOURCES
     adj_search.cpp
-    calculate_load_vector.cpp
-    calculate_mass_matrix.cpp
-    conservative_projection_solver.cpp
-    petsc_utils.cpp
-    coo_assembly_utils.cpp
     load_vector_integrator.cpp
     mesh_intersection.cpp
     mls_interpolation.cpp
     interpolation_base.cpp)
+
+if(PCMS_ENABLE_PETSC)
+  list(APPEND PCMS_FIELD_TRANSFER_HEADERS
+      calculate_load_vector.hpp
+      calculate_mass_matrix.hpp
+      conservative_projection_solver.hpp
+      coo_assembly_utils.hpp
+      petsc_utils.hpp)
+  list(APPEND PCMS_FIELD_TRANSFER_SOURCES
+      calculate_load_vector.cpp
+      calculate_mass_matrix.cpp
+      conservative_projection_solver.cpp
+      petsc_utils.cpp
+      coo_assembly_utils.cpp)
+endif()
 
 add_library(pcms_transfer ${PCMS_FIELD_TRANSFER_SOURCES})
 set_target_properties(pcms_transfer PROPERTIES
@@ -54,7 +60,9 @@ target_link_libraries(pcms_transfer PUBLIC
 
 target_link_libraries(pcms_transfer PUBLIC meshfields::meshfields)
 
-target_link_libraries(pcms_transfer PRIVATE PETSc::PETSc)
+if(PCMS_ENABLE_PETSC)
+  target_link_libraries(pcms_transfer PRIVATE PETSc::PETSc)
+endif()
 
 target_compile_definitions(pcms_transfer PUBLIC R3D_USE_KOKKOS)
 
