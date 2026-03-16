@@ -133,12 +133,14 @@ find_package(Kokkos CONFIG 4.5 REQUIRED)
 option(PCMS_ENABLE_MESHFIELDS "Enable MeshFields support" ON)
 option(PCMS_ENABLE_PETSC "Enable PETSc support" ON)
 
-if (PCMS_ENABLE_MESHFIELDS)
+if(PCMS_ENABLE_MESHFIELDS)
   find_package(meshfields REQUIRED)
   message(STATUS "Found MeshFields: ${meshfields_DIR} (found version ${meshfields_VERSION})")
 endif()
 
-find_package(PETSc REQUIRED)
+if(PCMS_ENABLE_PETSC)
+  find_package(PETSc REQUIRED)
+endif()
 
 add_subdirectory(src)
 

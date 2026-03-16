@@ -401,15 +401,19 @@ if(Catch2_FOUND)
       test_omega_h_field2_outofbounds.cpp)
   endif()
 
-  if (PCMS_ENABLE_MESHFIELDS)
+  if(PCMS_ENABLE_MESHFIELDS)
     list(APPEND PCMS_UNIT_TEST_SOURCES
-	    test_load_vector.cpp
-	    test_mesh_intersection_field_transfer.cpp)
+      test_load_vector.cpp)
+  endif()
+
+  if(PCMS_ENABLE_PETSC)
+    list(APPEND PCMS_UNIT_TEST_SOURCES
+      test_mesh_intersection_field_transfer.cpp)
   endif()
   
   add_executable(unit_tests ${PCMS_UNIT_TEST_SOURCES})
   
-  if (PCMS_ENABLE_MESHFIELDS)
+  if(PCMS_ENABLE_MESHFIELDS)
     target_link_libraries(unit_tests PUBLIC meshfields::meshfields)
   endif()
 
@@ -417,7 +421,9 @@ if(Catch2_FOUND)
           pcms::transfer Kokkos::kokkoskernels)
   target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-  target_link_libraries(unit_tests PRIVATE PETSc::PETSc)
+  if(PCMS_ENABLE_PETSC)
+    target_link_libraries(unit_tests PRIVATE PETSc::PETSc)
+  endif()
 
   target_link_libraries(unit_tests PUBLIC 
     Catch2::Catch2 
