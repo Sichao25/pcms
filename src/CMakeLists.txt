@@ -17,6 +17,7 @@ set(
   pcms/coordinate_system.h
   pcms/field_layout.h
   pcms/field_layout_communicator.h
+  pcms/nodal_field_factory.h
 )
 
 set(
@@ -25,6 +26,7 @@ set(
   pcms/create_field.cpp
   pcms/coupler2.cpp
   pcms/field_layout_communicator.cpp
+  pcms/nodal_field_factory.cpp
   pcms/adapter/point_cloud/point_cloud_layout.cpp
   pcms/adapter/point_cloud/point_cloud.cpp
   pcms/adapter/meshfields/mesh_fields_adapter_layout.cpp
@@ -54,12 +56,14 @@ if(PCMS_ENABLE_XGC)
 endif()
 if(PCMS_ENABLE_OMEGA_H)
   list(APPEND PCMS_SOURCES
+    pcms/lagrange_field_factory.cpp
     pcms/adapter/uniform_grid/uniform_grid_field_layout.cpp
     pcms/adapter/uniform_grid/uniform_grid_field.cpp
   )
   list(
     APPEND
     PCMS_HEADERS
+    pcms/lagrange_field_factory.h
     pcms/transfer_field.h
     pcms/transfer_field2.h
   )
