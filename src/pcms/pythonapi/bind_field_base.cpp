@@ -1,9 +1,10 @@
+#include <create_field.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include "pcms/coordinate_system.h"
 #include "pcms/coordinate.h"
-#include "pcms/create_field.h"
+#include "pcms/lagrange_field_factory.h"
 #include "pcms/utility/uniform_grid.h"
 #include "numpy_array_transform.h"
 
@@ -131,17 +132,60 @@ void bind_coordinate_module(py::module& m)
 
 void bind_create_field_module(py::module& m)
 {
-  // Bind CreateLagrangeLayout function with shared_ptr wrapper
-  // pybind11 handles shared_ptr better than unique_ptr for Python ownership
-  m.def(
-    "create_lagrange_layout",
-    [](Omega_h::Mesh& mesh, int order, int num_components,
-       CoordinateSystem coordinate_system) {
-      return std::shared_ptr<FieldLayout>(
-        CreateLagrangeLayout(mesh, order, num_components, coordinate_system));
-    },
-    py::arg("mesh"), py::arg("order"), py::arg("num_components") = 1,
-    py::arg("coordinate_system") = CoordinateSystem::Cartesian);
+  // Bind LagrangeFieldFactory
+  py::class_<LagrangeFieldFactory>(m, "LagrangeFieldFactory")
+    .def_static(
+      "from_mesh",
+      [](Omega_h::Mesh& mesh, int order, int num_components,
+         CoordinateSystem coordinate_system) {
+        return LagrangeFieldFactory::FromMesh(mesh, order, num_components,
+                                             coordinate_system);
+      },
+      py::arg("mesh"), py::arg("order"), py::arg("num_components") = 1,
+      py::arg("coordinate_system") = CoordinateSystem::Cartesian,
+      "Create a LagrangeFieldFactory from an Omega_h mesh")
+
+    .def_static(
+      "from_uniform_grid",
+      [](const UniformGrid<2>& grid, int num_components, CoordinateSystem cs) {
+        auto el = grid.edge_length;
+        auto bl = grid.bot_left;
+        auto div = grid.divisions;
+        Rank1View<Real, HostMemorySpace> el_view(el.data(), 2);
+        Rank1View<Real, HostMemorySpace> bl_view(bl.data(), 2);
+        Rank1View<LO, HostMemorySpace> div_view(div.data(), 2);
+        return LagrangeFieldFactory::FromUniformGrid(el_view, bl_view, div_view,
+                                                     num_components, cs);
+      },
+      py::arg("grid"), py::arg("num_components") = 1,
+      py::arg("coordinate_system") = CoordinateSystem::Cartesian,
+      "Create a LagrangeFieldFactory from a 2D uniform grid")
+
+    .def_static(
+      "from_uniform_grid",
+      [](const UniformGrid<3>& grid, int num_components, CoordinateSystem cs) {
+        auto el = grid.edge_length;
+        auto bl = grid.bot_left;
+        auto div = grid.divisions;
+        Rank1View<Real, HostMemorySpace> el_view(el.data(), 3);
+        Rank1View<Real, HostMemorySpace> bl_view(bl.data(), 3);
+        Rank1View<LO, HostMemorySpace> div_view(div.data(), 3);
+        return LagrangeFieldFactory::FromUniformGrid(el_view, bl_view, div_view,
+                                                     num_components, cs);
+      },
+      py::arg("grid"), py::arg("num_components") = 1,
+      py::arg("coordinate_system") = CoordinateSystem::Cartesian,
+      "Create a LagrangeFieldFactory from a 3D uniform grid")
+
+    .def("get_layout", &LagrangeFieldFactory::GetLayout,
+         "Get the field layout (shared_ptr)")
+
+    .def(
+      "create_field_real",
+      [](const LagrangeFieldFactory& self) {
+        return std::shared_ptr<FieldT<Real>>(self.CreateFieldReal());
+      },
+      "Create a real-valued field");
 
   // Bind CreateUniformGridFromMesh for 2D
   m.def(

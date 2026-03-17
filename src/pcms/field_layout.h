@@ -29,8 +29,6 @@ class FieldT;
 class FieldLayout
 {
 public:
-  virtual std::unique_ptr<FieldT<Real>> CreateFieldReal() const = 0;
-
   // number of components
   int virtual GetNumComponents() const = 0;
 

@@ -20,15 +20,13 @@ def test_copy(world, dim, order, num_components):
     print(f"  Mesh type: {type(mesh)}")
     print(f"  Mesh object: {mesh}")
 
-    # Create layout
-    print("  About to create layout...")
-    layout = pcms.create_lagrange_layout(
-        mesh, 
-        order, 
-        num_components,
-        pcms.CoordinateSystem.Cartesian
+    # Create factory and layout
+    print("  About to create factory...")
+    factory = pcms.LagrangeFieldFactory.from_mesh(
+        mesh, order, num_components, pcms.CoordinateSystem.Cartesian
     )
-    print(f"  Layout created successfully")
+    layout = factory.get_layout()
+    print(f"  Factory and layout created successfully")
     print(f"Testing dim={dim}, order={order}, num_components={num_components}...")
 
     # Get number of data points
@@ -40,13 +38,13 @@ def test_copy(world, dim, order, num_components):
     print(f"  Created array of IDs from 0 to {ndata-1}")
 
     # Create original field and set data
-    original = layout.create_field()
+    original = factory.create_field_real()
     print("  Created original field")
     original.set_dof_holder_data(ids)
     print("  Set data in original field")
 
     # Create copied field and copy data
-    copied = layout.create_field()
+    copied = factory.create_field_real()
     pcms.copy_field(original, copied)
     print("  Copied data to new field")
 

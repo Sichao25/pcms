@@ -7,6 +7,7 @@
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 
+#include <functional>
 #include <memory>
 
 namespace pcms
@@ -24,9 +25,11 @@ public:
 
 private:
   explicit NodalFieldFactory(
-    std::shared_ptr<const FieldLayout> layout) noexcept;
+    std::shared_ptr<const FieldLayout> layout,
+    std::function<std::unique_ptr<FieldT<Real>>()> create_fn) noexcept;
 
   std::shared_ptr<const FieldLayout> layout_;
+  std::function<std::unique_ptr<FieldT<Real>>()> create_fn_;
 };
 
 } // namespace pcms

@@ -9,6 +9,7 @@
 #include "pcms/transfer_field2.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
+#include "pcms/lagrange_field_factory.h"
 #include "pcms/create_field.h"
 #include "pcms/utility/arrays.h"
 #include <cmath>
@@ -87,7 +88,7 @@ TEST_CASE("UniformGrid field creation")
   REQUIRE_FALSE(layout.IsDistributed());
 
   // Create field
-  auto field = layout.CreateFieldReal();
+  auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
   REQUIRE(field != nullptr);
 }
 
@@ -100,7 +101,7 @@ TEST_CASE("UniformGrid field data operations", "[uniform_grid_field]")
 
   pcms::UniformGridFieldLayout<2> layout(grid, 1,
                                          pcms::CoordinateSystem::Cartesian);
-  auto field = layout.CreateFieldReal();
+  auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Initialize field data with vertex indices (5x5 = 25 vertices for 4x4 cells)
   std::vector<pcms::Real> data(25);
@@ -130,7 +131,7 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
 
   pcms::UniformGridFieldLayout<2> layout(grid, 1,
                                          pcms::CoordinateSystem::Cartesian);
-  auto field = layout.CreateFieldReal();
+  auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Set vertex values for a 2x2 cell grid (3x3 = 9 vertices)
   // Vertex layout:
@@ -192,7 +193,7 @@ TEST_CASE("UniformGrid field serialization")
 
   pcms::UniformGridFieldLayout<2> layout(grid, 1,
                                          pcms::CoordinateSystem::Cartesian);
-  auto field = layout.CreateFieldReal();
+  auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Set field data (4x4 = 16 vertices for 3x3 cells)
   std::vector<pcms::Real> data(16);
@@ -227,7 +228,7 @@ TEST_CASE("UniformGrid field serialization")
   }
 
   // Create new field and deserialize
-  auto field2 = layout.CreateFieldReal();
+  auto field2 = std::make_unique<pcms::UniformGridField<2>>(layout);
   auto buffer_const_view =
     pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(buffer.data(), 16);
   field2->Deserialize(buffer_const_view, perm_view);
@@ -248,7 +249,7 @@ TEST_CASE("UniformGrid field copy")
 
   pcms::UniformGridFieldLayout<2> layout(grid, 1,
                                          pcms::CoordinateSystem::Cartesian);
-  auto field = layout.CreateFieldReal();
+  auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Set vertex values with f(x,y) = x + y at 3x3 vertex positions
   // Vertices at: (0,0), (5,0), (10,0), (0,5), (5,5), (10,5), (0,10), (5,10),
@@ -292,7 +293,7 @@ TEST_CASE("UniformGrid field copy")
   REQUIRE(std::abs(results[3] - 15.0) < 1e-10);
 
   // Test 2: test copy_field2
-  auto field2 = layout.CreateFieldReal();
+  auto field2 = std::make_unique<pcms::UniformGridField<2>>(layout);
   pcms::copy_field2(*field, *field2);
 
   auto copied_data = field2->GetDOFHolderData();
@@ -311,9 +312,10 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
                                  2, 0, false);
 
   // Create OmegaH field layout with linear elements
-  auto omega_h_layout =
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_field = omega_h_layout->CreateFieldReal();
+  auto omega_h_factory =
+    pcms::LagrangeFieldFactory::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto omega_h_layout = omega_h_factory.GetLayout();
+  auto omega_h_field = omega_h_factory.CreateFieldReal();
 
   // Initialize omega_h field with a simple function f(x,y) = x + 2*y
   auto coords = omega_h_layout->GetDOFHolderCoordinates();
@@ -334,7 +336,7 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
 
   pcms::UniformGridFieldLayout<2> ug_layout(grid, 1,
                                             pcms::CoordinateSystem::Cartesian);
-  auto ug_field = ug_layout.CreateFieldReal();
+  auto ug_field = std::make_unique<pcms::UniformGridField<2>>(ug_layout);
 
   // Transfer from omega_h field to uniform grid field using interpolation
   auto coords_interpolation = ug_layout.GetDOFHolderCoordinates();
@@ -713,9 +715,10 @@ TEST_CASE("UniformGrid workflow")
     pcms::CreateUniformGridBinaryField<2>(mesh, {4, 4});
 
   // Create OmegaH field layout with linear elements
-  auto omega_h_layout =
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_field = omega_h_layout->CreateFieldReal();
+  auto omega_h_factory =
+    pcms::LagrangeFieldFactory::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto omega_h_layout = omega_h_factory.GetLayout();
+  auto omega_h_field = omega_h_factory.CreateFieldReal();
 
   // Initialize omega_h field with a simple function f(x,y) = x + 2*y
   auto coords = omega_h_layout->GetDOFHolderCoordinates();
@@ -731,7 +734,7 @@ TEST_CASE("UniformGrid workflow")
   // Create uniform grid field layout
   pcms::UniformGridFieldLayout<2> ug_layout(grid, 1,
                                             pcms::CoordinateSystem::Cartesian);
-  auto ug_field = ug_layout.CreateFieldReal();
+  auto ug_field = std::make_unique<pcms::UniformGridField<2>>(ug_layout);
 
   // Transfer from omega_h field to uniform grid field using interpolation
   pcms::interpolate_field2(*omega_h_field, *ug_field);

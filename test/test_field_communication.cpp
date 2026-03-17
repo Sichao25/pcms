@@ -10,7 +10,7 @@
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/field_communicator2.h"
 #include "pcms/field_communicator.h"
-#include "pcms/create_field.h"
+#include "pcms/lagrange_field_factory.h"
 #include "test_support.h"
 
 namespace ts = test_support;
@@ -66,8 +66,9 @@ void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto channel =
     rdv.CreateAdiosChannel("field2_chan1", params, redev::TransportType::BP4);
 
-  auto layout = pcms::CreateLagrangeLayout(mesh, order, 1,
-                                           pcms::CoordinateSystem::Cartesian);
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, order, 1, pcms::CoordinateSystem::Cartesian);
+  auto layout = factory.GetLayout();
   auto gids = layout->GetGids();
   const auto n = layout->GetNumOwnedDofHolder();
   Omega_h::HostWrite<Real> ids(n);
@@ -76,7 +77,7 @@ void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
     "id gid", Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
     [=](int i) { ids[i] = gids[i]; });
 
-  auto field = layout->CreateFieldReal();
+  auto field = factory.CreateFieldReal();
   field->SetDOFHolderData(pcms::make_const_array_view(ids));
 
   pcms::FieldLayoutCommunicator layout_comm(comm_name + "1", comm, rdv, channel,
@@ -95,12 +96,13 @@ void client2(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto channel =
     rdv.CreateAdiosChannel("field2_chan2", params, redev::TransportType::BP4);
 
-  auto layout = pcms::CreateLagrangeLayout(mesh, order, 1,
-                                           pcms::CoordinateSystem::Cartesian);
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, order, 1, pcms::CoordinateSystem::Cartesian);
+  auto layout = factory.GetLayout();
   auto gids = layout->GetGids();
   const auto n = layout->GetNumOwnedDofHolder();
 
-  auto field = layout->CreateFieldReal();
+  auto field = factory.CreateFieldReal();
   pcms::FieldLayoutCommunicator layout_comm(comm_name + "2", comm, rdv, channel,
                                             *layout);
   pcms::FieldCommunicator2<pcms::Real> field_comm(layout_comm, *field);
@@ -153,15 +155,16 @@ void server(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto channel2 =
     rdv.CreateAdiosChannel("field2_chan2", params, redev::TransportType::BP4);
 
-  auto layout = pcms::CreateLagrangeLayout(mesh, order, 1,
-                                           pcms::CoordinateSystem::Cartesian);
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, order, 1, pcms::CoordinateSystem::Cartesian);
+  auto layout = factory.GetLayout();
   const auto n = layout->GetNumOwnedDofHolder();
   Omega_h::HostWrite<Real> ids(n);
   Kokkos::parallel_for(
     "id 0", Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
     [=](int i) { ids[i] = 0; });
 
-  auto field = layout->CreateFieldReal();
+  auto field = factory.CreateFieldReal();
   pcms::FieldLayoutCommunicator layout_comm1(comm_name + "1", comm, rdv,
                                              channel1, *layout);
   pcms::FieldLayoutCommunicator layout_comm2(comm_name + "2", comm, rdv,

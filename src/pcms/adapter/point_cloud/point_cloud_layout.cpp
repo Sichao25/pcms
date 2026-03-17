@@ -1,5 +1,4 @@
 #include "point_cloud_layout.h"
-#include "point_cloud.h"
 #include <memory>
 #include <Kokkos_StdAlgorithms.hpp>
 
@@ -21,11 +20,6 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
   namespace KE = Kokkos::Experimental;
   KE::fill(Kokkos::DefaultExecutionSpace(), owned_, true);
   iota_view(gids_);
-}
-
-std::unique_ptr<FieldT<Real>> PointCloudLayout::CreateFieldReal() const
-{
-  return std::make_unique<PointCloud>(*this);
 }
 
 int PointCloudLayout::GetNumComponents() const

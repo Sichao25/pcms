@@ -3,9 +3,7 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include "pcms/adapter/meshfields/mesh_fields_adapter.h"
-#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
-#include "pcms/create_field.h"
+#include "pcms/lagrange_field_factory.h"
 #include <Kokkos_Core.hpp>
 #include <vector>
 
@@ -17,8 +15,8 @@ TEST_CASE("evaluate linear 2d omega_h_field")
   auto world = lib.world();
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
-  auto layout =
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   const auto nverts = mesh.nents(0);
   auto mesh_coords = mesh.coords();
   auto f = KOKKOS_LAMBDA(Real x, Real y)
@@ -33,7 +31,7 @@ TEST_CASE("evaluate linear 2d omega_h_field")
       test_f[i] = f(x, y);
     });
   Omega_h::HostWrite<Real> test_f_host(test_f);
-  auto field = layout->CreateFieldReal();
+  auto field = factory.CreateFieldReal();
   field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
 
   std::vector<Real> coords = {
@@ -74,8 +72,8 @@ TEST_CASE("evaluate quadratic 2d omega_h_field")
   auto world = lib.world();
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
-  auto layout =
-    pcms::CreateLagrangeLayout(mesh, 2, 1, pcms::CoordinateSystem::Cartesian);
+  auto factory2 = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 2, 1, pcms::CoordinateSystem::Cartesian);
   const auto nverts = mesh.nents(0);
   const auto nedges = mesh.nents(1);
   auto mesh_coords = mesh.coords();
@@ -104,7 +102,7 @@ TEST_CASE("evaluate quadratic 2d omega_h_field")
     });
 
   Omega_h::HostWrite<Real> test_f_host(test_f);
-  auto field = layout->CreateFieldReal();
+  auto field = factory2.CreateFieldReal();
   field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
 
   std::vector<Real> coords = {

@@ -23,13 +23,11 @@ def test_layout_methods(world, dim, order, num_components):
         False
     )
 
-    # Create layout
-    layout = pcms.create_lagrange_layout(
-        mesh, 
-        order, 
-        num_components,
-        pcms.CoordinateSystem.Cartesian
+    # Create factory and layout
+    factory = pcms.LagrangeFieldFactory.from_mesh(
+        mesh, order, num_components, pcms.CoordinateSystem.Cartesian
     )
+    layout = factory.get_layout()
 
     # Test layout methods
     num_comp = layout.get_num_components()
@@ -86,8 +84,8 @@ def test_layout_methods(world, dim, order, num_components):
     assert owned_size == num_owned * num_components
     assert global_size == num_global * num_components
 
-    # Create a field from the layout
-    field = layout.create_field()
+    # Create a field from the factory
+    field = factory.create_field_real()
     print(f"  Created field: {type(field)}")
 
     # Test setting and getting data
@@ -124,16 +122,14 @@ def test_field_evaluation(world, dim, order, num_components):
         False
     )
 
-    # Create layout
-    layout = pcms.create_lagrange_layout(
-        mesh, 
-        order, 
-        num_components,
-        pcms.CoordinateSystem.Cartesian
+    # Create factory and field
+    factory = pcms.LagrangeFieldFactory.from_mesh(
+        mesh, order, num_components, pcms.CoordinateSystem.Cartesian
     )
+    layout = factory.get_layout()
 
     # Create field
-    field = layout.create_field()
+    field = factory.create_field_real()
 
     # Set up test data - use a simple function: f(x,y,z) = sin(x*y) for component 0, etc.
     print(f"  Setting up field data...")

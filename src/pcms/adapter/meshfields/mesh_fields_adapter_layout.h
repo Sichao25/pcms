@@ -20,8 +20,6 @@ public:
                           CoordinateSystem coordinate_system,
                           std::string global_id_name = "global");
 
-  std::unique_ptr<FieldT<Real>> CreateFieldReal() const override;
-
   int GetNumComponents() const override;
   // nodes for standard lagrange FEM
   LO GetNumOwnedDofHolder() const override;

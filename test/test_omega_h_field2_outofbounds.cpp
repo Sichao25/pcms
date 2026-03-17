@@ -3,8 +3,7 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
-#include "pcms/create_field.h"
+#include "pcms/lagrange_field_factory.h"
 #include <Kokkos_Core.hpp>
 #include <vector>
 
@@ -17,8 +16,9 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
   // Create a 1x1 box mesh (coords from 0 to 1)
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 10, 10, 0, false);
-  auto layout =
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto layout = factory.GetLayout();
   const auto nverts = mesh.nents(0);
   auto mesh_coords = mesh.coords();
 
@@ -35,7 +35,7 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
       test_f[i] = f(x, y);
     });
   Omega_h::HostWrite<Real> test_f_host(test_f);
-  auto field = layout->CreateFieldReal();
+  auto field = factory.CreateFieldReal();
   field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
 
   // Set FILL mode with fill value of -999.0

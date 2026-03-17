@@ -6,7 +6,7 @@
 #include <pcms/transfer_field2.h>
 #include "pcms/adapter/meshfields/mesh_fields_adapter.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
-#include "pcms/create_field.h"
+#include "pcms/lagrange_field_factory.h"
 #include <Kokkos_Core.hpp>
 
 using pcms::Real;
@@ -19,18 +19,21 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
 
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 1, nx, ny, nz, false);
-  auto layout = pcms::CreateLagrangeLayout(mesh, order, num_components,
-                                           pcms::CoordinateSystem::Cartesian);
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, order, num_components, pcms::CoordinateSystem::Cartesian);
+  // FIXME this indicates that we are not exposing the right API from the fields to be able
+  // to allocate buffers for getting/setting the field data.
+  auto layout = factory.GetLayout();
   int ndata = layout->GetNumOwnedDofHolder() * num_components;
   Omega_h::HostWrite<Real> ids(ndata);
   Kokkos::parallel_for(
     Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, ndata),
     [=](int i) { ids[i] = i; });
 
-  auto original = layout->CreateFieldReal();
+  auto original = factory.CreateFieldReal();
   original->SetDOFHolderData(pcms::make_const_array_view(ids));
 
-  auto copied = layout->CreateFieldReal();
+  auto copied = factory.CreateFieldReal();
   pcms::copy_field2(*original, *copied);
   auto copied_array = copied->GetDOFHolderData();
 

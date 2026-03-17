@@ -1,5 +1,4 @@
 #include "mesh_fields_adapter.h"
-#include "mesh_fields_adapter2.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "mesh_fields_adapter_layout.h"
 #include "pcms/utility/inclusive_scan.h"
@@ -196,11 +195,6 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
     }
   }
   gids_host_ = Omega_h::HostWrite<Omega_h::GO>(gids_);
-}
-
-std::unique_ptr<FieldT<Real>> MeshFieldsAdapterLayout::CreateFieldReal() const
-{
-  return std::make_unique<MeshFieldsAdapter2<Real>>(*this);
 }
 
 int MeshFieldsAdapterLayout::GetNumComponents() const

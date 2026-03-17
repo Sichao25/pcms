@@ -1,6 +1,8 @@
 #include "pcms/lagrange_field_factory.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
+#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
+#include "pcms/adapter/uniform_grid/uniform_grid_field.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/uniform_grid.h"
 
@@ -10,8 +12,9 @@ namespace pcms
 {
 
 LagrangeFieldFactory::LagrangeFieldFactory(
-  std::shared_ptr<const FieldLayout> layout) noexcept
-  : layout_(std::move(layout))
+  std::shared_ptr<const FieldLayout> layout,
+  std::function<std::unique_ptr<FieldT<Real>>()> create_fn) noexcept
+  : layout_(std::move(layout)), create_fn_(std::move(create_fn))
 {
 }
 
@@ -25,9 +28,14 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
     case 2: nodes_per_dim = {1, 1, 0, 0}; break;
     default: throw std::runtime_error("Unimplemented Lagrange order");
   }
-  return LagrangeFieldFactory(std::make_shared<MeshFieldsAdapterLayout>(
+  auto mesh_layout = std::make_shared<MeshFieldsAdapterLayout>(
     mesh, nodes_per_dim, num_components, coordinate_system,
-    std::move(global_id_name)));
+    std::move(global_id_name));
+  return LagrangeFieldFactory(
+    mesh_layout,
+    [mesh_layout]() {
+      return std::make_unique<MeshFieldsAdapter2<Real>>(*mesh_layout);
+    });
 }
 
 namespace
@@ -65,14 +73,26 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
       "edge_length, bot_left, and divisions must have the same size");
   }
   switch (edge_length.size()) {
-  case 2:
-    return LagrangeFieldFactory(std::make_shared<UniformGridFieldLayout<2>>(
+  case 2: {
+    auto ug_layout = std::make_shared<UniformGridFieldLayout<2>>(
       MakeUniformGrid<2>(edge_length, bot_left, divisions), num_components,
-      coordinate_system));
-  case 3:
-    return LagrangeFieldFactory(std::make_shared<UniformGridFieldLayout<3>>(
+      coordinate_system);
+    return LagrangeFieldFactory(
+      ug_layout,
+      [ug_layout]() {
+        return std::make_unique<UniformGridField<2>>(*ug_layout);
+      });
+  }
+  case 3: {
+    auto ug_layout = std::make_shared<UniformGridFieldLayout<3>>(
       MakeUniformGrid<3>(edge_length, bot_left, divisions), num_components,
-      coordinate_system));
+      coordinate_system);
+    return LagrangeFieldFactory(
+      ug_layout,
+      [ug_layout]() {
+        return std::make_unique<UniformGridField<3>>(*ug_layout);
+      });
+  }
   default:
     throw std::invalid_argument(
       "LagrangeFieldFactory::FromUniformGrid: only dim 2 and 3 are supported");
@@ -87,7 +107,7 @@ LagrangeFieldFactory::GetLayout() const noexcept
 
 std::unique_ptr<FieldT<Real>> LagrangeFieldFactory::CreateFieldReal() const
 {
-  return layout_->CreateFieldReal();
+  return create_fn_();
 }
 
 } // namespace pcms

@@ -23,13 +23,6 @@ void bind_omega_h_field_layout_module(py::module& m)
          py::arg("coordinate_system"), py::arg("global_id_name") = "global",
          "Constructor for MeshFieldsAdapterLayout")
 
-    .def(
-      "create_field",
-      [](MeshFieldsAdapterLayout& self) {
-        return std::shared_ptr<FieldT<Real>>(self.CreateFieldReal());
-      },
-      "Create a field with this layout")
-
     .def("get_num_components", &MeshFieldsAdapterLayout::GetNumComponents,
          "Get the number of components in the field")
 

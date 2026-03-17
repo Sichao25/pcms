@@ -34,7 +34,7 @@ public:
   }
 
   const FieldLayout& AddLayout(std::string name,
-                               std::unique_ptr<FieldLayout> layout);
+                               std::shared_ptr<const FieldLayout> layout);
 
   // FIXME should take a file path for the parameters, not take adios2 params.
   // These fields are supposed to be agnostic to adios2...
@@ -111,7 +111,7 @@ private:
   MPI_Comm mpi_comm_;
   redev::Redev& redev_;
   redev::Channel channel_;
-  std::vector<std::unique_ptr<FieldLayout>> layouts_;
+  std::vector<std::shared_ptr<const FieldLayout>> layouts_;
   std::vector<OwnedFieldPtr> fields_;
   // map is used rather than unordered_map because we give pointers to the
   // internal data and rehash of unordered_map can cause pointer invalidation.

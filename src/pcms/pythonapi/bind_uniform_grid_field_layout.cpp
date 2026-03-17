@@ -76,13 +76,6 @@ void bind_uniform_grid_field_layout_module(py::module& m)
          py::arg("num_components"), py::arg("coordinate_system"),
          "Constructor for UniformGridFieldLayout2D")
 
-    .def(
-      "create_field",
-      [](UniformGridFieldLayout<2>& self) {
-        return std::shared_ptr<FieldT<Real>>(self.CreateFieldReal());
-      },
-      "Create a field with this layout")
-
     .def("get_num_components", &UniformGridFieldLayout<2>::GetNumComponents,
          "Get the number of components in the field")
 
@@ -160,13 +153,6 @@ void bind_uniform_grid_field_layout_module(py::module& m)
     .def(py::init<UniformGrid<3>, int, CoordinateSystem>(), py::arg("grid"),
          py::arg("num_components"), py::arg("coordinate_system"),
          "Constructor for UniformGridFieldLayout3D")
-
-    .def(
-      "create_field",
-      [](UniformGridFieldLayout<3>& self) {
-        return std::shared_ptr<FieldT<Real>>(self.CreateFieldReal());
-      },
-      "Create a field with this layout")
 
     .def("get_num_components", &UniformGridFieldLayout<3>::GetNumComponents,
          "Get the number of components in the field")

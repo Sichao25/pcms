@@ -1,6 +1,4 @@
 #include "create_field.h"
-#include "adapter/meshfields/mesh_fields_adapter2.h"
-#include "adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "adapter/uniform_grid/uniform_grid_field.h"
 #include "adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "utility/uniform_grid.h"
@@ -11,23 +9,6 @@
 
 namespace pcms
 {
-
-std::unique_ptr<FieldLayout> CreateLagrangeLayout(
-  Omega_h::Mesh& mesh, int order, int num_components,
-  CoordinateSystem coordinate_system, std::string global_id_name)
-{
-
-  std::array<int, 4> nodes_per_dim;
-
-  switch (order) {
-    case 1: nodes_per_dim = {1, 0, 0, 0}; break;
-    case 2: nodes_per_dim = {1, 1, 0, 0}; break;
-    default: throw std::runtime_error("Unimplemented order");
-  }
-
-  return std::make_unique<MeshFieldsAdapterLayout>(
-    mesh, nodes_per_dim, num_components, coordinate_system, global_id_name);
-}
 
 template <>
 std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,

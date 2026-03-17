@@ -9,6 +9,7 @@
 #include "pcms/utility/types.h"
 #include "pcms/utility/memory_spaces.h"
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -37,9 +38,11 @@ public:
 
 private:
   explicit LagrangeFieldFactory(
-    std::shared_ptr<const FieldLayout> layout) noexcept;
+    std::shared_ptr<const FieldLayout> layout,
+    std::function<std::unique_ptr<FieldT<Real>>()> create_fn) noexcept;
 
   std::shared_ptr<const FieldLayout> layout_;
+  std::function<std::unique_ptr<FieldT<Real>>()> create_fn_;
 };
 
 } // namespace pcms

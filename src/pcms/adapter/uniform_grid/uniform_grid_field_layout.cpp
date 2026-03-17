@@ -1,5 +1,4 @@
 #include "uniform_grid_field_layout.h"
-#include "uniform_grid_field.h"
 #include "pcms/utility/profile.h"
 #include <memory>
 
@@ -60,13 +59,6 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
       }
     }
   }
-}
-
-template <unsigned Dim>
-std::unique_ptr<FieldT<Real>> UniformGridFieldLayout<Dim>::CreateFieldReal()
-  const
-{
-  return std::make_unique<UniformGridField<Dim>>(*this);
 }
 
 template <unsigned Dim>

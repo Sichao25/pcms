@@ -7,7 +7,7 @@
 #include <redev_variant_tools.h>
 #include "test_support.h"
 #include "pcms/coupler2.h"
-#include "pcms/create_field.h"
+#include "pcms/lagrange_field_factory.h"
 #include <chrono>
 #include <thread>
 
@@ -91,12 +91,12 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
   pcms::Coupler2 coupler("proxy_couple", comm, false, {});
   pcms::Application2* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
-  auto& layout = app->AddLayout(
-    "gids",
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto& layout = app->AddLayout("gids", factory.GetLayout());
 
-  auto gids_field = layout.CreateFieldReal();
-  auto gids2_field = layout.CreateFieldReal();
+  auto gids_field = factory.CreateFieldReal();
+  auto gids2_field = factory.CreateFieldReal();
 
   auto* gids_ptr = gids_field.get();
   auto* gids2_ptr = gids2_field.get();
@@ -132,11 +132,11 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
   pcms::Coupler2 coupler("proxy_couple", comm, false, {});
   pcms::Application2* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
-  auto& layout = app->AddLayout(
-    "gids",
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto& layout = app->AddLayout("gids", factory.GetLayout());
 
-  auto gids_field = layout.CreateFieldReal();
+  auto gids_field = factory.CreateFieldReal();
 
   auto* gids_ptr = gids_field.get();
 
@@ -175,17 +175,17 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
   auto* total_f = cpl.AddApplication("proxy_couple_xgc_total_f");
   auto* delta_f = cpl.AddApplication("proxy_couple_xgc_delta_f");
-  auto& layout_total = total_f->AddLayout(
-    "gids",
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
+  auto factory_total = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto& layout_total = total_f->AddLayout("gids", factory_total.GetLayout());
 
-  auto& layout_delta = delta_f->AddLayout(
-    "gids",
-    pcms::CreateLagrangeLayout(mesh, 1, 1, pcms::CoordinateSystem::Cartesian));
+  auto factory_delta = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto& layout_delta = delta_f->AddLayout("gids", factory_delta.GetLayout());
   // TODO, fields should have a transfer policy rather than parameters
-  auto total_gids_field = layout_total.CreateFieldReal();
-  auto delta_gids_field = layout_delta.CreateFieldReal();
-  auto delta_gids2_field = layout_delta.CreateFieldReal();
+  auto total_gids_field = factory_total.CreateFieldReal();
+  auto delta_gids_field = factory_delta.CreateFieldReal();
+  auto delta_gids2_field = factory_delta.CreateFieldReal();
 
   auto* total_gids_ptr = total_gids_field.get();
   auto* delta_gids_ptr = delta_gids_field.get();
