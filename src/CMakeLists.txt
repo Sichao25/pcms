@@ -57,6 +57,7 @@ endif()
 if(PCMS_ENABLE_OMEGA_H)
   list(APPEND PCMS_SOURCES
     pcms/lagrange_field_factory.cpp
+    pcms/adapter/omega_h/omega_h_lagrange_layout.cpp
     pcms/adapter/uniform_grid/uniform_grid_field_layout.cpp
     pcms/adapter/uniform_grid/uniform_grid_field.cpp
   )
@@ -69,6 +70,7 @@ if(PCMS_ENABLE_OMEGA_H)
   )
   list(APPEND ADAPTER_HEADERS
     pcms/adapter/meshfields/mesh_fields_adapter.h
+    pcms/adapter/omega_h/omega_h_lagrange_layout.h
     pcms/adapter/uniform_grid/uniform_grid_field_layout.h
     pcms/adapter/uniform_grid/uniform_grid_field.h
   )
