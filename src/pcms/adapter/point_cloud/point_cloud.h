@@ -4,13 +4,14 @@
 #include "pcms/field.h"
 #include "pcms/utility/arrays.h"
 #include "point_cloud_layout.h"
+#include <memory>
 
 namespace pcms
 {
 class PointCloud : public FieldT<Real>
 {
 public:
-  PointCloud(const PointCloudLayout& layout);
+  PointCloud(std::shared_ptr<const PointCloudLayout> layout);
 
   LocalizationHint GetLocalizationHint(
     CoordinateView<HostMemorySpace> coordinate_view) const override;
@@ -36,7 +37,7 @@ public:
   void SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data) override;
 
 private:
-  const PointCloudLayout& layout_;
+  std::shared_ptr<const PointCloudLayout> layout_;
   Kokkos::View<Real*> data_;
   Kokkos::View<Real*, HostMemorySpace> data_host_;
 };

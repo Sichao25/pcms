@@ -18,7 +18,7 @@ void bind_uniform_grid_field_module(py::module& m)
   // Bind UniformGridField class for 2D
   py::class_<UniformGridField<2>, FieldT<Real>,
              std::shared_ptr<UniformGridField<2>>>(m, "UniformGridField2D")
-    .def(py::init<const UniformGridFieldLayout<2>&>(), py::arg("layout"),
+    .def(py::init<std::shared_ptr<UniformGridFieldLayout<2>>>(), py::arg("layout"),
          "Constructor for UniformGridField2D")
 
     .def(
@@ -128,7 +128,7 @@ void bind_uniform_grid_field_module(py::module& m)
   // Bind UniformGridField class for 3D
   py::class_<UniformGridField<3>, FieldT<Real>,
              std::shared_ptr<UniformGridField<3>>>(m, "UniformGridField3D")
-    .def(py::init<const UniformGridFieldLayout<3>&>(), py::arg("layout"),
+    .def(py::init<std::shared_ptr<UniformGridFieldLayout<3>>>(), py::arg("layout"),
          "Constructor for UniformGridField3D")
 
     .def(

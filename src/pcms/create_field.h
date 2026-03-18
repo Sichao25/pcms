@@ -28,14 +28,13 @@ namespace pcms
  * \tparam dim Spatial dimension of the mesh (currently only dim=2 is supported)
  * \param mesh The Omega_h mesh to create the grid from
  * \param divisions Array specifying the number of cells in each dimension
- * \return std::pair containing the layout and field (layout must outlive field)
+ * \return std::pair containing the layout and field
  *
  * \note The returned field has vertex-centered data with values 0.0 or 1.0.
  *       Vertex values are ordered according to the grid's internal indexing.
- *       The layout must be kept alive as long as the field is used.
  */
 template <unsigned dim = 2>
-std::pair<std::unique_ptr<UniformGridFieldLayout<dim>>,
+std::pair<std::shared_ptr<UniformGridFieldLayout<dim>>,
           std::unique_ptr<UniformGridField<dim>>>
 CreateUniformGridBinaryField(Omega_h::Mesh& mesh,
                              const std::array<LO, dim>& divisions);
@@ -49,10 +48,10 @@ CreateUniformGridBinaryField(Omega_h::Mesh& mesh,
  * \tparam dim Spatial dimension of the mesh (currently only dim=2 is supported)
  * \param mesh The Omega_h mesh to create the grid from
  * \param cells_per_dim Number of cells per dimension (same for all dimensions)
- * \return std::pair containing the layout and field (layout must outlive field)
+ * \return std::pair containing the layout and field
  */
 template <unsigned dim = 2>
-std::pair<std::unique_ptr<UniformGridFieldLayout<dim>>,
+std::pair<std::shared_ptr<UniformGridFieldLayout<dim>>,
           std::unique_ptr<UniformGridField<dim>>>
 CreateUniformGridBinaryField(Omega_h::Mesh& mesh, LO cells_per_dim);
 
@@ -70,10 +69,10 @@ CreateUniformGridBinaryField(Omega_h::Mesh& mesh, LO cells_per_dim);
  * \tparam dim Spatial dimension (currently only dim=2 is supported)
  * \param mesh The Omega_h mesh to test against
  * \param grid The uniform grid to evaluate
- * \return std::pair containing the layout and field (layout must outlive field)
+ * \return std::pair containing the layout and field
  */
 template <unsigned dim = 2>
-std::pair<std::unique_ptr<UniformGridFieldLayout<dim>>,
+std::pair<std::shared_ptr<UniformGridFieldLayout<dim>>,
           std::unique_ptr<UniformGridField<dim>>>
 CreateUniformGridBinaryFieldFromGrid(Omega_h::Mesh& mesh,
                                      const UniformGrid<dim>& grid);

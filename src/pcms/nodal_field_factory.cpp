@@ -27,7 +27,7 @@ NodalFieldFactory NodalFieldFactory::Create(
     std::make_shared<PointCloudLayout>(dim, device_view, coordinate_system);
   return NodalFieldFactory(
     pc_layout,
-    [pc_layout]() { return std::make_unique<PointCloud>(*pc_layout); });
+    [pc_layout]() { return std::make_unique<PointCloud>(pc_layout); });
 }
 
 std::shared_ptr<const FieldLayout>

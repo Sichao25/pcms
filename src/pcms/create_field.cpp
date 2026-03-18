@@ -11,7 +11,7 @@ namespace pcms
 {
 
 template <>
-std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
+std::pair<std::shared_ptr<UniformGridFieldLayout<2>>,
           std::unique_ptr<UniformGridField<2>>>
 CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
                                         const UniformGrid<2>& grid)
@@ -54,9 +54,9 @@ CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
   fprintf(stderr, "Copied point search results back to host.\n");
 
   // Create UniformGridFieldLayout and field
-  auto layout = std::make_unique<UniformGridFieldLayout<2>>(
+  auto layout = std::make_shared<UniformGridFieldLayout<2>>(
     grid, 1, CoordinateSystem::Cartesian);
-  auto field = std::make_unique<UniformGridField<2>>(*layout);
+  auto field = std::make_unique<UniformGridField<2>>(layout);
 
   // Create binary data as Real values (0.0 or 1.0)
   Kokkos::View<Real*, HostMemorySpace> binary_data("binary_data", num_vertices);
@@ -75,7 +75,7 @@ CreateUniformGridBinaryFieldFromGrid<2>(Omega_h::Mesh& mesh,
 }
 
 template <>
-std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
+std::pair<std::shared_ptr<UniformGridFieldLayout<2>>,
           std::unique_ptr<UniformGridField<2>>>
 CreateUniformGridBinaryField<2>(Omega_h::Mesh& mesh,
                                 const std::array<LO, 2>& divisions)
@@ -90,7 +90,7 @@ CreateUniformGridBinaryField<2>(Omega_h::Mesh& mesh,
 }
 
 template <>
-std::pair<std::unique_ptr<UniformGridFieldLayout<2>>,
+std::pair<std::shared_ptr<UniformGridFieldLayout<2>>,
           std::unique_ptr<UniformGridField<2>>>
 CreateUniformGridBinaryField<2>(Omega_h::Mesh& mesh, LO cells_per_dim)
 {

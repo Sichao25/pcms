@@ -14,7 +14,7 @@ template <unsigned Dim = 2>
 class UniformGridField : public FieldT<Real>
 {
 public:
-  UniformGridField(const UniformGridFieldLayout<Dim>& layout);
+  UniformGridField(std::shared_ptr<const UniformGridFieldLayout<Dim>> layout);
 
   LocalizationHint GetLocalizationHint(
     CoordinateView<HostMemorySpace> coordinate_view) const override;
@@ -45,7 +45,7 @@ public:
   ~UniformGridField() noexcept = default;
 
 private:
-  const UniformGridFieldLayout<Dim>& layout_;
+  std::shared_ptr<const UniformGridFieldLayout<Dim>> layout_;
   const UniformGrid<Dim>& grid_;
   Kokkos::View<Real*, HostMemorySpace> dof_holder_data_;
 };

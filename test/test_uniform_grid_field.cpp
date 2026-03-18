@@ -66,13 +66,13 @@ TEST_CASE("UniformGrid field creation")
   grid.divisions = {5, 5};
 
   // Create field layout with 1 component (scalar field)
-  pcms::UniformGridFieldLayout<2> layout(grid, 1,
-                                         pcms::CoordinateSystem::Cartesian);
+  auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
 
-  REQUIRE(layout.GetNumComponents() == 1);
-  REQUIRE(layout.GetNumOwnedDofHolder() == 36); // (5+1)x(5+1) = 36 vertices
-  REQUIRE(layout.GetNumGlobalDofHolder() == 36);
-  REQUIRE_FALSE(layout.IsDistributed());
+  REQUIRE(layout->GetNumComponents() == 1);
+  REQUIRE(layout->GetNumOwnedDofHolder() == 36); // (5+1)x(5+1) = 36 vertices
+  REQUIRE(layout->GetNumGlobalDofHolder() == 36);
+  REQUIRE_FALSE(layout->IsDistributed());
 
   // Create field
   auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
@@ -86,8 +86,8 @@ TEST_CASE("UniformGrid field data operations", "[uniform_grid_field]")
   grid.edge_length = {10.0, 10.0};
   grid.divisions = {4, 4}; // 4x4 = 16 cells
 
-  pcms::UniformGridFieldLayout<2> layout(grid, 1,
-                                         pcms::CoordinateSystem::Cartesian);
+  auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Initialize field data with vertex indices (5x5 = 25 vertices for 4x4 cells)
@@ -116,8 +116,8 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
   grid.edge_length = {10.0, 10.0};
   grid.divisions = {2, 2}; // 2x2 = 4 cells
 
-  pcms::UniformGridFieldLayout<2> layout(grid, 1,
-                                         pcms::CoordinateSystem::Cartesian);
+  auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Set vertex values for a 2x2 cell grid (3x3 = 9 vertices)
@@ -178,8 +178,8 @@ TEST_CASE("UniformGrid field serialization")
   grid.edge_length = {10.0, 10.0};
   grid.divisions = {3, 3}; // 9 cells
 
-  pcms::UniformGridFieldLayout<2> layout(grid, 1,
-                                         pcms::CoordinateSystem::Cartesian);
+  auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Set field data (4x4 = 16 vertices for 3x3 cells)
@@ -202,8 +202,8 @@ TEST_CASE("UniformGrid field copy")
   grid.edge_length = {10.0, 10.0};
   grid.divisions = {2, 2}; // 2x2 grid
 
-  pcms::UniformGridFieldLayout<2> layout(grid, 1,
-                                         pcms::CoordinateSystem::Cartesian);
+  auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto field = std::make_unique<pcms::UniformGridField<2>>(layout);
 
   // Set vertex values with f(x,y) = x + y at 3x3 vertex positions
@@ -280,12 +280,12 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   grid.edge_length = {1.0, 1.0};
   grid.divisions = {2, 2}; // 4x4 grid for finer resolution
 
-  pcms::UniformGridFieldLayout<2> ug_layout(grid, 1,
-                                            pcms::CoordinateSystem::Cartesian);
+  auto ug_layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto ug_field = std::make_unique<pcms::UniformGridField<2>>(ug_layout);
 
   // Transfer from omega_h field to uniform grid field using interpolation
-  auto coords_interpolation = ug_layout.GetDOFHolderCoordinates();
+  auto coords_interpolation = ug_layout->GetDOFHolderCoordinates();
   std::vector<pcms::Real> evaluation(
     coords_interpolation.GetCoordinates().size() / 2);
   auto evaluation_view = pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(
@@ -301,9 +301,9 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
 
   // Verify the transferred data at uniform grid vertices
   auto transferred_data = ug_field->GetDOFHolderData();
-  auto ug_coords = ug_layout.GetDOFHolderCoordinates();
+  auto ug_coords = ug_layout->GetDOFHolderCoordinates();
   auto ug_coords_data = ug_coords.GetCoordinates();
-  int num_ug_nodes = ug_layout.GetNumOwnedDofHolder(); // 5x5 = 25 vertices
+  int num_ug_nodes = ug_layout->GetNumOwnedDofHolder(); // 5x5 = 25 vertices
 
   // Check a few sample points
   for (int i = 0; i < num_ug_nodes; ++i) {
@@ -669,13 +669,13 @@ TEST_CASE("UniformGrid workflow")
   pcms::test::SetField(*omega_h_field, pcms::test::linear_f);
 
   // Create uniform grid field layout
-  pcms::UniformGridFieldLayout<2> ug_layout(grid, 1,
-                                            pcms::CoordinateSystem::Cartesian);
+  auto ug_layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto ug_field = std::make_unique<pcms::UniformGridField<2>>(ug_layout);
 
   // Transfer from omega_h field to uniform grid field using interpolation
   pcms::interpolate_field2(*omega_h_field, *ug_field);
-  auto ug_coords = ug_layout.GetDOFHolderCoordinates();
+  auto ug_coords = ug_layout->GetDOFHolderCoordinates();
 
   // Verify ug_field values directly from the field object
   auto ug_field_data = ug_field->GetDOFHolderData();

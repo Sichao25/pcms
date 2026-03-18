@@ -288,7 +288,7 @@ template <typename T>
 class MeshFieldsAdapter2 : public FieldT<T>
 {
 public:
-  MeshFieldsAdapter2(const MeshFieldsAdapterLayout& layout);
+  MeshFieldsAdapter2(std::shared_ptr<const MeshFieldsAdapterLayout> layout);
 
   LocalizationHint GetLocalizationHint(
     CoordinateView<HostMemorySpace> coordinate_view) const override;
@@ -316,7 +316,7 @@ public:
   ~MeshFieldsAdapter2() noexcept = default;
 
 private:
-  const MeshFieldsAdapterLayout& layout_;
+  std::shared_ptr<const MeshFieldsAdapterLayout> layout_;
   Omega_h::Mesh& mesh_;
   std::unique_ptr<MeshFieldBackend<T>> mesh_field_;
   GridPointSearch2D search_;
@@ -328,16 +328,16 @@ private:
  */
 template <typename T>
 inline MeshFieldsAdapter2<T>::MeshFieldsAdapter2(
-  const MeshFieldsAdapterLayout& layout)
-  : layout_(layout),
-    mesh_(layout.GetMesh()),
+  std::shared_ptr<const MeshFieldsAdapterLayout> layout)
+  : layout_(std::move(layout)),
+    mesh_(layout_->GetMesh()),
     search_(mesh_, 10, 10),
-    dof_holder_data_("dof_holder_data", static_cast<size_t>(layout.OwnedSize()))
+    dof_holder_data_("dof_holder_data", static_cast<size_t>(layout_->OwnedSize()))
 {
   if (mesh_.dim() == 3) {
     throw pcms_error("MeshFieldsAdapter2 does not support 3D meshes");
   }
-  auto nodes_per_dim = layout.GetNodesPerDim();
+  auto nodes_per_dim = layout_->GetNodesPerDim();
   if (nodes_per_dim[2] == 0 && nodes_per_dim[3] == 0) {
     if (nodes_per_dim[0] == 1 && nodes_per_dim[1] == 0) {
       switch (mesh_.dim()) {
@@ -368,8 +368,8 @@ inline Rank1View<const T, HostMemorySpace>
 MeshFieldsAdapter2<T>::GetDOFHolderData() const
 {
   PCMS_FUNCTION_TIMER;
-  auto nodes_per_dim = layout_.GetNodesPerDim();
-  auto num_components = layout_.GetNumComponents();
+  auto nodes_per_dim = layout_->GetNodesPerDim();
+  auto num_components = layout_->GetNumComponents();
   size_t offset = 0;
   for (int i = 0; i <= mesh_.dim(); ++i) {
     if (nodes_per_dim[i]) {
@@ -392,10 +392,10 @@ inline void MeshFieldsAdapter2<T>::SetDOFHolderData(
 {
   PCMS_FUNCTION_TIMER;
 
-  auto nodes_per_dim = layout_.GetNodesPerDim();
-  auto num_components = layout_.GetNumComponents();
+  auto nodes_per_dim = layout_->GetNodesPerDim();
+  auto num_components = layout_->GetNumComponents();
   PCMS_ALWAYS_ASSERT(static_cast<LO>(data.size()) ==
-                     layout_.GetNumOwnedDofHolder() * num_components);
+                     layout_->GetNumOwnedDofHolder() * num_components);
   size_t offset = 0;
   for (int i = 0; i <= mesh_.dim(); ++i) {
     if (nodes_per_dim[i]) {
@@ -418,7 +418,7 @@ inline LocalizationHint MeshFieldsAdapter2<T>::GetLocalizationHint(
   // TODO decide if we want to implicitly perform the coordinate transformations
   // when possible
   if (coordinate_view.GetCoordinateSystem() !=
-      layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
+      layout_->GetDOFHolderCoordinates().GetCoordinateSystem()) {
     throw pcms_error("Coordinate system mismatch");
   }
 
@@ -445,7 +445,7 @@ inline void MeshFieldsAdapter2<T>::Evaluate(
   // TODO decide if we want to implicitly perform the coordinate transformations
   // when possible
   if (results.GetCoordinateSystem() !=
-      layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
+      layout_->GetDOFHolderCoordinates().GetCoordinateSystem()) {
     throw pcms_error("Coordinate system mismatch");
   }
 
@@ -491,7 +491,7 @@ inline void MeshFieldsAdapter2<T>::EvaluateGradient(
 template <typename T>
 inline const FieldLayout& MeshFieldsAdapter2<T>::GetLayout() const
 {
-  return layout_;
+  return *layout_;
 }
 
 template <typename T>
@@ -510,7 +510,7 @@ inline int MeshFieldsAdapter2<T>::Serialize(
   // host copy of filtered field data array
   const auto array_h = GetDOFHolderData();
   if (buffer.size() > 0) {
-    auto owned = layout_.GetOwned();
+    auto owned = layout_->GetOwned();
     for (size_t i = 0; i < array_h.size(); i++) {
       if (owned[i])
         buffer[permutation[i]] = array_h[i];
@@ -526,7 +526,7 @@ inline void MeshFieldsAdapter2<T>::Deserialize(
 {
   PCMS_FUNCTION_TIMER;
   Omega_h::HostWrite<T> sorted_buffer(permutation.size());
-  auto owned = layout_.GetOwned();
+  auto owned = layout_->GetOwned();
   for (LO i = 0; i < sorted_buffer.size(); ++i) {
     if (owned[i])
       sorted_buffer[i] = buffer[permutation[i]];

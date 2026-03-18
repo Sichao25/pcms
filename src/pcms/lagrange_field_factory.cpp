@@ -34,7 +34,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
   return LagrangeFieldFactory(
     mesh_layout,
     [mesh_layout]() {
-      return std::make_unique<MeshFieldsAdapter2<Real>>(*mesh_layout);
+      return std::make_unique<MeshFieldsAdapter2<Real>>(mesh_layout);
     });
 }
 
@@ -80,7 +80,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
     return LagrangeFieldFactory(
       ug_layout,
       [ug_layout]() {
-        return std::make_unique<UniformGridField<2>>(*ug_layout);
+        return std::make_unique<UniformGridField<2>>(ug_layout);
       });
   }
   case 3: {
@@ -90,7 +90,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
     return LagrangeFieldFactory(
       ug_layout,
       [ug_layout]() {
-        return std::make_unique<UniformGridField<3>>(*ug_layout);
+        return std::make_unique<UniformGridField<3>>(ug_layout);
       });
   }
   default:

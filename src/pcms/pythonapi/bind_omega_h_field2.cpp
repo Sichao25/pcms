@@ -28,7 +28,7 @@ void bind_omega_h_field2(py::module& m)
   // Bind MeshFieldsAdapter2 class template instantiation for Real type
   py::class_<MeshFieldsAdapter2<Real>, FieldT<Real>,
              std::shared_ptr<MeshFieldsAdapter2<Real>>>(m, "MeshFieldsAdapter2")
-    .def(py::init<const MeshFieldsAdapterLayout&>(), py::arg("layout"),
+    .def(py::init<std::shared_ptr<MeshFieldsAdapterLayout>>(), py::arg("layout"),
          "Constructor for MeshFieldsAdapter2")
 
     .def(

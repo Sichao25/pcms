@@ -37,10 +37,10 @@ struct UniformGridFieldLocalizationHint
 
 template <unsigned Dim>
 UniformGridField<Dim>::UniformGridField(
-  const UniformGridFieldLayout<Dim>& layout)
-  : layout_(layout),
-    grid_(layout.GetGrid()),
-    dof_holder_data_("dof_holder_data", static_cast<size_t>(layout.OwnedSize()))
+  std::shared_ptr<const UniformGridFieldLayout<Dim>> layout)
+  : layout_(std::move(layout)),
+    grid_(layout_->GetGrid()),
+    dof_holder_data_("dof_holder_data", static_cast<size_t>(layout_->OwnedSize()))
 {
   PCMS_FUNCTION_TIMER;
   // Default to NEAREST_BOUNDARY for uniform grid fields
@@ -110,7 +110,7 @@ LocalizationHint UniformGridField<Dim>::GetLocalizationHint(
   PCMS_FUNCTION_TIMER;
 
   if (coordinate_view.GetCoordinateSystem() !=
-      layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
+      layout_->GetDOFHolderCoordinates().GetCoordinateSystem()) {
     throw std::runtime_error(
       "Coordinate system mismatch in GetLocalizationHint");
   }
@@ -160,7 +160,7 @@ void UniformGridField<Dim>::Evaluate(
   PCMS_FUNCTION_TIMER;
 
   if (results.GetCoordinateSystem() !=
-      layout_.GetDOFHolderCoordinates().GetCoordinateSystem()) {
+      layout_->GetDOFHolderCoordinates().GetCoordinateSystem()) {
     throw std::runtime_error("Coordinate system mismatch in Evaluate");
   }
 
@@ -184,7 +184,7 @@ void UniformGridField<Dim>::Evaluate(
   }
 
   // Dimensions for vertex grid (m+1 vertices per dimension for m cells)
-  auto cell_divisions = layout_.GetGrid().divisions;
+  auto cell_divisions = layout_->GetGrid().divisions;
   IntVecView dimensions_view("dimensions", Dim);
   auto dimensions_view_host = Kokkos::create_mirror_view(dimensions_view);
   for (unsigned d = 0; d < Dim; ++d) {
@@ -252,7 +252,7 @@ void UniformGridField<Dim>::EvaluateGradient(
 template <unsigned Dim>
 const FieldLayout& UniformGridField<Dim>::GetLayout() const
 {
-  return layout_;
+  return *layout_;
 }
 
 template <unsigned Dim>
@@ -287,7 +287,7 @@ void UniformGridField<Dim>::Deserialize(
 
   Kokkos::View<Real*, HostMemorySpace> sorted_buffer("sorted_buffer",
                                                      permutation.size());
-  auto owned = layout_.GetOwned();
+  auto owned = layout_->GetOwned();
 
   for (LO i = 0; i < sorted_buffer.size(); ++i) {
     PCMS_ALWAYS_ASSERT(owned[i]);

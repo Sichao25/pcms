@@ -17,7 +17,7 @@ namespace pcms::test
 {
 
 // Affine test function — exactly representable on linear elements.
-KOKKOS_INLINE_FUNCTION inline Real linear_f(Real x, Real y)
+KOKKOS_INLINE_FUNCTION Real linear_f(Real x, Real y)
 {
   return x + 2.0 * y;
 }

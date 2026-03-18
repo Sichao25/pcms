@@ -39,10 +39,10 @@ struct PointCloudLocalizationHint
   Kokkos::View<Real**> coordinates_;
 };
 
-PointCloud::PointCloud(const PointCloudLayout& layout)
-  : layout_(layout),
-    data_("", layout_.GetDOFHolderCoordinates().GetCoordinates().extent(0)),
-    data_host_("", layout_.GetDOFHolderCoordinates().GetCoordinates().extent(0))
+PointCloud::PointCloud(std::shared_ptr<const PointCloudLayout> layout)
+  : layout_(std::move(layout)),
+    data_("", layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0)),
+    data_host_("", layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0))
 {
 }
 
@@ -84,7 +84,7 @@ void PointCloud::EvaluateGradient(
 
 const FieldLayout& PointCloud::GetLayout() const
 {
-  return layout_;
+  return *layout_;
 }
 
 bool PointCloud::CanEvaluateGradient()
