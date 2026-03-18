@@ -12,24 +12,11 @@
 #include "pcms/lagrange_field_factory.h"
 #include "pcms/create_field.h"
 #include "pcms/utility/arrays.h"
+#include "field_test_utils.h"
 #include <cmath>
 
 using pcms::CreateUniformGridBinaryField;
 using pcms::CreateUniformGridFromMesh;
-
-// Helper function to initialize omega_h field data with f(x,y) = x + 2*y
-std::vector<pcms::Real> CreateOmegaHFieldData(
-  const pcms::CoordinateView<pcms::HostMemorySpace>& coords, int num_nodes)
-{
-  auto coords_data = coords.GetCoordinates();
-  std::vector<pcms::Real> omega_h_data(num_nodes);
-  for (int i = 0; i < num_nodes; ++i) {
-    pcms::Real x = coords_data(i, 0);
-    pcms::Real y = coords_data(i, 1);
-    omega_h_data[i] = x + 2.0 * y; // f(x,y) = x + 2y
-  }
-  return omega_h_data;
-}
 
 // Helper function to verify ug_field values
 void VerifyUniformGridFieldValues(
@@ -205,39 +192,7 @@ TEST_CASE("UniformGrid field serialization")
     data.data(), data.size());
   field->SetDOFHolderData(data_view);
 
-  // Create identity permutation
-  std::vector<pcms::LO> permutation(16);
-  for (size_t i = 0; i < 16; ++i) {
-    permutation[i] = i;
-  }
-
-  auto perm_view = pcms::Rank1View<const pcms::LO, pcms::HostMemorySpace>(
-    permutation.data(), 16);
-
-  // Serialize
-  std::vector<pcms::Real> buffer(16);
-  auto buffer_view =
-    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(buffer.data(), 16);
-  int size = field->Serialize(buffer_view, perm_view);
-
-  REQUIRE(size == 16);
-
-  // Verify serialized data
-  for (size_t i = 0; i < 16; ++i) {
-    REQUIRE(buffer[i] == data[i]);
-  }
-
-  // Create new field and deserialize
-  auto field2 = std::make_unique<pcms::UniformGridField<2>>(layout);
-  auto buffer_const_view =
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(buffer.data(), 16);
-  field2->Deserialize(buffer_const_view, perm_view);
-
-  // Verify deserialized data
-  auto retrieved = field2->GetDOFHolderData();
-  for (size_t i = 0; i < 16; ++i) {
-    REQUIRE(retrieved[i] == data[i]);
-  }
+  pcms::test::CheckSerializeDeserialize(*field);
 }
 
 TEST_CASE("UniformGrid field copy")
@@ -314,19 +269,10 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   // Create OmegaH field layout with linear elements
   auto omega_h_factory =
     pcms::LagrangeFieldFactory::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_layout = omega_h_factory.GetLayout();
   auto omega_h_field = omega_h_factory.CreateFieldReal();
 
   // Initialize omega_h field with a simple function f(x,y) = x + 2*y
-  auto coords = omega_h_layout->GetDOFHolderCoordinates();
-  int num_nodes = omega_h_layout->GetNumOwnedDofHolder();
-  std::vector<pcms::Real> omega_h_data =
-    CreateOmegaHFieldData(coords, num_nodes);
-
-  auto omega_h_data_view =
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
-      omega_h_data.data(), omega_h_data.size());
-  omega_h_field->SetDOFHolderData(omega_h_data_view);
+  pcms::test::SetField(*omega_h_field, pcms::test::linear_f);
 
   // Create a uniform grid field covering the same domain [0,1] x [0,1]
   pcms::UniformGrid<2> grid;
@@ -717,19 +663,10 @@ TEST_CASE("UniformGrid workflow")
   // Create OmegaH field layout with linear elements
   auto omega_h_factory =
     pcms::LagrangeFieldFactory::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_layout = omega_h_factory.GetLayout();
   auto omega_h_field = omega_h_factory.CreateFieldReal();
 
   // Initialize omega_h field with a simple function f(x,y) = x + 2*y
-  auto coords = omega_h_layout->GetDOFHolderCoordinates();
-  int num_nodes = omega_h_layout->GetNumOwnedDofHolder();
-  std::vector<pcms::Real> omega_h_data =
-    CreateOmegaHFieldData(coords, num_nodes);
-
-  auto omega_h_data_view =
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
-      omega_h_data.data(), omega_h_data.size());
-  omega_h_field->SetDOFHolderData(omega_h_data_view);
+  pcms::test::SetField(*omega_h_field, pcms::test::linear_f);
 
   // Create uniform grid field layout
   pcms::UniformGridFieldLayout<2> ug_layout(grid, 1,

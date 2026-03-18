@@ -398,7 +398,8 @@ if(Catch2_FOUND)
       test_uniform_grid_field.cpp
       test_interpolation_class.cpp
       test_mesh_geometry.cpp
-      test_omega_h_field2_outofbounds.cpp)
+      test_omega_h_field2_outofbounds.cpp
+      test_omega_h_lagrange_field.cpp)
   endif()
 
   if(PCMS_ENABLE_MESHFIELDS)

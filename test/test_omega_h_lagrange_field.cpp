@@ -1,0 +1,310 @@
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
+#include <Omega_h_build.hpp>
+#include <Omega_h_for.hpp>
+#include <Omega_h_mesh.hpp>
+
+#include "pcms/adapter/omega_h/omega_h_lagrange_layout.h"
+#include "pcms/adapter/omega_h/omega_h_lagrange_field.h"
+#include "pcms/lagrange_field_factory.h"
+#include "pcms/utility/arrays.h"
+#include "pcms/utility/mesh_geometry.h"
+#include "field_test_utils.h"
+
+#include <memory>
+#include <stdexcept>
+
+using pcms::Real;
+using pcms::LO;
+
+static Omega_h::Mesh MakeBox2D(Omega_h::CommPtr world, int nx = 10, int ny = 10)
+{
+  return Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, nx, ny, 0,
+                            false);
+}
+
+// ---- Layout tests -----------------------------------------------------------
+
+TEST_CASE("OmegaHLagrangeLayout order-1 properties")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  pcms::OmegaHLagrangeLayout layout(mesh, 1, 2,
+                                    pcms::CoordinateSystem::Cartesian);
+
+  REQUIRE(layout.GetOrder() == 1);
+  REQUIRE(layout.GetNumComponents() == 2);
+  REQUIRE(layout.GetNumOwnedDofHolder() == mesh.nents(0));
+  REQUIRE(layout.GetNumGlobalDofHolder() == mesh.nglobal_ents(0));
+  REQUIRE(layout.IsDistributed()); // always true for Omega_h mesh layouts
+
+  // DOF holder coordinates should match vertex coordinates
+  auto coords = layout.GetDOFHolderCoordinates().GetCoordinates();
+  auto mesh_coords = Omega_h::HostRead<Real>(mesh.coords());
+  int nverts = mesh.nents(0);
+  REQUIRE(static_cast<int>(coords.extent(0)) == nverts);
+  REQUIRE(static_cast<int>(coords.extent(1)) == mesh.dim());
+  for (int v = 0; v < nverts; ++v) {
+    for (int d = 0; d < mesh.dim(); ++d) {
+      REQUIRE(coords(v, d) ==
+              Catch::Approx(mesh_coords[v * mesh.dim() + d]));
+    }
+  }
+
+  // GetEntOffsets: vertices are at slot 0, all other slots = nverts
+  auto offsets = layout.GetEntOffsets();
+  REQUIRE(offsets[0] == 0);
+  for (int i = 1; i < pcms::ent_offsets_len; ++i)
+    REQUIRE(offsets[i] == nverts);
+}
+
+TEST_CASE("OmegaHLagrangeLayout order-0 properties")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  pcms::OmegaHLagrangeLayout layout(mesh, 0, 1,
+                                    pcms::CoordinateSystem::Cartesian);
+
+  REQUIRE(layout.GetOrder() == 0);
+  REQUIRE(layout.GetNumComponents() == 1);
+  REQUIRE(layout.GetNumOwnedDofHolder() == mesh.nelems());
+  REQUIRE(layout.GetNumGlobalDofHolder() == mesh.nglobal_ents(mesh.dim()));
+
+  // DOF holder coordinates should match element centroids
+  auto coords = layout.GetDOFHolderCoordinates().GetCoordinates();
+  auto centroids =
+    Omega_h::HostRead<Real>(pcms::get_entity_centroids(mesh, mesh.dim()));
+  int nelems = mesh.nelems();
+  REQUIRE(static_cast<int>(coords.extent(0)) == nelems);
+  for (int e = 0; e < nelems; ++e) {
+    for (int d = 0; d < mesh.dim(); ++d) {
+      REQUIRE(coords(e, d) ==
+              Catch::Approx(centroids[e * mesh.dim() + d]));
+    }
+  }
+
+  // GetEntOffsets: all DOFs are at entity_dim = mesh.dim() (slot 2 for 2D)
+  auto offsets = layout.GetEntOffsets();
+  for (int i = 0; i <= mesh.dim(); ++i)
+    REQUIRE(offsets[i] == 0);
+  for (int i = mesh.dim() + 1; i < pcms::ent_offsets_len; ++i)
+    REQUIRE(offsets[i] == nelems);
+}
+
+TEST_CASE("OmegaHLagrangeLayout invalid order throws")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  REQUIRE_THROWS_AS(
+    pcms::OmegaHLagrangeLayout(mesh, 2, 1, pcms::CoordinateSystem::Cartesian),
+    std::invalid_argument);
+  REQUIRE_THROWS_AS(
+    pcms::OmegaHLagrangeLayout(mesh, -1, 1, pcms::CoordinateSystem::Cartesian),
+    std::invalid_argument);
+}
+
+TEST_CASE("OmegaHLagrangeLayout layout sharing")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+
+  auto f1 = std::make_unique<pcms::OmegaHLagrangeField<Real>>(layout);
+  auto f2 = std::make_unique<pcms::OmegaHLagrangeField<Real>>(layout);
+
+  REQUIRE(&f1->GetLayout() == &f2->GetLayout());
+}
+
+// ---- Order-1 field tests ----------------------------------------------------
+
+TEST_CASE("OmegaHLagrangeField order-1: set/get DOF data round-trip")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  int n = layout->GetNumOwnedDofHolder();
+  std::vector<Real> data(n);
+  for (int i = 0; i < n; ++i)
+    data[i] = static_cast<Real>(i);
+
+  pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), n);
+  field.SetDOFHolderData(view);
+
+  auto got = field.GetDOFHolderData();
+  REQUIRE(static_cast<int>(got.size()) == n);
+  for (int i = 0; i < n; ++i)
+    REQUIRE(got[i] == Catch::Approx(data[i]));
+}
+
+TEST_CASE("OmegaHLagrangeField order-1: linear function evaluation")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world(), 20, 20);
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  pcms::test::SetField(field, pcms::test::linear_f);
+  pcms::test::CheckEvaluation(
+    field, pcms::test::StandardEvalCoords2D(), pcms::test::linear_f);
+}
+
+// The same linear evaluation test run on the MeshFields-backed order-1 field
+// ensures both backends produce identical results for the same inputs.
+TEST_CASE("MeshFieldsAdapter order-1: linear function evaluation (shared util)")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world(), 20, 20);
+  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto field = factory.CreateFieldReal();
+
+  pcms::test::SetField(*field, pcms::test::linear_f);
+  pcms::test::CheckEvaluation(
+    *field, pcms::test::StandardEvalCoords2D(), pcms::test::linear_f);
+}
+
+TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  pcms::test::SetField(field, pcms::test::linear_f);
+
+  Real fill_value = -999.0;
+  field.SetOutOfBoundsMode(pcms::OutOfBoundsMode::FILL, fill_value);
+
+  // Points clearly outside the [0,1]^2 domain
+  std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5, 0.5, -0.5, 0.5, 1.5};
+  pcms::test::CheckFillMode(field, fill_value, outside);
+}
+
+TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  pcms::test::SetField(field, pcms::test::linear_f);
+  pcms::test::CheckSerializeDeserialize(field);
+}
+
+// ---- Order-0 field tests ----------------------------------------------------
+
+TEST_CASE("OmegaHLagrangeField order-0: set/get DOF data round-trip")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  int n = layout->GetNumOwnedDofHolder();
+  std::vector<Real> data(n, 3.14);
+  pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), n);
+  field.SetDOFHolderData(view);
+
+  auto got = field.GetDOFHolderData();
+  REQUIRE(static_cast<int>(got.size()) == n);
+  for (int i = 0; i < n; ++i)
+    REQUIRE(got[i] == Catch::Approx(3.14));
+}
+
+TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world(), 10, 10);
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  // Set every element to the same value
+  const Real kValue = 42.0;
+  int nelems = mesh.nelems();
+  std::vector<Real> data(nelems, kValue);
+  pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), nelems);
+  field.SetDOFHolderData(view);
+
+  // All evaluation points should return kValue
+  auto pts = pcms::test::StandardEvalCoords2D();
+  int n = static_cast<int>(pts.size()) / 2;
+  std::vector<Real> eval(n);
+  pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(pts.data(), n,
+                                                                  2);
+  pcms::Rank1View<Real, pcms::HostMemorySpace> eval_view(eval.data(), n);
+  pcms::CoordinateView<pcms::HostMemorySpace> cv{field.GetCoordinateSystem(),
+                                                  coords_view};
+  pcms::FieldDataView<Real, pcms::HostMemorySpace> dv{eval_view,
+                                                       field.GetCoordinateSystem()};
+  auto hint = field.GetLocalizationHint(cv);
+  field.Evaluate(hint, dv);
+
+  for (int i = 0; i < n; ++i)
+    REQUIRE(eval[i] == Catch::Approx(kValue));
+}
+
+TEST_CASE("OmegaHLagrangeField order-0: out-of-bounds FILL mode")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  int nelems = mesh.nelems();
+  std::vector<Real> data(nelems, 1.0);
+  pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), nelems);
+  field.SetDOFHolderData(view);
+
+  Real fill_value = -1.0;
+  field.SetOutOfBoundsMode(pcms::OutOfBoundsMode::FILL, fill_value);
+
+  std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5};
+  pcms::test::CheckFillMode(field, fill_value, outside);
+}
+
+TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::OmegaHLagrangeField<Real> field(layout);
+
+  int nelems = mesh.nelems();
+  std::vector<Real> data(nelems);
+  for (int i = 0; i < nelems; ++i)
+    data[i] = static_cast<Real>(i);
+  pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), nelems);
+  field.SetDOFHolderData(view);
+
+  pcms::test::CheckSerializeDeserialize(field);
+}
+
+// ---- Temporary factory lifetime safety --------------------------------------
+
+TEST_CASE("OmegaHLagrangeField: field valid after layout destruction")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh = MakeBox2D(lib.world());
+
+  std::unique_ptr<pcms::OmegaHLagrangeField<Real>> field;
+  {
+    auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+      mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+    field = std::make_unique<pcms::OmegaHLagrangeField<Real>>(layout);
+  } // layout shared_ptr goes out of scope here; field keeps it alive
+
+  pcms::test::SetField(*field, pcms::test::linear_f);
+  pcms::test::CheckEvaluation(
+    *field, pcms::test::StandardEvalCoords2D(), pcms::test::linear_f);
+}

@@ -8,10 +8,16 @@
 #include "pcms/adapter/meshfields/mesh_fields_adapter.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/lagrange_field_factory.h"
+#include "field_test_utils.h"
 #include <Kokkos_Core.hpp>
 #include <vector>
 
 using pcms::Real;
+
+KOKKOS_INLINE_FUNCTION static Real interpolation_linear_f(Real x, Real y)
+{
+  return -0.3 * x + 0.5 * y;
+}
 
 TEST_CASE("interpolate linear 2d omega_h_field")
 {
@@ -21,24 +27,9 @@ TEST_CASE("interpolate linear 2d omega_h_field")
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
   auto factory = pcms::LagrangeFieldFactory::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto layout = factory.GetLayout();
-  const auto nverts = mesh.nents(0);
-  auto mesh_coords = mesh.coords();
-  auto f = KOKKOS_LAMBDA(Real x, Real y)
-  {
-    return -0.3 * x + 0.5 * y;
-  };
-  Omega_h::Write<Real> test_f(nverts);
-  Omega_h::parallel_for(
-    nverts, OMEGA_H_LAMBDA(int i) {
-      Real x = mesh_coords[2 * i + 0];
-      Real y = mesh_coords[2 * i + 1];
-      test_f[i] = f(x, y);
-    });
-  Omega_h::HostWrite<Real> test_f_host(test_f);
   auto field = factory.CreateFieldReal();
   auto interpolated = factory.CreateFieldReal();
-  field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
+  pcms::test::SetField(*field, interpolation_linear_f);
 
   pcms::interpolate_field2(*field, *interpolated);
   auto interpolated_dof = interpolated->GetDOFHolderData();
@@ -65,16 +56,12 @@ TEST_CASE("interpolate quadratic 2d omega_h_field")
   const auto nedges = mesh.nents(1);
   auto mesh_coords = mesh.coords();
   auto edge_verts = mesh.ask_verts_of(1);
-  auto f = KOKKOS_LAMBDA(Real x, Real y)
-  {
-    return -0.3 * x + 0.5 * y;
-  };
   Omega_h::Write<Real> test_f(nverts + nedges);
   Omega_h::parallel_for(
     nverts, OMEGA_H_LAMBDA(int i) {
       Real x = mesh_coords[2 * i + 0];
       Real y = mesh_coords[2 * i + 1];
-      test_f[i] = f(x, y);
+      test_f[i] = interpolation_linear_f(x, y);
     });
   Omega_h::parallel_for(
     nedges, OMEGA_H_LAMBDA(int i) {
@@ -85,7 +72,7 @@ TEST_CASE("interpolate quadratic 2d omega_h_field")
       Real y1 = mesh_coords[2 * endpoints[1] + 1];
       Real cx = (x0 + x1) / 2;
       Real cy = (y0 + y1) / 2;
-      test_f[nverts + i] = f(cx, cy);
+      test_f[nverts + i] = interpolation_linear_f(cx, cy);
     });
 
   Omega_h::HostWrite<Real> test_f_host(test_f);

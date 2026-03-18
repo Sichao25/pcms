@@ -1,0 +1,187 @@
+#ifndef PCMS_TEST_FIELD_TEST_UTILS_H
+#define PCMS_TEST_FIELD_TEST_UTILS_H
+
+#include <catch2/catch_approx.hpp>
+#include <Kokkos_Core.hpp>
+#include "pcms/field.h"
+#include "pcms/coordinate_system.h"
+#include "pcms/utility/arrays.h"
+#include "pcms/utility/memory_spaces.h"
+#include <cmath>
+#include <vector>
+
+// Shared utilities for field tests that apply equally to MeshFields-backed
+// and native OmegaH-backed field implementations.
+
+namespace pcms::test
+{
+
+// Affine test function — exactly representable on linear elements.
+KOKKOS_INLINE_FUNCTION inline Real linear_f(Real x, Real y)
+{
+  return x + 2.0 * y;
+}
+
+// Interior test points for a unit [0,1]^2 box mesh.
+inline std::vector<Real> StandardEvalCoords2D()
+{
+  return {0.1, 0.2, 0.5, 0.5, 0.7, 0.3, 0.9, 0.1, 0.2, 0.8};
+}
+
+template <typename ExecutionSpace, typename Func>
+inline std::vector<Real> EvaluateReferenceFunction(
+  const std::vector<Real>& pts, Func func)
+{
+  using MemorySpace = typename ExecutionSpace::memory_space;
+
+  int n = static_cast<int>(pts.size()) / 2;
+  Kokkos::View<Real *[2], MemorySpace> pts_device("pts_device", n);
+  auto pts_host =
+    Kokkos::View<const Real **, HostMemorySpace>(pts.data(), n, 2);
+  deep_copy_mismatch_layouts(pts_device, pts_host);
+
+  Kokkos::View<Real *, MemorySpace> expected_device("expected_device", n);
+  Kokkos::parallel_for(
+    "field_test_utils_expected", Kokkos::RangePolicy<ExecutionSpace>(0, n),
+    KOKKOS_LAMBDA(int i) {
+      expected_device(i) = func(pts_device(i, 0), pts_device(i, 1));
+    });
+
+  auto expected_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), expected_device);
+  return std::vector<Real>(expected_host.data(),
+                           expected_host.data() + expected_host.extent(0));
+}
+
+// Set scalar DOF data by sampling func at each DOF-holder coordinate.
+template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
+inline void SetField(FieldT<Real>& field, Func func)
+{
+  using MemorySpace = typename ExecutionSpace::memory_space;
+
+  auto dof_coords = field.GetLayout().GetDOFHolderCoordinates().GetCoordinates();
+  int n = static_cast<int>(dof_coords.extent(0));
+  Kokkos::View<Real *[2], MemorySpace> coords_device("coords_device", n);
+  auto coords_host = Kokkos::View<const Real **, HostMemorySpace>(
+    dof_coords.data_handle(), n, 2);
+  deep_copy_mismatch_layouts(coords_device, coords_host);
+
+  Kokkos::View<Real *, MemorySpace> data_device("data_device", n);
+  Kokkos::parallel_for(
+    "field_test_utils_set_field", Kokkos::RangePolicy<ExecutionSpace>(0, n),
+    KOKKOS_LAMBDA(int i) {
+      data_device(i) = func(coords_device(i, 0), coords_device(i, 1));
+    });
+
+  auto data_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), data_device);
+  field.SetDOFHolderData(
+    Rank1View<const Real, HostMemorySpace>(data_host.data(), n));
+}
+
+// Evaluate field at points known to be outside the mesh and verify they all
+// get the given fill_value.
+inline void CheckFillMode(FieldT<Real>& field, Real fill_value,
+                          const std::vector<Real>& outside_pts)
+{
+  int n = static_cast<int>(outside_pts.size()) / 2;
+  std::vector<Real> eval(n);
+
+  Rank2View<const Real, HostMemorySpace> coords_view(outside_pts.data(), n, 2);
+  Rank1View<Real, HostMemorySpace> eval_view(eval.data(), n);
+  CoordinateView<HostMemorySpace> cv{field.GetCoordinateSystem(), coords_view};
+  FieldDataView<Real, HostMemorySpace> dv{eval_view, field.GetCoordinateSystem()};
+
+  auto hint = field.GetLocalizationHint(cv);
+  field.Evaluate(hint, dv);
+
+  for (int i = 0; i < n; ++i) {
+    REQUIRE(eval[i] == fill_value);
+  }
+}
+
+// Check that serialize followed by deserialize round-trips the data.
+// Uses an identity permutation so permutation[i] = i.
+inline void CheckSerializeDeserialize(FieldT<Real>& field)
+{
+  auto data_before = field.GetDOFHolderData();
+  int n = static_cast<int>(data_before.size());
+
+  std::vector<Real> buffer(n);
+  std::vector<LO> perm(n);
+  for (int i = 0; i < n; ++i)
+    perm[i] = i;
+
+  Rank1View<Real, HostMemorySpace> buf_view(buffer.data(), n);
+  Rank1View<const LO, HostMemorySpace> perm_view(perm.data(), n);
+
+  field.Serialize(buf_view, perm_view);
+  field.Deserialize(Rank1View<const Real, HostMemorySpace>(buf_view), perm_view);
+
+  auto data_after = field.GetDOFHolderData();
+  REQUIRE(data_after.size() == data_before.size());
+  for (int i = 0; i < n; ++i) {
+    REQUIRE(data_after[i] == Catch::Approx(data_before[i]));
+  }
+}
+
+// Evaluate field at explicit test points and check each result against func.
+template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
+void CheckEvaluation(FieldT<Real>& field, const std::vector<Real>& pts,
+                     Func func,
+                     double abs_tol = 1e-10)
+{
+  int n = static_cast<int>(pts.size()) / 2;
+  std::vector<Real> eval(n);
+
+  Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
+  Rank1View<Real, HostMemorySpace> eval_view(eval.data(), n);
+  CoordinateView<HostMemorySpace> cv{field.GetCoordinateSystem(), coords_view};
+  FieldDataView<Real, HostMemorySpace> dv{eval_view, field.GetCoordinateSystem()};
+
+  auto hint = field.GetLocalizationHint(cv);
+  field.Evaluate(hint, dv);
+
+  auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
+
+  for (int i = 0; i < n; ++i) {
+    INFO("Point " << i << " (" << pts[2*i] << ", " << pts[2*i+1] << ")"
+         << " got=" << eval[i] << " expected=" << expected[i]);
+    REQUIRE(eval[i] == Catch::Approx(expected[i]).margin(abs_tol));
+  }
+}
+
+template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
+void CheckEvaluationWithFill(FieldT<Real>& field, const std::vector<Real>& pts,
+                             const std::vector<bool>& is_inside, Func func,
+                             Real fill_value, double abs_tol = 1e-10)
+{
+  int n = static_cast<int>(pts.size()) / 2;
+  REQUIRE(static_cast<int>(is_inside.size()) == n);
+
+  std::vector<Real> eval(n);
+
+  Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
+  Rank1View<Real, HostMemorySpace> eval_view(eval.data(), n);
+  CoordinateView<HostMemorySpace> cv{field.GetCoordinateSystem(), coords_view};
+  FieldDataView<Real, HostMemorySpace> dv{eval_view, field.GetCoordinateSystem()};
+
+  auto hint = field.GetLocalizationHint(cv);
+  field.Evaluate(hint, dv);
+
+  auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
+
+  for (int i = 0; i < n; ++i) {
+    INFO("Point " << i << " (" << pts[2*i] << ", " << pts[2*i+1] << ")"
+         << " got=" << eval[i]);
+    if (is_inside[i]) {
+      INFO(" expected=" << expected[i]);
+      REQUIRE(eval[i] == Catch::Approx(expected[i]).margin(abs_tol));
+    } else {
+      REQUIRE(eval[i] == fill_value);
+    }
+  }
+}
+
+} // namespace pcms::test
+
+#endif // PCMS_TEST_FIELD_TEST_UTILS_H
