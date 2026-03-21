@@ -38,7 +38,7 @@ void Application2::AddField(std::string name, OwnedFieldPtr field,
 
   FieldCommunicator2Ptr field_communicator = std::visit(
     [this, name](auto* field_ptr) -> FieldCommunicator2Ptr {
-      using T = std::remove_pointer_t<decltype(field_ptr)>::value_type;
+      using T = typename std::remove_pointer_t<decltype(field_ptr)>::value_type;
       FieldLayoutCommunicator& layout_communicator =
         GetLayoutCommunicator(field_ptr->GetLayout());
       return std::make_unique<FieldCommunicator2<T>>(layout_communicator,

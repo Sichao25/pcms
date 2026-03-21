@@ -1,9 +1,14 @@
 #include "pcms/lagrange_field_factory.h"
+#include "pcms/configuration.h"
+#include "pcms/utility/assert.h"
+#ifdef PCMS_ENABLE_MESHFIELDS
 #include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
+#endif
+#include "pcms/adapter/omega_h/omega_h_lagrange_layout.h"
+#include "pcms/adapter/omega_h/omega_h_lagrange_field.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_field.h"
-#include "pcms/utility/assert.h"
 #include "pcms/utility/uniform_grid.h"
 
 #include <stdexcept>
@@ -20,21 +25,43 @@ LagrangeFieldFactory::LagrangeFieldFactory(
 
 LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
   Omega_h::Mesh& mesh, int order, int num_components,
-  CoordinateSystem coordinate_system, std::string global_id_name)
+  CoordinateSystem coordinate_system, std::string global_id_name,
+  Backend backend)
 {
-  std::array<int, 4> nodes_per_dim{};
-  switch (order) {
-    case 1: nodes_per_dim = {1, 0, 0, 0}; break;
-    case 2: nodes_per_dim = {1, 1, 0, 0}; break;
-    default: throw std::runtime_error("Unimplemented Lagrange order");
+  if (backend == Backend::MeshFields) {
+#ifdef PCMS_ENABLE_MESHFIELDS
+    std::array<int, 4> nodes_per_dim{};
+    switch (order) {
+      case 1: nodes_per_dim = {1, 0, 0, 0}; break;
+      case 2: nodes_per_dim = {1, 1, 0, 0}; break;
+      default: throw pcms_error("Unimplemented Lagrange order");
+    }
+    auto mesh_layout = std::make_shared<MeshFieldsAdapterLayout>(
+      mesh, nodes_per_dim, num_components, coordinate_system,
+      std::move(global_id_name));
+    return LagrangeFieldFactory(
+      mesh_layout,
+      [mesh_layout]() {
+        return std::make_unique<MeshFieldsAdapter2<Real>>(mesh_layout);
+      });
+#else
+    throw pcms_error(
+      "LagrangeFieldFactory::FromMesh: MeshFields backend requested but "
+      "PCMS_ENABLE_MESHFIELDS is not set");
+#endif
   }
-  auto mesh_layout = std::make_shared<MeshFieldsAdapterLayout>(
-    mesh, nodes_per_dim, num_components, coordinate_system,
-    std::move(global_id_name));
+  // OmegaH backend
+  if (order > 1) {
+    throw pcms_error(
+      "LagrangeFieldFactory::FromMesh: OmegaH backend only supports "
+      "Lagrange orders 0 and 1");
+  }
+  auto layout = std::make_shared<OmegaHLagrangeLayout>(
+    mesh, order, num_components, coordinate_system, std::move(global_id_name));
   return LagrangeFieldFactory(
-    mesh_layout,
-    [mesh_layout]() {
-      return std::make_unique<MeshFieldsAdapter2<Real>>(mesh_layout);
+    layout,
+    [layout]() {
+      return std::make_unique<OmegaHLagrangeField<Real>>(layout);
     });
 }
 

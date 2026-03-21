@@ -8,6 +8,7 @@
 #include "pcms/adapter/meshfields/mesh_fields_adapter.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/lagrange_field_factory.h"
+#include "pcms/utility/assert.h"
 #include "field_test_utils.h"
 #include <Kokkos_Core.hpp>
 #include <vector>
@@ -43,14 +44,16 @@ TEST_CASE("interpolate linear 2d omega_h_field")
   }
 }
 
-TEST_CASE("interpolate quadratic 2d omega_h_field")
+#ifdef PCMS_ENABLE_MESHFIELDS
+TEST_CASE("interpolate quadratic 2d meshfields_field")
 {
   auto lib = Omega_h::Library{};
   auto world = lib.world();
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
   auto factory2 = pcms::LagrangeFieldFactory::FromMesh(
-    mesh, 2, 1, pcms::CoordinateSystem::Cartesian);
+    mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFieldFactory::Backend::MeshFields);
   auto layout = factory2.GetLayout();
   const auto nverts = mesh.nents(0);
   const auto nedges = mesh.nents(1);
@@ -93,4 +96,19 @@ TEST_CASE("interpolate quadratic 2d omega_h_field")
                  Catch::Matchers::WithinRel(original_dof[i], 0.001) ||
                    Catch::Matchers::WithinAbs(original_dof[i], 1E-10));
   }
+}
+#endif
+
+TEST_CASE("interpolate quadratic 2d omega_h_field throws")
+{
+  auto lib = Omega_h::Library{};
+  auto world = lib.world();
+  auto mesh =
+    Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
+
+  REQUIRE_THROWS_AS(
+    pcms::LagrangeFieldFactory::FromMesh(
+      mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
+      pcms::LagrangeFieldFactory::Backend::OmegaH),
+    pcms::pcms_error);
 }

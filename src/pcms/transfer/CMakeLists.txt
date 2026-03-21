@@ -51,14 +51,16 @@ target_sources(pcms_transfer PUBLIC
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
         FILES ${PCMS_FIELD_TRANSFER_HEADERS})
 add_library(pcms::transfer ALIAS pcms_transfer)
-target_compile_features(pcms_transfer PUBLIC cxx_std_17)
+target_compile_features(pcms_transfer PUBLIC cxx_std_20)
 
 target_link_libraries(pcms_transfer PUBLIC
     pcms::core
     Omega_h::omega_h
     PRIVATE Kokkos::kokkoskernels)
 
-target_link_libraries(pcms_transfer PUBLIC meshfields::meshfields)
+if(PCMS_ENABLE_MESHFIELDS)
+  target_link_libraries(pcms_transfer PUBLIC meshfields::meshfields)
+endif()
 
 if(PCMS_ENABLE_PETSC)
   target_link_libraries(pcms_transfer PRIVATE PETSc::PETSc)

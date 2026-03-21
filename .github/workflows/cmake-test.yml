@@ -25,6 +25,14 @@ jobs:
         compiler: [g++]
         language: ['cpp']
         python_api: [OFF, ON]
+        meshfields: [ON]
+        include:
+          - build_type: Release
+            memory_test: OFF
+            compiler: g++
+            language: 'cpp'
+            python_api: OFF
+            meshfields: OFF
         exclude:
           - build_type: Release
             memory_test: ON
@@ -106,6 +114,7 @@ jobs:
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos'
     
     - name: build meshFields
+      if: matrix.meshfields == 'ON'
       uses: ./.github/actions/install-repo
       with:
         repo-name: 'meshFields'
@@ -193,7 +202,20 @@ jobs:
     - name: Set LD_LIBRARY_PATH for shared libraries
       if: matrix.python_api == 'ON'
       run: |
-        echo "LD_LIBRARY_PATH=${{ runner.temp }}/build-kokkos/install/lib:${{ runner.temp }}/build-omega_h/install/lib:${{ runner.temp }}/build-meshFields/install/lib:${{ runner.temp }}/build-redev/install/lib:${{ runner.temp }}/build-ADIOS2/install/lib:${{ runner.temp }}/build-perfstubs/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        meshfields_lib=""
+        if [ "${{ matrix.meshfields }}" = "ON" ]; then
+          meshfields_lib="${{ runner.temp }}/build-meshFields/install/lib:"
+        fi
+        echo "LD_LIBRARY_PATH=${{ runner.temp }}/build-kokkos/install/lib:${{ runner.temp }}/build-omega_h/install/lib:${meshfields_lib}${{ runner.temp }}/build-redev/install/lib:${{ runner.temp }}/build-ADIOS2/install/lib:${{ runner.temp }}/build-perfstubs/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+    - name: Set PCMS MeshFields options
+      run: |
+        echo "PCMS_ENABLE_MESHFIELDS=-DPCMS_ENABLE_MESHFIELDS=${{ matrix.meshfields }}" >> $GITHUB_ENV
+        if [ "${{ matrix.meshfields }}" = "ON" ]; then
+          echo "PCMS_MESHFIELDS_DIR=-Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields" >> $GITHUB_ENV
+        else
+          echo "PCMS_MESHFIELDS_DIR=" >> $GITHUB_ENV
+        fi
 
     - name: build pcms
       uses: ./.github/actions/install-repo
@@ -207,6 +229,7 @@ jobs:
                   -DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_Fortran_COMPILER=`which mpifort`
                   -DMPIEXEC_PREFLAGS="--oversubscribe"
+                  ${{ env.PCMS_ENABLE_MESHFIELDS }}
                   -DPCMS_ENABLE_PETSC=ON
                   -DPETSC_LINK_STATIC=ON
                   -DPETSC_DIR=${{ runner.temp }}/petsc
@@ -216,7 +239,7 @@ jobs:
                   -DPCMS_ENABLE_Python=${{ matrix.python_api }}
                   -DCatch2_DIR=${{ runner.temp }}/build-Catch2/install/lib/cmake/Catch2
                   -DOmega_h_DIR=${{ runner.temp }}/build-omega_h/install/lib/cmake/Omega_h
-                  -Dmeshfields_DIR=${{ runner.temp }}/build-meshFields/install/lib/cmake/meshfields
+                  ${{ env.PCMS_MESHFIELDS_DIR }}
                   -Dredev_DIR=${{ runner.temp }}/build-redev/install/lib/cmake/redev
                   -DMPIEXEC_EXECUTABLE=`which mpirun`
                   -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2

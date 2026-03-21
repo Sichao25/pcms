@@ -7,6 +7,7 @@
 #include "pcms/adapter/meshfields/mesh_fields_adapter.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/lagrange_field_factory.h"
+#include "pcms/utility/assert.h"
 #include <Kokkos_Core.hpp>
 
 using pcms::Real;
@@ -20,7 +21,8 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 1, nx, ny, nz, false);
   auto factory = pcms::LagrangeFieldFactory::FromMesh(
-    mesh, order, num_components, pcms::CoordinateSystem::Cartesian);
+    mesh, order, num_components, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFieldFactory::Backend::OmegaH);
   // FIXME this indicates that we are not exposing the right API from the fields to be able
   // to allocate buffers for getting/setting the field data.
   auto layout = factory.GetLayout();
@@ -51,6 +53,14 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
 TEST_CASE("copy omega_h_field2 data")
 {
   auto lib = Omega_h::Library{};
+  test_copy(lib.world(), 2, 0, 1);
   test_copy(lib.world(), 2, 1, 1);
-  test_copy(lib.world(), 2, 2, 1);
+  auto mesh =
+    Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 100, 100, 0, false);
+  REQUIRE_THROWS_AS(
+    pcms::LagrangeFieldFactory::FromMesh(
+      mesh,
+      2, 1, pcms::CoordinateSystem::Cartesian, "global",
+      pcms::LagrangeFieldFactory::Backend::OmegaH),
+    pcms::pcms_error);
 }

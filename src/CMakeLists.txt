@@ -29,15 +29,12 @@ set(
   pcms/nodal_field_factory.cpp
   pcms/adapter/point_cloud/point_cloud_layout.cpp
   pcms/adapter/point_cloud/point_cloud.cpp
-  pcms/adapter/meshfields/mesh_fields_adapter_layout.cpp
 )
 set(
   ADAPTER_HEADERS
   pcms/adapter/dummy_field_adapter.h
   pcms/adapter/point_cloud/point_cloud_layout.h
   pcms/adapter/point_cloud/point_cloud.h
-  pcms/adapter/meshfields/mesh_fields_adapter_layout.h
-  pcms/adapter/meshfields/mesh_fields_adapter2.h
   pcms/adapter/xgc/xgc_field_adapter.h
 )
 
@@ -54,6 +51,16 @@ if(PCMS_ENABLE_XGC)
   list(APPEND PCMS_SOURCES pcms/adapter/xgc/xgc_reverse_classification.cpp)
   list(APPEND ADAPTER_HEADERS pcms/adapter/xgc/xgc_reverse_classification.h)
 endif()
+if(PCMS_ENABLE_MESHFIELDS)
+  list(APPEND PCMS_SOURCES
+    pcms/adapter/meshfields/mesh_fields_adapter_layout.cpp
+  )
+  list(APPEND ADAPTER_HEADERS
+    pcms/adapter/meshfields/mesh_fields_adapter_layout.h
+    pcms/adapter/meshfields/mesh_fields_adapter2.h
+    pcms/adapter/meshfields/mesh_fields_adapter.h
+  )
+endif()
 if(PCMS_ENABLE_OMEGA_H)
   list(APPEND PCMS_SOURCES
     pcms/lagrange_field_factory.cpp
@@ -69,7 +76,6 @@ if(PCMS_ENABLE_OMEGA_H)
     pcms/transfer_field2.h
   )
   list(APPEND ADAPTER_HEADERS
-    pcms/adapter/meshfields/mesh_fields_adapter.h
     pcms/adapter/omega_h/omega_h_lagrange_layout.h
     pcms/adapter/omega_h/omega_h_lagrange_field.h
     pcms/adapter/uniform_grid/uniform_grid_field_layout.h
@@ -86,11 +92,14 @@ set_target_properties(
   core
 )
 add_library(pcms::core ALIAS pcms_core)
-target_compile_features(pcms_core PUBLIC cxx_std_17)
+target_compile_features(pcms_core PUBLIC cxx_std_20)
 target_link_libraries(
-  pcms_core PUBLIC meshfields::meshfields redev::redev
+  pcms_core PUBLIC redev::redev
   MPI::MPI_CXX Kokkos::kokkos perfstubs pcms::utility pcms::localization
 )
+if(PCMS_ENABLE_MESHFIELDS)
+  target_link_libraries(pcms_core PUBLIC meshfields::meshfields)
+endif()
 if(PCMS_ENABLE_OMEGA_H)
   target_link_libraries(pcms_core PUBLIC Omega_h::omega_h)
 endif()
