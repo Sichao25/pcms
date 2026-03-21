@@ -26,6 +26,7 @@ jobs:
         language: ['cpp']
         python_api: [OFF, ON]
         meshfields: [ON]
+        petsc: [ON]
         include:
           - build_type: Release
             memory_test: OFF
@@ -33,6 +34,14 @@ jobs:
             language: 'cpp'
             python_api: OFF
             meshfields: OFF
+            petsc: ON
+          - build_type: Release
+            memory_test: OFF
+            compiler: g++
+            language: 'cpp'
+            python_api: OFF
+            meshfields: ON
+            petsc: OFF
         exclude:
           - build_type: Release
             memory_test: ON
@@ -163,6 +172,7 @@ jobs:
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake'
 
     - name: clone petsc
+      if: matrix.petsc == 'ON'
       id: clone-petsc
       run: |
         cd ${{ runner.temp }}
@@ -171,6 +181,7 @@ jobs:
         echo "petsc-commit-hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
     - name: Cache PETSc
+      if: matrix.petsc == 'ON'
       id: cache-petsc
       uses: actions/cache@v3
       with:
@@ -178,7 +189,7 @@ jobs:
         key: build-petsc-${{ steps.clone-petsc.outputs.petsc-commit-hash }}
     
     - name: build petsc
-      if: steps.cache-petsc.outputs.cache-hit != 'true'
+      if: matrix.petsc == 'ON' && steps.cache-petsc.outputs.cache-hit != 'true'
       run: |
         cd ${{ runner.temp }}/petsc
         ./configure \
@@ -189,6 +200,15 @@ jobs:
           --with-shared-libraries=0 \
           --download-fblaslapack
         make all check
+
+    - name: Set PCMS PETSc options
+      run: |
+        echo "PCMS_ENABLE_PETSC=-DPCMS_ENABLE_PETSC=${{ matrix.petsc }}" >> $GITHUB_ENV
+        if [ "${{ matrix.petsc }}" = "ON" ]; then
+          echo "PCMS_PETSC_OPTIONS=-DPETSC_LINK_STATIC=ON -DPETSC_DIR=${{ runner.temp }}/petsc -DPETSC_ARCH=ubuntu-kokkos" >> $GITHUB_ENV
+        else
+          echo "PCMS_PETSC_OPTIONS=" >> $GITHUB_ENV
+        fi
 
     - name: checkout pcms_testcases
       uses: actions/checkout@v3
@@ -230,10 +250,8 @@ jobs:
                   -DCMAKE_Fortran_COMPILER=`which mpifort`
                   -DMPIEXEC_PREFLAGS="--oversubscribe"
                   ${{ env.PCMS_ENABLE_MESHFIELDS }}
-                  -DPCMS_ENABLE_PETSC=ON
-                  -DPETSC_LINK_STATIC=ON
-                  -DPETSC_DIR=${{ runner.temp }}/petsc
-                  -DPETSC_ARCH=ubuntu-kokkos
+                  ${{ env.PCMS_ENABLE_PETSC }}
+                  ${{ env.PCMS_PETSC_OPTIONS }}
                   -DPCMS_TIMEOUT=10
                   -DPCMS_ENABLE_SPDLOG=OFF
                   -DPCMS_ENABLE_Python=${{ matrix.python_api }}
@@ -287,8 +305,6 @@ jobs:
           -B ${{github.workspace}}/examples/external-usage-example/build \
           -S ${{github.workspace}}/examples/external-usage-example/ \
           -Dpcms_DIR=${{ runner.temp }}/build-pcms/install/lib/cmake/pcms \
-          -DPETSC_LINK_STATIC=ON \
-          -DPETSC_DIR=${{ runner.temp }}/petsc \
-          -DPETSC_ARCH=ubuntu-kokkos \
+          ${{ matrix.petsc == 'ON' && format('-DPETSC_LINK_STATIC=ON -DPETSC_DIR={0}/petsc -DPETSC_ARCH=ubuntu-kokkos', runner.temp) || '' }} \
           --debug-output
         cmake --build ${{github.workspace}}/examples/external-usage-example/build
