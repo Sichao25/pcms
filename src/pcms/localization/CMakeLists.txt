@@ -18,7 +18,7 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../..>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(pcms_localization PUBLIC Kokkos::kokkos pcms::utility Omega_h::omega_h)
-target_compile_features(pcms_localization PUBLIC cxx_std_17)
+target_compile_features(pcms_localization PUBLIC cxx_std_20)
 
 set_target_properties(
         pcms_localization PROPERTIES OUTPUT_NAME pcmslocalization EXPORT_NAME

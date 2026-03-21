@@ -32,7 +32,7 @@ module load cuda/12.1.1-zxa4msk
 git clone --branch 4.6.01 --depth 1 git@github.com:kokkos/kokkos.git
 cmake -S kokkos -B build-kokkos \
   -DCMAKE_INSTALL_PREFIX=build-kokkos/install \
-  -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_CXX_STANDARD=20 \
   -DKokkos_ENABLE_SERIAL=ON \
   -DKokkos_ENABLE_OPENMP=OFF \
   -DKokkos_ENABLE_CUDA=OFF \
@@ -44,7 +44,7 @@ cmake --build build-kokkos --target install
 git clone --branch 4.6.01 --depth 1 git@github.com:kokkos/kokkos-kernels.git
 cmake -S kokkos-kernels -B build-kokkos-kernels \
   -DCMAKE_INSTALL_PREFIX=build-kokkos-kernels/install \
-  -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_CXX_STANDARD=20 \
   -DKokkos_ROOT=$PWD/build-kokkos/install/lib64/cmake \
   -DBUILD_SHARED_LIBS=OFF
 cmake --build build-kokkos-kernels --target install
@@ -97,7 +97,7 @@ cmake --build build-redev --target install
 git clone --branch 4.6.01 --depth 1 git@github.com:kokkos/kokkos.git
 cmake -S kokkos -B build-kokkos \
   -DCMAKE_INSTALL_PREFIX=build-kokkos/install \
-  -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_CXX_STANDARD=20 \
   -DCMAKE_BUILD_TYPE="Release" \
   -DCMAKE_CXX_COMPILER=$PWD/kokkos/bin/nvcc_wrapper \
   -DKokkos_ARCH_AMPERE80=ON \
@@ -112,7 +112,7 @@ cmake --build build-kokkos --target install
 git clone --branch 4.6.01 --depth 1 git@github.com:kokkos/kokkos-kernels.git
 cmake -S kokkos-kernels -B build-kokkos-kernels \
   -DCMAKE_INSTALL_PREFIX=build-kokkos-kernels/install \
-  -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_CXX_STANDARD=20 \
   -DKokkos_ROOT=$PWD/build-kokkos/install/lib64/cmake \
   -DBUILD_SHARED_LIBS=off
 cmake --build build-kokkos-kernels --target install

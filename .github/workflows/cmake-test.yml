@@ -68,7 +68,7 @@ jobs:
         repo-ref: '4.6.01'
         cache: true
         cache-suffix: ${{ matrix.python_api == 'ON' && '-shared' || '' }}
-        options: '-DCMAKE_CXX_STANDARD=17
+        options: '-DCMAKE_CXX_STANDARD=20
                   -DBUILD_SHARED_LIBS=${{ matrix.python_api }}
                   -DKokkos_ENABLE_SERIAL=ON
                   -DKokkos_ENABLE_OPENMP=OFF
@@ -84,7 +84,7 @@ jobs:
         repo-ref: '4.6.01'
         cache: true
         cache-suffix: ${{ matrix.python_api == 'ON' && '-shared' || '' }}
-        options: '-DCMAKE_CXX_STANDARD=17
+        options: '-DCMAKE_CXX_STANDARD=20
                   -DBUILD_SHARED_LIBS=${{ matrix.python_api }}
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos/install/lib/cmake/Kokkos'
 

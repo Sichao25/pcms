@@ -63,7 +63,7 @@ jobs:
         repo-path: 'kokkos/kokkos'
         repo-ref: '4.6.01'
         cache: true
-        options: '-DCMAKE_CXX_STANDARD=17
+        options: '-DCMAKE_CXX_STANDARD=20
                   -DBUILD_SHARED_LIBS=OFF
                   -DKokkos_ENABLE_SERIAL=ON
                   -DKokkos_ENABLE_OPENMP=OFF
@@ -78,7 +78,7 @@ jobs:
         repo-path: 'kokkos/kokkos-kernels'
         repo-ref: '4.6.01'
         cache: true
-        options: '-DCMAKE_CXX_STANDARD=17
+        options: '-DCMAKE_CXX_STANDARD=20
                   -DBUILD_SHARED_LIBS=OFF
                   -DKokkos_DIR=${{ runner.temp }}/build-kokkos-openmpi/install/lib/cmake/Kokkos'
 
