@@ -4,10 +4,10 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include <pcms/transfer_field2.h>
-#include "pcms/adapter/meshfields/mesh_fields_adapter.h"
-#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
-#include "pcms/lagrange_field_factory.h"
+#include <../src/pcms/transfer/transfer_field2.h>
+#include "pcms/coupler/adapter/meshfields/mesh_fields_adapter.h"
+#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
+#include "pcms/field/lagrange_field_factory.h"
 #include "pcms/utility/assert.h"
 #include "field_test_utils.h"
 #include <Kokkos_Core.hpp>

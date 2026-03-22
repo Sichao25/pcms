@@ -1,7 +1,7 @@
 #include <Omega_h_build.hpp>
 #include <Omega_h_vtk.hpp>
-#include <pcms/transfer_field.h>
-#include "pcms/adapter/meshfields/mesh_fields_adapter.h"
+#include <../src/pcms/transfer/transfer_field.h>
+#include "pcms/coupler/adapter/meshfields/mesh_fields_adapter.h"
 // for transfer operation dummy test
 #include <pcms.h>
 #include <chrono>

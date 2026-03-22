@@ -3,9 +3,9 @@
 
 #include <catch2/catch_approx.hpp>
 #include <Kokkos_Core.hpp>
-#include "pcms/field.h"
-#include "pcms/field_serializer.h"
-#include "pcms/coordinate_system.h"
+#include "pcms/field/field.h"
+#include "pcms/coupler/field_serializer.h"
+#include "pcms/field/coordinate_system.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 #include <cmath>

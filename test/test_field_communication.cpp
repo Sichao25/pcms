@@ -7,10 +7,10 @@
 #include <Omega_h_for.hpp>
 #include <redev.h>
 #include <vector>
-#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
-#include "pcms/field_communicator2.h"
-#include "pcms/field_communicator.h"
-#include "pcms/lagrange_field_factory.h"
+#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
+#include "pcms/coupler/field_communicator2.h"
+#include "pcms/coupler/field_communicator.h"
+#include "pcms/field/lagrange_field_factory.h"
 #include "test_support.h"
 
 namespace ts = test_support;

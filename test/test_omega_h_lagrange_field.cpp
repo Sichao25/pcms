@@ -4,9 +4,9 @@
 #include <Omega_h_for.hpp>
 #include <Omega_h_mesh.hpp>
 
-#include "pcms/adapter/omega_h/omega_h_lagrange_layout.h"
-#include "pcms/adapter/omega_h/omega_h_lagrange_field.h"
-#include "pcms/lagrange_field_factory.h"
+#include "pcms/field/adapter/omega_h/omega_h_lagrange_layout.h"
+#include "pcms/field/adapter/omega_h/omega_h_lagrange_field.h"
+#include "pcms/field/lagrange_field_factory.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/mesh_geometry.h"
 #include "field_test_utils.h"

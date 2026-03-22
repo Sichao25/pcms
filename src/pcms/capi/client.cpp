@@ -1,11 +1,11 @@
 #include "client.h"
 #include "pcms.h"
-#include "pcms/adapter/xgc/xgc_field_adapter.h"
+#include "pcms/coupler/adapter/xgc/xgc_field_adapter.h"
 #include <variant>
 #include <redev_variant_tools.h>
 #include <fstream>
-#include "pcms/adapter/xgc/xgc_reverse_classification.h"
-#include "pcms/adapter/dummy_field_adapter.h"
+#include "pcms/coupler/adapter/xgc/xgc_reverse_classification.h"
+#include "pcms/coupler/adapter/dummy_field_adapter.h"
 #include "pcms/utility/assert.h"
 namespace pcms
 {

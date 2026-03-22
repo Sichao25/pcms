@@ -1,8 +1,8 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "pcms/nodal_field_factory.h"
-#include "pcms/adapter/point_cloud/point_cloud_layout.h"
+#include "pcms/field/nodal_field_factory.h"
+#include "pcms/field/adapter/point_cloud/point_cloud_layout.h"
 #include "field_test_utils.h"
 
 #include <vector>

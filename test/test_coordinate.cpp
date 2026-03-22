@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
-#include <pcms/coordinate.h>
-#include <pcms/coordinate_systems.h>
+#include <../src/pcms/field/coordinate.h>
+#include <../src/pcms/field/coordinate_systems.h>
 #include "mdspan/mdspan.hpp"
 #include <pcms/utility/arrays.h>
 

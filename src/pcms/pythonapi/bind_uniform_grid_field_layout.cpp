@@ -1,9 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
-#include "pcms/field.h"
-#include "pcms/field_layout.h"
+#include "pcms/field/adapter/uniform_grid/uniform_grid_field_layout.h"
+#include "pcms/field/field.h"
+#include "pcms/field/field_layout.h"
 #include "pcms/utility/uniform_grid.h"
 #include "numpy_array_transform.h"
 

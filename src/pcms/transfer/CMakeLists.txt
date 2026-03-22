@@ -16,6 +16,8 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     load_vector_integrator.hpp
     mass_matrix_integrator.hpp
     mesh_intersection.hpp
+    transfer_field.h
+    transfer_field2.h
 )
 
 
@@ -25,6 +27,7 @@ set(PCMS_FIELD_TRANSFER_SOURCES
     mesh_intersection.cpp
     mls_interpolation.cpp
     interpolation_base.cpp)
+
 
 if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
   list(APPEND PCMS_FIELD_TRANSFER_HEADERS
@@ -50,6 +53,7 @@ target_sources(pcms_transfer PUBLIC
         TYPE HEADERS
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
         FILES ${PCMS_FIELD_TRANSFER_HEADERS})
+
 add_library(pcms::transfer ALIAS pcms_transfer)
 target_compile_features(pcms_transfer PUBLIC cxx_std_20)
 

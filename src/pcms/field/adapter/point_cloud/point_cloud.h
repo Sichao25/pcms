@@ -1,0 +1,38 @@
+#ifndef POINT_CLOUD_H_
+#define POINT_CLOUD_H_
+
+#include "pcms/field/field.h"
+#include "pcms/utility/arrays.h"
+#include "point_cloud_layout.h"
+#include <memory>
+
+namespace pcms
+{
+class PointCloud : public FieldT<Real>
+{
+public:
+  PointCloud(std::shared_ptr<const PointCloudLayout> layout);
+
+  LocalizationHint GetLocalizationHint(
+    CoordinateView<HostMemorySpace> coordinate_view) const override;
+
+  void Evaluate(LocalizationHint location,
+                FieldDataView<Real, HostMemorySpace> results) const override;
+
+  void EvaluateGradient(FieldDataView<Real, HostMemorySpace> results) override;
+
+  const FieldLayout& GetLayout() const override;
+
+  bool CanEvaluateGradient() override;
+
+  Rank1View<const Real, HostMemorySpace> GetDOFHolderData() const override;
+  void SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data) override;
+
+private:
+  std::shared_ptr<const PointCloudLayout> layout_;
+  Kokkos::View<Real*> data_;
+  Kokkos::View<Real*, HostMemorySpace> data_host_;
+};
+} // namespace pcms
+
+#endif // POINT_CLOUD_H_

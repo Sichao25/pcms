@@ -3,9 +3,9 @@
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include "pcms/utility/arrays.h"
-#include "pcms/field_serializer.h"
-#include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
-#include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
+#include "pcms/coupler/field_serializer.h"
+#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
+#include "pcms/field/adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "numpy_array_transform.h"
 
 namespace py = pybind11;

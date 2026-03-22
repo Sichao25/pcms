@@ -1,5 +1,5 @@
-#include <pcms/transfer_field.h>
-#include "pcms/adapter/meshfields/mesh_fields_adapter.h"
+#include <../src/pcms/transfer/transfer_field.h>
+#include "pcms/coupler/adapter/meshfields/mesh_fields_adapter.h"
 #include <catch2/catch_test_macros.hpp>
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>

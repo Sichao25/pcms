@@ -6,8 +6,8 @@
 #include <Omega_h_for.hpp>
 #include <redev_variant_tools.h>
 #include "test_support.h"
-#include "pcms/coupler2.h"
-#include "pcms/lagrange_field_factory.h"
+#include "pcms/coupler/coupler2.h"
+#include "pcms/field/lagrange_field_factory.h"
 #include <chrono>
 #include <thread>
 

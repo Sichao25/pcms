@@ -1,13 +1,13 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "pcms/coordinate_system.h"
-#include "pcms/coordinate.h"
-#include "pcms/field_serializer.h"
-#include "pcms/adapter/uniform_grid/uniform_grid_field.h"
-#include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
-#include "pcms/adapter/uniform_grid/uniform_grid_binary_field.h"
-#include "pcms/lagrange_field_factory.h"
+#include "pcms/field/coordinate_system.h"
+#include "pcms/field/coordinate.h"
+#include "pcms/coupler/field_serializer.h"
+#include "pcms/field/adapter/uniform_grid/uniform_grid_field.h"
+#include "pcms/field/adapter/uniform_grid/uniform_grid_field_layout.h"
+#include "pcms/field/adapter/uniform_grid/uniform_grid_binary_field.h"
+#include "pcms/field/lagrange_field_factory.h"
 #include "pcms/utility/uniform_grid.h"
 #include "numpy_array_transform.h"
 

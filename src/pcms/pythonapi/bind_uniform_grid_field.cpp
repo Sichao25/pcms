@@ -3,9 +3,9 @@
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include "pcms/utility/arrays.h"
-#include "pcms/field_serializer.h"
-#include "pcms/adapter/uniform_grid/uniform_grid_field.h"
-#include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
+#include "pcms/coupler/field_serializer.h"
+#include "pcms/field/adapter/uniform_grid/uniform_grid_field.h"
+#include "pcms/field/adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "numpy_array_transform.h"
 
 namespace py = pybind11;

@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "pcms/field_layout.h"
+#include "pcms/field/field_layout.h"
 #include "numpy_array_transform.h"
 
 namespace py = pybind11;

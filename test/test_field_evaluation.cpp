@@ -2,7 +2,7 @@
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
 #include <Omega_h_mesh.hpp>
-#include "pcms/lagrange_field_factory.h"
+#include "pcms/field/lagrange_field_factory.h"
 #include "pcms/utility/assert.h"
 #include "field_test_utils.h"
 #include <cmath>

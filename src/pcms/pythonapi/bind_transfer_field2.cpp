@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "pcms/transfer_field2.h"
-#include "pcms/field.h"
+#include "pcms/transfer/transfer_field2.h"
+#include "pcms/field/field.h"
 
 namespace py = pybind11;
 
