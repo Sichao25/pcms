@@ -1,0 +1,117 @@
+#ifndef PCMS_FIELD_EVALUATOR_FACTORY_H
+#define PCMS_FIELD_EVALUATOR_FACTORY_H
+
+#include "field_layout.h"
+#include "coordinate_system.h"
+#include "out_of_bounds_policy.h"
+#include "point_evaluator.h"
+#include "pcms/utility/arrays.h"
+#include "pcms/utility/memory_spaces.h"
+#include <memory>
+
+namespace pcms
+{
+
+// FieldEvaluatorFactory<T> owns backend-specific knowledge needed to evaluate a
+// field (mesh geometry, model architecture, analytic parameters, etc.). It is
+// reusable across any number of query point sets and FieldData objects and is
+// created once per field configuration.
+//
+// Contract:
+//   - A factory instance is tied to one backend/layout configuration.
+//   - CreatePointEvaluator(...) either returns a fully usable evaluator or
+//     throws pcms_error immediately; unsupported operations must not be
+//     deferred to PointEvaluator::Evaluate().
+//   - A PointEvaluator created by this factory may be reused with multiple
+//     FieldData objects only when they are compatible with this factory's
+//     layout/backend contract.
+//   - OutOfBoundsPolicy is fixed at evaluator creation time.
+//
+// FieldEvaluatorFactory<T> is a standalone abstract type rather than being
+// merged into concrete field factories (LagrangeFieldFactory, etc.). This is
+// intentional: field families such as analytic functions and ML surrogates can
+// be evaluated at arbitrary points but have no meaningful field construction
+// operation. Concrete field factories implement both this interface and their
+// own field creation interface.
+//
+// Concrete field factories store a FieldEvaluatorFactory<T> by composition and
+// expose CreatePointEvaluator(coords) as a convenience that delegates to the
+// internal factory.
+//
+// Example (sketch of a concrete field factory):
+//
+//   class LagrangeFieldFactory {
+//   public:
+//     std::unique_ptr<FieldData<Real>>   CreateFieldReal() const;
+//     std::shared_ptr<const FieldLayout> GetLayout() const;
+//     CoordinateSystem                   GetCoordinateSystem() const;
+//
+//     // convenience — delegates to the internal FieldEvaluatorFactory:
+//     std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
+//       CoordinateView<HostMemorySpace> coords,
+//       OutOfBoundsPolicy policy = {}) const;
+//
+//   private:
+//     std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory_;
+//   };
+template <typename T>
+class FieldEvaluatorFactory
+{
+public:
+  // Returns the layout this factory was constructed for. Used by callers to
+  // verify FieldData compatibility before calling Evaluate.
+  virtual const FieldLayout& GetLayout() const = 0;
+
+  // The coordinate system that query coordinates must be expressed in when
+  // calling CreatePointEvaluator. A CoordinateView with a mismatched system
+  // will produce a descriptive error at CreatePointEvaluator time.
+  // (Automatic coordinate transform insertion is deferred.)
+  virtual CoordinateSystem GetCoordinateSystem() const = 0;
+
+  // Whether this factory can supply DOF holder coordinates. True for all
+  // mesh-backed evaluators (unstructured, structured). False for evaluators
+  // whose DOF holders have no meaningful physical-space coordinates (e.g.
+  // Fourier mode indices). BuildInterpolationOperator requires this to be true
+  // on the target factory.
+  virtual bool HasDOFHolderCoordinates() const = 0;
+
+  // Coordinates of each DOF holder in the layout ordering, shape
+  // [num_dof_holders][spatial_dim]. Defined only when HasDOFHolderCoordinates()
+  // is true; implementations should assert or throw otherwise. The returned
+  // view remains valid until the factory is destroyed.
+  virtual CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost()
+    const = 0;
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice()
+    const = 0;
+#endif
+
+  // Whether this factory supports OutOfBoundsMode::NearestBoundary.
+  // Backends that return false will throw a descriptive error if
+  // NearestBoundary is requested via OutOfBoundsPolicy.
+  virtual bool SupportsNearestBoundary() const = 0;
+
+  // Performs all localization work for the given query point coordinates, shape
+  // [num_query_points][spatial_dim], and returns a PointEvaluator that caches
+  // the result. The OutOfBoundsPolicy controls behavior for points that fall
+  // outside the domain and is baked into the returned PointEvaluator. The
+  // PointEvaluator may be reused across Evaluate calls as long as the query
+  // points and underlying geometry/layout remain unchanged. On misuse or
+  // unsupported capability, implementations should throw pcms_error.
+  virtual std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
+    CoordinateView<HostMemorySpace> coords,
+    OutOfBoundsPolicy policy = {}) const = 0;
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  virtual std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
+    CoordinateView<DeviceMemorySpace> coords,
+    OutOfBoundsPolicy policy = {}) const = 0;
+#endif
+
+  virtual ~FieldEvaluatorFactory() noexcept = default;
+};
+
+} // namespace pcms
+
+#endif // PCMS_FIELD_EVALUATOR_FACTORY_H

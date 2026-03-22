@@ -326,7 +326,7 @@ auto set_nodal_data(const MeshFieldsAdapter<T>& field,
     mesh.has_tag(mesh_entity_to_int(entity_type), field.GetName()));
 }
 
-// TODO abstract out repeat parts of lagrange/nearest neighbor evaluation
+// TODO abstract out repeat parts of legacy evaluation paths
 template <typename T>
 auto evaluate(const MeshFieldsAdapter<T>& field, Lagrange<1> /* method */,
               Rank1View<const double, OmegaHMemorySpace::type> coordinates)
@@ -362,46 +362,6 @@ auto evaluate(const MeshFieldsAdapter<T>& field, Lagrange<1> /* method */,
       values[i] = val;
     });
 
-  return values;
-}
-
-template <typename T>
-auto evaluate(const MeshFieldsAdapter<T>& field, NearestNeighbor /* method */,
-              Rank1View<const double, OmegaHMemorySpace::type> coordinates)
-  -> Omega_h::Read<T>
-{
-  PCMS_FUNCTION_TIMER;
-  Omega_h::Write<T> values(coordinates.size() / 2);
-  auto tris2verts = field.GetMesh().ask_elem_verts();
-  auto field_values = field.GetMesh().template get_array<T>(0, field.GetName());
-  // TODO reuse coordinates_data if possible
-  Kokkos::View<Real* [2]> coords("coords", coordinates.size() / 2);
-  Kokkos::parallel_for(
-    coordinates.size() / 2, KOKKOS_LAMBDA(LO i) {
-      coords(i, 0) = coordinates(2 * i);
-      coords(i, 1) = coordinates(2 * i + 1);
-    });
-  auto results = field.Search(coords);
-
-  Kokkos::parallel_for(
-    results.size(), KOKKOS_LAMBDA(LO i) {
-      auto [dim, elem_idx, coord] = results(i);
-      // TODO deal with case for elem_idx < 0 (point outside of mesh)
-      KOKKOS_ASSERT(elem_idx >= 0);
-      const auto elem_tri2verts =
-        Omega_h::gather_verts<3>(tris2verts, elem_idx);
-      // value is closest to point has the largest coordinate
-      int vert = 0;
-      auto max_val = coord[0];
-      for (int j = 1; j <= 2; ++j) {
-        auto next_val = coord[j];
-        if (next_val > max_val) {
-          max_val = next_val;
-          vert = j;
-        }
-      }
-      values[i] = field_values[elem_tri2verts[vert]];
-    });
   return values;
 }
 

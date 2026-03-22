@@ -60,8 +60,7 @@ void test_standalone(Omega_h::Mesh& internal_mesh, Omega_h::Mesh& app_mesh)
 
   for (int i = 0; i < num_trials; ++i) {
     interpolate_field(app_a_field, internal_app_a_field, pcms::Lagrange<1>{});
-    interpolate_field(app_b_field, internal_app_b_field,
-                      pcms::NearestNeighbor{});
+    interpolate_field(app_b_field, internal_app_b_field, pcms::Lagrange<1>{});
 
     // combine after interpolation
     MeanCombiner combiner{};

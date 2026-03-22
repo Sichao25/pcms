@@ -49,6 +49,8 @@ public:
 
   virtual EntOffsetsArray GetEntOffsets() const = 0;
 
+  // Coordinates of each DOF holder in layout order. For current backends this
+  // is the primary way to map coefficient storage back to physical space.
   virtual CoordinateView<HostMemorySpace> GetDOFHolderCoordinates() const = 0;
 
   virtual int GetDimension() const = 0;

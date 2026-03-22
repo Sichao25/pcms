@@ -4,6 +4,7 @@
 #include <catch2/catch_approx.hpp>
 #include <Kokkos_Core.hpp>
 #include "pcms/field/field.h"
+#include "pcms/field/field_data.h"
 #include "pcms/coupler/field_serializer.h"
 #include "pcms/field/coordinate_system.h"
 #include "pcms/utility/arrays.h"
@@ -182,6 +183,80 @@ void CheckEvaluationWithFill(FieldT<Real>& field, const std::vector<Real>& pts,
     } else {
       REQUIRE(eval[i] == fill_value);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// New evaluation API helpers (FieldData<T> / PointEvaluator<T>)
+// ---------------------------------------------------------------------------
+
+// Set scalar DOF data on a FieldData<Real> by sampling func at each DOF-holder
+// coordinate obtained from the associated FieldLayout.
+template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
+inline void SetFieldData(FieldData<Real>& field_data, Func func)
+{
+  using MemorySpace = typename ExecutionSpace::memory_space;
+
+  auto dof_coords = field_data.GetDOFHolderCoordinatesHost().GetCoordinates();
+  int n = static_cast<int>(dof_coords.extent(0));
+
+  Kokkos::View<Real*[2], MemorySpace> coords_device("coords_device", n);
+  auto coords_host = Kokkos::View<const Real**, HostMemorySpace>(
+    dof_coords.data_handle(), n, 2);
+  deep_copy_mismatch_layouts(coords_device, coords_host);
+
+  Kokkos::View<Real*, MemorySpace> data_device("data_device", n);
+  Kokkos::parallel_for(
+    "field_test_utils_set_field_data",
+    Kokkos::RangePolicy<ExecutionSpace>(0, n),
+    KOKKOS_LAMBDA(int i) {
+      data_device(i) = func(coords_device(i, 0), coords_device(i, 1));
+    });
+
+  auto data_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), data_device);
+  field_data.SetDOFHolderDataHost(
+    Rank1View<const Real, HostMemorySpace>(data_host.data(), n));
+}
+
+// Evaluate a FieldData<Real> at pts using a PointEvaluator and compare against
+// func. Output shape is [n_pts][1] (single component).
+template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
+void CheckEvaluationNew(const PointEvaluator<Real>& evaluator,
+                        FieldData<Real>& field_data,
+                        const std::vector<Real>& pts, Func func,
+                        double abs_tol = 1e-10)
+{
+  int n = static_cast<int>(pts.size()) / 2;
+
+  // Allocate output [n_pts][1]
+  std::vector<Real> eval(n);
+  Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
+  evaluator.Evaluate(field_data, out);
+
+  auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
+
+  for (int i = 0; i < n; ++i) {
+    INFO("Point " << i << " (" << pts[2 * i] << ", " << pts[2 * i + 1] << ")"
+                  << " got=" << eval[i] << " expected=" << expected[i]);
+    REQUIRE(eval[i] == Catch::Approx(expected[i]).margin(abs_tol));
+  }
+}
+
+// Evaluate a FieldData<Real> with an OutOfBoundsPolicy::FILL PointEvaluator and
+// verify that out-of-domain points receive fill_value.
+inline void CheckFillModeNew(const PointEvaluator<Real>& evaluator,
+                             FieldData<Real>& field_data, Real fill_value,
+                             const std::vector<Real>& outside_pts)
+{
+  int n = static_cast<int>(outside_pts.size()) / 2;
+
+  std::vector<Real> eval(n);
+  Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
+  evaluator.Evaluate(field_data, out);
+
+  for (int i = 0; i < n; ++i) {
+    REQUIRE(eval[i] == fill_value);
   }
 }
 

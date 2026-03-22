@@ -5,6 +5,11 @@ set(PCMS_FIELD_HEADERS
         field.h
         coordinate_system.h
         field_layout.h
+        field_metadata.h
+        out_of_bounds_policy.h
+        field_data.h
+        point_evaluator.h
+        simple_field_data.h
         nodal_field_factory.h
         adapter/point_cloud/point_cloud_layout.h
         adapter/point_cloud/point_cloud.h
@@ -22,16 +27,17 @@ if (PCMS_ENABLE_OMEGA_H)
             adapter/uniform_grid/uniform_grid_field_layout.cpp
             adapter/uniform_grid/uniform_grid_field.cpp
     )
-    list(APPEND
-            PCMS_FIELD_HEADERS
-            lagrange_field_factory.h
-    )
     list(APPEND PCMS_FIELD_HEADERS
+            lagrange_field_factory.h
+            field_evaluator_factory.h
+            adapter/omega_h/omega_h_lagrange_common.h
             adapter/omega_h/omega_h_lagrange_layout.h
             adapter/omega_h/omega_h_lagrange_field.h
+            adapter/omega_h/omega_h_lagrange_evaluator_factory.h
             adapter/uniform_grid/uniform_grid_field_layout.h
             adapter/uniform_grid/uniform_grid_field.h
             adapter/uniform_grid/uniform_grid_binary_field.h
+            adapter/uniform_grid/uniform_grid_evaluator_factory.h
     )
 endif ()
 
@@ -41,6 +47,9 @@ if (PCMS_ENABLE_MESHFIELDS)
     )
     list(APPEND PCMS_FIELD_HEADERS
             adapter/meshfields/mesh_fields_adapter_layout.h
+            adapter/meshfields/mesh_fields_backend.h
+            adapter/meshfields/mesh_fields_evaluator_factory.h
+            adapter/meshfields/mesh_fields_field_data.h
             adapter/meshfields/mesh_fields_adapter2.h
     )
 endif ()

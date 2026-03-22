@@ -46,15 +46,6 @@ TEST_CASE("field interpolation (identical fields)", "[field transfer]")
   mesh.add_tag<pcms::LO>(0, "source", 1, data);
   pcms::MeshFieldsAdapter<pcms::LO> f2("target", mesh);
 
-  SECTION("Nearest Neighbor")
-  {
-    pcms::interpolate_field(f1, f2, pcms::NearestNeighbor{});
-    auto target_array = mesh.get_array<int>(0, "target");
-    REQUIRE(target_array.size() == mesh.nents(0));
-    int result = sum_array(target_array);
-    auto n = target_array.size() - 1;
-    REQUIRE(result == n * (n + 1) / 2);
-  }
   SECTION("Lagrange<1>")
   {
     pcms::interpolate_field(f1, f2, pcms::Lagrange<1>{});

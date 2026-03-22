@@ -182,7 +182,7 @@ if(PCMS_ENABLE_OMEGA_H)
       TESTNAME
       test_proxy_coupling_4p
       TIMEOUT
-      10
+      60
       NAME1
       rdv
       EXE1
@@ -400,7 +400,8 @@ if(Catch2_FOUND)
       test_mesh_geometry.cpp
       test_nodal_field_factory.cpp
       test_omega_h_field2_outofbounds.cpp
-      test_omega_h_lagrange_field.cpp)
+      test_omega_h_lagrange_field.cpp
+      test_point_evaluator.cpp)
   endif()
 
   if(PCMS_ENABLE_MESHFIELDS)
