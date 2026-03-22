@@ -302,14 +302,6 @@ public:
 
   bool CanEvaluateGradient() override;
 
-  int Serialize(Rank1View<T, pcms::HostMemorySpace> buffer,
-                Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
-    const override;
-
-  void Deserialize(
-    Rank1View<const T, pcms::HostMemorySpace> buffer,
-    Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) override;
-
   Rank1View<const T, HostMemorySpace> GetDOFHolderData() const override;
   void SetDOFHolderData(Rank1View<const T, HostMemorySpace> data) override;
 
@@ -499,40 +491,6 @@ inline bool MeshFieldsAdapter2<T>::CanEvaluateGradient()
 {
   // TODO compute the gradient field using element shape functions
   return false;
-}
-
-template <typename T>
-inline int MeshFieldsAdapter2<T>::Serialize(
-  Rank1View<T, pcms::HostMemorySpace> buffer,
-  Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) const
-{
-  PCMS_FUNCTION_TIMER;
-  // host copy of filtered field data array
-  const auto array_h = GetDOFHolderData();
-  if (buffer.size() > 0) {
-    auto owned = layout_->GetOwned();
-    for (size_t i = 0; i < array_h.size(); i++) {
-      if (owned[i])
-        buffer[permutation[i]] = array_h[i];
-    }
-  }
-  return array_h.size();
-}
-
-template <typename T>
-inline void MeshFieldsAdapter2<T>::Deserialize(
-  Rank1View<const T, pcms::HostMemorySpace> buffer,
-  Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
-{
-  PCMS_FUNCTION_TIMER;
-  Omega_h::HostWrite<T> sorted_buffer(permutation.size());
-  auto owned = layout_->GetOwned();
-  for (LO i = 0; i < sorted_buffer.size(); ++i) {
-    if (owned[i])
-      sorted_buffer[i] = buffer[permutation[i]];
-  }
-
-  SetDOFHolderData(pcms::make_const_array_view(sorted_buffer));
 }
 
 } // namespace pcms

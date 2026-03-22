@@ -92,27 +92,4 @@ bool PointCloud::CanEvaluateGradient()
   return false;
 }
 
-int PointCloud::Serialize(
-  Rank1View<Real, pcms::HostMemorySpace> buffer,
-  Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) const
-{
-  PCMS_FUNCTION_TIMER;
-  if (buffer.size() > 0) {
-    Kokkos::parallel_for(
-      data_.size(),
-      KOKKOS_CLASS_LAMBDA(int i) { buffer[permutation[i]] = data_(i); });
-  }
-  return data_.size();
-}
-
-void PointCloud::Deserialize(
-  Rank1View<const Real, pcms::HostMemorySpace> buffer,
-  Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
-{
-  PCMS_FUNCTION_TIMER;
-  Kokkos::parallel_for(
-    data_.size(),
-    KOKKOS_CLASS_LAMBDA(int i) { data_(i) = buffer[permutation[i]]; });
-}
-
 } // namespace pcms

@@ -128,14 +128,6 @@ public:
   // int GetDimension();
   virtual bool CanEvaluateGradient() = 0;
 
-  virtual int Serialize(
-    Rank1View<T, pcms::HostMemorySpace> buffer,
-    Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) const = 0;
-
-  virtual void Deserialize(
-    Rank1View<const T, pcms::HostMemorySpace> buffer,
-    Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) = 0;
-
   // Out-of-bounds handling
   void SetOutOfBoundsMode(OutOfBoundsMode mode, Real fill_value = 0.0)
   {

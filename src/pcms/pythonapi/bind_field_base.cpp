@@ -3,6 +3,7 @@
 #include <pybind11/numpy.h>
 #include "pcms/coordinate_system.h"
 #include "pcms/coordinate.h"
+#include "pcms/field_serializer.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_field.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "pcms/adapter/uniform_grid/uniform_grid_binary_field.h"
@@ -287,7 +288,8 @@ void bind_field_t(py::module& m, const std::string& type_suffix)
          py::array_t<const LO> permutation) {
         auto buffer_view = numpy_to_view<T>(buffer);
         auto perm_view = numpy_to_view<const LO>(permutation);
-        return self.Serialize(buffer_view, perm_view);
+        FieldSerializer<T> serializer;
+        return serializer.Serialize(self, buffer_view, perm_view);
       },
       py::arg("buffer"), py::arg("permutation"), "Serialize the field data")
 
@@ -297,7 +299,8 @@ void bind_field_t(py::module& m, const std::string& type_suffix)
          py::array_t<const LO> permutation) {
         auto buffer_view = numpy_to_view<const T>(buffer);
         auto perm_view = numpy_to_view<const LO>(permutation);
-        self.Deserialize(buffer_view, perm_view);
+        FieldSerializer<T> serializer;
+        serializer.Deserialize(self, buffer_view, perm_view);
       },
       py::arg("buffer"), py::arg("permutation"),
       "Deserialize field data from buffer");

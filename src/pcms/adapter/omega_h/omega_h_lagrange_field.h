@@ -195,33 +195,6 @@ public:
 
   const FieldLayout &GetLayout() const override { return *layout_; }
 
-  int Serialize(
-    Rank1View<T, pcms::HostMemorySpace> buffer,
-    Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) const override {
-    PCMS_FUNCTION_TIMER;
-    auto owned = layout_->GetOwned();
-    LO n = static_cast<LO>(dof_holder_data_.size());
-    if (buffer.size() > 0) {
-      for (LO i = 0; i < n; ++i) {
-        if (owned[i])
-          buffer[permutation[i]] = dof_holder_data_(i);
-      }
-    }
-    return n;
-  }
-
-  void Deserialize(
-    Rank1View<const T, pcms::HostMemorySpace> buffer,
-    Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) override {
-    PCMS_FUNCTION_TIMER;
-    auto owned = layout_->GetOwned();
-    LO n = static_cast<LO>(dof_holder_data_.size());
-    for (LO i = 0; i < n; ++i) {
-      if (owned[i])
-        dof_holder_data_(i) = buffer[permutation[i]];
-    }
-  }
-
   ~OmegaHLagrangeField() noexcept = default;
 
 private:

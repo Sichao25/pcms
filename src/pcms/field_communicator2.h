@@ -4,6 +4,7 @@
 #include "field_layout_communicator.h"
 #include "pcms/field_layout.h"
 #include "pcms/field.h"
+#include "pcms/field_serializer.h"
 #include "pcms/utility/profile.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/inclusive_scan.h"
@@ -19,7 +20,16 @@ class FieldCommunicator2
 {
 public:
   FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldT<T>& field)
-    : comm_buffer_{}, layout_comm_(layout_comm), field_(field)
+    : FieldCommunicator2(layout_comm, field, FieldSerializer<T>{})
+  {
+  }
+
+  FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldT<T>& field,
+                     FieldSerializer<T> serializer)
+    : comm_buffer_{},
+      layout_comm_(layout_comm),
+      field_(field),
+      serializer_(std::move(serializer))
   {
     PCMS_ALWAYS_ASSERT(&layout_comm.GetLayout() == &field.GetLayout());
     comm_buffer_.resize(layout_comm.GetMsgSize());
@@ -32,9 +42,8 @@ public:
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(layout_comm_.GetChannel().InSendCommunicationPhase());
-    auto n = field_.Serialize({}, {});
     auto buffer = make_array_view(comm_buffer_);
-    field_.Serialize(buffer, layout_comm_.GetPermutationArray());
+    serializer_.Serialize(field_, buffer, layout_comm_.GetPermutationArray());
     comm_.Send(buffer.data_handle(), mode);
   }
 
@@ -46,8 +55,9 @@ public:
     // mode because we make an immediate call to deserialize after a call to
     // receive.
     auto data = comm_.Recv(redev::Mode::Synchronous);
-    field_.Deserialize(make_const_array_view(data),
-                       layout_comm_.GetPermutationArray());
+    serializer_.Deserialize(field_,
+                            make_const_array_view(data),
+                            layout_comm_.GetPermutationArray());
   }
 
 private:
@@ -55,6 +65,7 @@ private:
   redev::BidirectionalComm<T> comm_;
   FieldLayoutCommunicator& layout_comm_;
   FieldT<T>& field_;
+  FieldSerializer<T> serializer_;
 };
 
 template <typename T>

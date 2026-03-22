@@ -297,42 +297,6 @@ LO UniformGridField<Dim>::CellIdToDofIndex(LO cell_id) const
   return cell_id;
 }
 
-template <unsigned Dim>
-int UniformGridField<Dim>::Serialize(
-  Rank1View<Real, pcms::HostMemorySpace> buffer,
-  Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) const
-{
-  PCMS_FUNCTION_TIMER;
-
-  const auto array_h = GetDOFHolderData();
-  if (buffer.size() > 0) {
-    PCMS_ALWAYS_ASSERT(buffer.size() == array_h.size());
-    for (LO i = 0; i < array_h.size(); ++i) {
-      buffer[permutation[i]] = array_h[i];
-    }
-  }
-  return array_h.size();
-}
-
-template <unsigned Dim>
-void UniformGridField<Dim>::Deserialize(
-  Rank1View<const Real, pcms::HostMemorySpace> buffer,
-  Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
-{
-  PCMS_FUNCTION_TIMER;
-
-  Kokkos::View<Real*, HostMemorySpace> sorted_buffer("sorted_buffer",
-                                                     permutation.size());
-  auto owned = layout_->GetOwned();
-
-  for (LO i = 0; i < sorted_buffer.size(); ++i) {
-    PCMS_ALWAYS_ASSERT(owned[i]);
-    sorted_buffer[i] = buffer[permutation[i]];
-  }
-
-  SetDOFHolderData(pcms::make_const_array_view(sorted_buffer));
-}
-
 // Explicit template instantiations
 template class UniformGridField<2>;
 template class UniformGridField<3>;

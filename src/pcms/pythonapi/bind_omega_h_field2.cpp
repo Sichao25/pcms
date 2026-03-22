@@ -3,6 +3,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include "pcms/utility/arrays.h"
+#include "pcms/field_serializer.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/adapter/meshfields/mesh_fields_adapter_layout.h"
 #include "numpy_array_transform.h"
@@ -81,7 +82,8 @@ void bind_omega_h_field2(py::module& m)
          py::array_t<const pcms::LO> permutation) {
         auto buffer_view = numpy_to_view<Real>(buffer);
         auto perm_view = numpy_to_view<const pcms::LO>(permutation);
-        return self.Serialize(buffer_view, perm_view);
+        FieldSerializer<Real> serializer;
+        return serializer.Serialize(self, buffer_view, perm_view);
       },
       py::arg("buffer"), py::arg("permutation"),
       "Serialize field data into buffer")
@@ -92,7 +94,8 @@ void bind_omega_h_field2(py::module& m)
          py::array_t<const pcms::LO> permutation) {
         auto buffer_view = numpy_to_view<const Real>(buffer);
         auto perm_view = numpy_to_view<const pcms::LO>(permutation);
-        self.Deserialize(buffer_view, perm_view);
+        FieldSerializer<Real> serializer;
+        serializer.Deserialize(self, buffer_view, perm_view);
       },
       py::arg("buffer"), py::arg("permutation"),
       "Deserialize field data from buffer")

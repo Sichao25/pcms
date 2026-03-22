@@ -25,14 +25,6 @@ public:
 
   bool CanEvaluateGradient() override;
 
-  int Serialize(Rank1View<Real, pcms::HostMemorySpace> buffer,
-                Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation)
-    const override;
-
-  void Deserialize(
-    Rank1View<const Real, pcms::HostMemorySpace> buffer,
-    Rank1View<const pcms::LO, pcms::HostMemorySpace> permutation) override;
-
   Rank1View<const Real, HostMemorySpace> GetDOFHolderData() const override;
   void SetDOFHolderData(Rank1View<const Real, HostMemorySpace> data) override;
 

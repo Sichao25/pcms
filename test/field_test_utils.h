@@ -4,6 +4,7 @@
 #include <catch2/catch_approx.hpp>
 #include <Kokkos_Core.hpp>
 #include "pcms/field.h"
+#include "pcms/field_serializer.h"
 #include "pcms/coordinate_system.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
@@ -114,8 +115,10 @@ inline void CheckSerializeDeserialize(FieldT<Real>& field)
   Rank1View<Real, HostMemorySpace> buf_view(buffer.data(), n);
   Rank1View<const LO, HostMemorySpace> perm_view(perm.data(), n);
 
-  field.Serialize(buf_view, perm_view);
-  field.Deserialize(Rank1View<const Real, HostMemorySpace>(buf_view), perm_view);
+  FieldSerializer<Real> serializer;
+  serializer.Serialize(field, buf_view, perm_view);
+  serializer.Deserialize(field, Rank1View<const Real, HostMemorySpace>(buf_view),
+                         perm_view);
 
   auto data_after = field.GetDOFHolderData();
   REQUIRE(data_after.size() == data_before.size());
