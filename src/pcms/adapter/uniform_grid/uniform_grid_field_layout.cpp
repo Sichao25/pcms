@@ -80,6 +80,15 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
       }
     }
   }
+
+  int entity_dim = (order_ == 0) ? static_cast<int>(Dim) : 0;
+  LO n = GetNumDofHolders();
+  classification_dims_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
+  classification_ids_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
+  Kokkos::deep_copy(classification_dims_host_, static_cast<LO>(entity_dim));
+  Kokkos::deep_copy(classification_ids_host_, LO{0});
 }
 
 template <unsigned Dim>
@@ -156,6 +165,26 @@ LO UniformGridFieldLayout<Dim>::GetNumDofHolders() const
 }
 
 template <unsigned Dim>
+int UniformGridFieldLayout<Dim>::GetDimension() const
+{
+  return static_cast<int>(Dim);
+}
+
+template <unsigned Dim>
+Rank1View<const LO, HostMemorySpace>
+UniformGridFieldLayout<Dim>::GetDOFHolderClassificationDimensions() const
+{
+  return make_const_array_view(classification_dims_host_);
+}
+
+template <unsigned Dim>
+Rank1View<const LO, HostMemorySpace>
+UniformGridFieldLayout<Dim>::GetDOFHolderClassificationIds() const
+{
+  return make_const_array_view(classification_ids_host_);
+}
+
+template <unsigned Dim>
 EntOffsetsArray UniformGridFieldLayout<Dim>::GetEntOffsets() const
 {
   EntOffsetsArray offsets{};
@@ -168,12 +197,6 @@ EntOffsetsArray UniformGridFieldLayout<Dim>::GetEntOffsets() const
   return offsets;
 }
 
-template <unsigned Dim>
-ReversePartitionMap2 UniformGridFieldLayout<Dim>::GetReversePartitionMap(
-  const redev::Partition& partition) const
-{
-  throw std::runtime_error("Unimplemented");
-}
 
 template <unsigned Dim>
 int UniformGridFieldLayout<Dim>::GetOrder() const

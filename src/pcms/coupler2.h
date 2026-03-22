@@ -1,10 +1,7 @@
 #ifndef COUPLER2_H_
 #define COUPLER2_H_
 
-#include "field.h"
-#include "field_communicator2.h"
-#include "field_layout.h"
-#include "field_layout_communicator.h"
+#include "pcms/field.h"
 #include "pcms/field_layout.h"
 #include "pcms/field_layout_communicator.h"
 #include "pcms/field_communicator2.h"

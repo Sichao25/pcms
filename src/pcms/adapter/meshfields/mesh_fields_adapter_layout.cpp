@@ -195,6 +195,18 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
     }
   }
   gids_host_ = Omega_h::HostWrite<Omega_h::GO>(gids_);
+
+  int n = class_ids_.size();
+  classification_dims_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
+  classification_ids_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
+  auto class_dims_h = Omega_h::HostRead<Omega_h::I8>(class_dims_);
+  auto class_ids_h = Omega_h::HostRead<Omega_h::ClassId>(class_ids_);
+  for (int i = 0; i < n; ++i) {
+    classification_dims_host_(i) = static_cast<LO>(class_dims_h[i]);
+    classification_ids_host_(i) = static_cast<LO>(class_ids_h[i]);
+  }
 }
 
 int MeshFieldsAdapterLayout::GetNumComponents() const
@@ -289,49 +301,22 @@ EntOffsetsArray MeshFieldsAdapterLayout::GetEntOffsets() const
   return offsets;
 }
 
-ReversePartitionMap2 MeshFieldsAdapterLayout::GetReversePartitionMap(
-  const redev::Partition& partition) const
+int MeshFieldsAdapterLayout::GetDimension() const
 {
-  PCMS_FUNCTION_TIMER;
-  auto classIds_h = Omega_h::HostRead<Omega_h::ClassId>(GetClassIDs());
-  auto classDims_h = Omega_h::HostRead<Omega_h::I8>(GetClassDims());
-  auto owned = GetOwned();
-  const auto coords = GetDOFHolderCoordinates().GetCoordinates();
-  auto dim = mesh_.dim();
-
-  PCMS_ALWAYS_ASSERT(classDims_h.size() == classIds_h.size() &&
-                     classIds_h.size() == coords.extent(0));
-
-  // local_index number of vertices going to each destination process by
-  // calling getRank - degree array
-  std::array<pcms::Real, 3> coord;
-  ReversePartitionMap2 reverse_partition;
-  LO local_index = 0;
-  for (int ent_dim = 0; ent_dim <= mesh_.dim(); ++ent_dim) {
-    if (nodes_per_dim_[ent_dim] == 0)
-      continue;
-
-    for (LO i = 0; i < mesh_.nents(ent_dim); ++i, ++local_index) {
-      if (!owned[local_index])
-        continue;
-
-      coord[0] = coords(local_index, 0);
-      coord[1] = coords(local_index, 1);
-      coord[2] = (dim > 2) ? coords(local_index, 2) : 0.0;
-
-      auto dr = std::visit(
-        GetRank{classIds_h[local_index], classDims_h[local_index], coord},
-        partition);
-      reverse_partition[dr].indices.emplace_back(local_index);
-
-      const auto n = reverse_partition[dr].ent_offsets.size();
-      for (size_t e = ent_dim + 1; e < n; ++e) {
-        reverse_partition[dr].ent_offsets[e] += 1;
-      }
-    }
-  }
-
-  return reverse_partition;
+  return mesh_.dim();
 }
+
+Rank1View<const LO, HostMemorySpace>
+MeshFieldsAdapterLayout::GetDOFHolderClassificationDimensions() const
+{
+  return make_const_array_view(classification_dims_host_);
+}
+
+Rank1View<const LO, HostMemorySpace>
+MeshFieldsAdapterLayout::GetDOFHolderClassificationIds() const
+{
+  return make_const_array_view(classification_ids_host_);
+}
+
 
 } // namespace pcms

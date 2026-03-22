@@ -25,8 +25,13 @@ public:
   size_t GetNumEnts() const;
   EntOffsetsArray GetEntOffsets() const override;
 
-  ReversePartitionMap2 GetReversePartitionMap(
-    const redev::Partition& partition) const override;
+  int GetDimension() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationDimensions() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationIds() const override;
 
   std::array<int, 4> GetNodesPerDim() const;
 
@@ -39,6 +44,8 @@ private:
   Kokkos::View<GO*> gids_;
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Kokkos::View<GO*, HostMemorySpace> gids_host_;
+  Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
+  Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
 };
 } // namespace pcms
 

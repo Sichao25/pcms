@@ -30,8 +30,13 @@ public:
 
   EntOffsetsArray GetEntOffsets() const override;
 
-  ReversePartitionMap2 GetReversePartitionMap(
-    const redev::Partition& partition) const override;
+  int GetDimension() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationDimensions() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationIds() const override;
 
   const UniformGrid<Dim>& GetGrid() const;
   LO GetNumCells() const;
@@ -48,6 +53,8 @@ private:
   Kokkos::View<GO*, HostMemorySpace> gids_;
   Kokkos::View<Real**, HostMemorySpace> dof_holder_coords_;
   Kokkos::View<bool*, HostMemorySpace> owned_;
+  Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
+  Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
 };
 
 using UniformGridFieldLayout2D = UniformGridFieldLayout<2>;

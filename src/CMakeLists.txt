@@ -11,6 +11,7 @@ set(
   pcms/field_serializer.h
   pcms/field_evaluation_methods.h
   pcms/field_layout_communicator.h
+  pcms/field_exchange_planner.h
   pcms/partition.h
   pcms/coupler.h
   pcms/coupler2.h
@@ -25,6 +26,7 @@ set(
   pcms.cpp
   pcms/coupler2.cpp
   pcms/field_layout_communicator.cpp
+  pcms/field_exchange_planner.cpp
   pcms/nodal_field_factory.cpp
   pcms/adapter/point_cloud/point_cloud_layout.cpp
   pcms/adapter/point_cloud/point_cloud.cpp

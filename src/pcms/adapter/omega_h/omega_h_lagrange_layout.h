@@ -33,8 +33,13 @@ public:
 
   EntOffsetsArray GetEntOffsets() const override;
 
-  ReversePartitionMap2 GetReversePartitionMap(
-    const redev::Partition& partition) const override;
+  int GetDimension() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationDimensions() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationIds() const override;
 
   int GetOrder() const;
   Omega_h::Mesh& GetMesh() const;
@@ -51,6 +56,8 @@ private:
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Omega_h::HostRead<Omega_h::ClassId> class_ids_host_;
   Omega_h::HostRead<Omega_h::I8> class_dims_host_;
+  Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
+  Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
 };
 
 } // namespace pcms

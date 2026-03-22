@@ -1,5 +1,4 @@
 #include "pcms/adapter/omega_h/omega_h_lagrange_layout.h"
-#include "pcms/partition.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/mesh_geometry.h"
 #include "pcms/utility/profile.h"
@@ -83,6 +82,16 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
     mesh_.get_array<Omega_h::ClassId>(entity_dim, "class_id"));
   class_dims_host_ = Omega_h::HostRead<Omega_h::I8>(
     mesh_.get_array<Omega_h::I8>(entity_dim, "class_dim"));
+
+  int n = mesh_.nents(entity_dim);
+  classification_dims_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
+  classification_ids_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
+  for (int i = 0; i < n; ++i) {
+    classification_dims_host_(i) = static_cast<LO>(class_dims_host_[i]);
+    classification_ids_host_(i) = static_cast<LO>(class_ids_host_[i]);
+  }
 }
 
 int OmegaHLagrangeLayout::GetNumComponents() const
@@ -139,33 +148,22 @@ EntOffsetsArray OmegaHLagrangeLayout::GetEntOffsets() const
   return offsets;
 }
 
-ReversePartitionMap2 OmegaHLagrangeLayout::GetReversePartitionMap(
-  const redev::Partition& partition) const
+
+int OmegaHLagrangeLayout::GetDimension() const
 {
-  PCMS_FUNCTION_TIMER;
-  int entity_dim = EntityDimForOrder(order_, mesh_.dim());
-  int n = mesh_.nents(entity_dim);
-  int dim = mesh_.dim();
+  return mesh_.dim();
+}
 
-  ReversePartitionMap2 reverse_partition;
-  for (int i = 0; i < n; ++i) {
-    if (!owned_host_(i))
-      continue;
+Rank1View<const LO, HostMemorySpace>
+OmegaHLagrangeLayout::GetDOFHolderClassificationDimensions() const
+{
+  return make_const_array_view(classification_dims_host_);
+}
 
-    std::array<Real, 3> coord{};
-    for (int d = 0; d < dim; ++d)
-      coord[d] = coords_host_[i * dim + d];
-
-    auto dr = std::visit(
-      GetRank{class_ids_host_[i], class_dims_host_[i], coord}, partition);
-    reverse_partition[dr].indices.emplace_back(i);
-
-    const auto n_slots = reverse_partition[dr].ent_offsets.size();
-    for (size_t e = static_cast<size_t>(entity_dim) + 1; e < n_slots; ++e)
-      reverse_partition[dr].ent_offsets[e] += 1;
-  }
-
-  return reverse_partition;
+Rank1View<const LO, HostMemorySpace>
+OmegaHLagrangeLayout::GetDOFHolderClassificationIds() const
+{
+  return make_const_array_view(classification_ids_host_);
 }
 
 int OmegaHLagrangeLayout::GetOrder() const

@@ -20,6 +20,14 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
   namespace KE = Kokkos::Experimental;
   KE::fill(Kokkos::DefaultExecutionSpace(), owned_, true);
   iota_view(gids_);
+
+  LO n = static_cast<LO>(coords.extent(0));
+  classification_dims_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
+  classification_ids_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
+  Kokkos::deep_copy(classification_dims_host_, static_cast<LO>(dim_));
+  Kokkos::deep_copy(classification_ids_host_, LO{0});
 }
 
 int PointCloudLayout::GetNumComponents() const
@@ -84,9 +92,21 @@ std::array<int, 4> PointCloudLayout::GetNodesPerDim() const
   return nodes;
 }
 
-ReversePartitionMap2 PointCloudLayout::GetReversePartitionMap(
-  const redev::Partition& /* unused */) const
+int PointCloudLayout::GetDimension() const
 {
-  throw std::runtime_error("Unimplemented");
+  return dim_;
 }
+
+Rank1View<const LO, HostMemorySpace>
+PointCloudLayout::GetDOFHolderClassificationDimensions() const
+{
+  return make_const_array_view(classification_dims_host_);
+}
+
+Rank1View<const LO, HostMemorySpace>
+PointCloudLayout::GetDOFHolderClassificationIds() const
+{
+  return make_const_array_view(classification_ids_host_);
+}
+
 } // namespace pcms

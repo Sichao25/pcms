@@ -1,155 +1,109 @@
-#include "field_layout_communicator.h"
+#include "pcms/field_layout_communicator.h"
 
 namespace pcms
 {
 
-namespace field_layout_communicator
+FieldLayoutCommunicator::FieldLayoutCommunicator(
+  const std::string& name, MPI_Comm mpi_comm, redev::Redev& redev,
+  redev::Channel& channel, const FieldLayout& layout)
+  : FieldLayoutCommunicator(name, mpi_comm, redev, channel, layout,
+                            std::make_unique<GenericFieldExchangePlanner>())
 {
-// reverse partition is a map that has the partition rank as a key
-// and the values are an vector where each entry is the index into
-// the array of data to send
-OutMsg ConstructOutMessage(const ReversePartitionMap2& reverse_partition)
-{
-  PCMS_FUNCTION_TIMER;
-  OutMsg out;
-  redev::LOs counts;
-  counts.reserve(reverse_partition.size());
-  out.dest.clear();
-  out.dest.reserve(reverse_partition.size());
-  // number of entries for each rank
-  for (auto& rank : reverse_partition) {
-    out.dest.push_back(rank.first);
-    counts.push_back(rank.second.indices.size() +
-                     rank.second.ent_offsets.size());
-  }
-  out.offset.resize(counts.size() + 1);
-  out.offset[0] = 0;
-  pcms::inclusive_scan(counts.begin(), counts.end(),
-                       std::next(out.offset.begin(), 1));
-  return out;
 }
 
-size_t count_entries(const ReversePartitionMap2& reverse_partition)
+FieldLayoutCommunicator::FieldLayoutCommunicator(
+  const std::string& name, MPI_Comm mpi_comm, redev::Redev& redev,
+  redev::Channel& channel, const FieldLayout& layout,
+  std::unique_ptr<FieldExchangePlanner> planner)
+  : mpi_comm_(mpi_comm),
+    channel_(channel),
+    layout_(layout),
+    name_(name),
+    redev_(redev),
+    planner_(std::move(planner))
 {
-  PCMS_FUNCTION_TIMER;
-  size_t num_entries = 0;
-  for (const auto& v : reverse_partition) {
-    num_entries += v.second.indices.size();
+  gid_comm_ = channel.CreateComm<GO>(name_ + "_gids", mpi_comm_);
+  if (mpi_comm != MPI_COMM_NULL) {
+    UpdateLayout();
+  } else {
+    UpdateLayoutNull();
   }
-  return num_entries;
 }
 
-// note this function can be parallelized by making use of the offsets
-redev::LOs ConstructPermutation(const ReversePartitionMap2& reverse_partition,
-                                size_t num_entries, int* length)
+Rank1View<const pcms::LO, pcms::HostMemorySpace>
+FieldLayoutCommunicator::GetPermutationArray() const
 {
-  PCMS_FUNCTION_TIMER;
-  redev::LOs permutation(num_entries);
-  LO entry = 0;
-  for (auto& rank : reverse_partition) {
-    entry += ent_offsets_len;
-
-    for (int e = 0; e < rank.second.ent_offsets.size() - 1; ++e) {
-      int start = rank.second.ent_offsets[e];
-      int end = rank.second.ent_offsets[e + 1];
-
-      for (int i = start; i < end; ++i) {
-        LO index = rank.second.indices[i];
-        PCMS_ALWAYS_ASSERT(index < permutation.size());
-        permutation[index] = entry++;
-      }
-    }
-  }
-  *length = entry;
-  return permutation;
+  return make_const_array_view(plan_.permutation);
 }
 
-/**
- *
- * @param local_gids local gids are the mesh GIDs in local mesh iteration order
- * @param received_gids received GIDs are the GIDS in the order of the incomming
- * message1
- * @return permutation array such that GIDS(Permutation[i]) = msgs
- */
-redev::LOs ConstructPermutation(GlobalIDView<HostMemorySpace> local_gids,
-                                GlobalIDView<HostMemorySpace> received_msg,
-                                EntOffsetsArray ent_offsets)
+const std::string& FieldLayoutCommunicator::GetName() const
 {
-  PCMS_FUNCTION_TIMER;
-  std::array<std::map<pcms::GO, pcms::LO>, 4> gid_to_buffer_index;
-  size_t offset = 0;
-  while (true) {
-    GlobalIDView<HostMemorySpace> received_offsets(
-      received_msg.data_handle() + offset, ent_offsets_len);
-    int length = received_offsets[received_offsets.size() - 1];
-    GlobalIDView<HostMemorySpace> received_gids(
-      received_msg.data_handle() + offset + ent_offsets_len, length);
-
-    PCMS_ALWAYS_ASSERT(offset + ent_offsets_len + length - 1 <
-                       received_msg.size());
-
-    for (int e = 0; e < received_offsets.size() - 1; ++e) {
-      size_t start = received_offsets[e];
-      size_t end = received_offsets[e + 1];
-
-      for (int i = start; i < end; ++i) {
-        gid_to_buffer_index[e][received_gids[i]] = offset + ent_offsets_len + i;
-      }
-    }
-
-    offset += length + ent_offsets_len;
-    if (offset >= received_msg.size())
-      break;
-  }
-
-  redev::LOs permutation;
-  permutation.reserve(local_gids.size());
-  for (int e = 0; e < ent_offsets.size() - 1; ++e) {
-    size_t start = ent_offsets[e];
-    size_t end = ent_offsets[e + 1];
-
-    for (int i = start; i < end; ++i) {
-      permutation.push_back(gid_to_buffer_index[e][local_gids[i]]);
-    }
-  }
-
-  REDEV_ALWAYS_ASSERT(permutation.size() == local_gids.size());
-  return permutation;
+  return name_;
 }
 
-OutMsg ConstructOutMessage(int rank, int nproc,
-                           const redev::InMessageLayout& in)
+const FieldLayout& FieldLayoutCommunicator::GetLayout() const
 {
-  PCMS_FUNCTION_TIMER;
-  REDEV_ALWAYS_ASSERT(!in.srcRanks.empty());
-  // auto nAppProcs =
-  // Omega_h::divide_no_remainder(in.srcRanks.size(),static_cast<size_t>(nproc));
-  auto nAppProcs = in.srcRanks.size() / static_cast<size_t>(nproc);
-  // build dest and offsets arrays from incoming message metadata
-  redev::LOs senderDeg(nAppProcs);
-  for (size_t i = 0; i < nAppProcs - 1; i++) {
-    senderDeg[i] =
-      in.srcRanks[(i + 1) * nproc + rank] - in.srcRanks[i * nproc + rank];
-  }
-  const auto totInMsgs = in.offset[rank + 1] - in.offset[rank];
-  senderDeg[nAppProcs - 1] =
-    totInMsgs - in.srcRanks[(nAppProcs - 1) * nproc + rank];
-  OutMsg out;
-  for (size_t i = 0; i < nAppProcs; i++) {
-    if (senderDeg[i] > 0) {
-      out.dest.push_back(i);
-    }
-  }
-  redev::GO sum = 0;
-  for (auto deg : senderDeg) { // exscan over values > 0
-    if (deg > 0) {
-      out.offset.push_back(sum);
-      sum += deg;
-    }
-  }
-  out.offset.push_back(sum);
-  return out;
+  return layout_;
 }
 
-} // namespace field_layout_communicator
+size_t FieldLayoutCommunicator::GetMsgSize() const
+{
+  return plan_.msg_size;
+}
+
+redev::Channel& FieldLayoutCommunicator::GetChannel() const
+{
+  return channel_;
+}
+
+MPI_Comm& FieldLayoutCommunicator::GetMPIComm()
+{
+  return mpi_comm_;
+}
+
+void FieldLayoutCommunicator::UpdateLayout()
+{
+  PCMS_FUNCTION_TIMER;
+  if (redev_.GetProcessType() == redev::ProcessType::Client) {
+    plan_ = planner_->BuildExchangePlan(layout_,
+                                        redev::Partition{redev_.GetPartition()});
+    gid_comm_.SetOutMessageLayout(plan_.dest_ranks, plan_.offsets);
+    std::vector<GO> gid_message(plan_.msg_size);
+    planner_->FillGidMessage(layout_,
+                             plan_,
+                             Rank1View<GO, HostMemorySpace>(gid_message.data(),
+                                                            gid_message.size()));
+
+    channel_.BeginSendCommunicationPhase();
+    gid_comm_.Send(gid_message.data());
+    channel_.EndSendCommunicationPhase();
+  } else {
+    channel_.BeginReceiveCommunicationPhase();
+    auto recv_gids = gid_comm_.Recv();
+    channel_.EndReceiveCommunicationPhase();
+
+    int rank, nproc;
+    MPI_Comm_rank(mpi_comm_, &rank);
+    MPI_Comm_size(mpi_comm_, &nproc);
+
+    const auto in_message_layout = gid_comm_.GetInMessageLayout();
+    GlobalIDView<HostMemorySpace> recv_gids_view(recv_gids.data(),
+                                                 recv_gids.size());
+    plan_ = planner_->BuildReceivePlan(layout_, recv_gids_view, rank, nproc,
+                                       in_message_layout);
+  }
+}
+
+void FieldLayoutCommunicator::UpdateLayoutNull()
+{
+  PCMS_FUNCTION_TIMER;
+  if (redev_.GetProcessType() == redev::ProcessType::Client) {
+    channel_.BeginSendCommunicationPhase();
+    channel_.EndSendCommunicationPhase();
+  } else {
+    channel_.BeginReceiveCommunicationPhase();
+    channel_.EndReceiveCommunicationPhase();
+  }
+}
+
 } // namespace pcms

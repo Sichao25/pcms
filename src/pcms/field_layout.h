@@ -1,7 +1,8 @@
 #ifndef PCMS_FIELD_LAYOUT_H
 #define PCMS_FIELD_LAYOUT_H
+#include <map>
 #include <memory>
-#include <redev.h>
+#include <vector>
 #include "pcms/field.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/coordinate_system.h"
@@ -12,16 +13,7 @@ namespace pcms
 constexpr int ent_offsets_len = 5;
 using EntOffsetsArray = std::array<size_t, ent_offsets_len>;
 
-struct PartitionMapping
-{
-  std::vector<LO> indices;
-  EntOffsetsArray ent_offsets;
-
-  PartitionMapping() { ent_offsets.fill(0); }
-};
-
 using ReversePartitionMap = std::map<pcms::LO, std::vector<pcms::LO>>;
-using ReversePartitionMap2 = std::map<pcms::LO, PartitionMapping>;
 
 template <typename T>
 class FieldT;
@@ -57,10 +49,15 @@ public:
 
   virtual EntOffsetsArray GetEntOffsets() const = 0;
 
-  virtual ReversePartitionMap2 GetReversePartitionMap(
-    const redev::Partition& partition) const = 0;
-
   virtual CoordinateView<HostMemorySpace> GetDOFHolderCoordinates() const = 0;
+
+  virtual int GetDimension() const = 0;
+
+  virtual Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationDimensions() const = 0;
+
+  virtual Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationIds() const = 0;
 
   // Serialize, Derserialize, ReversePartitionMap?
   // GetOwnedDofHolderCoordinates(CoordinateSystem);
