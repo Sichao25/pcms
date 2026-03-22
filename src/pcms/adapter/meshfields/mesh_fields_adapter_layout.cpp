@@ -245,8 +245,7 @@ MeshFieldsAdapterLayout::GetDOFHolderCoordinates() const
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
 }
 
-bool MeshFieldsAdapterLayout::IsDistributed()
-{
+bool MeshFieldsAdapterLayout::IsDistributed() const {
   return true;
 }
 

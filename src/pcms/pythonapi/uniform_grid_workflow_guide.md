@@ -133,14 +133,15 @@ mask_value = mask_data[vertex_id]  # Returns 0.0 or 1.0
 #### Option A: Create Field Programmatically
 
 ```python
-# Create field layout with linear (order=1) elements and 1 component (scalar)
-omega_h_layout = pcms.create_lagrange_layout(
+# Create field factory with linear (order=1) elements and 1 component (scalar)
+omega_h_factory = pcms.LagrangeFieldFactory.from_mesh(
     mesh, 
     1,
     1,
     pcms.CoordinateSystem.Cartesian
 )
-omega_h_field = omega_h_layout.create_field()
+omega_h_layout = omega_h_factory.get_layout()
+omega_h_field = omega_h_factory.create_field_real()
 
 # Initialize field with f(x,y) = x + 2*y
 coords = omega_h_layout.get_dof_holder_coordinates()
@@ -172,9 +173,12 @@ face_field = mesh.get_tag(face_dim, face_tag.name())
 # Convert element field to vertex field using averaging
 vertex_field = pcms.map_entity_field_to_vertices_average(mesh, face_field, face_dim)
 
-# Create vertex-based field layout and set data
-omega_h_layout = pcms.create_lagrange_layout(mesh, 1, 1, pcms.CoordinateSystem.Cartesian)
-omega_h_field = omega_h_layout.create_field()
+# Create vertex-based field and set data
+omega_h_factory = pcms.LagrangeFieldFactory.from_mesh(
+    mesh, 1, 1, pcms.CoordinateSystem.Cartesian
+)
+omega_h_layout = omega_h_factory.get_layout()
+omega_h_field = omega_h_factory.create_field_real()
 omega_h_field.set_dof_holder_data(vertex_field)
 
 # Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
@@ -183,18 +187,19 @@ omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
 
 ---
 
-### Step 6: Create Uniform Grid Field Layout
+### Step 6: Create Uniform Grid Field
 
 Set up the data structure for storing field values on the uniform grid vertices.
 
 ```python
-# Create uniform grid field layout
-ug_layout = pcms.UniformGridFieldLayout2D(
+# Create uniform grid field factory
+ug_factory = pcms.LagrangeFieldFactory.from_uniform_grid(
     grid, 
     1,                                      # Number of components
     pcms.CoordinateSystem.Cartesian
 )
-ug_field = ug_layout.create_field()
+ug_layout = ug_factory.get_layout()
+ug_field = ug_factory.create_field_real()
 ```
 
 ---
@@ -249,13 +254,13 @@ np.save('field_data.npy', grid_values)
 - `create_uniform_grid_from_mesh(mesh, divisions)` - Create grid from mesh
 - `create_uniform_grid_binary_field(mesh, divisions)` - Create inside/outside mask
 
-### Field Layout
-- `create_lagrange_layout(mesh, order, num_components, coord_system)` - Omega_h field layout
-- `UniformGridFieldLayout2D(grid, num_components, coord_system)` - 2D grid layout
-- `UniformGridFieldLayout3D(grid, num_components, coord_system)` - 3D grid layout
+### Field Factories
+- `LagrangeFieldFactory.from_mesh(mesh, order, num_components, coord_system)` - Omega_h-backed Lagrange field factory
+- `LagrangeFieldFactory.from_uniform_grid(grid, num_components, coord_system, order=1)` - Uniform-grid field factory
 
 ### Field Operations
-- `layout.create_field()` - Create field from layout
+- `factory.get_layout()` - Access shared layout metadata
+- `factory.create_field_real()` - Create a real-valued field
 - `field.set_dof_holder_data(data)` - Set field values
 - `field.get_dof_holder_data()` - Get field values
 - `field.to_mdspan()` - Get field values as a structured array

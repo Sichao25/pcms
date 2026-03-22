@@ -50,14 +50,18 @@ def demonstrate_face_field_transfer(mesh):
         f"mean={vertex_field_values.mean():.6f}"
     )
     
-    vertex_layout = pcms.create_lagrange_layout(mesh, 1, 1, pcms.CoordinateSystem.Cartesian)
-    omega_h_field = vertex_layout.create_field()
+    omega_h_factory = pcms.LagrangeFieldFactory.from_mesh(
+        mesh, 1, 1, pcms.CoordinateSystem.Cartesian
+    )
+    omega_h_field = omega_h_factory.create_field_real()
     omega_h_field.set_dof_holder_data(vertex_field_values)
     
     divisions = [1000, 500]
     grid = pcms.create_uniform_grid_from_mesh(mesh, divisions)
-    ug_layout = pcms.UniformGridFieldLayout2D(grid, 1, pcms.CoordinateSystem.Cartesian)
-    ug_field = ug_layout.create_field()
+    ug_factory = pcms.LagrangeFieldFactory.from_uniform_grid(
+        grid, 1, pcms.CoordinateSystem.Cartesian
+    )
+    ug_field = ug_factory.create_field_real()
     
     omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
     print(f"Interpolating field from OmegaH mesh to uniform grid...")

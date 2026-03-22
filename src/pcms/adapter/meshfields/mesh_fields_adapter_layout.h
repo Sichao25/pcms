@@ -31,7 +31,7 @@ public:
 
   // returns true if the field layout is distributed
   // if the field layout is distributed, the owned and global dofs are the same
-  bool IsDistributed() override;
+  [[nodiscard]] bool IsDistributed() const override;
 
   EntOffsetsArray GetEntOffsets() const override;
 

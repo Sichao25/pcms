@@ -57,8 +57,7 @@ CoordinateView<HostMemorySpace> PointCloudLayout::GetDOFHolderCoordinates()
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
 }
 
-bool PointCloudLayout::IsDistributed()
-{
+bool PointCloudLayout::IsDistributed() const {
   return false;
 }
 

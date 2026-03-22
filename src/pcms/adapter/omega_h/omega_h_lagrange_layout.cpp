@@ -120,8 +120,7 @@ OmegaHLagrangeLayout::GetDOFHolderCoordinates() const
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
 }
 
-bool OmegaHLagrangeLayout::IsDistributed()
-{
+bool OmegaHLagrangeLayout::IsDistributed() const {
   return true;
 }
 

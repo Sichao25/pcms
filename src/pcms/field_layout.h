@@ -49,7 +49,7 @@ public:
 
   // returns true if the field layout is distributed
   // if the field layout is distributed, the owned and global dofs are the same
-  virtual bool IsDistributed() = 0;
+  [[nodiscard]] virtual bool IsDistributed() const = 0;
 
   // This class should construct the permutation arrays that are needed
   // for serialization / deserialization
