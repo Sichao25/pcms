@@ -11,6 +11,7 @@
 #include "pcms/field/simple_field_data.h"
 #include "pcms/transfer/transfer_field2.h"
 #include <chrono>
+#include <optional>
 
 using pcms::GO;
 using pcms::LO;
@@ -65,8 +66,8 @@ struct XGCAnalysis
   FieldVec pot0;
   std::array<FieldVec, 2> edensity;
   std::array<FieldVec, 2> idensity;
-  RegisteredField psi;
-  RegisteredField gids;
+  std::optional<RegisteredField> psi;
+  std::optional<RegisteredField> gids;
 };
 
 static void ReceiveFields(const std::vector<RegisteredField>& fields)
@@ -285,12 +286,12 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
 
   Omega_h::vtk::write_parallel("initial.vtk", &mesh);
   edge->BeginReceivePhase();
-  edge_analysis.psi.handle.Receive();
-  edge_analysis.gids.handle.Receive();
+  edge_analysis.psi->handle.Receive();
+  edge_analysis.gids->handle.Receive();
   edge->EndReceivePhase();
   core->BeginReceivePhase();
-  core_analysis.psi.handle.Receive();
-  core_analysis.gids.handle.Receive();
+  core_analysis.psi->handle.Receive();
+  core_analysis.gids->handle.Receive();
   core->EndReceivePhase();
   Omega_h::vtk::write_parallel("psi-only.vtk", &mesh);
   auto time4 = std::chrono::steady_clock::now();
