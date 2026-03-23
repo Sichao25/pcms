@@ -6,6 +6,7 @@ set(
         common.h
         mesh_geometry.h
         memory_spaces.h
+        mpi_type.h
         types.h
         array_mask.h
         inclusive_scan.h

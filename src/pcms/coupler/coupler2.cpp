@@ -19,11 +19,20 @@ FieldLayoutCommunicator& Application2::GetLayoutCommunicator(
 const FieldLayout& Application2::AddLayout(std::string name,
                                            std::shared_ptr<const FieldLayout> layout)
 {
+  return AddLayout(std::move(name), std::move(layout),
+                   std::make_unique<GenericFieldExchangePlanner>());
+}
+
+const FieldLayout& Application2::AddLayout(
+  std::string name, std::shared_ptr<const FieldLayout> layout,
+  std::unique_ptr<FieldExchangePlanner> planner)
+{
   layouts_.push_back(std::move(layout));
   const FieldLayout& layout_ref = *layouts_.back();
   field_layout_communicators_.emplace(
     &layout_ref, std::make_unique<FieldLayoutCommunicator>(
-                   name, mpi_comm_, redev_, channel_, layout_ref));
+                   name, mpi_comm_, redev_, channel_, layout_ref,
+                   std::move(planner)));
   return layout_ref;
 }
 

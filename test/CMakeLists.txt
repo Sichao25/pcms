@@ -372,7 +372,8 @@ if(Catch2_FOUND)
                              test_coordinate.cpp test_bounding_box.cpp)
   if(PCMS_ENABLE_XGC)
     list(APPEND PCMS_UNIT_TEST_SOURCES test_xgc_reverse_classification.cpp
-         test_xgc_field_adapter.cpp)
+         test_xgc_field_adapter.cpp
+         test_xgc_field_data.cpp)
   endif()
 
   if(PCMS_ENABLE_OMEGA_H)

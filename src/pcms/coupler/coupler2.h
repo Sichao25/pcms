@@ -5,6 +5,7 @@
 #include "pcms/field/field_layout.h"
 #include "field_layout_communicator.h"
 #include "field_communicator2.h"
+#include "field_exchange_planner.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/profile.h"
@@ -32,10 +33,18 @@ public:
 
   const FieldLayout& AddLayout(std::string name,
                                std::shared_ptr<const FieldLayout> layout);
+  const FieldLayout& AddLayout(std::string name,
+                               std::shared_ptr<const FieldLayout> layout,
+                               std::unique_ptr<FieldExchangePlanner> planner);
 
   // FIXME should take a file path for the parameters, not take adios2 params.
   // These fields are supposed to be agnostic to adios2...
   void AddField(std::string name, OwnedFieldDataPtr field,
+                bool participates = true);
+
+  template <typename T>
+  void AddField(std::string name, std::unique_ptr<FieldData<T>> field,
+                std::unique_ptr<FieldSerializer<T>> serializer,
                 bool participates = true);
 
   void SendField(const std::string& name,
@@ -169,5 +178,29 @@ private:
 };
 
 } // namespace pcms
+
+template <typename T>
+void pcms::Application2::AddField(std::string name,
+                                  std::unique_ptr<FieldData<T>> field,
+                                  std::unique_ptr<FieldSerializer<T>> serializer,
+                                  bool participates)
+{
+  PCMS_FUNCTION_TIMER;
+  (void)participates;
+  fields_.push_back(std::move(field));
+
+  auto& field_data_ptr = std::get<std::unique_ptr<FieldData<T>>>(fields_.back());
+  FieldLayoutCommunicator& layout_communicator =
+    GetLayoutCommunicator(field_data_ptr->GetLayout());
+  FieldCommunicator2Ptr field_communicator =
+    std::make_unique<FieldCommunicator2<T>>(layout_communicator, *field_data_ptr,
+                                            std::move(serializer));
+
+  auto [it, inserted] =
+    field_communicators_.insert_or_assign(name, std::move(field_communicator));
+  if (!inserted) {
+    throw pcms_error("Field with this name already exists");
+  }
+}
 
 #endif // COUPLER2_H_

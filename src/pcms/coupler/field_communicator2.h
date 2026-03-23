@@ -20,12 +20,13 @@ class FieldCommunicator2
 {
 public:
   FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldData<T>& field)
-    : FieldCommunicator2(layout_comm, field, FieldSerializer<T>{})
+    : FieldCommunicator2(layout_comm, field,
+                         std::make_unique<FieldSerializer<T>>())
   {
   }
 
   FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldData<T>& field,
-                     FieldSerializer<T> serializer)
+                     std::unique_ptr<FieldSerializer<T>> serializer)
     : comm_buffer_{},
       layout_comm_(layout_comm),
       field_(field),
@@ -43,7 +44,7 @@ public:
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(layout_comm_.GetChannel().InSendCommunicationPhase());
     auto buffer = make_array_view(comm_buffer_);
-    serializer_.Serialize(field_, buffer, layout_comm_.GetPermutationArray());
+    serializer_->Serialize(field_, buffer, layout_comm_.GetPermutationArray());
     comm_.Send(buffer.data_handle(), mode);
   }
 
@@ -55,9 +56,9 @@ public:
     // mode because we make an immediate call to deserialize after a call to
     // receive.
     auto data = comm_.Recv(redev::Mode::Synchronous);
-    serializer_.Deserialize(field_,
-                            make_const_array_view(data),
-                            layout_comm_.GetPermutationArray());
+    serializer_->Deserialize(field_,
+                             make_const_array_view(data),
+                             layout_comm_.GetPermutationArray());
   }
 
 private:
@@ -65,7 +66,7 @@ private:
   redev::BidirectionalComm<T> comm_;
   FieldLayoutCommunicator& layout_comm_;
   FieldData<T>& field_;
-  FieldSerializer<T> serializer_;
+  std::unique_ptr<FieldSerializer<T>> serializer_;
 };
 
 template <typename T>
