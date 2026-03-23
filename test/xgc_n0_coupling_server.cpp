@@ -3,14 +3,17 @@
 #include <Omega_h_file.hpp>
 #include <Omega_h_for.hpp>
 #include "test_support.h"
-#include "pcms/coupler/adapter/meshfields/mesh_fields_adapter.h"
-#include "pcms/coupler/adapter/xgc/xgc_field_adapter.h"
+#include "pcms/coupler/coupler2.h"
+#include "pcms/coupler/field_serializer.h"
+#include "pcms/field/adapter/omega_h/omega_h_lagrange_layout.h"
+#include "pcms/field/field_data.h"
+#include "pcms/field/field_metadata.h"
+#include "pcms/field/simple_field_data.h"
+#include "pcms/transfer/transfer_field2.h"
 #include <chrono>
 
-using pcms::Copy;
 using pcms::GO;
 using pcms::LO;
-using pcms::OmegaHFieldAdapter;
 
 namespace ts = test_support;
 
@@ -20,61 +23,74 @@ namespace ts = test_support;
 //
 
 [[nodiscard]]
-static pcms::CoupledField* AddField(pcms::Application* application,
-                                    const std::string& name,
-                                    const std::string& path,
-                                    Omega_h::Read<Omega_h::I8> is_overlap,
-                                    const std::string& numbering,
-                                    Omega_h::Mesh& mesh, int plane)
+static std::string MakeFieldName(const std::string& name, int plane)
 {
-  PCMS_ALWAYS_ASSERT(application != nullptr);
   std::stringstream field_name;
   field_name << name;
   if (plane >= 0) {
     field_name << "_" << plane;
   }
-  return application->AddField(
-    field_name.str(), pcms::OmegaHFieldAdapter<pcms::Real>(
-                        path + field_name.str(), mesh, is_overlap, numbering));
+  return field_name.str();
+}
+
+struct RegisteredField
+{
+  pcms::FieldHandle handle;
+  pcms::FieldData<pcms::Real>* data;
+};
+
+[[nodiscard]]
+static RegisteredField AddField(
+  pcms::Application2* application,
+  const std::shared_ptr<const pcms::FieldLayout>& layout,
+  const std::string& name, const std::string& path, int plane)
+{
+  PCMS_ALWAYS_ASSERT(application != nullptr);
+  auto field_name = MakeFieldName(name, plane);
+  std::unique_ptr<pcms::FieldData<pcms::Real>> field =
+    std::make_unique<pcms::SimpleFieldData<pcms::Real>>(layout,
+                                                        pcms::FieldMetadata{});
+  auto* field_ptr = field.get();
+  std::unique_ptr<pcms::FieldSerializer<pcms::Real>> serializer =
+    std::make_unique<pcms::FieldSerializer<pcms::Real>>();
+  auto handle = application->AddField(path + field_name, std::move(field),
+                                      std::move(serializer));
+  return {std::move(handle), field_ptr};
 }
 
 struct XGCAnalysis
 {
-  using FieldVec = std::vector<pcms::CoupledField*>;
+  using FieldVec = std::vector<RegisteredField>;
   std::array<FieldVec, 2> dpot;
   FieldVec pot0;
   std::array<FieldVec, 2> edensity;
   std::array<FieldVec, 2> idensity;
-  pcms::CoupledField* psi;
-  pcms::CoupledField* gids;
+  RegisteredField psi;
+  RegisteredField gids;
 };
 
-static void ReceiveFields(const std::vector<pcms::CoupledField*>& fields)
+static void ReceiveFields(const std::vector<RegisteredField>& fields)
 {
-  for (auto* field : fields) {
-    field->Receive();
+  for (const auto& field : fields) {
+    field.handle.Receive();
   }
 }
-static void SendFields(const std::vector<pcms::CoupledField*>& fields)
+static void SendFields(const std::vector<RegisteredField>& fields)
 {
-  for (auto* field : fields) {
-    field->Send();
+  for (const auto& field : fields) {
+    field.handle.Send();
   }
 }
-static void CopyFields(const std::vector<pcms::CoupledField*>& from_fields,
-                       const std::vector<pcms::CoupledField*>& to_fields)
+static void CopyFields(const std::vector<RegisteredField>& from_fields,
+                       const std::vector<RegisteredField>& to_fields)
 {
   PCMS_ALWAYS_ASSERT(from_fields.size() == to_fields.size());
   for (size_t i = 0; i < from_fields.size(); ++i) {
-    const auto* from =
-      from_fields[i]->GetFieldAdapter<pcms::OmegaHFieldAdapter<pcms::Real>>();
-    auto* to =
-      to_fields[i]->GetFieldAdapter<pcms::OmegaHFieldAdapter<pcms::Real>>();
-    copy_field(from->GetField(), to->GetField());
+    pcms::copy_field2(*from_fields[i].data, *to_fields[i].data);
   }
 }
 
-void SendRecvDensity(pcms::Application* core, pcms::Application* edge,
+void SendRecvDensity(pcms::Application2* core, pcms::Application2* edge,
                      XGCAnalysis& core_analysis, XGCAnalysis& edge_analysis,
                      int rank)
 {
@@ -127,7 +143,7 @@ void SendRecvDensity(pcms::Application* core, pcms::Application* edge,
   if (!rank)
     ts::printTime("Send Density", min, max, avg);
 }
-void SendRecvPotential(pcms::Application* core, pcms::Application* edge,
+void SendRecvPotential(pcms::Application2* core, pcms::Application2* edge,
                        XGCAnalysis& core_analysis, XGCAnalysis& edge_analysis,
                        int rank)
 {
@@ -184,8 +200,9 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
   MPI_Comm_rank(comm, &rank);
   auto time1 = std::chrono::steady_clock::now();
 
-  pcms::Coupler cpl("xgc_n0_coupling", comm, true,
-                    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
+  pcms::Coupler2 cpl(
+    "xgc_n0_coupling", comm, true,
+    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
   std::string numbering = "simNumbering";
   PCMS_ALWAYS_ASSERT(mesh.has_tag(0, numbering));
@@ -202,6 +219,8 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
       // return 0;
       return 1;
     });
+  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, is_overlap, numbering);
   auto time2 = std::chrono::steady_clock::now();
   elapsed_seconds = time2 - time1;
   ts::timeMinMaxAvg(elapsed_seconds.count(), min, max, avg);
@@ -216,52 +235,48 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     core_analysis.dpot[0].push_back(
-      AddField(core, "dpot_0_plane", "core/", is_overlap, numbering, mesh, i));
+      AddField(core, layout, "dpot_0_plane", "core/", i));
     core_analysis.dpot[1].push_back(
-      AddField(core, "dpot_1_plane", "core/", is_overlap, numbering, mesh, i));
+      AddField(core, layout, "dpot_1_plane", "core/", i));
     // core_analysis.dpot[3].push_back(AddField(core, "dpot_2_plane", "core/",
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     core_analysis.pot0.push_back(
-      AddField(core, "pot0_plane", "core/", is_overlap, numbering, mesh, i));
-    core_analysis.edensity[0].push_back(AddField(
-      core, "edensity_1_plane", "core/", is_overlap, numbering, mesh, i));
-    core_analysis.edensity[1].push_back(AddField(
-      core, "edensity_2_plane", "core/", is_overlap, numbering, mesh, i));
-    core_analysis.idensity[0].push_back(AddField(
-      core, "idensity_1_plane", "core/", is_overlap, numbering, mesh, i));
-    core_analysis.idensity[1].push_back(AddField(
-      core, "idensity_2_plane", "core/", is_overlap, numbering, mesh, i));
+      AddField(core, layout, "pot0_plane", "core/", i));
+    core_analysis.edensity[0].push_back(
+      AddField(core, layout, "edensity_1_plane", "core/", i));
+    core_analysis.edensity[1].push_back(
+      AddField(core, layout, "edensity_2_plane", "core/", i));
+    core_analysis.idensity[0].push_back(
+      AddField(core, layout, "idensity_1_plane", "core/", i));
+    core_analysis.idensity[1].push_back(
+      AddField(core, layout, "idensity_2_plane", "core/", i));
 
     // edge_analysis.dpot[0].push_back(AddField(edge, "dpot_m1_plane", "edge/",
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     edge_analysis.dpot[0].push_back(
-      AddField(edge, "dpot_0_plane", "edge/", is_overlap, numbering, mesh, i));
+      AddField(edge, layout, "dpot_0_plane", "edge/", i));
     edge_analysis.dpot[1].push_back(
-      AddField(edge, "dpot_1_plane", "edge/", is_overlap, numbering, mesh, i));
+      AddField(edge, layout, "dpot_1_plane", "edge/", i));
     // edge_analysis.dpot[3].push_back(AddField(edge, "dpot_2_plane", "edge/",
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     edge_analysis.pot0.push_back(
-      AddField(edge, "pot0_plane", "edge/", is_overlap, numbering, mesh, i));
-    edge_analysis.edensity[0].push_back(AddField(
-      edge, "edensity_1_plane", "edge/", is_overlap, numbering, mesh, i));
-    edge_analysis.edensity[1].push_back(AddField(
-      edge, "edensity_2_plane", "edge/", is_overlap, numbering, mesh, i));
-    edge_analysis.idensity[0].push_back(AddField(
-      edge, "idensity_1_plane", "edge/", is_overlap, numbering, mesh, i));
-    edge_analysis.idensity[1].push_back(AddField(
-      edge, "idensity_2_plane", "edge/", is_overlap, numbering, mesh, i));
+      AddField(edge, layout, "pot0_plane", "edge/", i));
+    edge_analysis.edensity[0].push_back(
+      AddField(edge, layout, "edensity_1_plane", "edge/", i));
+    edge_analysis.edensity[1].push_back(
+      AddField(edge, layout, "edensity_2_plane", "edge/", i));
+    edge_analysis.idensity[0].push_back(
+      AddField(edge, layout, "idensity_1_plane", "edge/", i));
+    edge_analysis.idensity[1].push_back(
+      AddField(edge, layout, "idensity_2_plane", "edge/", i));
   }
-  core_analysis.psi =
-    AddField(core, "psi", "core/", is_overlap, numbering, mesh, -1);
-  edge_analysis.psi =
-    AddField(edge, "psi", "edge/", is_overlap, numbering, mesh, -1);
-  core_analysis.gids =
-    AddField(core, "gid_debug", "core/", is_overlap, numbering, mesh, -1);
-  edge_analysis.gids =
-    AddField(edge, "gid_debug", "edge/", is_overlap, numbering, mesh, -1);
+  core_analysis.psi = AddField(core, layout, "psi", "core/", -1);
+  edge_analysis.psi = AddField(edge, layout, "psi", "edge/", -1);
+  core_analysis.gids = AddField(core, layout, "gid_debug", "core/", -1);
+  edge_analysis.gids = AddField(edge, layout, "gid_debug", "edge/", -1);
   auto time3 = std::chrono::steady_clock::now();
   elapsed_seconds = time3 - time2;
   ts::timeMinMaxAvg(elapsed_seconds.count(), min, max, avg);
@@ -270,12 +285,12 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
 
   Omega_h::vtk::write_parallel("initial.vtk", &mesh);
   edge->BeginReceivePhase();
-  edge_analysis.psi->Receive();
-  edge_analysis.gids->Receive();
+  edge_analysis.psi.handle.Receive();
+  edge_analysis.gids.handle.Receive();
   edge->EndReceivePhase();
   core->BeginReceivePhase();
-  core_analysis.psi->Receive();
-  core_analysis.gids->Receive();
+  core_analysis.psi.handle.Receive();
+  core_analysis.gids.handle.Receive();
   core->EndReceivePhase();
   Omega_h::vtk::write_parallel("psi-only.vtk", &mesh);
   auto time4 = std::chrono::steady_clock::now();

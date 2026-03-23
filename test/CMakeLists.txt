@@ -564,7 +564,5 @@ endif()
 
 find_package(KokkosKernels REQUIRED)
 
-# TODO: xgc_n0_server is disabled until the XGC field adapter is ported to the
-# new FieldData<T>/FieldEvaluatorFactory<T> API (copy_field removed).
-# add_executable(xgc_n0_server xgc_n0_coupling_server.cpp)
-# target_link_libraries(xgc_n0_server PUBLIC pcms::core test_support)
+add_executable(xgc_n0_server xgc_n0_coupling_server.cpp)
+target_link_libraries(xgc_n0_server PUBLIC pcms::core test_support)
