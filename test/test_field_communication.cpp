@@ -9,7 +9,6 @@
 #include <redev.h>
 #include <vector>
 #include "pcms/coupler/field_communicator2.h"
-#include "pcms/coupler/field_communicator.h"
 #include "pcms/field/lagrange_field_factory.h"
 #include "pcms/field/field_metadata.h"
 #include "test_support.h"

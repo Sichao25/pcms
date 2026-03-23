@@ -4,6 +4,5 @@
 #include "pcms/configuration.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/profile.h"
-#include "pcms/coupler/adapter/meshfields/mesh_fields_adapter.h"
 
 #endif
