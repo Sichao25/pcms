@@ -2,7 +2,6 @@
 #define PCMS_ADAPTER_MESHFIELDS_MESH_FIELDS_ADAPTER_H
 #include "pcms/utility/types.h"
 #include <Omega_h_mesh.hpp>
-#include "pcms/field/field.h"
 #include "pcms/field/coordinate_systems.h"
 #include <Kokkos_Core.hpp>
 #include <array>
@@ -13,7 +12,8 @@
 #include "pcms/localization/point_search.h"
 #include <redev_variant_tools.h>
 #include <type_traits>
-#include "pcms/transfer/transfer_field.h"
+#include "pcms/coupler/adapter/field_evaluation_methods.h"
+#include "pcms/field/field_layout.h"
 #include "pcms/utility/memory_spaces.h"
 #include "pcms/utility/mesh_geometry.h"
 #include "pcms/utility/profile.h"

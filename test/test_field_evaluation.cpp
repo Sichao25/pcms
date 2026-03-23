@@ -3,6 +3,7 @@
 #include <Omega_h_for.hpp>
 #include <Omega_h_mesh.hpp>
 #include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/field_metadata.h"
 #include "pcms/utility/assert.h"
 #include "field_test_utils.h"
 #include <cmath>
@@ -30,11 +31,11 @@ TEST_CASE("evaluate linear 2d omega_h_field")
                                  100, 100, 0, false);
   auto factory = pcms::LagrangeFieldFactory::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldReal();
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
   pcms::test::SetField(*field, pcms::test::linear_f);
-  pcms::test::CheckEvaluation(
-    *field, pcms::test::StandardEvalCoords2D(), pcms::test::linear_f);
+  pcms::test::CheckEvaluation(factory, *field, pcms::test::StandardEvalCoords2D(),
+                              pcms::test::linear_f);
 }
 
 #ifdef PCMS_ENABLE_MESHFIELDS
@@ -65,10 +66,10 @@ TEST_CASE("evaluate quadratic 2d meshfields_field")
   });
 
   Omega_h::HostWrite<Real> test_f_host(test_f);
-  auto field = factory.CreateFieldReal();
-  field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  field->SetDOFHolderDataHost(pcms::make_const_array_view(test_f_host));
 
-  pcms::test::CheckEvaluation(*field, kEvalCoords, sin_f, 1.0e-2);
+  pcms::test::CheckEvaluation(factory, *field, kEvalCoords, sin_f, 1.0e-2);
 }
 #endif
 

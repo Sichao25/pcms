@@ -131,7 +131,7 @@ public:
 
   std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
     CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy) const override
+    OutOfBoundsPolicy policy = {}) const override
   {
     PCMS_FUNCTION_TIMER;
     if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {

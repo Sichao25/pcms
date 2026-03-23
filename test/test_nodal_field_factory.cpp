@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "pcms/field/nodal_field_factory.h"
+#include "pcms/field/field_metadata.h"
 #include "pcms/field/adapter/point_cloud/point_cloud_layout.h"
 #include "field_test_utils.h"
 
@@ -59,8 +60,8 @@ TEST_CASE("NodalFieldFactory fields share layout")
 
   auto factory =
     pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian);
-  auto source = factory.CreateFieldReal();
-  auto target = factory.CreateFieldReal();
+  auto source = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto target = factory.CreateFieldData(pcms::FieldMetadata{});
 
   REQUIRE(&source->GetLayout() == &target->GetLayout());
 }
@@ -72,13 +73,13 @@ TEST_CASE("NodalFieldFactory point-cloud field set/get DOF round-trip")
 
   auto field =
     pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian)
-      .CreateFieldReal();
+      .CreateFieldData(pcms::FieldMetadata{});
 
   std::vector<Real> data{1.0, 2.0, 3.0, 4.0};
   Rank1View<const Real, HostMemorySpace> data_view(data.data(), data.size());
-  field->SetDOFHolderData(data_view);
+  field->SetDOFHolderDataHost(data_view);
 
-  auto got = field->GetDOFHolderData();
+  auto got = field->GetDOFHolderDataHost();
   REQUIRE(got.size() == data.size());
   for (LO i = 0; i < static_cast<LO>(data.size()); ++i) {
     REQUIRE(got[i] == Catch::Approx(data[i]));
@@ -92,11 +93,11 @@ TEST_CASE("NodalFieldFactory point-cloud field serialize / deserialize round-tri
 
   auto field =
     pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian)
-      .CreateFieldReal();
+      .CreateFieldData(pcms::FieldMetadata{});
 
   std::vector<Real> data{5.0, 6.0, 7.0, 8.0};
   Rank1View<const Real, HostMemorySpace> data_view(data.data(), data.size());
-  field->SetDOFHolderData(data_view);
+  field->SetDOFHolderDataHost(data_view);
 
   pcms::test::CheckSerializeDeserialize(*field);
 }
@@ -108,7 +109,7 @@ TEST_CASE("NodalFieldFactory field keeps layout alive after temporary factory de
 
   auto field =
     pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian)
-      .CreateFieldReal();
+      .CreateFieldData(pcms::FieldMetadata{});
 
   auto point_cloud_layout =
     dynamic_cast<const pcms::PointCloudLayout*>(&field->GetLayout());
@@ -117,9 +118,9 @@ TEST_CASE("NodalFieldFactory field keeps layout alive after temporary factory de
 
   std::vector<Real> data{9.0, 10.0, 11.0, 12.0};
   Rank1View<const Real, HostMemorySpace> data_view(data.data(), data.size());
-  field->SetDOFHolderData(data_view);
+  field->SetDOFHolderDataHost(data_view);
 
-  auto got = field->GetDOFHolderData();
+  auto got = field->GetDOFHolderDataHost();
   REQUIRE(got[0] == Catch::Approx(9.0));
   REQUIRE(got[3] == Catch::Approx(12.0));
 }

@@ -42,7 +42,7 @@ public:
 
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
     CoordinateView<HostMemorySpace> /* coords */,
-    OutOfBoundsPolicy /* policy */) const override
+    OutOfBoundsPolicy /* policy */ = {}) const override
   {
     throw pcms_error(
       "PointCloudEvaluatorFactory::CreatePointEvaluator: point-cloud "

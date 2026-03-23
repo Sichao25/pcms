@@ -1,27 +1,109 @@
 #ifndef PCMS_OMEGA_H_LAGRANGE_EVALUATOR_FACTORY_H
 #define PCMS_OMEGA_H_LAGRANGE_EVALUATOR_FACTORY_H
 
-#include "omega_h_lagrange_common.h"
 #include "omega_h_lagrange_layout.h"
 #include "pcms/field/field_evaluator_factory.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/field/field_data.h"
+#include "pcms/localization/point_search.h"
 #include "pcms/utility/assert.h"
+#include "pcms/utility/arrays.h"
 #include "pcms/utility/profile.h"
+#include "pcms/utility/types.h"
 
+#include <Omega_h_mesh.hpp>
+#include <Kokkos_Core.hpp>
 #include <memory>
+#include <stdexcept>
 #include <variant>
 
 namespace pcms
 {
+
+// ---------------------------------------------------------------------------
+// Localization hint — computed once per query point set, reused across Evaluate
+// ---------------------------------------------------------------------------
+struct OmegaHLagrangeLocHint
+{
+  Kokkos::View<LO*, HostMemorySpace> elem_ids;      // containing element (valid pts)
+  Kokkos::View<Real**, HostMemorySpace> bary;        // [n_valid x (dim+1)]
+  Kokkos::View<LO*, HostMemorySpace> orig_indices;   // original query index
+  Kokkos::View<LO*, HostMemorySpace> missing_indices;
+  OutOfBoundsMode mode;
+};
+
+namespace detail
+{
+
+template <int Dim>
+OmegaHLagrangeLocHint BuildLagrangeLocHint(
+  int mesh_dim,
+  Kokkos::View<typename PointLocalizationSearch<Dim>::Result*,
+               HostMemorySpace> results_h,
+  OutOfBoundsMode mode)
+{
+  LO n = static_cast<LO>(results_h.size());
+  std::vector<LO> valid, missing;
+  for (LO i = 0; i < n; ++i) {
+    bool out = (static_cast<int>(results_h(i).dimensionality) != mesh_dim) ||
+               (results_h(i).element_id < 0);
+    if (out)
+      missing.push_back(i);
+    else
+      valid.push_back(i);
+  }
+
+  if (mode == OutOfBoundsMode::ERROR) {
+    PCMS_ALWAYS_ASSERT(missing.empty() && "Points found outside mesh domain");
+  } else if (mode == OutOfBoundsMode::NEAREST_BOUNDARY) {
+    PCMS_ALWAYS_ASSERT(false && "NEAREST_BOUNDARY mode not yet implemented");
+  }
+
+  LO nv = static_cast<LO>(valid.size());
+  LO nm = static_cast<LO>(missing.size());
+
+  Kokkos::View<LO*, HostMemorySpace> elem_ids("elem_ids", nv);
+  Kokkos::View<Real**, HostMemorySpace> bary("bary", nv, mesh_dim + 1);
+  Kokkos::View<LO*, HostMemorySpace> orig_indices("orig_indices", nv);
+  Kokkos::View<LO*, HostMemorySpace> missing_indices("missing_indices", nm);
+
+  for (LO k = 0; k < nv; ++k) {
+    LO i = valid[k];
+    elem_ids(k) = results_h(i).element_id;
+    orig_indices(k) = i;
+    for (int d = 0; d <= mesh_dim; ++d)
+      bary(k, d) = results_h(i).parametric_coords[d];
+  }
+  for (LO k = 0; k < nm; ++k)
+    missing_indices(k) = missing[k];
+
+  return OmegaHLagrangeLocHint{elem_ids, bary, orig_indices, missing_indices,
+                                mode};
+}
+
+inline std::variant<GridPointSearch2D, GridPointSearch3D> MakeSearch(
+  Omega_h::Mesh& mesh)
+{
+  if (mesh.dim() == 2)
+    return GridPointSearch2D(mesh, 10, 10);
+  else if (mesh.dim() == 3)
+    return GridPointSearch3D(mesh, 10, 10, 10);
+  throw std::invalid_argument(
+    "OmegaHLagrangeEvaluatorFactory: only 2D and 3D meshes are supported");
+}
+
+} // namespace detail
+
+// ---------------------------------------------------------------------------
+// PointEvaluator
+// ---------------------------------------------------------------------------
 
 // OmegaHLagrangePointEvaluator<T> implements PointEvaluator<T> for simplex
 // meshes backed by Omega_h. Localization results (element IDs, barycentric
 // coordinates) are computed once at construction and cached for repeated
 // Evaluate calls.
 //
-// Evaluation logic is taken directly from OmegaHLagrangeField::Evaluate.
 // Output shape: [num_query_points][num_components].
 template <typename T>
 class OmegaHLagrangePointEvaluator : public PointEvaluator<T>
@@ -42,7 +124,6 @@ public:
     PCMS_FUNCTION_TIMER;
     auto dof_data = field.GetDOFHolderDataHost();
     LO n_valid = static_cast<LO>(hint_.elem_ids.size());
-    LO n_pts = static_cast<LO>(values.extent(0));
     int n_comp = layout_->GetNumComponents();
 
     PCMS_ALWAYS_ASSERT(values.extent(1) == static_cast<size_t>(n_comp));
@@ -94,12 +175,13 @@ private:
   Real fill_value_;
 };
 
+// ---------------------------------------------------------------------------
+// EvaluatorFactory
+// ---------------------------------------------------------------------------
+
 // OmegaHLagrangeEvaluatorFactory<T> implements FieldEvaluatorFactory<T> for
 // simplex meshes backed by Omega_h. It owns the spatial search structure and
 // creates OmegaHLagrangePointEvaluator instances on demand.
-//
-// Localization logic is taken directly from
-// OmegaHLagrangeField::GetLocalizationHint.
 template <typename T>
 class OmegaHLagrangeEvaluatorFactory : public FieldEvaluatorFactory<T>
 {
@@ -129,7 +211,7 @@ public:
 
   std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
     CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy) const override
+    OutOfBoundsPolicy policy = {}) const override
   {
     PCMS_FUNCTION_TIMER;
     if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {

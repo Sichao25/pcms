@@ -8,15 +8,12 @@
 #include "test_support.h"
 #include "pcms/coupler/coupler2.h"
 #include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/field_metadata.h"
 #include <chrono>
 #include <thread>
 
-using pcms::Copy;
 using pcms::GO;
-using pcms::Lagrange;
 using pcms::make_array_view;
-using pcms::MeshFieldsAdapter;
-using pcms::OmegaHFieldAdapter;
 
 using namespace std::chrono_literals;
 
@@ -24,7 +21,7 @@ static constexpr bool done = true;
 static constexpr int COMM_ROUNDS = 4;
 namespace ts = test_support;
 
-void initializeFieldWithGids(pcms::FieldT<pcms::Real>* field,
+void initializeFieldWithGids(pcms::FieldData<pcms::Real>* field,
                              pcms::Real multiplier = 1.0)
 {
   auto& layout = field->GetLayout();
@@ -38,16 +35,16 @@ void initializeFieldWithGids(pcms::FieldT<pcms::Real>* field,
     Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
     [=](int i) { ids[i] = gids[i] * multiplier; });
 
-  field->SetDOFHolderData(pcms::make_const_array_view(ids));
+  field->SetDOFHolderDataHost(pcms::make_const_array_view(ids));
 }
 
-bool validateField(pcms::FieldT<pcms::Real>* field,
+bool validateField(pcms::FieldData<pcms::Real>* field,
                    const std::string& field_name, int rank,
                    pcms::Real multiplier = 1.0)
 {
   auto& layout = field->GetLayout();
   auto gids = layout.GetGids();
-  auto copied_array = field->GetDOFHolderData();
+  auto copied_array = field->GetDOFHolderDataHost();
   auto owned = layout.GetOwned();
   const auto n = layout.GetNumOwnedDofHolder();
 
@@ -95,8 +92,8 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   app->AddLayout("gids", factory.GetLayout());
 
-  auto gids_field = factory.CreateFieldReal();
-  auto gids2_field = factory.CreateFieldReal();
+  auto gids_field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto gids2_field = factory.CreateFieldData(pcms::FieldMetadata{});
 
   auto* gids_ptr = gids_field.get();
   auto* gids2_ptr = gids2_field.get();
@@ -136,7 +133,7 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   app->AddLayout("gids", factory.GetLayout());
 
-  auto gids_field = factory.CreateFieldReal();
+  auto gids_field = factory.CreateFieldData(pcms::FieldMetadata{});
 
   auto* gids_ptr = gids_field.get();
 
@@ -183,9 +180,9 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   delta_f->AddLayout("gids", factory_delta.GetLayout());
   // TODO, fields should have a transfer policy rather than parameters
-  auto total_gids_field = factory_total.CreateFieldReal();
-  auto delta_gids_field = factory_delta.CreateFieldReal();
-  auto delta_gids2_field = factory_delta.CreateFieldReal();
+  auto total_gids_field = factory_total.CreateFieldData(pcms::FieldMetadata{});
+  auto delta_gids_field = factory_delta.CreateFieldData(pcms::FieldMetadata{});
+  auto delta_gids2_field = factory_delta.CreateFieldData(pcms::FieldMetadata{});
 
   auto* total_gids_ptr = total_gids_field.get();
   auto* delta_gids_ptr = delta_gids_field.get();

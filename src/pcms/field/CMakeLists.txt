@@ -25,17 +25,13 @@ if (PCMS_ENABLE_OMEGA_H)
             lagrange_field_factory.cpp
             adapter/omega_h/omega_h_lagrange_layout.cpp
             adapter/uniform_grid/uniform_grid_field_layout.cpp
-            adapter/uniform_grid/uniform_grid_field.cpp
     )
     list(APPEND PCMS_FIELD_HEADERS
             lagrange_field_factory.h
             field_evaluator_factory.h
-            adapter/omega_h/omega_h_lagrange_common.h
             adapter/omega_h/omega_h_lagrange_layout.h
-            adapter/omega_h/omega_h_lagrange_field.h
             adapter/omega_h/omega_h_lagrange_evaluator_factory.h
             adapter/uniform_grid/uniform_grid_field_layout.h
-            adapter/uniform_grid/uniform_grid_field.h
             adapter/uniform_grid/uniform_grid_binary_field.h
             adapter/uniform_grid/uniform_grid_evaluator_factory.h
     )
@@ -50,7 +46,6 @@ if (PCMS_ENABLE_MESHFIELDS)
             adapter/meshfields/mesh_fields_backend.h
             adapter/meshfields/mesh_fields_evaluator_factory.h
             adapter/meshfields/mesh_fields_field_data.h
-            adapter/meshfields/mesh_fields_adapter2.h
     )
 endif ()
 

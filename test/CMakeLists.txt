@@ -376,16 +376,11 @@ if(Catch2_FOUND)
   endif()
 
   if(PCMS_ENABLE_OMEGA_H)
-    add_executable(field_transfer_example field_transfer_example.cpp)
-    target_link_libraries(field_transfer_example PUBLIC pcms::core
-                                                        pcms::transfer)
     list(
       APPEND
       PCMS_UNIT_TEST_SOURCES
       test_error_handling.cpp
-      test_field_transfer.cpp
       test_uniform_grid.cpp
-      test_omega_h_copy.cpp
       test_field_evaluation.cpp
       test_field_interpolation.cpp
       test_field_copy.cpp
@@ -569,5 +564,7 @@ endif()
 
 find_package(KokkosKernels REQUIRED)
 
-add_executable(xgc_n0_server xgc_n0_coupling_server.cpp)
-target_link_libraries(xgc_n0_server PUBLIC pcms::core test_support)
+# TODO: xgc_n0_server is disabled until the XGC field adapter is ported to the
+# new FieldData<T>/FieldEvaluatorFactory<T> API (copy_field removed).
+# add_executable(xgc_n0_server xgc_n0_coupling_server.cpp)
+# target_link_libraries(xgc_n0_server PUBLIC pcms::core test_support)

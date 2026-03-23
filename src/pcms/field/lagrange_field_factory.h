@@ -3,12 +3,12 @@
 
 #include <Omega_h_mesh.hpp>
 #include "pcms/configuration.h"
-#include "field.h"
 #include "pcms/field/field_layout.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/field/out_of_bounds_policy.h"
+#include "pcms/field/field_evaluator_factory.h"
 #include "pcms/field/simple_field_data.h"
 #include "coordinate_system.h"
 #include "pcms/utility/arrays.h"
@@ -22,9 +22,6 @@
 
 namespace pcms
 {
-
-template <typename T>
-class FieldEvaluatorFactory;
 
 class LagrangeFieldFactory
 {
@@ -54,33 +51,28 @@ public:
     int order = 1);
 
   [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept;
-  [[nodiscard]] std::unique_ptr<FieldT<Real>> CreateFieldReal() const;
 
-  // New evaluation API — added alongside the existing API for incremental
-  // migration. This factory remains a construction convenience; routine data
-  // access should go through the resulting FieldData and FieldLayout objects.
-  // The evaluator machinery is available for OmegaH, UniformGrid, and
-  // MeshFields backends.
+  [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept;
 
-  // Convenience: delegates PointEvaluator construction to the internal factory.
+  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const noexcept;
+
+  // Delegates PointEvaluator construction to the internal factory.
   [[nodiscard]] std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
     CoordinateView<HostMemorySpace> coords,
     OutOfBoundsPolicy policy = {}) const;
 
-  // Returns a new SimpleFieldData<Real> pre-allocated for this layout.
+  // Returns a new FieldData<Real> pre-allocated for this layout.
   [[nodiscard]] std::unique_ptr<FieldData<Real>> CreateFieldData(
     FieldMetadata metadata = {}) const;
 
 private:
   explicit LagrangeFieldFactory(
     std::shared_ptr<const FieldLayout> layout,
-    std::function<std::unique_ptr<FieldT<Real>>()> create_fn,
     std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
       create_field_data_fn,
     std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept;
 
   std::shared_ptr<const FieldLayout> layout_;
-  std::function<std::unique_ptr<FieldT<Real>>()> create_fn_;
   std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
     create_field_data_fn_;
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory_;

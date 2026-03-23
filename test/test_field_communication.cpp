@@ -3,14 +3,15 @@
 #include <iostream>
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
+#include <Omega_h_file.hpp>
 #include <Omega_h_class.hpp>
 #include <Omega_h_for.hpp>
 #include <redev.h>
 #include <vector>
-#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/coupler/field_communicator2.h"
 #include "pcms/coupler/field_communicator.h"
 #include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/field_metadata.h"
 #include "test_support.h"
 
 namespace ts = test_support;
@@ -77,8 +78,8 @@ void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
     "id gid", Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
     [=](int i) { ids[i] = gids[i]; });
 
-  auto field = factory.CreateFieldReal();
-  field->SetDOFHolderData(pcms::make_const_array_view(ids));
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  field->SetDOFHolderDataHost(pcms::make_const_array_view(ids));
 
   pcms::FieldLayoutCommunicator layout_comm(comm_name + "1", comm, rdv, channel,
                                             *layout);
@@ -102,7 +103,7 @@ void client2(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto gids = layout->GetGids();
   const auto n = layout->GetNumOwnedDofHolder();
 
-  auto field = factory.CreateFieldReal();
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
   pcms::FieldLayoutCommunicator layout_comm(comm_name + "2", comm, rdv, channel,
                                             *layout);
   pcms::FieldCommunicator2<pcms::Real> field_comm(layout_comm, *field);
@@ -111,7 +112,7 @@ void client2(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   field_comm.Receive();
   channel.EndReceiveCommunicationPhase();
 
-  auto copied_array = field->GetDOFHolderData();
+  auto copied_array = field->GetDOFHolderDataHost();
   auto owned = layout->GetOwned();
 
   PCMS_ALWAYS_ASSERT(copied_array.size() == gids.size());
@@ -164,7 +165,7 @@ void server(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
     "id 0", Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
     [=](int i) { ids[i] = 0; });
 
-  auto field = factory.CreateFieldReal();
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
   pcms::FieldLayoutCommunicator layout_comm1(comm_name + "1", comm, rdv,
                                              channel1, *layout);
   pcms::FieldLayoutCommunicator layout_comm2(comm_name + "2", comm, rdv,

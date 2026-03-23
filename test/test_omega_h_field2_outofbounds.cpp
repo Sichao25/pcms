@@ -4,6 +4,7 @@
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
 #include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/field_metadata.h"
 #include "field_test_utils.h"
 #include <Kokkos_Core.hpp>
 #include <vector>
@@ -19,17 +20,14 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
 {
   auto lib = Omega_h::Library{};
   auto world = lib.world();
-  // Create a 1x1 box mesh (coords from 0 to 1)
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 10, 10, 0, false);
   auto factory = pcms::LagrangeFieldFactory::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldReal();
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
   pcms::test::SetField(*field, fill_mode_f);
 
-  // Set FILL mode with fill value of -999.0
   Real fill_value = -999.0;
-  field->SetOutOfBoundsMode(pcms::OutOfBoundsMode::FILL, fill_value);
 
   // Test points - mix of inside and outside
   std::vector<Real> coords = {
@@ -42,5 +40,5 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
 
   std::vector<bool> is_inside = {true, false, false, true, false};
   pcms::test::CheckEvaluationWithFill(
-    *field, coords, is_inside, fill_mode_f, fill_value, 1.0e-10);
+    factory, *field, coords, is_inside, fill_mode_f, fill_value, 1.0e-10);
 }

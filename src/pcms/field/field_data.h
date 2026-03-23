@@ -5,6 +5,8 @@
 #include "field_metadata.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
+#include <memory>
+#include <variant>
 
 namespace pcms
 {
@@ -46,6 +48,8 @@ template <typename T>
 class FieldData
 {
 public:
+  using value_type = T;
+
   virtual const FieldLayout& GetLayout() const = 0;
   virtual const FieldMetadata& GetMetadata() const = 0;
 
@@ -74,6 +78,14 @@ public:
 
   virtual ~FieldData() noexcept = default;
 };
+
+template <typename T>
+using OwnedFieldDataPtrT = std::unique_ptr<FieldData<T>>;
+
+using OwnedFieldDataPtr =
+  std::variant<OwnedFieldDataPtrT<int8_t>, OwnedFieldDataPtrT<int32_t>,
+               OwnedFieldDataPtrT<int64_t>, OwnedFieldDataPtrT<float>,
+               OwnedFieldDataPtrT<double>>;
 
 } // namespace pcms
 

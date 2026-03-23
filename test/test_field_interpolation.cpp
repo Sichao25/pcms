@@ -4,10 +4,9 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include <../src/pcms/transfer/transfer_field2.h>
-#include "pcms/coupler/adapter/meshfields/mesh_fields_adapter.h"
-#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
+#include "pcms/transfer/transfer_field2.h"
 #include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/field_metadata.h"
 #include "pcms/utility/assert.h"
 #include "field_test_utils.h"
 #include <Kokkos_Core.hpp>
@@ -28,16 +27,15 @@ TEST_CASE("interpolate linear 2d omega_h_field")
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
   auto factory = pcms::LagrangeFieldFactory::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldReal();
-  auto interpolated = factory.CreateFieldReal();
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto interpolated = factory.CreateFieldData(pcms::FieldMetadata{});
   pcms::test::SetField(*field, interpolation_linear_f);
 
-  pcms::interpolate_field2(*field, *interpolated);
-  auto interpolated_dof = interpolated->GetDOFHolderData();
-  auto original_dof = field->GetDOFHolderData();
+  pcms::interpolate_field2(*field, factory.GetEvaluatorFactory(), *interpolated);
+  auto interpolated_dof = interpolated->GetDOFHolderDataHost();
+  auto original_dof = field->GetDOFHolderDataHost();
   REQUIRE(interpolated_dof.size() == original_dof.size());
-  // assumes that GetDOFHolderData will return a host view
-  for (int i = 0; i < interpolated_dof.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(interpolated_dof.size()); ++i) {
     REQUIRE_THAT(interpolated_dof[i],
                  Catch::Matchers::WithinRel(original_dof[i], 0.001) ||
                    Catch::Matchers::WithinAbs(original_dof[i], 1E-10));
@@ -79,19 +77,16 @@ TEST_CASE("interpolate quadratic 2d meshfields_field")
     });
 
   Omega_h::HostWrite<Real> test_f_host(test_f);
-  auto field = factory2.CreateFieldReal();
-  auto interpolated = factory2.CreateFieldReal();
-  field->SetDOFHolderData(pcms::make_const_array_view(test_f_host));
+  auto field = factory2.CreateFieldData(pcms::FieldMetadata{});
+  auto interpolated = factory2.CreateFieldData(pcms::FieldMetadata{});
+  field->SetDOFHolderDataHost(pcms::make_const_array_view(test_f_host));
 
-  // interpolate the field from one mesh to another mesh with the same
-  // coordinates
-  pcms::interpolate_field2(*field, *interpolated);
+  pcms::interpolate_field2(*field, factory2.GetEvaluatorFactory(), *interpolated);
 
-  auto interpolated_dof = interpolated->GetDOFHolderData();
-  auto original_dof = field->GetDOFHolderData();
+  auto interpolated_dof = interpolated->GetDOFHolderDataHost();
+  auto original_dof = field->GetDOFHolderDataHost();
   REQUIRE(interpolated_dof.size() == original_dof.size());
-  // assumes that GetDOFHolderData will return a host view
-  for (int i = 0; i < interpolated_dof.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(interpolated_dof.size()); ++i) {
     REQUIRE_THAT(interpolated_dof[i],
                  Catch::Matchers::WithinRel(original_dof[i], 0.001) ||
                    Catch::Matchers::WithinAbs(original_dof[i], 1E-10));

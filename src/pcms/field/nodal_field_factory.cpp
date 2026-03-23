@@ -1,6 +1,5 @@
 #include "pcms/field/nodal_field_factory.h"
 #include "pcms/field/adapter/point_cloud/point_cloud_layout.h"
-#include "pcms/field/adapter/point_cloud/point_cloud.h"
 #include "pcms/field/adapter/point_cloud/point_cloud_evaluator_factory.h"
 #include "pcms/utility/assert.h"
 
@@ -11,10 +10,8 @@ namespace pcms
 
 NodalFieldFactory::NodalFieldFactory(
   std::shared_ptr<const FieldLayout> layout,
-  std::function<std::unique_ptr<FieldT<Real>>()> create_fn,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
   : layout_(std::move(layout)),
-    create_fn_(std::move(create_fn)),
     evaluator_factory_(std::move(evaluator_factory))
 {
 }
@@ -31,21 +28,13 @@ NodalFieldFactory NodalFieldFactory::Create(
   auto pc_layout =
     std::make_shared<PointCloudLayout>(dim, device_view, coordinate_system);
   auto eval_factory = std::make_shared<PointCloudEvaluatorFactory>(pc_layout);
-  return NodalFieldFactory(
-    pc_layout,
-    [pc_layout]() { return std::make_unique<PointCloud>(pc_layout); },
-    std::move(eval_factory));
+  return NodalFieldFactory(pc_layout, std::move(eval_factory));
 }
 
 std::shared_ptr<const FieldLayout>
 NodalFieldFactory::GetLayout() const noexcept
 {
   return layout_;
-}
-
-std::unique_ptr<FieldT<Real>> NodalFieldFactory::CreateFieldReal() const
-{
-  return create_fn_();
 }
 
 std::unique_ptr<PointEvaluator<Real>> NodalFieldFactory::CreatePointEvaluator(

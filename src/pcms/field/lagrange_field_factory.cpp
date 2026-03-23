@@ -3,15 +3,12 @@
 #include "pcms/utility/assert.h"
 #ifdef PCMS_ENABLE_MESHFIELDS
 #include "pcms/field/adapter/meshfields/mesh_fields_adapter_layout.h"
-#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
 #include "pcms/field/adapter/meshfields/mesh_fields_evaluator_factory.h"
 #include "pcms/field/adapter/meshfields/mesh_fields_field_data.h"
 #endif
 #include "pcms/field/adapter/omega_h/omega_h_lagrange_layout.h"
-#include "pcms/field/adapter/omega_h/omega_h_lagrange_field.h"
 #include "pcms/field/adapter/omega_h/omega_h_lagrange_evaluator_factory.h"
 #include "pcms/field/adapter/uniform_grid/uniform_grid_field_layout.h"
-#include "pcms/field/adapter/uniform_grid/uniform_grid_field.h"
 #include "pcms/field/adapter/uniform_grid/uniform_grid_evaluator_factory.h"
 #include "pcms/utility/uniform_grid.h"
 
@@ -22,12 +19,10 @@ namespace pcms
 
 LagrangeFieldFactory::LagrangeFieldFactory(
   std::shared_ptr<const FieldLayout> layout,
-  std::function<std::unique_ptr<FieldT<Real>>()> create_fn,
   std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
     create_field_data_fn,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
   : layout_(std::move(layout)),
-    create_fn_(std::move(create_fn)),
     create_field_data_fn_(std::move(create_field_data_fn)),
     evaluator_factory_(std::move(evaluator_factory))
 {
@@ -38,6 +33,11 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
   CoordinateSystem coordinate_system, std::string global_id_name,
   Backend backend)
 {
+  // https://github.com/SCOREC/meshFields/issues/88
+  if (backend == Backend::MeshFields && order == 0) {
+    // MeshFields does not support order-0 fields; fall back to OmegaH.
+    backend = Backend::OmegaH;
+  }
   if (backend == Backend::MeshFields) {
 #ifdef PCMS_ENABLE_MESHFIELDS
     if (num_components != 1) {
@@ -58,9 +58,6 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
       std::make_shared<MeshFieldsEvaluatorFactory<Real>>(mesh_layout);
     return LagrangeFieldFactory(
       mesh_layout,
-      [mesh_layout]() {
-        return std::make_unique<MeshFieldsAdapter2<Real>>(mesh_layout);
-      },
       [mesh_layout](FieldMetadata metadata) {
         return std::make_unique<MeshFieldsFieldData<Real>>(mesh_layout,
                                                            metadata);
@@ -84,9 +81,6 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
     std::make_shared<OmegaHLagrangeEvaluatorFactory<Real>>(layout);
   return LagrangeFieldFactory(
     layout,
-    [layout]() {
-      return std::make_unique<OmegaHLagrangeField<Real>>(layout);
-    },
     [layout](FieldMetadata metadata) {
       return std::make_unique<SimpleFieldData<Real>>(layout, metadata);
     },
@@ -141,9 +135,6 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
       std::make_shared<UniformGridEvaluatorFactory<2>>(ug_layout);
     return LagrangeFieldFactory(
       ug_layout,
-      [ug_layout]() {
-        return std::make_unique<UniformGridField<2>>(ug_layout);
-      },
       [ug_layout](FieldMetadata metadata) {
         return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
       },
@@ -157,9 +148,6 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
       std::make_shared<UniformGridEvaluatorFactory<3>>(ug_layout);
     return LagrangeFieldFactory(
       ug_layout,
-      [ug_layout]() {
-        return std::make_unique<UniformGridField<3>>(ug_layout);
-      },
       [ug_layout](FieldMetadata metadata) {
         return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
       },
@@ -177,9 +165,15 @@ LagrangeFieldFactory::GetLayout() const noexcept
   return layout_;
 }
 
-std::unique_ptr<FieldT<Real>> LagrangeFieldFactory::CreateFieldReal() const
+CoordinateSystem LagrangeFieldFactory::GetCoordinateSystem() const noexcept
 {
-  return create_fn_();
+  return evaluator_factory_->GetCoordinateSystem();
+}
+
+const FieldEvaluatorFactory<Real>&
+LagrangeFieldFactory::GetEvaluatorFactory() const noexcept
+{
+  return *evaluator_factory_;
 }
 
 std::unique_ptr<PointEvaluator<Real>> LagrangeFieldFactory::CreatePointEvaluator(
@@ -199,6 +193,5 @@ std::unique_ptr<FieldData<Real>> LagrangeFieldFactory::CreateFieldData(
 {
   return create_field_data_fn_(metadata);
 }
-
 
 } // namespace pcms

@@ -3,7 +3,6 @@
 
 #include "pcms/field/field_layout.h"
 #include "field_exchange_planner.h"
-#include "pcms/field/field.h"
 #include "pcms/utility/profile.h"
 #include "pcms/utility/arrays.h"
 #include <redev.h>

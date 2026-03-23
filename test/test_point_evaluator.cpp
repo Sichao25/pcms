@@ -30,7 +30,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
                                          "global", pcms::LagrangeFieldFactory::Backend::OmegaH);
 
   auto field_data = factory.CreateFieldData();
-  pcms::test::SetFieldData(*field_data, pcms::test::linear_f);
+  pcms::test::SetField(*field_data, pcms::test::linear_f);
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
@@ -39,7 +39,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     CoordinateSystem::Cartesian, coords_view};
   auto evaluator = factory.CreatePointEvaluator(cv);
-  pcms::test::CheckEvaluationNew(
+  pcms::test::CheckEvaluation(
     *evaluator, *field_data,
     pts, pcms::test::linear_f);
 }
@@ -62,8 +62,8 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
   auto field_b = factory.CreateFieldData();
 
   // field_a: linear_f;  field_b: constant 42
-  pcms::test::SetFieldData(*field_a, pcms::test::linear_f);
-  pcms::test::SetFieldData(*field_b, [](Real, Real) { return Real(42); });
+  pcms::test::SetField(*field_a, pcms::test::linear_f);
+  pcms::test::SetField(*field_b, [](Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
@@ -106,7 +106,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 out-of-bounds fill")
                                          "global", pcms::LagrangeFieldFactory::Backend::OmegaH);
 
   auto field_data = factory.CreateFieldData();
-  pcms::test::SetFieldData(*field_data, pcms::test::linear_f);
+  pcms::test::SetField(*field_data, pcms::test::linear_f);
 
   // Points clearly outside [0,1]^2
   const std::vector<Real> outside_pts = {-0.5, 0.5, 1.5, 0.5, 0.5, -0.5,
@@ -118,7 +118,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 out-of-bounds fill")
     CoordinateSystem::Cartesian, coords_view};
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
   auto evaluator = factory.CreatePointEvaluator(cv, policy);
-  pcms::test::CheckFillModeNew(*evaluator, *field_data, -999.0, outside_pts);
+  pcms::test::CheckFillMode(*evaluator, *field_data, -999.0, outside_pts);
 }
 
 // ============================================================================
@@ -142,7 +142,7 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
     el, bl, dv, 1, CoordinateSystem::Cartesian, 1);
 
   auto field_data = factory.CreateFieldData();
-  pcms::test::SetFieldData(*field_data, pcms::test::linear_f);
+  pcms::test::SetField(*field_data, pcms::test::linear_f);
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
   pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(
@@ -150,7 +150,7 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     CoordinateSystem::Cartesian, coords_view};
   auto evaluator = factory.CreatePointEvaluator(cv);
-  pcms::test::CheckEvaluationNew(
+  pcms::test::CheckEvaluation(
     *evaluator, *field_data, pts, pcms::test::linear_f, 1e-8);
 }
 
@@ -212,7 +212,7 @@ TEST_CASE("SimpleFieldData: set and get DOF holder data round-trip")
   auto field_data = factory.CreateFieldData();
 
   auto& layout = field_data->GetLayout();
-  int n = layout.OwnedSize();
+  int n = layout.GetNumOwnedDofHolder();
   REQUIRE(n > 0);
 
   // Write sequential values
@@ -263,7 +263,7 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
     pcms::LagrangeFieldFactory::Backend::MeshFields);
 
   auto field_data = factory.CreateFieldData();
-  pcms::test::SetFieldData(*field_data, pcms::test::linear_f);
+  pcms::test::SetField(*field_data, pcms::test::linear_f);
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
@@ -272,7 +272,7 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
   pcms::CoordinateView<pcms::HostMemorySpace> cv{CoordinateSystem::Cartesian,
                                                  coords_view};
   auto evaluator = factory.CreatePointEvaluator(cv);
-  pcms::test::CheckEvaluationNew(*evaluator, *field_data, pts,
+  pcms::test::CheckEvaluation(*evaluator, *field_data, pts,
                                  pcms::test::linear_f);
 }
 
@@ -287,7 +287,7 @@ TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
     pcms::LagrangeFieldFactory::Backend::MeshFields);
 
   auto field_data = factory.CreateFieldData();
-  pcms::test::SetFieldData(*field_data, pcms::test::linear_f);
+  pcms::test::SetField(*field_data, pcms::test::linear_f);
 
   const std::vector<Real> outside_pts = {-0.5, 0.5,  1.5, 0.5,
                                          0.5,  -0.5, 0.5, 1.5};
@@ -298,7 +298,7 @@ TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
                                                  coords_view};
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
   auto evaluator = factory.CreatePointEvaluator(cv, policy);
-  pcms::test::CheckFillModeNew(*evaluator, *field_data, -999.0, outside_pts);
+  pcms::test::CheckFillMode(*evaluator, *field_data, -999.0, outside_pts);
 }
 
 TEST_CASE(
@@ -314,8 +314,8 @@ TEST_CASE(
 
   auto field_a = factory.CreateFieldData();
   auto field_b = factory.CreateFieldData();
-  pcms::test::SetFieldData(*field_a, pcms::test::linear_f);
-  pcms::test::SetFieldData(*field_b, [](Real, Real) { return Real(42); });
+  pcms::test::SetField(*field_a, pcms::test::linear_f);
+  pcms::test::SetField(*field_b, [](Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;

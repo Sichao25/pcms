@@ -3,10 +3,9 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include <../src/pcms/transfer/transfer_field2.h>
-#include "pcms/coupler/adapter/meshfields/mesh_fields_adapter.h"
-#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
+#include "pcms/transfer/transfer_field2.h"
 #include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/field_metadata.h"
 #include "pcms/utility/assert.h"
 #include <Kokkos_Core.hpp>
 
@@ -23,8 +22,6 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
   auto factory = pcms::LagrangeFieldFactory::FromMesh(
     mesh, order, num_components, pcms::CoordinateSystem::Cartesian, "global",
     pcms::LagrangeFieldFactory::Backend::OmegaH);
-  // FIXME this indicates that we are not exposing the right API from the fields to be able
-  // to allocate buffers for getting/setting the field data.
   auto layout = factory.GetLayout();
   int ndata = layout->GetNumOwnedDofHolder() * num_components;
   Omega_h::HostWrite<Real> ids(ndata);
@@ -32,12 +29,12 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
     Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, ndata),
     [=](int i) { ids[i] = i; });
 
-  auto original = factory.CreateFieldReal();
-  original->SetDOFHolderData(pcms::make_const_array_view(ids));
+  auto original = factory.CreateFieldData(pcms::FieldMetadata{});
+  original->SetDOFHolderDataHost(pcms::make_const_array_view(ids));
 
-  auto copied = factory.CreateFieldReal();
+  auto copied = factory.CreateFieldData(pcms::FieldMetadata{});
   pcms::copy_field2(*original, *copied);
-  auto copied_array = copied->GetDOFHolderData();
+  auto copied_array = copied->GetDOFHolderDataHost();
 
   REQUIRE(copied_array.size() == ndata);
   int sum = 0;

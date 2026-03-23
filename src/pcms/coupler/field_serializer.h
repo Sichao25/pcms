@@ -1,7 +1,7 @@
 #ifndef PCMS_FIELD_SERIALIZER_H
 #define PCMS_FIELD_SERIALIZER_H
 
-#include "field/field.h"
+#include "pcms/field/field_data.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 #include "pcms/utility/types.h"
@@ -14,12 +14,11 @@ template <typename T>
 class FieldSerializer
 {
 public:
-  virtual int Serialize(
-    const FieldT<T>& field,
-    Rank1View<T, HostMemorySpace> buffer,
-    Rank1View<const LO, HostMemorySpace> permutation) const
+  virtual int Serialize(const FieldData<T>& field,
+                        Rank1View<T, HostMemorySpace> buffer,
+                        Rank1View<const LO, HostMemorySpace> permutation) const
   {
-    auto data = field.GetDOFHolderData();
+    auto data = field.GetDOFHolderDataHost();
     auto owned = field.GetLayout().GetOwned();
     if (buffer.size() > 0) {
       for (LO i = 0; i < static_cast<LO>(data.size()); ++i) {
@@ -31,8 +30,7 @@ public:
   }
 
   virtual void Deserialize(
-    FieldT<T>& field,
-    Rank1View<const T, HostMemorySpace> buffer,
+    FieldData<T>& field, Rank1View<const T, HostMemorySpace> buffer,
     Rank1View<const LO, HostMemorySpace> permutation) const
   {
     Kokkos::View<T*, HostMemorySpace> sorted("sorted", permutation.size());
@@ -41,7 +39,7 @@ public:
       if (owned[i])
         sorted[i] = buffer[permutation[i]];
     }
-    field.SetDOFHolderData(make_const_array_view(sorted));
+    field.SetDOFHolderDataHost(make_const_array_view(sorted));
   }
 
   virtual ~FieldSerializer() noexcept = default;

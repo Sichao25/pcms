@@ -3,7 +3,7 @@
 
 #include "pcms/coupler/field_layout_communicator.h"
 #include "pcms/field/field_layout.h"
-#include "pcms/field/field.h"
+#include "pcms/field/field_data.h"
 #include "pcms/coupler/field_serializer.h"
 #include "pcms/utility/profile.h"
 #include "pcms/utility/assert.h"
@@ -19,12 +19,12 @@ template <typename T>
 class FieldCommunicator2
 {
 public:
-  FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldT<T>& field)
+  FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldData<T>& field)
     : FieldCommunicator2(layout_comm, field, FieldSerializer<T>{})
   {
   }
 
-  FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldT<T>& field,
+  FieldCommunicator2(FieldLayoutCommunicator& layout_comm, FieldData<T>& field,
                      FieldSerializer<T> serializer)
     : comm_buffer_{},
       layout_comm_(layout_comm),
@@ -64,7 +64,7 @@ private:
   std::vector<T> comm_buffer_;
   redev::BidirectionalComm<T> comm_;
   FieldLayoutCommunicator& layout_comm_;
-  FieldT<T>& field_;
+  FieldData<T>& field_;
   FieldSerializer<T> serializer_;
 };
 

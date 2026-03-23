@@ -1,8 +1,9 @@
 #ifndef PCMS_UNIFORM_GRID_EVALUATOR_FACTORY_H
 #define PCMS_UNIFORM_GRID_EVALUATOR_FACTORY_H
 
-#include "uniform_grid_field.h"
 #include "uniform_grid_field_layout.h"
+#include "pcms/utility/types.h"
+#include <Kokkos_Core.hpp>
 #include "pcms/field/field_evaluator_factory.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/field/point_evaluator.h"
@@ -16,6 +17,33 @@
 
 namespace pcms
 {
+
+// ---------------------------------------------------------------------------
+// Localization hint — computed once per query point set, reused across Evaluate
+// ---------------------------------------------------------------------------
+template <unsigned Dim>
+struct UniformGridFieldLocalizationHint
+{
+  UniformGridFieldLocalizationHint(
+    Kokkos::View<LO*, HostMemorySpace> cell_indices,
+    Kokkos::View<Real**, HostMemorySpace> coordinates,
+    OutOfBoundsMode mode,
+    Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds,
+    size_t num_out_of_bounds)
+    : cell_indices_(cell_indices),
+      coordinates_(coordinates),
+      mode_(mode),
+      is_out_of_bounds_(is_out_of_bounds),
+      num_out_of_bounds_(num_out_of_bounds)
+  {
+  }
+
+  Kokkos::View<LO*, HostMemorySpace>   cell_indices_;
+  Kokkos::View<Real**, HostMemorySpace> coordinates_;
+  OutOfBoundsMode                       mode_;
+  Kokkos::View<bool*, HostMemorySpace>  is_out_of_bounds_;
+  size_t                                num_out_of_bounds_;
+};
 
 // UniformGridPointEvaluator<Dim> implements PointEvaluator<Real> for structured
 // uniform grids. Localization results (cell indices, parametric coordinates)
@@ -176,7 +204,7 @@ public:
 
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
     CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy) const override
+    OutOfBoundsPolicy policy = {}) const override
   {
     PCMS_FUNCTION_TIMER;
     if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {

@@ -3,7 +3,7 @@
 #include <map>
 #include <memory>
 #include <vector>
-#include "field.h"
+#include "pcms/utility/types.h"
 #include "pcms/utility/arrays.h"
 #include "coordinate_system.h"
 
@@ -14,9 +14,6 @@ constexpr int ent_offsets_len = 5;
 using EntOffsetsArray = std::array<size_t, ent_offsets_len>;
 
 using ReversePartitionMap = std::map<pcms::LO, std::vector<pcms::LO>>;
-
-template <typename T>
-class FieldT;
 
 class FieldLayout
 {
@@ -60,17 +57,6 @@ public:
 
   virtual Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationIds() const = 0;
-
-  // Serialize, Derserialize, ReversePartitionMap?
-  // GetOwnedDofHolderCoordinates(CoordinateSystem);
-
-  // Serialize(FieldDataView, SerializationBuffer);
-  // Deserialize(SerializationBuffer, FieldDataView);
-
-  // Adjacency information
-  // TODO: Need a GraphView class (simply two rank1 arrays CSR matrix w/o
-  // values) virtual bool HasAdjacency() = 0; virtual GraphView GetAdjacency(LO
-  // dim) = 0;
 
   virtual ~FieldLayout() noexcept = default;
 };

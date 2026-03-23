@@ -27,24 +27,23 @@ const FieldLayout& Application2::AddLayout(std::string name,
   return layout_ref;
 }
 
-void Application2::AddField(std::string name, OwnedFieldPtr field,
+void Application2::AddField(std::string name, OwnedFieldDataPtr field,
                             bool participates)
 {
   PCMS_FUNCTION_TIMER;
 
   fields_.push_back(std::move(field));
 
-  FieldPtr field_ptr = GetRawPointer(fields_.back());
-
   FieldCommunicator2Ptr field_communicator = std::visit(
-    [this, name](auto* field_ptr) -> FieldCommunicator2Ptr {
-      using T = typename std::remove_pointer_t<decltype(field_ptr)>::value_type;
+    [this, &name](auto& field_data_ptr) -> FieldCommunicator2Ptr {
+      using T =
+        typename std::remove_reference_t<decltype(*field_data_ptr)>::value_type;
       FieldLayoutCommunicator& layout_communicator =
-        GetLayoutCommunicator(field_ptr->GetLayout());
+        GetLayoutCommunicator(field_data_ptr->GetLayout());
       return std::make_unique<FieldCommunicator2<T>>(layout_communicator,
-                                                     *field_ptr);
+                                                     *field_data_ptr);
     },
-    field_ptr);
+    fields_.back());
 
   auto [it, inserted] =
     field_communicators_.insert_or_assign(name, std::move(field_communicator));
