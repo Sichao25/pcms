@@ -6,6 +6,7 @@ set(PCMS_FIELD_HEADERS
         coordinate_system.h
         field_layout.h
         field_metadata.h
+        empty_field_layout.h
         out_of_bounds_policy.h
         field_data.h
         point_evaluator.h
@@ -16,6 +17,7 @@ set(PCMS_FIELD_HEADERS
 )
 set(PCMS_FIELD_SOURCES
         nodal_field_factory.cpp
+        empty_field_layout.cpp
         adapter/point_cloud/point_cloud_layout.cpp
         adapter/point_cloud/point_cloud.cpp
 )
