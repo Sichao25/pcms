@@ -17,6 +17,24 @@ namespace pcms
 // to avoid having any redev:: types in the user interface
 using ProcessType = redev::ProcessType;
 
+class Application2;
+
+class FieldHandle
+{
+public:
+  FieldHandle(Application2* app, std::string name)
+    : app_(app), name_(std::move(name))
+  {
+  }
+
+  void Send(redev::Mode mode = redev::Mode::Synchronous) const;
+  void Receive(redev::Mode mode = redev::Mode::Synchronous) const;
+
+private:
+  Application2* app_;
+  std::string name_;
+};
+
 class Application2
 {
 public:
@@ -39,13 +57,13 @@ public:
 
   // FIXME should take a file path for the parameters, not take adios2 params.
   // These fields are supposed to be agnostic to adios2...
-  void AddField(std::string name, OwnedFieldDataPtr field,
-                bool participates = true);
+  FieldHandle AddField(std::string name, OwnedFieldDataPtr field,
+                       bool participates = true);
 
   template <typename T>
-  void AddField(std::string name, std::unique_ptr<FieldData<T>> field,
-                std::unique_ptr<FieldSerializer<T>> serializer,
-                bool participates = true);
+  FieldHandle AddField(std::string name, std::unique_ptr<FieldData<T>> field,
+                       std::unique_ptr<FieldSerializer<T>> serializer,
+                       bool participates = true);
 
   void SendField(const std::string& name,
                  redev::Mode mode = redev::Mode::Synchronous)
@@ -180,10 +198,9 @@ private:
 } // namespace pcms
 
 template <typename T>
-void pcms::Application2::AddField(std::string name,
-                                  std::unique_ptr<FieldData<T>> field,
-                                  std::unique_ptr<FieldSerializer<T>> serializer,
-                                  bool participates)
+pcms::FieldHandle pcms::Application2::AddField(
+  std::string name, std::unique_ptr<FieldData<T>> field,
+  std::unique_ptr<FieldSerializer<T>> serializer, bool participates)
 {
   PCMS_FUNCTION_TIMER;
   (void)participates;
@@ -201,6 +218,7 @@ void pcms::Application2::AddField(std::string name,
   if (!inserted) {
     throw pcms_error("Field with this name already exists");
   }
+  return FieldHandle{this, std::move(name)};
 }
 
 #endif // COUPLER2_H_

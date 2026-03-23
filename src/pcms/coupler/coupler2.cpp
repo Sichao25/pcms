@@ -3,6 +3,18 @@
 namespace pcms
 {
 
+void FieldHandle::Send(redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+  app_->SendField(name_, mode);
+}
+
+void FieldHandle::Receive(redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+  app_->ReceiveField(name_, mode);
+}
+
 FieldLayoutCommunicator& Application2::GetLayoutCommunicator(
   const FieldLayout& layout)
 {
@@ -36,10 +48,11 @@ const FieldLayout& Application2::AddLayout(
   return layout_ref;
 }
 
-void Application2::AddField(std::string name, OwnedFieldDataPtr field,
-                            bool participates)
+FieldHandle Application2::AddField(std::string name, OwnedFieldDataPtr field,
+                                   bool participates)
 {
   PCMS_FUNCTION_TIMER;
+  (void)participates;
 
   fields_.push_back(std::move(field));
 
@@ -60,6 +73,7 @@ void Application2::AddField(std::string name, OwnedFieldDataPtr field,
   if (!inserted) {
     throw pcms_error("Field with this name already exists");
   }
+  return FieldHandle{this, std::move(name)};
 }
 
 } // namespace pcms
