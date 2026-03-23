@@ -1,6 +1,7 @@
 #ifndef COUPLER2_H_
 #define COUPLER2_H_
 
+#include "pcms/coupler/coupler_types.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/field_layout.h"
 #include "field_layout_communicator.h"
@@ -13,9 +14,6 @@
 
 namespace pcms
 {
-
-// to avoid having any redev:: types in the user interface
-using ProcessType = redev::ProcessType;
 
 class Application2;
 

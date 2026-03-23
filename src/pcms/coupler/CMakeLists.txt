@@ -1,4 +1,5 @@
 set(PCMS_COUPLER_HEADERS
+        coupler_types.h
         field_communicator.h
         field_communicator2.h
         coupler.h
