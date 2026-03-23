@@ -14,10 +14,21 @@ template <typename T>
 class XGCFieldSerializer : public FieldSerializer<T>
 {
 public:
+  explicit XGCFieldSerializer(MPI_Comm plane_comm,
+                              bool rank_participates = true)
+    : plane_comm_(plane_comm),
+      rank_participates_(rank_participates)
+  {
+  }
+
   int Serialize(const FieldData<T>& field,
                 Rank1View<T, HostMemorySpace> buffer,
                 Rank1View<const LO, HostMemorySpace> permutation) const override
   {
+    if (!rank_participates_) {
+      return 0;
+    }
+
     auto const* xgc_field = dynamic_cast<const XGCFieldData<T>*>(&field);
     if (!xgc_field) {
       throw pcms_error("XGCFieldSerializer::Serialize: incompatible FieldData");
@@ -51,18 +62,24 @@ public:
     for (size_t i = 0; i < current.size(); ++i) {
       full_data[i] = current[i];
     }
-    for (LO i = 0; i < static_cast<LO>(current.size()); ++i) {
-      if (owned[i]) {
-        full_data[i] = buffer[permutation[i]];
+    if (rank_participates_) {
+      for (LO i = 0; i < static_cast<LO>(current.size()); ++i) {
+        if (owned[i]) {
+          full_data[i] = buffer[permutation[i]];
+        }
       }
     }
 
     MPI_Bcast(full_data.data(), static_cast<int>(full_data.size()),
-              pcms::GetMPIType(T{}), 0, xgc_field->GetPlaneComm());
+              pcms::GetMPIType(T{}), 0, plane_comm_);
 
     xgc_field->SetDOFHolderDataHost(
       Rank1View<const T, HostMemorySpace>(full_data.data(), full_data.size()));
   }
+
+private:
+  MPI_Comm plane_comm_;
+  bool rank_participates_;
 };
 
 } // namespace pcms

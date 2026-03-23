@@ -58,6 +58,19 @@ Kokkos::View<bool*, HostMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
     owned(i) = static_cast<bool>(src[i]);
   return owned;
 }
+
+Kokkos::View<bool*, HostMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
+                                                int entity_dim,
+                                                Omega_h::Read<Omega_h::I8> mask)
+{
+  auto owned = BuildOwned(mesh, entity_dim);
+  auto mask_h = Omega_h::HostRead<Omega_h::I8>(mask);
+  PCMS_ALWAYS_ASSERT(static_cast<int>(mask_h.size()) == mesh.nents(entity_dim));
+  for (int i = 0; i < mesh.nents(entity_dim); ++i) {
+    owned(i) = owned(i) && static_cast<bool>(mask_h[i]);
+  }
+  return owned;
+}
 } // namespace
 
 OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
@@ -77,6 +90,41 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   coords_host_ =
     Omega_h::HostRead<Real>(get_entity_centroids(mesh_, entity_dim));
   owned_host_ = BuildOwned(mesh_, entity_dim);
+
+  class_ids_host_ = Omega_h::HostRead<Omega_h::ClassId>(
+    mesh_.get_array<Omega_h::ClassId>(entity_dim, "class_id"));
+  class_dims_host_ = Omega_h::HostRead<Omega_h::I8>(
+    mesh_.get_array<Omega_h::I8>(entity_dim, "class_dim"));
+
+  int n = mesh_.nents(entity_dim);
+  classification_dims_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
+  classification_ids_host_ =
+    Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
+  for (int i = 0; i < n; ++i) {
+    classification_dims_host_(i) = static_cast<LO>(class_dims_host_[i]);
+    classification_ids_host_(i) = static_cast<LO>(class_ids_host_[i]);
+  }
+}
+
+OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
+                                           int num_components,
+                                           CoordinateSystem coordinate_system,
+                                           Omega_h::Read<Omega_h::I8> owned_mask,
+                                           std::string global_id_name)
+  : mesh_(mesh),
+    order_(order),
+    num_components_(num_components),
+    coordinate_system_(coordinate_system),
+    global_id_name_(std::move(global_id_name))
+{
+  PCMS_FUNCTION_TIMER;
+  int entity_dim = EntityDimForOrder(order_, mesh_.dim());
+
+  gids_host_ = BuildGids(mesh_, entity_dim, global_id_name_);
+  coords_host_ =
+    Omega_h::HostRead<Real>(get_entity_centroids(mesh_, entity_dim));
+  owned_host_ = BuildOwned(mesh_, entity_dim, owned_mask);
 
   class_ids_host_ = Omega_h::HostRead<Omega_h::ClassId>(
     mesh_.get_array<Omega_h::ClassId>(entity_dim, "class_id"));

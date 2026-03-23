@@ -62,7 +62,7 @@ FieldHandle Application2::AddField(std::string name, OwnedFieldDataPtr field,
         typename std::remove_reference_t<decltype(*field_data_ptr)>::value_type;
       FieldLayoutCommunicator& layout_communicator =
         GetLayoutCommunicator(field_data_ptr->GetLayout());
-      return std::make_unique<FieldCommunicator2<T>>(layout_communicator,
+      return std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
                                                      *field_data_ptr);
     },
     fields_.back());

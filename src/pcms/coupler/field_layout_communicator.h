@@ -16,12 +16,14 @@ class FieldLayoutCommunicator
 public:
   FieldLayoutCommunicator(const std::string& name, MPI_Comm mpi_comm,
                           redev::Redev& redev, redev::Channel& channel,
-                          const FieldLayout& layout);
+                          const FieldLayout& layout,
+                          bool own_mpi_comm = false);
 
   FieldLayoutCommunicator(const std::string& name, MPI_Comm mpi_comm,
                           redev::Redev& redev, redev::Channel& channel,
                           const FieldLayout& layout,
-                          std::unique_ptr<FieldExchangePlanner> planner);
+                          std::unique_ptr<FieldExchangePlanner> planner,
+                          bool own_mpi_comm = false);
 
   Rank1View<const pcms::LO, pcms::HostMemorySpace> GetPermutationArray() const;
 
@@ -45,6 +47,8 @@ public:
 
   void UpdateLayoutNull();
 
+  ~FieldLayoutCommunicator();
+
 private:
   MPI_Comm mpi_comm_;
   redev::Channel& channel_;
@@ -54,6 +58,7 @@ private:
   std::string name_;
   redev::Redev& redev_;
   std::unique_ptr<FieldExchangePlanner> planner_;
+  bool own_mpi_comm_ = false;
 };
 } // namespace pcms
 

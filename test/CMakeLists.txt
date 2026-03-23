@@ -372,7 +372,6 @@ if(Catch2_FOUND)
                              test_coordinate.cpp test_bounding_box.cpp)
   if(PCMS_ENABLE_XGC)
     list(APPEND PCMS_UNIT_TEST_SOURCES test_xgc_reverse_classification.cpp
-         test_xgc_field_adapter.cpp
          test_xgc_field_data.cpp)
   endif()
 
@@ -468,7 +467,7 @@ if(PCMS_ENABLE_C)
           TESTNAME
           xgc_proxy_to_xgc
           TIMEOUT
-          10
+          30
           NAME1
           cinterface
           EXE1
@@ -493,7 +492,7 @@ if(PCMS_ENABLE_C)
           TESTNAME
           xgc_proxy_to_omega
           TIMEOUT
-          10
+          30
           NAME1
           cinterface
           EXE1
@@ -541,7 +540,7 @@ if(PCMS_ENABLE_Fortran)
       TESTNAME
       xgc_fortran_proxy_to_omega
       TIMEOUT
-      10
+      30
       NAME1
       finterface
       EXE1

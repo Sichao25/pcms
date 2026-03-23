@@ -5,22 +5,24 @@ namespace pcms
 
 FieldLayoutCommunicator::FieldLayoutCommunicator(
   const std::string& name, MPI_Comm mpi_comm, redev::Redev& redev,
-  redev::Channel& channel, const FieldLayout& layout)
+  redev::Channel& channel, const FieldLayout& layout, bool own_mpi_comm)
   : FieldLayoutCommunicator(name, mpi_comm, redev, channel, layout,
-                            std::make_unique<GenericFieldExchangePlanner>())
+                            std::make_unique<GenericFieldExchangePlanner>(),
+                            own_mpi_comm)
 {
 }
 
 FieldLayoutCommunicator::FieldLayoutCommunicator(
   const std::string& name, MPI_Comm mpi_comm, redev::Redev& redev,
   redev::Channel& channel, const FieldLayout& layout,
-  std::unique_ptr<FieldExchangePlanner> planner)
+  std::unique_ptr<FieldExchangePlanner> planner, bool own_mpi_comm)
   : mpi_comm_(mpi_comm),
     channel_(channel),
     layout_(layout),
     name_(name),
     redev_(redev),
-    planner_(std::move(planner))
+    planner_(std::move(planner)),
+    own_mpi_comm_(own_mpi_comm)
 {
   gid_comm_ = channel.CreateComm<GO>(name_ + "_gids", mpi_comm_);
   if (mpi_comm != MPI_COMM_NULL) {
@@ -103,6 +105,13 @@ void FieldLayoutCommunicator::UpdateLayoutNull()
   } else {
     channel_.BeginReceiveCommunicationPhase();
     channel_.EndReceiveCommunicationPhase();
+  }
+}
+
+FieldLayoutCommunicator::~FieldLayoutCommunicator()
+{
+  if (own_mpi_comm_ && mpi_comm_ != MPI_COMM_NULL) {
+    MPI_Comm_free(&mpi_comm_);
   }
 }
 

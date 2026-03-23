@@ -20,6 +20,10 @@ public:
   OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order, int num_components,
                        CoordinateSystem coordinate_system,
                        std::string global_id_name = "global");
+  OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order, int num_components,
+                       CoordinateSystem coordinate_system,
+                       Omega_h::Read<Omega_h::I8> owned_mask,
+                       std::string global_id_name = "global");
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;

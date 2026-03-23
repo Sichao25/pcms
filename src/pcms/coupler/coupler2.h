@@ -137,6 +137,8 @@ private:
   redev::Channel channel_;
   std::vector<std::shared_ptr<const FieldLayout>> layouts_;
   std::vector<OwnedFieldDataPtr> fields_;
+  std::vector<std::unique_ptr<FieldLayoutCommunicator>>
+    owned_field_layout_communicators_;
   // map is used rather than unordered_map because we give pointers to the
   // internal data and rehash of unordered_map can cause pointer invalidation.
   // map is less cache friendly, but pointers are not invalidated.
@@ -203,14 +205,25 @@ pcms::FieldHandle pcms::Application2::AddField(
   std::unique_ptr<FieldSerializer<T>> serializer, bool participates)
 {
   PCMS_FUNCTION_TIMER;
-  (void)participates;
+  MPI_Comm mpi_comm_subset = MPI_COMM_NULL;
+  if (mpi_comm_ != MPI_COMM_NULL) {
+    int rank = -1;
+    MPI_Comm_rank(mpi_comm_, &rank);
+    MPI_Comm_split(mpi_comm_, participates ? 0 : MPI_UNDEFINED, rank,
+                   &mpi_comm_subset);
+  }
   fields_.push_back(std::move(field));
 
   auto& field_data_ptr = std::get<std::unique_ptr<FieldData<T>>>(fields_.back());
+  owned_field_layout_communicators_.push_back(
+    std::make_unique<FieldLayoutCommunicator>(
+      name, mpi_comm_subset, redev_, channel_, field_data_ptr->GetLayout(),
+      std::make_unique<GenericFieldExchangePlanner>(), true));
   FieldLayoutCommunicator& layout_communicator =
-    GetLayoutCommunicator(field_data_ptr->GetLayout());
+    *owned_field_layout_communicators_.back();
   FieldCommunicator2Ptr field_communicator =
-    std::make_unique<FieldCommunicator2<T>>(layout_communicator, *field_data_ptr,
+    std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
+                                            *field_data_ptr,
                                             std::move(serializer));
 
   auto [it, inserted] =

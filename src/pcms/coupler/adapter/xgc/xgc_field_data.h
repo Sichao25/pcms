@@ -4,7 +4,6 @@
 #include "pcms/coupler/adapter/xgc/xgc_field_layout.h"
 #include "pcms/field/field_data.h"
 #include "pcms/utility/assert.h"
-#include <mpi.h>
 #include <memory>
 
 namespace pcms
@@ -15,12 +14,10 @@ class XGCFieldData : public FieldData<T>
 {
 public:
   XGCFieldData(std::shared_ptr<const XGCFieldLayout> layout,
-               FieldMetadata metadata, Rank1View<T, HostMemorySpace> data,
-               MPI_Comm plane_comm)
+               FieldMetadata metadata, Rank1View<T, HostMemorySpace> data)
     : layout_(std::move(layout)),
       metadata_(metadata),
-      data_(data),
-      plane_comm_(plane_comm)
+      data_(data)
   {
     PCMS_ALWAYS_ASSERT(layout_ != nullptr);
     PCMS_ALWAYS_ASSERT(static_cast<LO>(data_.size()) ==
@@ -47,13 +44,10 @@ public:
     }
   }
 
-  MPI_Comm GetPlaneComm() const noexcept { return plane_comm_; }
-
 private:
   std::shared_ptr<const XGCFieldLayout> layout_;
   FieldMetadata metadata_;
   Rank1View<T, HostMemorySpace> data_;
-  MPI_Comm plane_comm_;
 };
 
 } // namespace pcms
