@@ -28,10 +28,10 @@ def test_uniform_grid_field_creation():
     print(f"Num vertices: {layout.get_num_vertices()}")  # 5x5 = 25 vertices
     
     # Create field
-    factory = pcms.LagrangeFieldFactory.from_uniform_grid(
+    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    field = factory.create_field_real()
+    field = factory.create_field()
     print(f"Field created: {field is not None}")
 
     return grid, layout, field
@@ -48,9 +48,9 @@ def test_uniform_grid_field_data_operations():
     layout = pcms.UniformGridFieldLayout2D(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFieldFactory.from_uniform_grid(
+    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field_real()
+    ).create_field()
 
     # Get the number of DOF holders (vertices)
     num_vertices = layout.get_num_vertices()
@@ -82,9 +82,9 @@ def test_uniform_grid_field_mdspan_2d():
     layout = pcms.UniformGridFieldLayout2D(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFieldFactory.from_uniform_grid(
+    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field_real()
+    ).create_field()
 
     num_vertices = layout.get_num_vertices()
     data = np.arange(num_vertices, dtype=np.float64)
@@ -110,9 +110,9 @@ def test_uniform_grid_field_evaluation():
     layout = pcms.UniformGridFieldLayout2D(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFieldFactory.from_uniform_grid(
+    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field_real()
+    ).create_field()
 
     # Set simple linear field data: f(x,y) = x + y
     num_vertices = layout.get_num_vertices()
@@ -174,9 +174,9 @@ def test_3d_uniform_grid():
     
     print(f"3D Grid vertices: {layout.get_num_vertices()}")  # 3x3x3 = 27
 
-    ug_field = pcms.LagrangeFieldFactory.from_uniform_grid(
+    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field_real()
+    ).create_field()
 
     # Set and get data
     num_vertices = layout.get_num_vertices()
@@ -198,9 +198,9 @@ def test_uniform_grid_field_mdspan_3d():
     layout = pcms.UniformGridFieldLayout3D(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFieldFactory.from_uniform_grid(
+    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field_real()
+    ).create_field()
 
     num_vertices = layout.get_num_vertices()
     data = np.arange(num_vertices, dtype=np.float64)
@@ -247,39 +247,35 @@ def test_uniform_grid_workflow(world):
     print(f"Created mask field with {len(mask_data)} vertices")
     
     # Create Omega_h field layout with linear elements
-    omega_h_factory = pcms.LagrangeFieldFactory.from_mesh(mesh, 1)
-    omega_h_layout = omega_h_factory.get_layout()
-    omega_h_field = omega_h_factory.create_field_real()
+    omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(mesh, 1)
+    omega_h_field = omega_h_factory.create_field()
 
     # Initialize omega_h field with f(x,y) = x + 2*y
-    coords = omega_h_layout.get_dof_holder_coordinates()
-    num_nodes = omega_h_layout.get_num_owned_dof_holder()
+    coords = omega_h_field.get_dof_holder_coordinates()
+    num_nodes = omega_h_field.get_num_dof_holders()
     omega_h_data = np.zeros(num_nodes)
-    
+
     for i in range(num_nodes):
         x = coords[i, 0]
         y = coords[i, 1]
         omega_h_data[i] = x + 2.0 * y
-    
+
     omega_h_field.set_dof_holder_data(omega_h_data)
     print(f"Initialized Omega_h field with {num_nodes} nodes")
-    
-    # Create uniform grid field layout
-    ug_layout = pcms.UniformGridFieldLayout2D(
+
+    ug_factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_factory = pcms.LagrangeFieldFactory.from_uniform_grid(
-        grid, 1, pcms.CoordinateSystem.Cartesian
-    )
-    ug_field = ug_factory.create_field_real()
-    
+    ug_field = ug_factory.create_field()
+
     # Transfer from omega_h field to uniform grid field using interpolation
-    pcms.interpolate_field(omega_h_field, ug_field)
+    interp = pcms.Interpolator(omega_h_factory, ug_factory)
+    interp.apply(omega_h_field, ug_field)
     print("Field interpolation completed")
-    
+
     # Get uniform grid field data and coordinates
     ug_field_data = ug_field.get_dof_holder_data()
-    ug_coords = ug_layout.get_dof_holder_coordinates()
+    ug_coords = ug_field.get_dof_holder_coordinates()
     
     # Verify ug_field values
     print("\nVerifying uniform grid field values:")
@@ -326,7 +322,7 @@ def test_uniform_grid_workflow(world):
     
     # Serialize the uniform grid field
     print("\nSerializing uniform grid field:")
-    num_vertices = ug_layout.get_num_vertices()
+    num_vertices = ug_field.get_num_dof_holders()
     buffer = np.zeros(num_vertices)
     permutation = np.arange(num_vertices, dtype=np.int32)  # Identity permutation
     
@@ -355,7 +351,7 @@ def test_uniform_grid_workflow(world):
     
     # Test deserialization
     print("\nTesting deserialization:")
-    ug_field_copy = ug_factory.create_field_real()
+    ug_field_copy = ug_factory.create_field()
     ug_field_copy.deserialize(buffer, permutation)
     
     ug_field_copy_data = ug_field_copy.get_dof_holder_data()
@@ -400,36 +396,29 @@ def test_omega_h_to_omega_h_transfer_workflow(world):
     )
 
     # Create Lagrange layouts and fields
-    src_factory = pcms.LagrangeFieldFactory.from_mesh(src_mesh, 1)
-    tgt_factory = pcms.LagrangeFieldFactory.from_mesh(tgt_mesh, 1)
-    src_layout = src_factory.get_layout()
-    tgt_layout = tgt_factory.get_layout()
-    src_field = src_factory.create_field_real()
-    tgt_field = tgt_factory.create_field_real()
+    src_factory = pcms.LagrangeFunctionSpace.from_mesh(src_mesh, 1)
+    tgt_factory = pcms.LagrangeFunctionSpace.from_mesh(tgt_mesh, 1)
+    src_field = src_factory.create_field()
+    tgt_field = tgt_factory.create_field()
 
     # Initialize source field with f(x,y) = x + 2*y
-    src_coords = src_layout.get_dof_holder_coordinates()
-    src_num_nodes = src_layout.get_num_owned_dof_holder()
-    src_data = np.zeros(src_num_nodes)
-    for i in range(src_num_nodes):
-        x = src_coords[i, 0]
-        y = src_coords[i, 1]
-        src_data[i] = x + 2.0 * y
+    src_coords = src_field.get_dof_holder_coordinates()
+    src_data = np.zeros(src_field.get_num_dof_holders())
+    for i in range(len(src_data)):
+        src_data[i] = src_coords[i, 0] + 2.0 * src_coords[i, 1]
     src_field.set_dof_holder_data(src_data)
 
     # Transfer field to target mesh
-    pcms.interpolate_field(src_field, tgt_field)
+    interp = pcms.Interpolator(src_factory, tgt_factory)
+    interp.apply(src_field, tgt_field)
 
     # Verify target field values at target DOF holders
-    tgt_coords = tgt_layout.get_dof_holder_coordinates()
+    tgt_coords = tgt_field.get_dof_holder_coordinates()
     tgt_data = tgt_field.get_dof_holder_data()
     errors = 0
-    for i in range(tgt_layout.get_num_owned_dof_holder()):
-        x = tgt_coords[i, 0]
-        y = tgt_coords[i, 1]
-        expected = x + 2.0 * y
-        actual = tgt_data[i]
-        if abs(expected - actual) > 1e-10:
+    for i in range(tgt_field.get_num_dof_holders()):
+        expected = tgt_coords[i, 0] + 2.0 * tgt_coords[i, 1]
+        if abs(expected - tgt_data[i]) > 1e-10:
             errors += 1
     assert errors == 0, f"Omega_h transfer verification failed with {errors} errors"
 

@@ -10,6 +10,7 @@
 #include "Omega_h_library.hpp"
 #include "Omega_h_build.hpp"
 #include "pcms/transfer/transfer_field2.h"
+#include "pcms/field/field_interpolator.h"
 #include "pcms/field/lagrange_field_factory.h"
 #include "pcms/utility/arrays.h"
 #include "field_test_utils.h"
@@ -262,25 +263,26 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
                                  2, 0, false);
 
   auto omega_h_factory =
-    pcms::LagrangeFieldFactory::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_field = omega_h_factory.CreateFieldData(pcms::FieldMetadata{});
-  pcms::test::SetField(*omega_h_field, pcms::test::linear_f);
+    pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto omega_h_field = omega_h_factory.CreateField(pcms::FieldMetadata{});
+  pcms::test::SetField(omega_h_field.GetData(), pcms::test::linear_f);
 
-  pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {1.0, 1.0};
-  grid.divisions = {2, 2};
+  std::array<pcms::Real, 2> el = {1.0, 1.0};
+  std::array<pcms::Real, 2> bl = {0.0, 0.0};
+  std::array<pcms::LO, 2>   dv = {2, 2};
+  auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(el.data(), 2),
+    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(bl.data(), 2),
+    pcms::Rank1View<pcms::LO,   pcms::HostMemorySpace>(dv.data(), 2),
+    1, pcms::CoordinateSystem::Cartesian);
+  auto ug_field = ug_factory.CreateField(pcms::FieldMetadata{});
 
-  auto ug_layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
-    grid, 1, pcms::CoordinateSystem::Cartesian);
-  auto ug_field = MakeUniformGridField(ug_layout);
+  pcms::Interpolator<pcms::Real> interp(omega_h_factory, ug_factory);
+  interp.Apply(omega_h_field, ug_field);
 
-  pcms::interpolate_field2(*omega_h_field, omega_h_factory.GetEvaluatorFactory(),
-                           *ug_field);
-
-  auto transferred_data = ug_field->GetDOFHolderDataHost();
-  auto ug_coords = ug_layout->GetDOFHolderCoordinates();
-  int num_ug_nodes = ug_layout->GetNumOwnedDofHolder();
+  auto transferred_data = ug_field.GetDOFHolderDataHost();
+  auto ug_coords = ug_factory.GetLayout()->GetDOFHolderCoordinates();
+  int num_ug_nodes = ug_factory.GetLayout()->GetNumOwnedDofHolder();
 
   for (int i = 0; i < num_ug_nodes; ++i) {
     pcms::Real x = ug_coords.GetCoordinates()(i, 0);
@@ -569,22 +571,25 @@ TEST_CASE("UniformGrid workflow")
   auto grid = pcms::CreateUniformGridFromMesh<2>(mesh, {4, 4});
 
   auto omega_h_factory =
-    pcms::LagrangeFieldFactory::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_field = omega_h_factory.CreateFieldData(pcms::FieldMetadata{});
-  pcms::test::SetField(*omega_h_field, pcms::test::linear_f);
+    pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+  auto omega_h_field = omega_h_factory.CreateField(pcms::FieldMetadata{});
+  pcms::test::SetField(omega_h_field.GetData(), pcms::test::linear_f);
 
-  auto ug_layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
-    grid, 1, pcms::CoordinateSystem::Cartesian);
-  auto ug_field = MakeUniformGridField(ug_layout);
+  auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(grid.edge_length.data(), 2),
+    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(grid.bot_left.data(), 2),
+    pcms::Rank1View<pcms::LO,   pcms::HostMemorySpace>(grid.divisions.data(), 2),
+    1, pcms::CoordinateSystem::Cartesian);
+  auto ug_field = ug_factory.CreateField(pcms::FieldMetadata{});
 
   auto [mask_layout, mask_field] =
     pcms::CreateUniformGridBinaryField<2>(mesh, grid);
 
-  pcms::interpolate_field2(*omega_h_field, omega_h_factory.GetEvaluatorFactory(),
-                           *ug_field);
-  auto ug_coords = ug_layout->GetDOFHolderCoordinates();
+  pcms::Interpolator<pcms::Real> interp(omega_h_factory, ug_factory);
+  interp.Apply(omega_h_field, ug_field);
+  auto ug_coords = ug_factory.GetLayout()->GetDOFHolderCoordinates();
 
-  auto ug_field_data = ug_field->GetDOFHolderDataHost();
+  auto ug_field_data = ug_field.GetDOFHolderDataHost();
   VerifyUniformGridFieldValues(grid, ug_coords, ug_field_data);
 
   VerifyMaskFieldValues(grid, *mask_field);

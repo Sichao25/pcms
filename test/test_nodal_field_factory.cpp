@@ -30,13 +30,13 @@ std::vector<Real> MakeCoords2D()
 
 } // namespace
 
-TEST_CASE("NodalFieldFactory creates point-cloud layout metadata")
+TEST_CASE("NodalFunctionSpace creates point-cloud layout metadata")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto factory =
-    pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian);
+    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto layout = factory.GetLayout();
 
   REQUIRE(layout->GetNumComponents() == 1);
@@ -53,26 +53,26 @@ TEST_CASE("NodalFieldFactory creates point-cloud layout metadata")
   }
 }
 
-TEST_CASE("NodalFieldFactory fields share layout")
+TEST_CASE("NodalFunctionSpace fields share layout")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto factory =
-    pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian);
+    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto source = factory.CreateFieldData(pcms::FieldMetadata{});
   auto target = factory.CreateFieldData(pcms::FieldMetadata{});
 
   REQUIRE(&source->GetLayout() == &target->GetLayout());
 }
 
-TEST_CASE("NodalFieldFactory point-cloud field set/get DOF round-trip")
+TEST_CASE("NodalFunctionSpace point-cloud field set/get DOF round-trip")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto field =
-    pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian)
+    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
       .CreateFieldData(pcms::FieldMetadata{});
 
   std::vector<Real> data{1.0, 2.0, 3.0, 4.0};
@@ -86,13 +86,13 @@ TEST_CASE("NodalFieldFactory point-cloud field set/get DOF round-trip")
   }
 }
 
-TEST_CASE("NodalFieldFactory point-cloud field serialize / deserialize round-trip")
+TEST_CASE("NodalFunctionSpace point-cloud field serialize / deserialize round-trip")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto field =
-    pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian)
+    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
       .CreateFieldData(pcms::FieldMetadata{});
 
   std::vector<Real> data{5.0, 6.0, 7.0, 8.0};
@@ -102,13 +102,13 @@ TEST_CASE("NodalFieldFactory point-cloud field serialize / deserialize round-tri
   pcms::test::CheckSerializeDeserialize(*field);
 }
 
-TEST_CASE("NodalFieldFactory field keeps layout alive after temporary factory destruction")
+TEST_CASE("NodalFunctionSpace field keeps layout alive after temporary factory destruction")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto field =
-    pcms::NodalFieldFactory::Create(coords_view, CoordinateSystem::Cartesian)
+    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
       .CreateFieldData(pcms::FieldMetadata{});
 
   auto point_cloud_layout =

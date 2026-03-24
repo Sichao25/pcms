@@ -3,8 +3,12 @@
 #include <pybind11/numpy.h>
 #include "pcms/field/coordinate_system.h"
 #include "pcms/field/coordinate.h"
-#include "pcms/coupler/field_serializer.h"
-#include "pcms/field/adapter/uniform_grid/uniform_grid_field.h"
+#include "pcms/field/field.h"
+#include "pcms/field/field_data.h"
+#include "pcms/field/field_evaluator_factory.h"
+#include "pcms/field/field_layout.h"
+#include "pcms/field/field_metadata.h"
+#include "pcms/field/simple_field_data.h"
 #include "pcms/field/adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "pcms/field/adapter/uniform_grid/uniform_grid_binary_field.h"
 #include "pcms/field/lagrange_field_factory.h"
@@ -135,18 +139,125 @@ void bind_coordinate_module(py::module& m)
 
 void bind_create_field_module(py::module& m)
 {
-  // Bind LagrangeFieldFactory
-  py::class_<LagrangeFieldFactory>(m, "LagrangeFieldFactory")
+  // Bind FieldLayout abstract base with shared_ptr holder so Python can hold
+  // references returned by LagrangeFunctionSpace::get_layout().
+  py::class_<FieldLayout, std::shared_ptr<FieldLayout>>(m, "FieldLayout")
+    .def("get_num_components", &FieldLayout::GetNumComponents,
+         "Number of field components per DOF holder");
+
+  // Bind FieldData<Real> abstract base (use shared_ptr holder so Python can
+  // hold references returned by factories and field operations)
+  py::class_<FieldData<Real>, std::shared_ptr<FieldData<Real>>>(m, "FieldData")
+    .def(
+      "get_dof_holder_data",
+      [](const FieldData<Real>& self) {
+        auto data = self.GetDOFHolderDataHost();
+        py::array_t<Real> result(static_cast<py::ssize_t>(data.size()));
+        auto buf = result.request();
+        Real* ptr = static_cast<Real*>(buf.ptr);
+        for (size_t i = 0; i < data.size(); ++i)
+          ptr[i] = data[i];
+        return result;
+      },
+      "Get the DOF holder data as a 1D numpy array")
+
+    .def(
+      "set_dof_holder_data",
+      [](FieldData<Real>& self, py::array_t<const Real> data) {
+        auto buf = data.request();
+        if (buf.ndim != 1) {
+          throw std::runtime_error("DOF holder data must be a 1D array");
+        }
+        Rank1View<const Real, HostMemorySpace> view(
+          static_cast<const Real*>(buf.ptr),
+          static_cast<size_t>(buf.shape[0]));
+        self.SetDOFHolderDataHost(view);
+      },
+      py::arg("data"), "Set the DOF holder data from a 1D numpy array")
+
+    .def(
+      "get_layout",
+      [](const FieldData<Real>& self) -> std::shared_ptr<FieldLayout> {
+        // Return a non-owning shared_ptr; lifetime is managed by the FieldData.
+        return std::shared_ptr<FieldLayout>(
+          const_cast<FieldLayout*>(&self.GetLayout()),
+          [](FieldLayout*) {});
+      },
+      py::keep_alive<0, 1>(), "Get the field layout");
+
+  // Bind Field<Real>: composed per-field object returned by
+  // LagrangeFunctionSpace::create_field(). Move-only in C++; Python holds it
+  // by value in a heap-allocated wrapper.
+  py::class_<Field<Real>>(m, "Field")
+    .def(
+      "get_dof_holder_data",
+      [](const Field<Real>& self) {
+        auto data = self.GetDOFHolderDataHost();
+        py::array_t<Real> result(static_cast<py::ssize_t>(data.size()));
+        auto buf = result.request();
+        Real* ptr = static_cast<Real*>(buf.ptr);
+        for (size_t i = 0; i < data.size(); ++i)
+          ptr[i] = data[i];
+        return result;
+      },
+      "Get the DOF holder data as a 1D numpy array")
+
+    .def(
+      "set_dof_holder_data",
+      [](Field<Real>& self, py::array_t<const Real> arr) {
+        auto buf = arr.request();
+        if (buf.ndim != 1) {
+          throw std::runtime_error("DOF holder data must be a 1D array");
+        }
+        Rank1View<const Real, HostMemorySpace> view(
+          static_cast<const Real*>(buf.ptr),
+          static_cast<size_t>(buf.shape[0]));
+        self.SetDOFHolderDataHost(view);
+      },
+      py::arg("data"), "Set the DOF holder data from a 1D numpy array")
+
+    .def(
+      "get_num_dof_holders",
+      [](const Field<Real>& self) {
+        return self.GetLayout().GetNumOwnedDofHolder();
+      },
+      "Number of owned DOF holders (nodes/elements)")
+
+    .def(
+      "get_num_components",
+      [](const Field<Real>& self) {
+        return self.GetLayout().GetNumComponents();
+      },
+      "Number of field components per DOF holder")
+
+    .def(
+      "get_dof_holder_coordinates",
+      [](const Field<Real>& self) {
+        auto cv    = self.GetData().GetDOFHolderCoordinatesHost();
+        auto coords = cv.GetCoordinates();
+        py::array_t<Real> result({static_cast<py::ssize_t>(coords.extent(0)),
+                                   static_cast<py::ssize_t>(coords.extent(1))});
+        auto buf = result.request();
+        Real* ptr = static_cast<Real*>(buf.ptr);
+        for (size_t i = 0; i < coords.extent(0); ++i)
+          for (size_t j = 0; j < coords.extent(1); ++j)
+            ptr[i * coords.extent(1) + j] = coords(i, j);
+        return result;
+      },
+      "DOF holder coordinates as a 2D numpy array (num_dof_holders × dim)");
+
+  // Bind LagrangeFunctionSpace
+  py::class_<LagrangeFunctionSpace>(m, "LagrangeFunctionSpace")
     .def_static(
       "from_mesh",
       [](Omega_h::Mesh& mesh, int order, int num_components,
          CoordinateSystem coordinate_system) {
-        return LagrangeFieldFactory::FromMesh(mesh, order, num_components,
+        return LagrangeFunctionSpace::FromMesh(mesh, order, num_components,
                                              coordinate_system);
       },
       py::arg("mesh"), py::arg("order"), py::arg("num_components") = 1,
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
-      "Create a LagrangeFieldFactory from an Omega_h mesh")
+      "Create a LagrangeFunctionSpace from an Omega_h mesh")
 
     .def_static(
       "from_uniform_grid",
@@ -158,13 +269,13 @@ void bind_create_field_module(py::module& m)
         Rank1View<Real, HostMemorySpace> el_view(el.data(), 2);
         Rank1View<Real, HostMemorySpace> bl_view(bl.data(), 2);
         Rank1View<LO, HostMemorySpace> div_view(div.data(), 2);
-        return LagrangeFieldFactory::FromUniformGrid(el_view, bl_view, div_view,
+        return LagrangeFunctionSpace::FromUniformGrid(el_view, bl_view, div_view,
                                                      num_components, cs, order);
       },
       py::arg("grid"), py::arg("num_components") = 1,
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
       py::arg("order") = 1,
-      "Create a LagrangeFieldFactory from a 2D uniform grid")
+      "Create a LagrangeFunctionSpace from a 2D uniform grid")
 
     .def_static(
       "from_uniform_grid",
@@ -176,23 +287,42 @@ void bind_create_field_module(py::module& m)
         Rank1View<Real, HostMemorySpace> el_view(el.data(), 3);
         Rank1View<Real, HostMemorySpace> bl_view(bl.data(), 3);
         Rank1View<LO, HostMemorySpace> div_view(div.data(), 3);
-        return LagrangeFieldFactory::FromUniformGrid(el_view, bl_view, div_view,
+        return LagrangeFunctionSpace::FromUniformGrid(el_view, bl_view, div_view,
                                                      num_components, cs, order);
       },
       py::arg("grid"), py::arg("num_components") = 1,
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
       py::arg("order") = 1,
-      "Create a LagrangeFieldFactory from a 3D uniform grid")
-
-    .def("get_layout", &LagrangeFieldFactory::GetLayout,
-         "Get the field layout (shared_ptr)")
+      "Create a LagrangeFunctionSpace from a 3D uniform grid")
 
     .def(
-      "create_field_real",
-      [](const LagrangeFieldFactory& self) {
-        return std::shared_ptr<FieldT<Real>>(self.CreateFieldReal());
+      "get_layout",
+      [](const LagrangeFunctionSpace& self) -> std::shared_ptr<FieldLayout> {
+        return std::const_pointer_cast<FieldLayout>(self.GetLayout());
       },
-      "Create a real-valued field");
+      "Get the field layout")
+
+    .def(
+      "get_evaluator_factory",
+      [](const LagrangeFunctionSpace& self) -> const FieldEvaluatorFactory<Real>& {
+        return self.GetEvaluatorFactory();
+      },
+      py::return_value_policy::reference_internal,
+      "Get the FieldEvaluatorFactory for this layout")
+
+    .def(
+      "create_field",
+      [](const LagrangeFunctionSpace& self) {
+        return self.CreateField();
+      },
+      "Create a Field<Real> for this function space (preferred)")
+
+    .def(
+      "create_field_data",
+      [](const LagrangeFunctionSpace& self) -> std::shared_ptr<FieldData<Real>> {
+        return self.CreateFieldData();
+      },
+      "Create a raw FieldData (use create_field() in new code)");
 
   // Bind CreateUniformGridFromMesh for 2D
   m.def(
@@ -214,117 +344,20 @@ void bind_create_field_module(py::module& m)
 
   m.def(
     "create_uniform_grid_binary_field",
-    [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions) {
+    [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions)
+      -> py::tuple {
       auto [layout, field] =
         CreateUniformGridBinaryField<2>(mesh, divisions);
-      return py::make_tuple(layout,
-                            std::shared_ptr<FieldT<Real>>(std::move(field)));
+      // Upcast SimpleFieldData to FieldData so Python sees the bound base type
+      std::shared_ptr<FieldData<Real>> field_ptr = std::move(field);
+      return py::make_tuple(layout, field_ptr);
     },
     py::arg("mesh"), py::arg("divisions"),
     "Create a 2D vertex mask field indicating inside/outside mesh");
-
 }
 
-template <typename T>
-void bind_field_t(py::module& m, const std::string& type_suffix)
-{
-  std::string class_name = "FieldT_" + type_suffix;
-
-  py::class_<FieldT<T>, std::shared_ptr<FieldT<T>>>(m, class_name.c_str())
-    .def("get_coordinate_system", &FieldT<T>::GetCoordinateSystem,
-         "Get the coordinate system of the field")
-
-    .def("get_localization_hint", &FieldT<T>::GetLocalizationHint,
-         py::arg("coordinates"),
-         "Get a localization hint for a set of coordinates")
-
-    .def(
-      "evaluate",
-      [](const FieldT<T>& self, LocalizationHint hint,
-         py::array_t<T> results_array, CoordinateSystem coord_sys) {
-        auto results_view = numpy_to_view<T>(results_array);
-        FieldDataView<T, HostMemorySpace> results(results_view, coord_sys);
-        self.Evaluate(hint, results);
-      },
-      py::arg("hint"), py::arg("results"), py::arg("coordinate_system"),
-      "Evaluate the field at given locations")
-
-    .def(
-      "evaluate_gradient",
-      [](FieldT<T>& self, py::array_t<T> results_array,
-         CoordinateSystem coord_sys) {
-        auto results_view = numpy_to_view<T>(results_array);
-        FieldDataView<T, HostMemorySpace> results(results_view, coord_sys);
-        self.EvaluateGradient(results);
-      },
-      py::arg("results"), py::arg("coordinate_system"),
-      "Evaluate the gradient of the field")
-
-    .def(
-      "get_dof_holder_data",
-      [](const FieldT<T>& self) {
-        auto data = self.GetDOFHolderData();
-        return view_to_numpy(data);
-      },
-      "Get the DOF holder data")
-
-    .def(
-      "set_dof_holder_data",
-      [](FieldT<T>& self, py::array_t<const T> data) {
-        auto data_view = numpy_to_view<const T>(data);
-        self.SetDOFHolderData(data_view);
-      },
-      py::arg("data"), "Set the DOF holder data")
-
-    .def("get_layout", &FieldT<T>::GetLayout,
-         py::return_value_policy::reference, "Get the field layout")
-
-    .def("can_evaluate_gradient", &FieldT<T>::CanEvaluateGradient,
-         "Check if the field can evaluate gradients")
-
-    .def(
-      "serialize",
-      [](const FieldT<T>& self, py::array_t<T> buffer,
-         py::array_t<const LO> permutation) {
-        auto buffer_view = numpy_to_view<T>(buffer);
-        auto perm_view = numpy_to_view<const LO>(permutation);
-        FieldSerializer<T> serializer;
-        return serializer.Serialize(self, buffer_view, perm_view);
-      },
-      py::arg("buffer"), py::arg("permutation"), "Serialize the field data")
-
-    .def(
-      "deserialize",
-      [](FieldT<T>& self, py::array_t<const T> buffer,
-         py::array_t<const LO> permutation) {
-        auto buffer_view = numpy_to_view<const T>(buffer);
-        auto perm_view = numpy_to_view<const LO>(permutation);
-        FieldSerializer<T> serializer;
-        serializer.Deserialize(self, buffer_view, perm_view);
-      },
-      py::arg("buffer"), py::arg("permutation"),
-      "Deserialize field data from buffer");
-}
-
-void bind_field_module(py::module& m)
-{
-  // Bind LocalizationHint (opaque type - data member is internal only)
-  py::class_<LocalizationHint>(m, "LocalizationHint").def(py::init<>());
-
-  // Bind FieldDataView for common types
-  py::class_<FieldDataView<Real, HostMemorySpace>>(m, "FieldDataView_Real")
-    .def(py::init<Rank1View<Real, HostMemorySpace>, CoordinateSystem>(),
-         py::arg("values"), py::arg("coordinate_system"))
-    .def("size", &FieldDataView<Real, HostMemorySpace>::Size)
-    .def("get_coordinate_system",
-         &FieldDataView<Real, HostMemorySpace>::GetCoordinateSystem)
-    // TODO: const GetValues?
-    .def("get_values", [](FieldDataView<Real, HostMemorySpace>& self) {
-      return view_to_numpy(self.GetValues());
-    });
-
-  // Bind FieldT only for double (Real is defined as double in types.h)
-  bind_field_t<double>(m, "Double");
-}
+// bind_field_module is kept for compatibility but now registers nothing that
+// refers to the deleted FieldT / LocalizationHint / FieldDataView types.
+void bind_field_module(py::module& /*m*/) {}
 
 } // namespace pcms

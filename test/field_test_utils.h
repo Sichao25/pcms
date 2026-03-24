@@ -131,7 +131,7 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
 }
 
 // Overload that creates the evaluator from any factory with CreatePointEvaluator
-// and GetCoordinateSystem (e.g. LagrangeFieldFactory, FieldEvaluatorFactory<Real>).
+// and GetCoordinateSystem (e.g. LagrangeFunctionSpace, FieldEvaluatorFactory<Real>).
 template <typename Factory, typename ExecutionSpace = DefaultExecutionSpace,
           typename Func>
 void CheckEvaluation(const Factory& factory,

@@ -1,15 +1,12 @@
 set(PCMS_COUPLER_HEADERS
         coupler_types.h
-        field_communicator.h
         field_communicator2.h
-        coupler.h
         coupler2.h
         field_serializer.h
         field_layout_communicator.h
         field_exchange_planner.h
         partition.h
         adapter/field_evaluation_methods.h
-        adapter/dummy_field_adapter.h
 )
 
 
@@ -22,7 +19,6 @@ set(PCMS_COUPLER_SOURCES
 if(PCMS_ENABLE_XGC)
     list(APPEND PCMS_COUPLER_HEADERS
             adapter/xgc/xgc_field_data.h
-            adapter/xgc/xgc_field_adapter.h
             adapter/xgc/xgc_field_layout.h
             adapter/xgc/xgc_field_serializer.h
             adapter/xgc/xgc_reverse_classification.h)

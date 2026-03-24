@@ -22,7 +22,7 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
   auto world = lib.world();
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 10, 10, 0, false);
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
   pcms::test::SetField(*field, fill_mode_f);

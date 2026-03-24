@@ -3,7 +3,10 @@
 
 #include <Omega_h_mesh.hpp>
 #include "pcms/configuration.h"
+#include "pcms/field/field.h"
+#include "pcms/field/field.h"
 #include "pcms/field/field_layout.h"
+#include "pcms/field/function_space.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/field/point_evaluator.h"
@@ -23,7 +26,7 @@
 namespace pcms
 {
 
-class LagrangeFieldFactory
+class LagrangeFunctionSpace : public FunctionSpace
 {
 public:
   enum class Backend { MeshFields, OmegaH };
@@ -35,14 +38,14 @@ public:
 #endif
 
   // Unstructured mesh — dispatches to MeshFields or native Omega_h backend
-  [[nodiscard]] static LagrangeFieldFactory FromMesh(
+  [[nodiscard]] static LagrangeFunctionSpace FromMesh(
     Omega_h::Mesh& mesh, int order, int num_components,
     CoordinateSystem coordinate_system,
     std::string global_id_name = "global",
     Backend backend = DefaultBackend);
 
   // Structured uniform grid — order-1 H1-conforming nodal field on a regular grid
-  [[nodiscard]] static LagrangeFieldFactory FromUniformGrid(
+  [[nodiscard]] static LagrangeFunctionSpace FromUniformGrid(
     Rank1View<Real, HostMemorySpace> edge_length,
     Rank1View<Real, HostMemorySpace> bot_left,
     Rank1View<LO, HostMemorySpace>   divisions,
@@ -50,23 +53,31 @@ public:
     CoordinateSystem coordinate_system,
     int order = 1);
 
-  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept;
+  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept override;
 
-  [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept;
+  [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
-  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const noexcept;
+  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const noexcept override;
 
   // Delegates PointEvaluator construction to the internal factory.
   [[nodiscard]] std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
     CoordinateView<HostMemorySpace> coords,
     OutOfBoundsPolicy policy = {}) const;
 
-  // Returns a new FieldData<Real> pre-allocated for this layout.
+  // Returns a new Field<Real> for this function space.
+  // The field retains a shared reference to the evaluator factory, so
+  // this LagrangeFunctionSpace need not outlive the returned field.
+  // Prefer this over CreateFieldData() in new code.
+  [[nodiscard]] Field<Real> CreateField(FieldMetadata metadata = {}) const;
+
+  // Low-level: bare FieldData without the evaluator factory reference.
+  // Use when the communicator API or other infrastructure requires a raw
+  // FieldData; prefer CreateField() in user code.
   [[nodiscard]] std::unique_ptr<FieldData<Real>> CreateFieldData(
     FieldMetadata metadata = {}) const;
 
 private:
-  explicit LagrangeFieldFactory(
+  explicit LagrangeFunctionSpace(
     std::shared_ptr<const FieldLayout> layout,
     std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
       create_field_data_fn,

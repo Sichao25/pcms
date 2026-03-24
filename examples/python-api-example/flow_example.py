@@ -50,7 +50,7 @@ def demonstrate_face_field_transfer(mesh):
         f"mean={vertex_field_values.mean():.6f}"
     )
     
-    omega_h_factory = pcms.LagrangeFieldFactory.from_mesh(
+    omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
         mesh, 1, 1, pcms.CoordinateSystem.Cartesian
     )
     omega_h_field = omega_h_factory.create_field_real()
@@ -58,7 +58,7 @@ def demonstrate_face_field_transfer(mesh):
     
     divisions = [1000, 500]
     grid = pcms.create_uniform_grid_from_mesh(mesh, divisions)
-    ug_factory = pcms.LagrangeFieldFactory.from_uniform_grid(
+    ug_factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
     ug_field = ug_factory.create_field_real()

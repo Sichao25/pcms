@@ -127,6 +127,11 @@ public:
     return channel_.ReceivePhase(func, std::forward<Args>(args)...);
   }
 
+  [[nodiscard]] std::size_t GetLayoutCommunicatorCount() const noexcept
+  {
+    return field_layout_communicators_.size();
+  }
+
 private:
   FieldLayoutCommunicator& GetLayoutCommunicator(const FieldLayout& layout);
 
@@ -211,14 +216,17 @@ pcms::FieldHandle pcms::Application2::AddField(
                    &mpi_comm_subset);
   }
   fields_.push_back(std::move(field));
-
   auto& field_data_ptr = std::get<std::unique_ptr<FieldData<T>>>(fields_.back());
-  owned_field_layout_communicators_.push_back(
-    std::make_unique<FieldLayoutCommunicator>(
-      name, mpi_comm_subset, redev_, channel_, field_data_ptr->GetLayout(),
-      std::make_unique<GenericFieldExchangePlanner>(), true));
-  FieldLayoutCommunicator& layout_communicator =
-    *owned_field_layout_communicators_.back();
+  const FieldLayout& layout = field_data_ptr->GetLayout();
+
+  if (field_layout_communicators_.find(&layout) ==
+      field_layout_communicators_.end()) {
+    auto lc = std::make_unique<FieldLayoutCommunicator>(
+      name, mpi_comm_subset, redev_, channel_, layout,
+      std::make_unique<GenericFieldExchangePlanner>(), true);
+    field_layout_communicators_.emplace(&layout, std::move(lc));
+  }
+  FieldLayoutCommunicator& layout_communicator = GetLayoutCommunicator(layout);
   FieldCommunicator2Ptr field_communicator =
     std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
                                             *field_data_ptr,

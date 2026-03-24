@@ -24,7 +24,7 @@ def test_layout_methods(world, dim, order, num_components):
     )
 
     # Create factory and layout
-    factory = pcms.LagrangeFieldFactory.from_mesh(
+    factory = pcms.LagrangeFunctionSpace.from_mesh(
         mesh, order, num_components, pcms.CoordinateSystem.Cartesian
     )
     layout = factory.get_layout()
@@ -85,7 +85,7 @@ def test_layout_methods(world, dim, order, num_components):
     assert global_size == num_global * num_components
 
     # Create a field from the factory
-    field = factory.create_field_real()
+    field = factory.create_field()
     print(f"  Created field: {type(field)}")
 
     # Test setting and getting data
@@ -123,13 +123,12 @@ def test_field_evaluation(world, dim, order, num_components):
     )
 
     # Create factory and field
-    factory = pcms.LagrangeFieldFactory.from_mesh(
+    factory = pcms.LagrangeFunctionSpace.from_mesh(
         mesh, order, num_components, pcms.CoordinateSystem.Cartesian
     )
-    layout = factory.get_layout()
 
     # Create field
-    field = factory.create_field_real()
+    field = factory.create_field()
 
     # Set up test data - use a simple function: f(x,y,z) = sin(x*y) for component 0, etc.
     print(f"  Setting up field data...")
@@ -138,9 +137,7 @@ def test_field_evaluation(world, dim, order, num_components):
     num_verts = mesh.nverts()
     print(f"  Mesh has {num_verts} vertices")
 
-    # For order 1, we only need vertex values
-    # For order 2, we also need edge midpoint values
-    num_owned = layout.get_num_owned_dof_holder()
+    num_owned = field.get_num_dof_holders()
     ndata = num_owned * num_components
     print(f"  Setting up field data for {ndata} DOFs")
 

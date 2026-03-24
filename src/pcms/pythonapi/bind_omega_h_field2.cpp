@@ -1,11 +1,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include "pcms/utility/arrays.h"
-#include "pcms/coupler/field_serializer.h"
-#include "pcms/field/adapter/meshfields/mesh_fields_adapter2.h"
-#include "pcms/field/adapter/meshfields/mesh_fields_adapter_layout.h"
+#include "pcms/field/out_of_bounds_policy.h"
+#include "pcms/field/coordinate_system.h"
+#include "pcms/field/coordinate.h"
+#include "pcms/utility/memory_spaces.h"
 #include "numpy_array_transform.h"
 
 namespace py = pybind11;
@@ -15,7 +15,6 @@ namespace pcms
 
 void bind_omega_h_field2(py::module& m)
 {
-
   // Bind OutOfBoundsMode enum
   py::enum_<OutOfBoundsMode>(m, "OutOfBoundsMode")
     .value("ERROR", OutOfBoundsMode::ERROR,
@@ -26,115 +25,22 @@ void bind_omega_h_field2(py::module& m)
            "Clamp to nearest boundary cell (extrapolate)")
     .export_values();
 
-  // Bind MeshFieldsAdapter2 class template instantiation for Real type
-  py::class_<MeshFieldsAdapter2<Real>, FieldT<Real>,
-             std::shared_ptr<MeshFieldsAdapter2<Real>>>(m, "MeshFieldsAdapter2")
-    .def(py::init<std::shared_ptr<MeshFieldsAdapterLayout>>(), py::arg("layout"),
-         "Constructor for MeshFieldsAdapter2")
+  // Bind OutOfBoundsPolicy struct
+  py::class_<OutOfBoundsPolicy>(m, "OutOfBoundsPolicy")
+    .def(py::init<>(), "Default constructor (mode=ERROR, fill_value=0)")
+    .def(py::init([](OutOfBoundsMode mode, Real fill_value) {
+           OutOfBoundsPolicy p;
+           p.mode       = mode;
+           p.fill_value = fill_value;
+           return p;
+         }),
+         py::arg("mode"), py::arg("fill_value") = Real(0),
+         "Construct with explicit mode and optional fill value")
+    .def_readwrite("mode", &OutOfBoundsPolicy::mode, "Out-of-bounds handling mode")
+    .def_readwrite("fill_value", &OutOfBoundsPolicy::fill_value,
+                   "Fill value (used only when mode == FILL)");
 
-    .def(
-      "get_localization_hint",
-      [](const MeshFieldsAdapter2<Real>& self, py::array_t<Real> coordinates,
-         const CoordinateSystem& coord_system) {
-        // Create CoordinateView from numpy array
-        auto coords_view = numpy_to_view_2d<const Real>(coordinates);
-        CoordinateView<HostMemorySpace> coord_view(coord_system, coords_view);
-        return self.GetLocalizationHint(coord_view);
-      },
-      py::arg("coordinates"), py::arg("coordinate_system"),
-      "Get localization hint for given coordinates")
-
-    .def(
-      "evaluate",
-      [](const MeshFieldsAdapter2<Real>& self, const LocalizationHint& location,
-         py::array_t<Real> values, const CoordinateSystem& coord_system) {
-        // Create FieldDataView
-        auto values_view = numpy_to_view<Real>(values);
-        FieldDataView<Real, HostMemorySpace> field_data_view(values_view,
-                                                             coord_system);
-        self.Evaluate(location, field_data_view);
-      },
-      py::arg("location"), py::arg("values"), py::arg("coordinate_system"),
-      "Evaluate field at locations specified by localization hint")
-
-    .def(
-      "evaluate_gradient",
-      [](MeshFieldsAdapter2<Real>& self, py::array_t<Real> gradients,
-         const CoordinateSystem& coord_system) {
-        auto gradients_view = numpy_to_view<Real>(gradients);
-        FieldDataView<Real, HostMemorySpace> field_data_view(gradients_view,
-                                                             coord_system);
-        self.EvaluateGradient(field_data_view);
-      },
-      py::arg("gradients"), py::arg("coordinate_system"),
-      "Evaluate gradient of the field")
-
-    .def("get_layout", &MeshFieldsAdapter2<Real>::GetLayout,
-         py::return_value_policy::reference, "Get the field layout")
-
-    .def("can_evaluate_gradient",
-         &MeshFieldsAdapter2<Real>::CanEvaluateGradient,
-         "Check if gradient evaluation is supported")
-
-    .def(
-      "serialize",
-      [](const MeshFieldsAdapter2<Real>& self, py::array_t<Real> buffer,
-         py::array_t<const pcms::LO> permutation) {
-        auto buffer_view = numpy_to_view<Real>(buffer);
-        auto perm_view = numpy_to_view<const pcms::LO>(permutation);
-        FieldSerializer<Real> serializer;
-        return serializer.Serialize(self, buffer_view, perm_view);
-      },
-      py::arg("buffer"), py::arg("permutation"),
-      "Serialize field data into buffer")
-
-    .def(
-      "deserialize",
-      [](MeshFieldsAdapter2<Real>& self, py::array_t<const Real> buffer,
-         py::array_t<const pcms::LO> permutation) {
-        auto buffer_view = numpy_to_view<const Real>(buffer);
-        auto perm_view = numpy_to_view<const pcms::LO>(permutation);
-        FieldSerializer<Real> serializer;
-        serializer.Deserialize(self, buffer_view, perm_view);
-      },
-      py::arg("buffer"), py::arg("permutation"),
-      "Deserialize field data from buffer")
-
-    .def(
-      "get_dof_holder_data",
-      [](const MeshFieldsAdapter2<Real>& self) {
-        auto const_data = self.GetDOFHolderData();
-        // Create a numpy array that owns its own data
-        return view_to_numpy<const Real>(const_data);
-      },
-      "Get the DOF holder data")
-
-    .def(
-      "set_dof_holder_data",
-      [](MeshFieldsAdapter2<Real>& self, py::array_t<Real> data) {
-        // Ensure array is contiguous
-        auto contiguous_data = py::array_t<Real>(data);
-        auto data_view = numpy_to_view<Real>(contiguous_data);
-        // Create const view wrapper
-        Rank1View<const Real, HostMemorySpace> const_view(
-          data_view.data_handle(), data_view.size());
-        self.SetDOFHolderData(const_view);
-      },
-      py::arg("data"), "Set the DOF holder data")
-
-    .def("set_out_of_bounds_mode",
-         &MeshFieldsAdapter2<Real>::SetOutOfBoundsMode, py::arg("mode"),
-         py::arg("fill_value") = 0.0,
-         "Set the out-of-bounds mode and fill value")
-
-    .def("get_out_of_bounds_mode",
-         &MeshFieldsAdapter2<Real>::GetOutOfBoundsMode,
-         "Get the current out-of-bounds mode")
-
-    .def("get_fill_value", &MeshFieldsAdapter2<Real>::GetFillValue,
-         "Get the current fill value for out-of-bounds points");
-
-  // Helper functions for creating views (if needed for testing)
+  // Helper: create a CoordinateView from a 2D numpy array
   m.def(
     "create_coordinate_view",
     [](py::array_t<Real> coordinates, const CoordinateSystem& coord_system) {
@@ -142,16 +48,11 @@ void bind_omega_h_field2(py::module& m)
       return CoordinateView<HostMemorySpace>(coord_system, coords_view);
     },
     py::arg("coordinates"), py::arg("coordinate_system"),
-    "Create a CoordinateView from numpy array");
+    "Create a CoordinateView from a 2D numpy array");
 
-  m.def(
-    "create_field_data_view",
-    [](py::array_t<Real> values, const CoordinateSystem& coord_system) {
-      auto values_view = numpy_to_view<Real>(values);
-      return FieldDataView<Real, HostMemorySpace>(values_view, coord_system);
-    },
-    py::arg("values"), py::arg("coordinate_system"),
-    "Create a FieldDataView from numpy array");
+  // NOTE: MeshFieldsAdapter2<Real> and FieldT<Real> have been removed from
+  // the C++ API. Fields are now represented as FieldData<Real> (bound in
+  // bind_field_base.cpp) and created via LagrangeFunctionSpace::create_field_data().
 }
 
 } // namespace pcms

@@ -9,6 +9,7 @@ set(PCMS_FIELD_HEADERS
         empty_field_layout.h
         out_of_bounds_policy.h
         field_data.h
+        field_interpolator.h
         point_evaluator.h
         simple_field_data.h
         nodal_field_factory.h

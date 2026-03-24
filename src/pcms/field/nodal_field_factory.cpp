@@ -8,7 +8,7 @@
 namespace pcms
 {
 
-NodalFieldFactory::NodalFieldFactory(
+NodalFunctionSpace::NodalFunctionSpace(
   std::shared_ptr<const FieldLayout> layout,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
   : layout_(std::move(layout)),
@@ -16,7 +16,7 @@ NodalFieldFactory::NodalFieldFactory(
 {
 }
 
-NodalFieldFactory NodalFieldFactory::Create(
+NodalFunctionSpace NodalFunctionSpace::Create(
   Rank2View<Real, HostMemorySpace> coords,
   CoordinateSystem coordinate_system)
 {
@@ -28,16 +28,27 @@ NodalFieldFactory NodalFieldFactory::Create(
   auto pc_layout =
     std::make_shared<PointCloudLayout>(dim, device_view, coordinate_system);
   auto eval_factory = std::make_shared<PointCloudEvaluatorFactory>(pc_layout);
-  return NodalFieldFactory(pc_layout, std::move(eval_factory));
+  return NodalFunctionSpace(pc_layout, std::move(eval_factory));
 }
 
 std::shared_ptr<const FieldLayout>
-NodalFieldFactory::GetLayout() const noexcept
+NodalFunctionSpace::GetLayout() const noexcept
 {
   return layout_;
 }
 
-std::unique_ptr<PointEvaluator<Real>> NodalFieldFactory::CreatePointEvaluator(
+CoordinateSystem NodalFunctionSpace::GetCoordinateSystem() const noexcept
+{
+  return evaluator_factory_->GetCoordinateSystem();
+}
+
+const FieldEvaluatorFactory<Real>&
+NodalFunctionSpace::GetEvaluatorFactory() const noexcept
+{
+  return *evaluator_factory_;
+}
+
+std::unique_ptr<PointEvaluator<Real>> NodalFunctionSpace::CreatePointEvaluator(
   CoordinateView<HostMemorySpace> coords,
   OutOfBoundsPolicy policy) const
 {
@@ -45,7 +56,12 @@ std::unique_ptr<PointEvaluator<Real>> NodalFieldFactory::CreatePointEvaluator(
   return evaluator_factory_->CreatePointEvaluator(coords, policy);
 }
 
-std::unique_ptr<FieldData<Real>> NodalFieldFactory::CreateFieldData(
+Field<Real> NodalFunctionSpace::CreateField(FieldMetadata metadata) const
+{
+  return Field<Real>(evaluator_factory_, CreateFieldData(metadata));
+}
+
+std::unique_ptr<FieldData<Real>> NodalFunctionSpace::CreateFieldData(
   FieldMetadata metadata) const
 {
   return std::make_unique<SimpleFieldData<Real>>(layout_, metadata);

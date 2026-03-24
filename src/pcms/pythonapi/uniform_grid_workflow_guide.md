@@ -134,18 +134,17 @@ mask_value = mask_data[vertex_id]  # Returns 0.0 or 1.0
 
 ```python
 # Create field factory with linear (order=1) elements and 1 component (scalar)
-omega_h_factory = pcms.LagrangeFieldFactory.from_mesh(
+omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
     mesh, 
     1,
     1,
     pcms.CoordinateSystem.Cartesian
 )
-omega_h_layout = omega_h_factory.get_layout()
-omega_h_field = omega_h_factory.create_field_real()
+omega_h_field = omega_h_factory.create_field()
 
 # Initialize field with f(x,y) = x + 2*y
-coords = omega_h_layout.get_dof_holder_coordinates()
-num_nodes = omega_h_layout.get_num_owned_dof_holder()
+coords = omega_h_field.get_dof_holder_coordinates()
+num_nodes = omega_h_field.get_num_dof_holders()
 omega_h_data = np.zeros(num_nodes)
 
 for i in range(num_nodes):
@@ -174,11 +173,10 @@ face_field = mesh.get_tag(face_dim, face_tag.name())
 vertex_field = pcms.map_entity_field_to_vertices_average(mesh, face_field, face_dim)
 
 # Create vertex-based field and set data
-omega_h_factory = pcms.LagrangeFieldFactory.from_mesh(
+omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
     mesh, 1, 1, pcms.CoordinateSystem.Cartesian
 )
-omega_h_layout = omega_h_factory.get_layout()
-omega_h_field = omega_h_factory.create_field_real()
+omega_h_field = omega_h_factory.create_field()
 omega_h_field.set_dof_holder_data(vertex_field)
 
 # Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
@@ -193,13 +191,12 @@ Set up the data structure for storing field values on the uniform grid vertices.
 
 ```python
 # Create uniform grid field factory
-ug_factory = pcms.LagrangeFieldFactory.from_uniform_grid(
+ug_factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
     grid, 
     1,                                      # Number of components
     pcms.CoordinateSystem.Cartesian
 )
-ug_layout = ug_factory.get_layout()
-ug_field = ug_factory.create_field_real()
+ug_field = ug_factory.create_field()
 ```
 
 ---
@@ -210,7 +207,8 @@ Interpolate field values from the unstructured mesh to the structured uniform gr
 
 ```python
 # Transfer field from Omega_h mesh to uniform grid
-pcms.interpolate_field(omega_h_field, ug_field)
+interp = pcms.Interpolator(omega_h_factory, ug_factory)
+interp.apply(omega_h_field, ug_field)
 ```
 
 ---
@@ -222,7 +220,7 @@ Retrieve interpolated values and verify correctness.
 ```python
 # Get field data and coordinates
 ug_field_data = ug_field.get_dof_holder_data()
-ug_coords = ug_layout.get_dof_holder_coordinates()
+ug_coords = ug_field.get_dof_holder_coordinates()
 
 # Access data at vertex (i, j)
 vertex_id = j * (grid.divisions[0] + 1) + i
@@ -255,17 +253,20 @@ np.save('field_data.npy', grid_values)
 - `create_uniform_grid_binary_field(mesh, divisions)` - Create inside/outside mask
 
 ### Field Factories
-- `LagrangeFieldFactory.from_mesh(mesh, order, num_components, coord_system)` - Omega_h-backed Lagrange field factory
-- `LagrangeFieldFactory.from_uniform_grid(grid, num_components, coord_system, order=1)` - Uniform-grid field factory
+- `LagrangeFunctionSpace.from_mesh(mesh, order, num_components, coord_system)` - Omega_h-backed Lagrange field factory
+- `LagrangeFunctionSpace.from_uniform_grid(grid, num_components, coord_system, order=1)` - Uniform-grid field factory
 
 ### Field Operations
-- `factory.get_layout()` - Access shared layout metadata
-- `factory.create_field_real()` - Create a real-valued field
+- `factory.create_field()` - Create a real-valued field
+- `field.get_num_dof_holders()` - Number of owned DOF holders (nodes/elements)
+- `field.get_num_components()` - Number of field components per DOF holder
+- `field.get_dof_holder_coordinates()` - DOF holder coordinates as a 2D numpy array
 - `field.set_dof_holder_data(data)` - Set field values
 - `field.get_dof_holder_data()` - Get field values
 - `field.to_mdspan()` - Get field values as a structured array
 - `field.set_out_of_bounds_mode(mode, fill_value=0.0)` - Set behavior for points outside mesh
-- `interpolate_field(source_field, target_field)` - Interpolate between fields
+- `Interpolator(source_space, target_space)` - Create an interpolator (cached localization)
+- `interpolator.apply(source_field, target_field)` - Interpolate between fields
 - `map_entity_field_to_vertices_average(mesh, field_data, entity_dim)` - Convert element/face field to vertex field by averaging
 
 ### Out-of-Bounds Modes

@@ -107,7 +107,7 @@ TEST_CASE("OmegaHLagrangeLayout layout sharing")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
 
   auto f1 = factory.CreateFieldData(pcms::FieldMetadata{});
@@ -122,7 +122,7 @@ TEST_CASE("OmegaHLagrangeField order-1: set/get DOF data round-trip")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -144,7 +144,7 @@ TEST_CASE("OmegaHLagrangeField order-1: linear function evaluation")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world(), 20, 20);
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -160,7 +160,7 @@ TEST_CASE("MeshFieldsAdapter order-1: linear function evaluation (shared util)")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world(), 20, 20);
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -174,7 +174,7 @@ TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -189,7 +189,7 @@ TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -203,7 +203,7 @@ TEST_CASE("OmegaHLagrangeField order-0: set/get DOF data round-trip")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -222,7 +222,7 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world(), 10, 10);
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -251,7 +251,7 @@ TEST_CASE("OmegaHLagrangeField order-0: out-of-bounds FILL mode")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -269,7 +269,7 @@ TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")
 {
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -283,6 +283,20 @@ TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")
   pcms::test::CheckSerializeDeserialize(*field);
 }
 
+// ---- Layout sharing communicator contract -----------------------------------
+//
+// BEHAVIORAL CONTRACT (requires MPI/redev — exercised by test_field_communication
+// with clientId=2/3 via test_shared_layout):
+//
+// When two fields are added to an Application2 that share the same FieldLayout
+// (e.g. both created from the same LagrangeFunctionSpace), the Application2 must
+// reuse a single FieldLayoutCommunicator for both fields rather than creating
+// separate communicators. This is verified by:
+//   - Calling AddLayout() registers exactly one FieldLayoutCommunicator
+//   - Calling AddField() for additional fields with the same layout leaves the
+//     count at one (Application2::GetLayoutCommunicatorCount() == 1)
+// See test/test_field_communication.cpp::test_shared_layout for the full test.
+
 // ---- Temporary factory lifetime safety --------------------------------------
 
 TEST_CASE("OmegaHLagrangeField: field valid after layout destruction")
@@ -292,7 +306,7 @@ TEST_CASE("OmegaHLagrangeField: field valid after layout destruction")
 
   std::unique_ptr<pcms::FieldData<Real>> field;
   {
-    auto factory = pcms::LagrangeFieldFactory::FromMesh(
+    auto factory = pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
     field = factory.CreateFieldData(pcms::FieldMetadata{});
   } // factory goes out of scope; field keeps layout alive

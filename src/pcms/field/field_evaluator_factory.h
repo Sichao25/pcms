@@ -28,7 +28,7 @@ namespace pcms
 //   - OutOfBoundsPolicy is fixed at evaluator creation time.
 //
 // FieldEvaluatorFactory<T> is a standalone abstract type rather than being
-// merged into concrete field factories (LagrangeFieldFactory, etc.). This is
+// merged into concrete field factories (LagrangeFunctionSpace, etc.). This is
 // intentional: field families such as analytic functions and ML surrogates can
 // be evaluated at arbitrary points but have no meaningful field construction
 // operation. Concrete field factories implement both this interface and their
@@ -40,7 +40,7 @@ namespace pcms
 //
 // Example (sketch of a concrete field factory):
 //
-//   class LagrangeFieldFactory {
+//   class LagrangeFunctionSpace {
 //   public:
 //     std::unique_ptr<FieldData<Real>>   CreateFieldReal() const;
 //     std::shared_ptr<const FieldLayout> GetLayout() const;

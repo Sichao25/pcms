@@ -16,7 +16,6 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     load_vector_integrator.hpp
     mass_matrix_integrator.hpp
     mesh_intersection.hpp
-    transfer_field.h
     transfer_field2.h
 )
 

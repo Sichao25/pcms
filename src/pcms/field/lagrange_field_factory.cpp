@@ -17,7 +17,7 @@
 namespace pcms
 {
 
-LagrangeFieldFactory::LagrangeFieldFactory(
+LagrangeFunctionSpace::LagrangeFunctionSpace(
   std::shared_ptr<const FieldLayout> layout,
   std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
     create_field_data_fn,
@@ -28,7 +28,7 @@ LagrangeFieldFactory::LagrangeFieldFactory(
 {
 }
 
-LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
+LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
   Omega_h::Mesh& mesh, int order, int num_components,
   CoordinateSystem coordinate_system, std::string global_id_name,
   Backend backend)
@@ -42,7 +42,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
 #ifdef PCMS_ENABLE_MESHFIELDS
     if (num_components != 1) {
       throw pcms_error(
-        "LagrangeFieldFactory::FromMesh: MeshFields backend only supports "
+        "LagrangeFunctionSpace::FromMesh: MeshFields backend only supports "
         "single-component fields");
     }
     std::array<int, 4> nodes_per_dim{};
@@ -56,7 +56,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
       std::move(global_id_name));
     auto eval_factory =
       std::make_shared<MeshFieldsEvaluatorFactory<Real>>(mesh_layout);
-    return LagrangeFieldFactory(
+    return LagrangeFunctionSpace(
       mesh_layout,
       [mesh_layout](FieldMetadata metadata) {
         return std::make_unique<MeshFieldsFieldData<Real>>(mesh_layout,
@@ -65,21 +65,21 @@ LagrangeFieldFactory LagrangeFieldFactory::FromMesh(
       std::move(eval_factory));
 #else
     throw pcms_error(
-      "LagrangeFieldFactory::FromMesh: MeshFields backend requested but "
+      "LagrangeFunctionSpace::FromMesh: MeshFields backend requested but "
       "PCMS_ENABLE_MESHFIELDS is not set");
 #endif
   }
   // OmegaH backend
   if (order > 1) {
     throw pcms_error(
-      "LagrangeFieldFactory::FromMesh: OmegaH backend only supports "
+      "LagrangeFunctionSpace::FromMesh: OmegaH backend only supports "
       "Lagrange orders 0 and 1");
   }
   auto layout = std::make_shared<OmegaHLagrangeLayout>(
     mesh, order, num_components, coordinate_system, std::move(global_id_name));
   auto eval_factory =
     std::make_shared<OmegaHLagrangeEvaluatorFactory<Real>>(layout);
-  return LagrangeFieldFactory(
+  return LagrangeFunctionSpace(
     layout,
     [layout](FieldMetadata metadata) {
       return std::make_unique<SimpleFieldData<Real>>(layout, metadata);
@@ -109,7 +109,7 @@ UniformGrid<Dim> MakeUniformGrid(
 }
 } // namespace
 
-LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
+LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
   Rank1View<Real, HostMemorySpace> edge_length,
   Rank1View<Real, HostMemorySpace> bot_left,
   Rank1View<LO, HostMemorySpace> divisions,
@@ -119,7 +119,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
 {
   if (order != 0 && order != 1) {
     throw std::invalid_argument(
-      "LagrangeFieldFactory::FromUniformGrid: only orders 0 and 1 are supported");
+      "LagrangeFunctionSpace::FromUniformGrid: only orders 0 and 1 are supported");
   }
   if (edge_length.size() != bot_left.size() ||
       edge_length.size() != divisions.size()) {
@@ -133,7 +133,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
       coordinate_system, order);
     auto eval_factory =
       std::make_shared<UniformGridEvaluatorFactory<2>>(ug_layout);
-    return LagrangeFieldFactory(
+    return LagrangeFunctionSpace(
       ug_layout,
       [ug_layout](FieldMetadata metadata) {
         return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
@@ -146,7 +146,7 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
       coordinate_system, order);
     auto eval_factory =
       std::make_shared<UniformGridEvaluatorFactory<3>>(ug_layout);
-    return LagrangeFieldFactory(
+    return LagrangeFunctionSpace(
       ug_layout,
       [ug_layout](FieldMetadata metadata) {
         return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
@@ -155,40 +155,45 @@ LagrangeFieldFactory LagrangeFieldFactory::FromUniformGrid(
   }
   default:
     throw std::invalid_argument(
-      "LagrangeFieldFactory::FromUniformGrid: only dim 2 and 3 are supported");
+      "LagrangeFunctionSpace::FromUniformGrid: only dim 2 and 3 are supported");
   }
 }
 
 std::shared_ptr<const FieldLayout>
-LagrangeFieldFactory::GetLayout() const noexcept
+LagrangeFunctionSpace::GetLayout() const noexcept
 {
   return layout_;
 }
 
-CoordinateSystem LagrangeFieldFactory::GetCoordinateSystem() const noexcept
+CoordinateSystem LagrangeFunctionSpace::GetCoordinateSystem() const noexcept
 {
   return evaluator_factory_->GetCoordinateSystem();
 }
 
 const FieldEvaluatorFactory<Real>&
-LagrangeFieldFactory::GetEvaluatorFactory() const noexcept
+LagrangeFunctionSpace::GetEvaluatorFactory() const noexcept
 {
   return *evaluator_factory_;
 }
 
-std::unique_ptr<PointEvaluator<Real>> LagrangeFieldFactory::CreatePointEvaluator(
+std::unique_ptr<PointEvaluator<Real>> LagrangeFunctionSpace::CreatePointEvaluator(
   CoordinateView<HostMemorySpace> coords,
   OutOfBoundsPolicy policy) const
 {
   if (!evaluator_factory_) {
     throw pcms_error(
-      "LagrangeFieldFactory::CreatePointEvaluator: evaluator construction is "
+      "LagrangeFunctionSpace::CreatePointEvaluator: evaluator construction is "
       "not available for this backend");
   }
   return evaluator_factory_->CreatePointEvaluator(coords, policy);
 }
 
-std::unique_ptr<FieldData<Real>> LagrangeFieldFactory::CreateFieldData(
+Field<Real> LagrangeFunctionSpace::CreateField(FieldMetadata metadata) const
+{
+  return Field<Real>(evaluator_factory_, create_field_data_fn_(metadata));
+}
+
+std::unique_ptr<FieldData<Real>> LagrangeFunctionSpace::CreateFieldData(
   FieldMetadata metadata) const
 {
   return create_field_data_fn_(metadata);

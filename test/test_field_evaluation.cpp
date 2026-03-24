@@ -29,7 +29,7 @@ TEST_CASE("evaluate linear 2d omega_h_field")
   auto lib = Omega_h::Library{};
   auto mesh = Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 0,
                                  100, 100, 0, false);
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
@@ -44,9 +44,9 @@ TEST_CASE("evaluate quadratic 2d meshfields_field")
   auto lib = Omega_h::Library{};
   auto mesh = Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 0,
                                  100, 100, 0, false);
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
-    pcms::LagrangeFieldFactory::Backend::MeshFields);
+    pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
   // Quadratic DOF holders span vertices and edge midpoints; set them inline.
   const auto nverts = mesh.nents(0);
@@ -80,8 +80,8 @@ TEST_CASE("evaluate quadratic 2d omega_h_field throws")
                                  100, 100, 0, false);
 
   REQUIRE_THROWS_AS(
-    pcms::LagrangeFieldFactory::FromMesh(
+    pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
-      pcms::LagrangeFieldFactory::Backend::OmegaH),
+      pcms::LagrangeFunctionSpace::Backend::OmegaH),
     pcms::pcms_error);
 }

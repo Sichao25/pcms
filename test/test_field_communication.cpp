@@ -9,8 +9,10 @@
 #include <redev.h>
 #include <vector>
 #include "pcms/coupler/field_communicator2.h"
+#include "pcms/coupler/coupler2.h"
 #include "pcms/field/lagrange_field_factory.h"
 #include "pcms/field/field_metadata.h"
+#include "pcms/field/simple_field_data.h"
 #include "test_support.h"
 
 namespace ts = test_support;
@@ -59,6 +61,60 @@ redev::ClassPtn setupServerPartition(Omega_h::Mesh& mesh,
   return redev::ClassPtn(MPI_COMM_WORLD, ptn.ranks, ptn.modelEnts);
 }
 
+// Test that two fields sharing a layout via AddLayout use the same
+// FieldLayoutCommunicator rather than creating separate ones.
+static void test_shared_layout(Omega_h::Library& lib, std::string_view mesh_file,
+                                std::string_view cpn_file, bool is_server)
+{
+  auto world = lib.world();
+  MPI_Comm mpi_comm = world->get_impl();
+  Omega_h::Mesh mesh(&lib);
+  Omega_h::binary::read(std::string(mesh_file).c_str(), lib.world(), &mesh);
+
+  if (is_server) {
+    auto partition = setupServerPartition(mesh, cpn_file);
+    pcms::Coupler2 cpl("shared_layout_server", mpi_comm, true,
+                       redev::Partition{partition});
+    auto* app = cpl.AddApplication("shared_layout");
+    auto factory = pcms::LagrangeFunctionSpace::FromMesh(
+      mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+    auto layout = factory.GetLayout();
+    app->AddLayout("shared", layout);
+    PCMS_ALWAYS_ASSERT(app->GetLayoutCommunicatorCount() == 1);
+    auto f1 = app->AddField("field_a",
+      std::make_unique<pcms::SimpleFieldData<pcms::Real>>(layout, pcms::FieldMetadata{}));
+    PCMS_ALWAYS_ASSERT(app->GetLayoutCommunicatorCount() == 1); // still 1 after adding field
+    auto f2 = app->AddField("field_b",
+      std::make_unique<pcms::SimpleFieldData<pcms::Real>>(layout, pcms::FieldMetadata{}));
+    PCMS_ALWAYS_ASSERT(app->GetLayoutCommunicatorCount() == 1); // still 1
+    app->ReceivePhase([&]() {
+      f1.Receive();
+      f2.Receive();
+    });
+    app->SendPhase([&]() {
+      f1.Send();
+      f2.Send();
+    });
+  } else {
+    pcms::Coupler2 cpl("shared_layout_client", mpi_comm, false, redev::Partition{});
+    auto* app = cpl.AddApplication("shared_layout");
+    auto factory = pcms::LagrangeFunctionSpace::FromMesh(
+      mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+    auto f1 = app->AddField("field_a", factory.CreateFieldData(),
+                             std::make_unique<pcms::FieldSerializer<pcms::Real>>());
+    auto f2 = app->AddField("field_b", factory.CreateFieldData(),
+                             std::make_unique<pcms::FieldSerializer<pcms::Real>>());
+    app->SendPhase([&]() {
+      f1.Send();
+      f2.Send();
+    });
+    app->ReceivePhase([&]() {
+      f1.Receive();
+      f2.Receive();
+    });
+  }
+}
+
 void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
              int order, const adios2::Params& params)
 {
@@ -66,7 +122,7 @@ void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto channel =
     rdv.CreateAdiosChannel("field2_chan1", params, redev::TransportType::BP4);
 
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, order, 1, pcms::CoordinateSystem::Cartesian);
   auto layout = factory.GetLayout();
   auto gids = layout->GetGids();
@@ -96,7 +152,7 @@ void client2(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto channel =
     rdv.CreateAdiosChannel("field2_chan2", params, redev::TransportType::BP4);
 
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, order, 1, pcms::CoordinateSystem::Cartesian);
   auto layout = factory.GetLayout();
   auto gids = layout->GetGids();
@@ -155,7 +211,7 @@ void server(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto channel2 =
     rdv.CreateAdiosChannel("field2_chan2", params, redev::TransportType::BP4);
 
-  auto factory = pcms::LagrangeFieldFactory::FromMesh(
+  auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, order, 1, pcms::CoordinateSystem::Cartesian);
   auto layout = factory.GetLayout();
   const auto n = layout->GetNumOwnedDofHolder();
@@ -188,12 +244,12 @@ int main(int argc, char** argv)
   int rank = world->rank();
   if (argc != 4) {
     std::cerr << "Usage: " << argv[0]
-              << " <clientId=-1|0|1> /path/to/omega_h/mesh"
-              << "/path/to/partitionFile.cpn\n";
+              << " <clientId=-1|0|1|2|3> /path/to/omega_h/mesh"
+              << " /path/to/partitionFile.cpn\n";
     exit(EXIT_FAILURE);
   }
   int clientId = atoi(argv[1]);
-  REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 1);
+  REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 3);
   const auto meshFile = argv[2];
   const auto classPartitionFile = argv[3];
 
@@ -207,8 +263,14 @@ int main(int argc, char** argv)
       break;
     case 0: client1(mpi_comm, mesh, "lin_field_comm", 1, params); break;
     case 1: client2(mpi_comm, mesh, "lin_field_comm", 1, params); break;
+    case 2:
+      test_shared_layout(lib, meshFile, classPartitionFile, /*is_server=*/true);
+      break;
+    case 3:
+      test_shared_layout(lib, meshFile, classPartitionFile, /*is_server=*/false);
+      break;
     default:
-      std::cerr << "Unhandled client id (should be -1,0,1)\n";
+      std::cerr << "Unhandled client id (should be -1,0,1,2,3)\n";
       exit(EXIT_FAILURE);
   }
 
