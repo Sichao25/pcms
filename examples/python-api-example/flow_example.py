@@ -53,7 +53,7 @@ def demonstrate_face_field_transfer(mesh):
     omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
         mesh, 1, 1, pcms.CoordinateSystem.Cartesian
     )
-    omega_h_field = omega_h_factory.create_field_real()
+    omega_h_field = omega_h_factory.create_field()
     omega_h_field.set_dof_holder_data(vertex_field_values)
     
     divisions = [1000, 500]
@@ -61,11 +61,12 @@ def demonstrate_face_field_transfer(mesh):
     ug_factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = ug_factory.create_field_real()
+    ug_field = ug_factory.create_field()
     
     omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
     print(f"Interpolating field from OmegaH mesh to uniform grid...")
-    pcms.interpolate_field(omega_h_field, ug_field)
+    interp = pcms.Interpolator(omega_h_factory, ug_factory)
+    interp.apply(omega_h_field, ug_field)
     
     transferred_data = ug_field.get_dof_holder_data()
     print(f"Transferred field: min={np.min(transferred_data):.6f}, max={np.max(transferred_data):.6f}, mean={np.mean(transferred_data):.6f}")

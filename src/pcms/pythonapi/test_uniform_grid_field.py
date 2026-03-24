@@ -18,19 +18,17 @@ def test_uniform_grid_field_creation():
     
     print(f"Grid cells: {grid.get_num_cells()}")  # Should be 16
     
-    # Create field layout with 1 component (scalar field)
-    layout = pcms.UniformGridFieldLayout2D(
+    # Create a function space, then inspect its layout.
+    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    
+    layout = factory.get_layout()
+
     print(f"Num components: {layout.get_num_components()}")
     print(f"Num owned DOF holders: {layout.get_num_owned_dof_holder()}")
     print(f"Num vertices: {layout.get_num_vertices()}")  # 5x5 = 25 vertices
     
     # Create field from the function space
-    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
-        grid, 1, pcms.CoordinateSystem.Cartesian
-    )
     field = factory.create_field()
     print(f"Field created: {field is not None}")
 
@@ -45,12 +43,11 @@ def test_uniform_grid_field_data_operations():
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [2, 2]  # 2x2 cells, 3x3 vertices
     
-    layout = pcms.UniformGridFieldLayout2D(
+    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
-        grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field()
+    layout = factory.get_layout()
+    ug_field = factory.create_field()
 
     # Get the number of DOF holders (vertices)
     num_vertices = layout.get_num_vertices()
@@ -79,12 +76,11 @@ def test_uniform_grid_field_mdspan_2d():
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [2, 3]  # 3x4 vertices
 
-    layout = pcms.UniformGridFieldLayout2D(
+    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
-        grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field()
+    layout = factory.get_layout()
+    ug_field = factory.create_field()
 
     num_vertices = layout.get_num_vertices()
     data = np.arange(num_vertices, dtype=np.float64)
@@ -107,12 +103,11 @@ def test_uniform_grid_field_evaluation():
     grid.edge_length = [10.0, 10.0]
     grid.divisions = [2, 2]
     
-    layout = pcms.UniformGridFieldLayout2D(
+    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
-        grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field()
+    layout = factory.get_layout()
+    ug_field = factory.create_field()
 
     # Set simple linear field data: f(x,y) = x + y
     num_vertices = layout.get_num_vertices()
@@ -168,15 +163,14 @@ def test_3d_uniform_grid():
     
     print(f"3D Grid cells: {grid.get_num_cells()}")  # Should be 8
     
-    layout = pcms.UniformGridFieldLayout3D(
+    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    
+    layout = factory.get_layout()
+
     print(f"3D Grid vertices: {layout.get_num_vertices()}")  # 3x3x3 = 27
 
-    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
-        grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field()
+    ug_field = factory.create_field()
 
     # Set and get data
     num_vertices = layout.get_num_vertices()
@@ -195,12 +189,11 @@ def test_uniform_grid_field_mdspan_3d():
     grid.edge_length = [10.0, 10.0, 10.0]
     grid.divisions = [2, 1, 3]  # 3x2x4 vertices
 
-    layout = pcms.UniformGridFieldLayout3D(
+    factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )
-    ug_field = pcms.LagrangeFunctionSpace.from_uniform_grid(
-        grid, 1, pcms.CoordinateSystem.Cartesian
-    ).create_field()
+    layout = factory.get_layout()
+    ug_field = factory.create_field()
 
     num_vertices = layout.get_num_vertices()
     data = np.arange(num_vertices, dtype=np.float64)
