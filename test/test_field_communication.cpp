@@ -81,11 +81,9 @@ static void test_shared_layout(Omega_h::Library& lib, std::string_view mesh_file
     auto layout = factory.GetLayout();
     app->AddLayout("shared", layout);
     PCMS_ALWAYS_ASSERT(app->GetLayoutCommunicatorCount() == 1);
-    auto f1 = app->AddField("field_a",
-      std::make_unique<pcms::SimpleFieldData<pcms::Real>>(layout, pcms::FieldMetadata{}));
+    auto f1 = app->AddField("field_a", factory.CreateField());
     PCMS_ALWAYS_ASSERT(app->GetLayoutCommunicatorCount() == 1); // still 1 after adding field
-    auto f2 = app->AddField("field_b",
-      std::make_unique<pcms::SimpleFieldData<pcms::Real>>(layout, pcms::FieldMetadata{}));
+    auto f2 = app->AddField("field_b", factory.CreateField());
     PCMS_ALWAYS_ASSERT(app->GetLayoutCommunicatorCount() == 1); // still 1
     app->ReceivePhase([&]() {
       f1.Receive();
@@ -102,10 +100,8 @@ static void test_shared_layout(Omega_h::Library& lib, std::string_view mesh_file
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
     auto layout = factory.GetLayout();
     app->AddLayout("shared", layout);
-    auto f1 = app->AddField("field_a", factory.CreateFieldData(),
-                             std::make_unique<pcms::FieldSerializer<pcms::Real>>());
-    auto f2 = app->AddField("field_b", factory.CreateFieldData(),
-                             std::make_unique<pcms::FieldSerializer<pcms::Real>>());
+    auto f1 = app->AddField("field_a", factory.CreateField());
+    auto f2 = app->AddField("field_b", factory.CreateField());
     app->SendPhase([&]() {
       f1.Send();
       f2.Send();

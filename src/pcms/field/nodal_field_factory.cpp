@@ -43,7 +43,7 @@ CoordinateSystem NodalFunctionSpace::GetCoordinateSystem() const noexcept
 }
 
 const FieldEvaluatorFactory<Real>&
-NodalFunctionSpace::GetEvaluatorFactory() const noexcept
+NodalFunctionSpace::GetEvaluatorFactory() const
 {
   return *evaluator_factory_;
 }

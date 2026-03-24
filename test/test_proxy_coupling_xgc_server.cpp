@@ -1,17 +1,15 @@
 #include <iostream>
-#include <lagrange_field_factory.h>
 #include <pcms.h>
 #include <pcms/utility/types.h>
 #include <Omega_h_file.hpp>
 #include <Omega_h_for.hpp>
 #include "test_support.h"
-#include "pcms/coupler/adapter/xgc/xgc_field_data.h"
+#include "pcms/coupler/adapter/xgc/xgc_function_space.h"
 #include "pcms/coupler/adapter/xgc/xgc_field_layout.h"
 #include "pcms/coupler/adapter/xgc/xgc_field_serializer.h"
 #include "pcms/coupler/coupler2.h"
-#include "pcms/field/adapter/omega_h/omega_h_lagrange_layout.h"
 #include "pcms/field/field_metadata.h"
-#include "pcms/field/simple_field_data.h"
+#include "pcms/field/lagrange_field_factory.h"
 
 using pcms::ConstructRCFromOmegaHMesh;
 using pcms::GO;
@@ -51,12 +49,11 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     // FIXME: The current C/Fortran proxy API couples layout registration to
     // field registration, so each XGC plane is registered as a separate layout
     // communicator even though the layouts are geometrically identical.
-    auto layout = std::make_shared<pcms::XGCFieldLayout>(
+    auto function_space = pcms::XGCFunctionSpace(
       rc, ts::IsModelEntInOverlap{}, static_cast<pcms::LO>(mesh.nverts()));
-    application->AddLayout(ss.str(), layout);
-    std::unique_ptr<pcms::FieldData<GO>> field =
-      std::make_unique<pcms::XGCFieldData<GO>>(
-        layout, pcms::FieldMetadata{}, make_array_view(data[i]));
+    auto field =
+      function_space.CreateField(make_array_view(data[i]), pcms::FieldMetadata{});
+    application->AddLayout(ss.str(), function_space.GetLayout());
     std::unique_ptr<pcms::FieldSerializer<GO>> serializer =
       std::make_unique<pcms::XGCFieldSerializer<GO>>(comm);
     fields.push_back(application->AddField(
@@ -118,11 +115,10 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
     // communicator even though the layouts are geometrically identical.
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian, numbering);
-    auto layout = factory.GetLayout();
-    application->AddLayout(ss.str(), layout);
-    std::unique_ptr<pcms::FieldData<GO>> field =
-      std::make_unique<pcms::SimpleFieldData<GO>>(layout,
-                                                  pcms::FieldMetadata{});
+    application->AddLayout(ss.str(), factory.GetLayout());
+    auto field = pcms::Field<GO>(
+      nullptr, std::make_unique<pcms::SimpleFieldData<GO>>(
+                 factory.GetLayout(), pcms::FieldMetadata{}));
     std::unique_ptr<pcms::FieldSerializer<GO>> serializer =
       std::make_unique<pcms::FieldSerializer<GO>>();
     fields.push_back(application->AddField(

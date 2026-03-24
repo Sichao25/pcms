@@ -60,32 +60,4 @@ const FieldLayout& Application2::AddLayout(
   return layout_ref;
 }
 
-FieldHandle Application2::AddField(std::string name, OwnedFieldDataPtr field,
-                                   bool participates)
-{
-  PCMS_FUNCTION_TIMER;
-  (void)participates;
-
-  fields_.push_back(std::move(field));
-
-  FieldCommunicator2Ptr field_communicator = std::visit(
-    [this, &name](auto& field_data_ptr) -> FieldCommunicator2Ptr {
-      using T =
-        typename std::remove_reference_t<decltype(*field_data_ptr)>::value_type;
-      FieldLayoutCommunicator& layout_communicator =
-        GetLayoutCommunicator(field_data_ptr->GetLayout());
-      return std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
-                                                     *field_data_ptr);
-    },
-    fields_.back());
-
-  auto [it, inserted] =
-    field_communicators_.emplace(name, std::move(field_communicator));
-
-  if (!inserted) {
-    throw pcms_error("Field with this name already exists");
-  }
-  return FieldHandle{this, std::move(name)};
-}
-
 } // namespace pcms

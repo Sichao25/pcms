@@ -57,7 +57,7 @@ public:
 
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
-  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const noexcept override;
+  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override;
 
   // Delegates PointEvaluator construction to the internal factory.
   [[nodiscard]] std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(

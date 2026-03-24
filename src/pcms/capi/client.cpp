@@ -1,6 +1,6 @@
 #include "client.h"
 #include "pcms.h"
-#include "pcms/coupler/adapter/xgc/xgc_field_data.h"
+#include "pcms/coupler/adapter/xgc/xgc_function_space.h"
 #include "pcms/coupler/adapter/xgc/xgc_field_layout.h"
 #include "pcms/coupler/adapter/xgc/xgc_field_serializer.h"
 #include "pcms/coupler/adapter/xgc/xgc_reverse_classification.h"
@@ -19,7 +19,7 @@ namespace pcms
 template <typename T>
 struct XGCFieldRegistration
 {
-  std::shared_ptr<const XGCFieldLayout> layout;
+  XGCFunctionSpace function_space;
   MPI_Comm plane_comm;
   Rank1View<T, HostMemorySpace> data;
 };
@@ -51,9 +51,9 @@ FieldHandle RegisterField(Application2& app, std::string name,
                           const XGCFieldRegistration<T>& registration,
                           bool participates)
 {
-  app.AddLayout(name, registration.layout, participates);
-  std::unique_ptr<FieldData<T>> field = std::make_unique<XGCFieldData<T>>(
-    registration.layout, FieldMetadata{}, registration.data);
+  auto field =
+    registration.function_space.CreateField(registration.data, FieldMetadata{});
+  app.AddLayout(name, registration.function_space.GetLayout(), participates);
   std::unique_ptr<FieldSerializer<T>> serializer =
     std::make_unique<XGCFieldSerializer<T>>(registration.plane_comm,
                                             participates);
@@ -67,8 +67,8 @@ inline FieldHandle RegisterField(Application2& app, std::string name,
 {
   auto layout = std::make_shared<EmptyFieldLayout>();
   app.AddLayout(name, layout, participates);
-  std::unique_ptr<FieldData<int>> field =
-    std::make_unique<SimpleFieldData<int>>(layout, FieldMetadata{});
+  auto field = Field<int>(
+    nullptr, std::make_unique<SimpleFieldData<int>>(layout, FieldMetadata{}));
   std::unique_ptr<FieldSerializer<int>> serializer =
     std::make_unique<FieldSerializer<int>>();
   return app.AddField(std::move(name), std::move(field), std::move(serializer),
@@ -168,11 +168,12 @@ void pcms_create_xgc_field_adapter_t(
   in_overlap_function in_overlap, pcms::FieldAdapterVariant& field_adapter)
 {
   PCMS_ALWAYS_ASSERT((size > 0) ? (data != nullptr) : true);
-  auto layout = std::make_shared<pcms::XGCFieldLayout>(reverse_classification,
-                                                       in_overlap, size);
+  auto function_space =
+    pcms::XGCFunctionSpace(reverse_classification, in_overlap, size);
   pcms::Rank1View<T, pcms::HostMemorySpace> data_view(
     reinterpret_cast<T*>(data), size);
-  field_adapter.emplace<pcms::XGCFieldRegistration<T>>(layout, comm, data_view);
+  field_adapter.emplace<pcms::XGCFieldRegistration<T>>(
+    std::move(function_space), comm, data_view);
 }
 
 PcmsFieldAdapterHandle pcms_create_xgc_field_adapter(

@@ -6,7 +6,7 @@
 #include "pcms/coupler/coupler2.h"
 #include "pcms/coupler/field_serializer.h"
 #include "pcms/field/adapter/omega_h/omega_h_lagrange_layout.h"
-#include "pcms/field/field_data.h"
+#include "pcms/field/field.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/field/simple_field_data.h"
 #include "pcms/transfer/transfer_field2.h"
@@ -48,10 +48,10 @@ static RegisteredField AddField(
 {
   PCMS_ALWAYS_ASSERT(application != nullptr);
   auto field_name = MakeFieldName(name, plane);
-  std::unique_ptr<pcms::FieldData<pcms::Real>> field =
-    std::make_unique<pcms::SimpleFieldData<pcms::Real>>(layout,
-                                                        pcms::FieldMetadata{});
-  auto* field_ptr = field.get();
+  auto field = pcms::Field<pcms::Real>(
+    nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
+               layout, pcms::FieldMetadata{}));
+  auto* field_ptr = &field.GetData();
   std::unique_ptr<pcms::FieldSerializer<pcms::Real>> serializer =
     std::make_unique<pcms::FieldSerializer<pcms::Real>>();
   auto handle = application->AddField(path + field_name, std::move(field),

@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include "pcms/coupler/adapter/xgc/xgc_field_data.h"
+#include "pcms/coupler/adapter/xgc/xgc_function_space.h"
 #include "pcms/coupler/adapter/xgc/xgc_field_serializer.h"
 #include <algorithm>
 #include <numeric>
@@ -100,4 +101,20 @@ TEST_CASE("XGC FieldData serializer preserves inactive entries")
       REQUIRE(after[i] == Catch::Approx(original[i]));
     }
   }
+}
+
+TEST_CASE("XGCFunctionSpace creates fields and rejects evaluator access")
+{
+  static constexpr int data_size = 16;
+  auto rc = create_dummy_rc(data_size);
+  pcms::XGCFunctionSpace function_space(rc, in_overlap, data_size);
+
+  std::vector<pcms::Real> data(data_size);
+  std::iota(data.begin(), data.end(), 0.0);
+  auto field =
+    function_space.CreateField(pcms::make_array_view(data), pcms::FieldMetadata{});
+
+  REQUIRE(&field.GetLayout() == function_space.GetLayout().get());
+  REQUIRE(function_space.GetCoordinateSystem() == pcms::CoordinateSystem::XGC);
+  REQUIRE_THROWS_AS(function_space.GetEvaluatorFactory(), pcms::pcms_error);
 }

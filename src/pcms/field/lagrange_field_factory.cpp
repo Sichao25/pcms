@@ -171,7 +171,7 @@ CoordinateSystem LagrangeFunctionSpace::GetCoordinateSystem() const noexcept
 }
 
 const FieldEvaluatorFactory<Real>&
-LagrangeFunctionSpace::GetEvaluatorFactory() const noexcept
+LagrangeFunctionSpace::GetEvaluatorFactory() const
 {
   return *evaluator_factory_;
 }

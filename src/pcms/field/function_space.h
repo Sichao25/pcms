@@ -25,7 +25,7 @@ public:
   GetLayout() const noexcept = 0;
 
   virtual const FieldEvaluatorFactory<Real>&
-  GetEvaluatorFactory() const noexcept = 0;
+  GetEvaluatorFactory() const = 0;
 
   virtual CoordinateSystem GetCoordinateSystem() const noexcept = 0;
 

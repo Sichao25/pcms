@@ -2,7 +2,7 @@
 #define COUPLER2_H_
 
 #include "pcms/coupler/coupler_types.h"
-#include "pcms/field/field_data.h"
+#include "pcms/field/field.h"
 #include "pcms/field/field_layout.h"
 #include "field_layout_communicator.h"
 #include "field_communicator2.h"
@@ -55,13 +55,12 @@ public:
                                std::unique_ptr<FieldExchangePlanner> planner,
                                bool participates = true);
 
-  // FIXME should take a file path for the parameters, not take adios2 params.
-  // These fields are supposed to be agnostic to adios2...
-  FieldHandle AddField(std::string name, OwnedFieldDataPtr field,
+  template <typename T>
+  FieldHandle AddField(std::string name, Field<T>&& field,
                        bool participates = true);
 
   template <typename T>
-  FieldHandle AddField(std::string name, std::unique_ptr<FieldData<T>> field,
+  FieldHandle AddField(std::string name, Field<T>&& field,
                        std::unique_ptr<FieldSerializer<T>> serializer,
                        bool participates = true);
 
@@ -141,7 +140,7 @@ private:
   redev::Redev& redev_;
   redev::Channel channel_;
   std::vector<std::shared_ptr<const FieldLayout>> layouts_;
-  std::vector<OwnedFieldDataPtr> fields_;
+  std::vector<OwnedField> fields_;
   std::vector<std::unique_ptr<FieldLayoutCommunicator>>
     owned_field_layout_communicators_;
   // map is used rather than unordered_map because we give pointers to the
@@ -205,19 +204,29 @@ private:
 } // namespace pcms
 
 template <typename T>
+pcms::FieldHandle pcms::Application2::AddField(std::string name,
+                                               Field<T>&& field,
+                                               bool participates)
+{
+  return AddField(std::move(name), std::move(field),
+                  std::make_unique<FieldSerializer<T>>(), participates);
+}
+
+template <typename T>
 pcms::FieldHandle pcms::Application2::AddField(
-  std::string name, std::unique_ptr<FieldData<T>> field,
+  std::string name, Field<T>&& field,
   std::unique_ptr<FieldSerializer<T>> serializer, bool participates)
 {
   PCMS_FUNCTION_TIMER;
   (void)participates;
   fields_.push_back(std::move(field));
-  auto& field_data_ptr = std::get<std::unique_ptr<FieldData<T>>>(fields_.back());
-  const FieldLayout& layout = field_data_ptr->GetLayout();
+  auto& field_obj = std::get<Field<T>>(fields_.back());
+  FieldData<T>& field_data = field_obj.GetData();
+  const FieldLayout& layout = field_data.GetLayout();
   FieldLayoutCommunicator& layout_communicator = GetLayoutCommunicator(layout);
   FieldCommunicator2Ptr field_communicator =
     std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
-                                            *field_data_ptr,
+                                            field_data,
                                             std::move(serializer));
 
   auto [it, inserted] = field_communicators_.emplace(name,
