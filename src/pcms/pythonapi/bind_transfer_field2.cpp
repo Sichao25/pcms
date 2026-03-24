@@ -2,8 +2,8 @@
 #include <pybind11/stl.h>
 #include "pcms/transfer/copy.h"
 #include "pcms/field/field.h"
+#include "pcms/field/function_space.h"
 #include "../transfer/interpolator.h"
-#include "pcms/field/lagrange_field_factory.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/utility/types.h"
 
@@ -18,8 +18,8 @@ void bind_transfer_field2_module(py::module& m)
   // pair (localization happens at construction), then call apply() repeatedly
   // for different field states at zero additional localization cost.
   py::class_<Interpolator<Real>>(m, "Interpolator")
-    .def(py::init([](const LagrangeFunctionSpace& source_space,
-                     const LagrangeFunctionSpace& target_space,
+    .def(py::init([](const FunctionSpace& source_space,
+                     const FunctionSpace& target_space,
                      OutOfBoundsPolicy policy) {
            return Interpolator<Real>(source_space, target_space, policy);
          }),
@@ -35,8 +35,8 @@ void bind_transfer_field2_module(py::module& m)
       "Interpolate source field to target DOF locations (cheap; reuses cached localization).");
 
   py::class_<Copy<Real>>(m, "Copy")
-    .def(py::init([](const LagrangeFunctionSpace& source_space,
-                     const LagrangeFunctionSpace& target_space) {
+    .def(py::init([](const FunctionSpace& source_space,
+                     const FunctionSpace& target_space) {
            return Copy<Real>(source_space, target_space);
          }),
          py::arg("source_space"), py::arg("target_space"),

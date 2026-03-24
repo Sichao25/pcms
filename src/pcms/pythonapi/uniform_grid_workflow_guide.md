@@ -133,7 +133,8 @@ mask_value = mask_data[vertex_id]  # Returns 0.0 or 1.0
 #### Option A: Create Field Programmatically
 
 ```python
-# Create field factory with linear (order=1) elements and 1 component (scalar)
+# Create a concrete FunctionSpace with linear (order=1) elements and
+# 1 component (scalar)
 omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
     mesh, 
     1,
@@ -190,7 +191,7 @@ omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
 Set up the data structure for storing field values on the uniform grid vertices.
 
 ```python
-# Create uniform grid field factory
+# Create a uniform-grid FunctionSpace
 ug_factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
     grid, 
     1,                                      # Number of components
@@ -206,7 +207,7 @@ ug_field = ug_factory.create_field()
 Interpolate field values from the unstructured mesh to the structured uniform grid vertices.
 
 ```python
-# Transfer field from Omega_h mesh to uniform grid
+# Transfer field from Omega_h mesh to uniform grid using two FunctionSpaces
 interp = pcms.Interpolator(omega_h_factory, ug_factory)
 interp.apply(omega_h_field, ug_field)
 ```
@@ -253,11 +254,12 @@ np.save('field_data.npy', grid_values)
 - `create_uniform_grid_binary_field(mesh, divisions)` - Create inside/outside mask
 
 ### Field Factories
-- `LagrangeFunctionSpace.from_mesh(mesh, order, num_components, coord_system)` - Omega_h-backed Lagrange field factory
-- `LagrangeFunctionSpace.from_uniform_grid(grid, num_components, coord_system, order=1)` - Uniform-grid field factory
+- `FunctionSpace` - abstract base class for field spaces in the Python API
+- `LagrangeFunctionSpace.from_mesh(mesh, order, num_components, coord_system)` - create an Omega_h-backed FunctionSpace
+- `LagrangeFunctionSpace.from_uniform_grid(grid, num_components, coord_system, order=1)` - create a uniform-grid-backed FunctionSpace
 
 ### Field Operations
-- `factory.create_field()` - Create a real-valued field
+- `space.create_field()` - Create a real-valued field from a concrete FunctionSpace
 - `field.get_num_dof_holders()` - Number of owned DOF holders (nodes/elements)
 - `field.get_num_components()` - Number of field components per DOF holder
 - `field.get_dof_holder_coordinates()` - DOF holder coordinates as a 2D numpy array
@@ -265,8 +267,9 @@ np.save('field_data.npy', grid_values)
 - `field.get_dof_holder_data()` - Get field values
 - `field.to_mdspan()` - Get field values as a structured array
 - `field.set_out_of_bounds_mode(mode, fill_value=0.0)` - Set behavior for points outside mesh
-- `Interpolator(source_space, target_space)` - Create an interpolator (cached localization)
+- `Interpolator(source_space, target_space)` - Create an interpolator between FunctionSpaces (cached localization)
 - `interpolator.apply(source_field, target_field)` - Interpolate between fields
+- `Copy(source_space, target_space)` - Create a copy operator for compatible FunctionSpaces
 - `map_entity_field_to_vertices_average(mesh, field_data, entity_dim)` - Convert element/face field to vertex field by averaging
 
 ### Out-of-Bounds Modes

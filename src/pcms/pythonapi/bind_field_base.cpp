@@ -4,10 +4,10 @@
 #include "pcms/field/coordinate_system.h"
 #include "pcms/field/coordinate.h"
 #include "pcms/field/field.h"
-#include "pcms/field/field_data.h"
 #include "pcms/field/field_evaluator_factory.h"
 #include "pcms/field/field_layout.h"
 #include "pcms/field/field_metadata.h"
+#include "pcms/field/function_space.h"
 #include "pcms/field/simple_field_data.h"
 #include "pcms/field/adapter/uniform_grid/uniform_grid_field_layout.h"
 #include "pcms/field/adapter/uniform_grid/uniform_grid_binary_field.h"
@@ -145,49 +145,9 @@ void bind_create_field_module(py::module& m)
     .def("get_num_components", &FieldLayout::GetNumComponents,
          "Number of field components per DOF holder");
 
-  // Bind FieldData<Real> abstract base (use shared_ptr holder so Python can
-  // hold references returned by factories and field operations)
-  py::class_<FieldData<Real>, std::shared_ptr<FieldData<Real>>>(m, "FieldData")
-    .def(
-      "get_dof_holder_data",
-      [](const FieldData<Real>& self) {
-        auto data = self.GetDOFHolderDataHost();
-        py::array_t<Real> result(static_cast<py::ssize_t>(data.size()));
-        auto buf = result.request();
-        Real* ptr = static_cast<Real*>(buf.ptr);
-        for (size_t i = 0; i < data.size(); ++i)
-          ptr[i] = data[i];
-        return result;
-      },
-      "Get the DOF holder data as a 1D numpy array")
-
-    .def(
-      "set_dof_holder_data",
-      [](FieldData<Real>& self, py::array_t<const Real> data) {
-        auto buf = data.request();
-        if (buf.ndim != 1) {
-          throw std::runtime_error("DOF holder data must be a 1D array");
-        }
-        Rank1View<const Real, HostMemorySpace> view(
-          static_cast<const Real*>(buf.ptr),
-          static_cast<size_t>(buf.shape[0]));
-        self.SetDOFHolderDataHost(view);
-      },
-      py::arg("data"), "Set the DOF holder data from a 1D numpy array")
-
-    .def(
-      "get_layout",
-      [](const FieldData<Real>& self) -> std::shared_ptr<FieldLayout> {
-        // Return a non-owning shared_ptr; lifetime is managed by the FieldData.
-        return std::shared_ptr<FieldLayout>(
-          const_cast<FieldLayout*>(&self.GetLayout()),
-          [](FieldLayout*) {});
-      },
-      py::keep_alive<0, 1>(), "Get the field layout");
-
   // Bind Field<Real>: composed per-field object returned by
-  // LagrangeFunctionSpace::create_field(). Move-only in C++; Python holds it
-  // by value in a heap-allocated wrapper.
+  // FunctionSpace-backed factories' create_field(). Move-only in C++; Python
+  // holds it by value in a heap-allocated wrapper.
   py::class_<Field<Real>>(m, "Field")
     .def(
       "get_dof_holder_data",
@@ -246,8 +206,27 @@ void bind_create_field_module(py::module& m)
       },
       "DOF holder coordinates as a 2D numpy array (num_dof_holders × dim)");
 
+  py::class_<FunctionSpace>(m, "FunctionSpace")
+    .def(
+      "get_layout",
+      [](const FunctionSpace& self) -> std::shared_ptr<FieldLayout> {
+        return std::const_pointer_cast<FieldLayout>(self.GetLayout());
+      },
+      "Get the field layout")
+
+    .def(
+      "get_evaluator_factory",
+      [](const FunctionSpace& self) -> const FieldEvaluatorFactory<Real>& {
+        return self.GetEvaluatorFactory();
+      },
+      py::return_value_policy::reference_internal,
+      "Get the FieldEvaluatorFactory for this function space")
+
+    .def("get_coordinate_system", &FunctionSpace::GetCoordinateSystem,
+         "Get the coordinate system for this function space");
+
   // Bind LagrangeFunctionSpace
-  py::class_<LagrangeFunctionSpace>(m, "LagrangeFunctionSpace")
+  py::class_<LagrangeFunctionSpace, FunctionSpace>(m, "LagrangeFunctionSpace")
     .def_static(
       "from_mesh",
       [](Omega_h::Mesh& mesh, int order, int num_components,
@@ -296,33 +275,9 @@ void bind_create_field_module(py::module& m)
       "Create a LagrangeFunctionSpace from a 3D uniform grid")
 
     .def(
-      "get_layout",
-      [](const LagrangeFunctionSpace& self) -> std::shared_ptr<FieldLayout> {
-        return std::const_pointer_cast<FieldLayout>(self.GetLayout());
-      },
-      "Get the field layout")
-
-    .def(
-      "get_evaluator_factory",
-      [](const LagrangeFunctionSpace& self) -> const FieldEvaluatorFactory<Real>& {
-        return self.GetEvaluatorFactory();
-      },
-      py::return_value_policy::reference_internal,
-      "Get the FieldEvaluatorFactory for this layout")
-
-    .def(
       "create_field",
-      [](const LagrangeFunctionSpace& self) {
-        return self.CreateField();
-      },
-      "Create a Field<Real> for this function space (preferred)")
-
-    .def(
-      "create_field_data",
-      [](const LagrangeFunctionSpace& self) -> std::shared_ptr<FieldData<Real>> {
-        return self.CreateFieldData();
-      },
-      "Create a raw FieldData (use create_field() in new code)");
+      [](const LagrangeFunctionSpace& self) { return self.CreateField(); },
+      "Create a Field<Real> for this function space");
 
   // Bind CreateUniformGridFromMesh for 2D
   m.def(
@@ -344,13 +299,11 @@ void bind_create_field_module(py::module& m)
 
   m.def(
     "create_uniform_grid_binary_field",
-    [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions)
-      -> py::tuple {
+    [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions) -> py::tuple {
       auto [layout, field] =
         CreateUniformGridBinaryField<2>(mesh, divisions);
-      // Upcast SimpleFieldData to FieldData so Python sees the bound base type
-      std::shared_ptr<FieldData<Real>> field_ptr = std::move(field);
-      return py::make_tuple(layout, field_ptr);
+      auto mask_field = Field<Real>(nullptr, std::move(field));
+      return py::make_tuple(layout, std::move(mask_field));
     },
     py::arg("mesh"), py::arg("divisions"),
     "Create a 2D vertex mask field indicating inside/outside mesh");

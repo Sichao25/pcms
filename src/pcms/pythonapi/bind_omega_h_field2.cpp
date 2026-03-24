@@ -51,8 +51,8 @@ void bind_omega_h_field2(py::module& m)
     "Create a CoordinateView from a 2D numpy array");
 
   // NOTE: MeshFieldsAdapter2<Real> and FieldT<Real> have been removed from
-  // the C++ API. Fields are now represented as FieldData<Real> (bound in
-  // bind_field_base.cpp) and created via LagrangeFunctionSpace::create_field_data().
+  // the C++ API. Python now works with Field<Real> objects created from
+  // FunctionSpace-derived factories such as LagrangeFunctionSpace.
 }
 
 } // namespace pcms

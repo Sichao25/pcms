@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test OmegaHFieldLayout Python bindings
+Test Omega_h-backed FunctionSpace and Field Python bindings.
 """
 
 import pcms
@@ -23,7 +23,7 @@ def test_layout_methods(world, dim, order, num_components):
         False
     )
 
-    # Create factory and layout
+    # Create function space and layout
     factory = pcms.LagrangeFunctionSpace.from_mesh(
         mesh, order, num_components, pcms.CoordinateSystem.Cartesian
     )
@@ -84,7 +84,7 @@ def test_layout_methods(world, dim, order, num_components):
     assert owned_size == num_owned * num_components
     assert global_size == num_global * num_components
 
-    # Create a field from the factory
+    # Create a field from the function space
     field = factory.create_field()
     print(f"  Created field: {type(field)}")
 

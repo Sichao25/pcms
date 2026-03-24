@@ -1,8 +1,8 @@
 """
 Example test file for uniform grid field Python bindings.
 
-This demonstrates how to use the UniformGridField and UniformGridFieldLayout
-classes in Python, similar to how OmegaHField is used.
+This demonstrates the Python field workflow using FunctionSpace-derived
+factories, Field objects, and transfer operations on uniform grids.
 """
 import numpy as np
 import pcms
@@ -27,7 +27,7 @@ def test_uniform_grid_field_creation():
     print(f"Num owned DOF holders: {layout.get_num_owned_dof_holder()}")
     print(f"Num vertices: {layout.get_num_vertices()}")  # 5x5 = 25 vertices
     
-    # Create field
+    # Create field from the function space
     factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
         grid, 1, pcms.CoordinateSystem.Cartesian
     )

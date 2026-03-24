@@ -47,7 +47,8 @@ PYBIND11_MODULE(pcms, m)
   pcms::bind_field_module(m);
   pcms::bind_omega_h_field_layout_module(m);
   pcms::bind_uniform_grid_field_layout_module(m);
-  // bind_create_field_module registers LagrangeFunctionSpace and FieldData<Real>
+  // bind_create_field_module registers FunctionSpace,
+  // LagrangeFunctionSpace, and Field<Real>.
   pcms::bind_create_field_module(m);
 
   // Bind OutOfBoundsPolicy and helpers (bind_omega_h_field2 is now a minimal
@@ -57,7 +58,7 @@ PYBIND11_MODULE(pcms, m)
   // been removed; use LagrangeFunctionSpace::from_uniform_grid instead.
   pcms::bind_uniform_grid_field_module(m);
 
-  // Bind field operations and Interpolator
+  // Bind field operations such as Interpolator and Copy.
   pcms::bind_transfer_field2_module(m);
 
   // Bind interpolator operations
