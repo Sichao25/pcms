@@ -222,6 +222,8 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
     });
   auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian, is_overlap, numbering);
+  core->AddLayout("core_layout", layout);
+  edge->AddLayout("edge_layout", layout);
   auto time2 = std::chrono::steady_clock::now();
   elapsed_seconds = time2 - time1;
   ts::timeMinMaxAvg(elapsed_seconds.count(), min, max, avg);

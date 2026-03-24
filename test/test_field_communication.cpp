@@ -100,6 +100,8 @@ static void test_shared_layout(Omega_h::Library& lib, std::string_view mesh_file
     auto* app = cpl.AddApplication("shared_layout");
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+    auto layout = factory.GetLayout();
+    app->AddLayout("shared", layout);
     auto f1 = app->AddField("field_a", factory.CreateFieldData(),
                              std::make_unique<pcms::FieldSerializer<pcms::Real>>());
     auto f2 = app->AddField("field_b", factory.CreateFieldData(),

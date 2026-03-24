@@ -51,6 +51,7 @@ FieldHandle RegisterField(Application2& app, std::string name,
                           const XGCFieldRegistration<T>& registration,
                           bool participates)
 {
+  app.AddLayout(name, registration.layout, participates);
   std::unique_ptr<FieldData<T>> field = std::make_unique<XGCFieldData<T>>(
     registration.layout, FieldMetadata{}, registration.data);
   std::unique_ptr<FieldSerializer<T>> serializer =
@@ -65,6 +66,7 @@ inline FieldHandle RegisterField(Application2& app, std::string name,
                                  bool participates)
 {
   auto layout = std::make_shared<EmptyFieldLayout>();
+  app.AddLayout(name, layout, participates);
   std::unique_ptr<FieldData<int>> field =
     std::make_unique<SimpleFieldData<int>>(layout, FieldMetadata{});
   std::unique_ptr<FieldSerializer<int>> serializer =

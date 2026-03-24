@@ -48,10 +48,12 @@ public:
   }
 
   const FieldLayout& AddLayout(std::string name,
-                               std::shared_ptr<const FieldLayout> layout);
+                               std::shared_ptr<const FieldLayout> layout,
+                               bool participates = true);
   const FieldLayout& AddLayout(std::string name,
                                std::shared_ptr<const FieldLayout> layout,
-                               std::unique_ptr<FieldExchangePlanner> planner);
+                               std::unique_ptr<FieldExchangePlanner> planner,
+                               bool participates = true);
 
   // FIXME should take a file path for the parameters, not take adios2 params.
   // These fields are supposed to be agnostic to adios2...
@@ -208,32 +210,18 @@ pcms::FieldHandle pcms::Application2::AddField(
   std::unique_ptr<FieldSerializer<T>> serializer, bool participates)
 {
   PCMS_FUNCTION_TIMER;
-  MPI_Comm mpi_comm_subset = MPI_COMM_NULL;
-  if (mpi_comm_ != MPI_COMM_NULL) {
-    int rank = -1;
-    MPI_Comm_rank(mpi_comm_, &rank);
-    MPI_Comm_split(mpi_comm_, participates ? 0 : MPI_UNDEFINED, rank,
-                   &mpi_comm_subset);
-  }
+  (void)participates;
   fields_.push_back(std::move(field));
   auto& field_data_ptr = std::get<std::unique_ptr<FieldData<T>>>(fields_.back());
   const FieldLayout& layout = field_data_ptr->GetLayout();
-
-  if (field_layout_communicators_.find(&layout) ==
-      field_layout_communicators_.end()) {
-    auto lc = std::make_unique<FieldLayoutCommunicator>(
-      name, mpi_comm_subset, redev_, channel_, layout,
-      std::make_unique<GenericFieldExchangePlanner>(), true);
-    field_layout_communicators_.emplace(&layout, std::move(lc));
-  }
   FieldLayoutCommunicator& layout_communicator = GetLayoutCommunicator(layout);
   FieldCommunicator2Ptr field_communicator =
     std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
                                             *field_data_ptr,
                                             std::move(serializer));
 
-  auto [it, inserted] =
-    field_communicators_.insert_or_assign(name, std::move(field_communicator));
+  auto [it, inserted] = field_communicators_.emplace(name,
+                                                     std::move(field_communicator));
   if (!inserted) {
     throw pcms_error("Field with this name already exists");
   }

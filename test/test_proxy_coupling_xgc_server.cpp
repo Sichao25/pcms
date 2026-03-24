@@ -1,4 +1,5 @@
 #include <iostream>
+#include <lagrange_field_factory.h>
 #include <pcms.h>
 #include <pcms/utility/types.h>
 #include <Omega_h_file.hpp>
@@ -39,8 +40,6 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     ts::markServerOverlapRegion(mesh, partition, ts::IsModelEntInOverlap{});
   (void)is_overlap;
   auto* application = cpl.AddApplication("proxy_couple");
-  auto layout = std::make_shared<pcms::XGCFieldLayout>(
-    rc, ts::IsModelEntInOverlap{}, static_cast<pcms::LO>(mesh.nverts()));
 
   constexpr int nplanes = 2;
   std::array<std::vector<GO>, nplanes> data;
@@ -49,6 +48,12 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     data[i].resize(mesh.nverts());
     std::stringstream ss;
     ss << "xgc_gids_plane_" << i;
+    // FIXME: The current C/Fortran proxy API couples layout registration to
+    // field registration, so each XGC plane is registered as a separate layout
+    // communicator even though the layouts are geometrically identical.
+    auto layout = std::make_shared<pcms::XGCFieldLayout>(
+      rc, ts::IsModelEntInOverlap{}, static_cast<pcms::LO>(mesh.nverts()));
+    application->AddLayout(ss.str(), layout);
     std::unique_ptr<pcms::FieldData<GO>> field =
       std::make_unique<pcms::XGCFieldData<GO>>(
         layout, pcms::FieldMetadata{}, make_array_view(data[i]));
@@ -103,13 +108,18 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
 
   auto is_overlap =
     ts::markServerOverlapRegion(mesh, partition, ts::IsModelEntInOverlap{});
-  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, is_overlap, numbering);
   constexpr int nplanes = 2;
   std::vector<pcms::FieldHandle> fields;
   for (int i = 0; i < nplanes; ++i) {
     std::stringstream ss;
     ss << "xgc_gids_plane_" << i;
+    // FIXME: The current C/Fortran proxy API couples layout registration to
+    // field registration, so each XGC plane is registered as a separate layout
+    // communicator even though the layouts are geometrically identical.
+    auto factory = pcms::LagrangeFunctionSpace::FromMesh(
+      mesh, 1, 1, pcms::CoordinateSystem::Cartesian, numbering);
+    auto layout = factory.GetLayout();
+    application->AddLayout(ss.str(), layout);
     std::unique_ptr<pcms::FieldData<GO>> field =
       std::make_unique<pcms::SimpleFieldData<GO>>(layout,
                                                   pcms::FieldMetadata{});
