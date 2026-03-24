@@ -1,6 +1,8 @@
 #ifndef PCMS_TRANSFER_FIELD2_H_
 #define PCMS_TRANSFER_FIELD2_H_
+#include "pcms/field/field.h"
 #include "pcms/field/field_data.h"
+#include "pcms/field/function_space.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/profile.h"
 
@@ -29,6 +31,28 @@ void CheckCopyCompatible(const FieldData<T>& source, const FieldData<T>& target)
 }
 
 } // namespace detail
+
+template <typename T>
+class Copy
+{
+public:
+  Copy(const FunctionSpace& source_space, const FunctionSpace& target_space)
+  {
+    auto source_layout = source_space.GetLayout();
+    auto target_layout = target_space.GetLayout();
+    if (source_layout.get() != target_layout.get()) {
+      throw pcms_error("Copy: source and target function spaces have "
+                       "different layouts");
+    }
+  }
+
+  void Apply(const Field<T>& source, Field<T>& target) const
+  {
+    PCMS_FUNCTION_TIMER;
+    detail::CheckCopyCompatible(source.GetData(), target.GetData());
+    target.SetDOFHolderDataHost(source.GetDOFHolderDataHost());
+  }
+};
 
 template <typename T>
 void copy_field2(const FieldData<T>& source, FieldData<T>& target)

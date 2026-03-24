@@ -1,9 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "pcms/transfer/transfer_field2.h"
+#include "pcms/transfer/copy.h"
 #include "pcms/field/field.h"
 #include "pcms/field/field_data.h"
-#include "pcms/field/field_interpolator.h"
+#include "../transfer/interpolator.h"
 #include "pcms/field/lagrange_field_factory.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/utility/types.h"

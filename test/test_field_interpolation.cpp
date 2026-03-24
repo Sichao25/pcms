@@ -4,7 +4,7 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include "pcms/field/field_interpolator.h"
+#include "pcms/transfer/interpolator.h"
 #include "pcms/field/lagrange_field_factory.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/utility/assert.h"

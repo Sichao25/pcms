@@ -3,7 +3,7 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include "pcms/transfer/transfer_field2.h"
+#include "pcms/transfer/copy.h"
 #include "pcms/field/lagrange_field_factory.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/utility/assert.h"
@@ -29,12 +29,13 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
     Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, ndata),
     [=](int i) { ids[i] = i; });
 
-  auto original = factory.CreateFieldData(pcms::FieldMetadata{});
-  original->SetDOFHolderDataHost(pcms::make_const_array_view(ids));
+  auto original = factory.CreateField(pcms::FieldMetadata{});
+  original.SetDOFHolderDataHost(pcms::make_const_array_view(ids));
 
-  auto copied = factory.CreateFieldData(pcms::FieldMetadata{});
-  pcms::copy_field2(*original, *copied);
-  auto copied_array = copied->GetDOFHolderDataHost();
+  auto copied = factory.CreateField(pcms::FieldMetadata{});
+  pcms::Copy<Real> copy(factory, factory);
+  copy.Apply(original, copied);
+  auto copied_array = copied.GetDOFHolderDataHost();
 
   REQUIRE(copied_array.size() == ndata);
   int sum = 0;

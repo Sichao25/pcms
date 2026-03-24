@@ -1,11 +1,11 @@
 #ifndef PCMS_FIELD_INTERPOLATOR_H
 #define PCMS_FIELD_INTERPOLATOR_H
 
-#include "field.h"
-#include "field_data.h"
-#include "function_space.h"
-#include "out_of_bounds_policy.h"
-#include "point_evaluator.h"
+#include "pcms/field/field.h"
+#include "pcms/field/field_data.h"
+#include "pcms/field/function_space.h"
+#include "pcms/field/out_of_bounds_policy.h"
+#include "pcms/field/point_evaluator.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 #include "pcms/utility/profile.h"
