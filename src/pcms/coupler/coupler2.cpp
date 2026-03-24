@@ -3,18 +3,6 @@
 namespace pcms
 {
 
-void FieldHandle::Send(redev::Mode mode) const
-{
-  PCMS_ALWAYS_ASSERT(app_ != nullptr);
-  app_->SendField(name_, mode);
-}
-
-void FieldHandle::Receive(redev::Mode mode) const
-{
-  PCMS_ALWAYS_ASSERT(app_ != nullptr);
-  app_->ReceiveField(name_, mode);
-}
-
 FieldLayoutCommunicator& Application2::GetLayoutCommunicator(
   const FieldLayout& layout)
 {

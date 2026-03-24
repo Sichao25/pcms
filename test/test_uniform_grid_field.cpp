@@ -242,15 +242,27 @@ TEST_CASE("UniformGrid field copy")
     10.0, 15.0, 20.0  // y=10: v6(0,10)=10, v7(5,10)=15, v8(10,10)=20
   };
 
-  auto field = MakeUniformGridField(layout);
-  field->SetDOFHolderDataHost(
+  auto field = pcms::Field<pcms::Real>(
+    nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
+               layout, pcms::FieldMetadata{}));
+  field.SetDOFHolderDataHost(
     pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
       data.data(), data.size()));
 
-  auto field2 = MakeUniformGridField(layout);
-  pcms::copy_field2(*field, *field2);
+  auto field2 = pcms::Field<pcms::Real>(
+    nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
+               layout, pcms::FieldMetadata{}));
+  auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(
+      grid.edge_length.data(), 2),
+    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(
+      grid.bot_left.data(), 2),
+    pcms::Rank1View<pcms::LO, pcms::HostMemorySpace>(grid.divisions.data(), 2),
+    1, pcms::CoordinateSystem::Cartesian);
+  pcms::Copy<pcms::Real> copy(factory, factory);
+  copy.Apply(field, field2);
 
-  auto copied_data = field2->GetDOFHolderDataHost();
+  auto copied_data = field2.GetDOFHolderDataHost();
   REQUIRE(copied_data.size() == data.size());
   for (size_t i = 0; i < data.size(); ++i)
     REQUIRE(copied_data[i] == data[i]);

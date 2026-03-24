@@ -17,6 +17,7 @@ namespace pcms
 
 class Application2;
 
+template <typename T>
 class FieldHandle
 {
 public:
@@ -27,6 +28,7 @@ public:
 
   void Send(redev::Mode mode = redev::Mode::Synchronous) const;
   void Receive(redev::Mode mode = redev::Mode::Synchronous) const;
+  [[nodiscard]] Field<T>& GetField() const;
 
 private:
   Application2* app_;
@@ -56,13 +58,13 @@ public:
                                bool participates = true);
 
   template <typename T>
-  FieldHandle AddField(std::string name, Field<T>&& field,
-                       bool participates = true);
+  FieldHandle<T> AddField(std::string name, Field<T>&& field,
+                          bool participates = true);
 
   template <typename T>
-  FieldHandle AddField(std::string name, Field<T>&& field,
-                       std::unique_ptr<FieldSerializer<T>> serializer,
-                       bool participates = true);
+  FieldHandle<T> AddField(std::string name, Field<T>&& field,
+                          std::unique_ptr<FieldSerializer<T>> serializer,
+                          bool participates = true);
 
   void SendField(const std::string& name,
                  redev::Mode mode = redev::Mode::Synchronous)
@@ -133,6 +135,9 @@ public:
     return field_layout_communicators_.size();
   }
 
+  template <typename T>
+  [[nodiscard]] Field<T>& GetField(const std::string& name);
+
 private:
   FieldLayoutCommunicator& GetLayoutCommunicator(const FieldLayout& layout);
 
@@ -140,7 +145,7 @@ private:
   redev::Redev& redev_;
   redev::Channel channel_;
   std::vector<std::shared_ptr<const FieldLayout>> layouts_;
-  std::vector<OwnedField> fields_;
+  std::map<std::string, OwnedField> fields_;
   std::vector<std::unique_ptr<FieldLayoutCommunicator>>
     owned_field_layout_communicators_;
   // map is used rather than unordered_map because we give pointers to the
@@ -204,23 +209,57 @@ private:
 } // namespace pcms
 
 template <typename T>
-pcms::FieldHandle pcms::Application2::AddField(std::string name,
-                                               Field<T>&& field,
-                                               bool participates)
+void pcms::FieldHandle<T>::Send(redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+  app_->SendField(name_, mode);
+}
+
+template <typename T>
+void pcms::FieldHandle<T>::Receive(redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+  app_->ReceiveField(name_, mode);
+}
+
+template <typename T>
+pcms::Field<T>& pcms::FieldHandle<T>::GetField() const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+  return app_->GetField<T>(name_);
+}
+
+template <typename T>
+pcms::Field<T>& pcms::Application2::GetField(const std::string& name)
+{
+  auto* field = std::get_if<Field<T>>(&detail::find_or_error(name, fields_));
+  if (field == nullptr) {
+    throw pcms_error("Field stored with different type than requested");
+  }
+  return *field;
+}
+
+template <typename T>
+pcms::FieldHandle<T> pcms::Application2::AddField(std::string name,
+                                                  Field<T>&& field,
+                                                  bool participates)
 {
   return AddField(std::move(name), std::move(field),
                   std::make_unique<FieldSerializer<T>>(), participates);
 }
 
 template <typename T>
-pcms::FieldHandle pcms::Application2::AddField(
+pcms::FieldHandle<T> pcms::Application2::AddField(
   std::string name, Field<T>&& field,
   std::unique_ptr<FieldSerializer<T>> serializer, bool participates)
 {
   PCMS_FUNCTION_TIMER;
   (void)participates;
-  fields_.push_back(std::move(field));
-  auto& field_obj = std::get<Field<T>>(fields_.back());
+  auto [field_it, field_inserted] = fields_.emplace(name, std::move(field));
+  if (!field_inserted) {
+    throw pcms_error("Field with this name already exists");
+  }
+  auto& field_obj = std::get<Field<T>>(field_it->second);
   FieldData<T>& field_data = field_obj.GetData();
   const FieldLayout& layout = field_data.GetLayout();
   FieldLayoutCommunicator& layout_communicator = GetLayoutCommunicator(layout);
@@ -232,9 +271,10 @@ pcms::FieldHandle pcms::Application2::AddField(
   auto [it, inserted] = field_communicators_.emplace(name,
                                                      std::move(field_communicator));
   if (!inserted) {
+    fields_.erase(field_it);
     throw pcms_error("Field with this name already exists");
   }
-  return FieldHandle{this, std::move(name)};
+  return FieldHandle<T>{this, std::move(name)};
 }
 
 #endif // COUPLER2_H_

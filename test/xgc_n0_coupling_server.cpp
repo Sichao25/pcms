@@ -36,8 +36,7 @@ static std::string MakeFieldName(const std::string& name, int plane)
 
 struct RegisteredField
 {
-  pcms::FieldHandle handle;
-  pcms::FieldData<pcms::Real>* data;
+  pcms::FieldHandle<pcms::Real> handle;
 };
 
 [[nodiscard]]
@@ -51,12 +50,11 @@ static RegisteredField AddField(
   auto field = pcms::Field<pcms::Real>(
     nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
                layout, pcms::FieldMetadata{}));
-  auto* field_ptr = &field.GetData();
   std::unique_ptr<pcms::FieldSerializer<pcms::Real>> serializer =
     std::make_unique<pcms::FieldSerializer<pcms::Real>>();
   auto handle = application->AddField(path + field_name, std::move(field),
                                       std::move(serializer));
-  return {std::move(handle), field_ptr};
+  return {std::move(handle)};
 }
 
 struct XGCAnalysis
@@ -87,7 +85,9 @@ static void CopyFields(const std::vector<RegisteredField>& from_fields,
 {
   PCMS_ALWAYS_ASSERT(from_fields.size() == to_fields.size());
   for (size_t i = 0; i < from_fields.size(); ++i) {
-    pcms::copy_field2(*from_fields[i].data, *to_fields[i].data);
+    auto& source = from_fields[i].handle.GetField();
+    auto& target = to_fields[i].handle.GetField();
+    target.SetDOFHolderDataHost(source.GetDOFHolderDataHost());
   }
 }
 

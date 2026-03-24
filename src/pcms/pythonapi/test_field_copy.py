@@ -41,7 +41,8 @@ def test_copy(world, dim, order, num_components):
 
     # Create copied field and copy data
     copied = factory.create_field()
-    pcms.copy_field(original, copied)
+    copier = pcms.Copy(factory, factory)
+    copier.apply(original, copied)
     print("  Copied data to new field")
 
     # Get copied data

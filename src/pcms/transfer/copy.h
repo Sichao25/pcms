@@ -23,10 +23,10 @@ template <typename T>
 void CheckCopyCompatible(const FieldData<T>& source, const FieldData<T>& target)
 {
   if (&source.GetLayout() != &target.GetLayout()) {
-    throw pcms_error("copy_field2: source and target layouts differ");
+    throw pcms_error("Copy: source and target layouts differ");
   }
   if (!CompatibleMetadata(source.GetMetadata(), target.GetMetadata())) {
-    throw pcms_error("copy_field2: source and target metadata differ");
+    throw pcms_error("Copy: source and target metadata differ");
   }
 }
 
@@ -54,13 +54,6 @@ public:
   }
 };
 
-template <typename T>
-void copy_field2(const FieldData<T>& source, FieldData<T>& target)
-{
-  PCMS_FUNCTION_TIMER;
-  detail::CheckCopyCompatible(source, target);
-  target.SetDOFHolderDataHost(source.GetDOFHolderDataHost());
-}
 
 } // namespace pcms
 

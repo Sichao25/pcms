@@ -31,7 +31,9 @@ struct ClientState
 {
   std::unique_ptr<Coupler2> coupler;
   Application2* app = nullptr;
-  std::map<std::string, FieldHandle> field_handles;
+  using HandleVariant = std::variant<FieldHandle<double>, FieldHandle<float>,
+                                     FieldHandle<int>, FieldHandle<pcms::GO>>;
+  std::map<std::string, HandleVariant> field_handles;
 };
 
 using FieldAdapterVariant =
@@ -39,17 +41,21 @@ using FieldAdapterVariant =
                XGCFieldRegistration<float>, XGCFieldRegistration<int>,
                XGCFieldRegistration<pcms::GO>, DummyFieldRegistration>;
 
-inline FieldHandle RegisterField(Application2& /*app*/, std::string name,
-                                 const std::monostate&, bool)
+template <typename T>
+using ClientFieldHandle = FieldHandle<T>;
+
+inline ClientState::HandleVariant RegisterField(Application2& /*app*/,
+                                                std::string name,
+                                                const std::monostate&, bool)
 {
   throw pcms_error("pcms_add_field: field adapter for field '" + name +
                    "' was never initialized");
 }
 
 template <typename T>
-FieldHandle RegisterField(Application2& app, std::string name,
-                          const XGCFieldRegistration<T>& registration,
-                          bool participates)
+ClientState::HandleVariant RegisterField(
+  Application2& app, std::string name,
+  const XGCFieldRegistration<T>& registration, bool participates)
 {
   auto field =
     registration.function_space.CreateField(registration.data, FieldMetadata{});
@@ -57,13 +63,14 @@ FieldHandle RegisterField(Application2& app, std::string name,
   std::unique_ptr<FieldSerializer<T>> serializer =
     std::make_unique<XGCFieldSerializer<T>>(registration.plane_comm,
                                             participates);
-  return app.AddField(std::move(name), std::move(field), std::move(serializer),
-                      participates);
+  return ClientState::HandleVariant{app.AddField(
+    std::move(name), std::move(field), std::move(serializer), participates)};
 }
 
-inline FieldHandle RegisterField(Application2& app, std::string name,
-                                 const DummyFieldRegistration&,
-                                 bool participates)
+inline ClientState::HandleVariant RegisterField(Application2& app,
+                                                std::string name,
+                                                const DummyFieldRegistration&,
+                                                bool participates)
 {
   auto layout = std::make_shared<EmptyFieldLayout>();
   app.AddLayout(name, layout, participates);
@@ -71,8 +78,8 @@ inline FieldHandle RegisterField(Application2& app, std::string name,
     nullptr, std::make_unique<SimpleFieldData<int>>(layout, FieldMetadata{}));
   std::unique_ptr<FieldSerializer<int>> serializer =
     std::make_unique<FieldSerializer<int>>();
-  return app.AddField(std::move(name), std::move(field), std::move(serializer),
-                      participates);
+  return ClientState::HandleVariant{app.AddField(
+    std::move(name), std::move(field), std::move(serializer), participates)};
 }
 
 } // namespace pcms
@@ -149,16 +156,18 @@ void pcms_receive_field_name(PcmsClientHandle client_handle, const char* name)
 
 void pcms_send_field(PcmsFieldHandle field_handle)
 {
-  auto* field = reinterpret_cast<pcms::FieldHandle*>(field_handle.pointer);
+  auto* field =
+    reinterpret_cast<pcms::ClientState::HandleVariant*>(field_handle.pointer);
   PCMS_ALWAYS_ASSERT(field != nullptr);
-  field->Send();
+  std::visit([](auto& typed_handle) { typed_handle.Send(); }, *field);
 }
 
 void pcms_receive_field(PcmsFieldHandle field_handle)
 {
-  auto* field = reinterpret_cast<pcms::FieldHandle*>(field_handle.pointer);
+  auto* field =
+    reinterpret_cast<pcms::ClientState::HandleVariant*>(field_handle.pointer);
   PCMS_ALWAYS_ASSERT(field != nullptr);
-  field->Receive();
+  std::visit([](auto& typed_handle) { typed_handle.Receive(); }, *field);
 }
 
 template <typename T>
