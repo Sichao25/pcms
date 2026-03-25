@@ -6,7 +6,6 @@ set(PCMS_COUPLER_HEADERS
         field_layout_communicator.h
         field_exchange_planner.h
         partition.h
-        adapter/field_evaluation_methods.h
 )
 
 
