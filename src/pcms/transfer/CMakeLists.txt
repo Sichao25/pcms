@@ -12,11 +12,11 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     pcms_interpolator_logger.hpp
     interpolation_base.h
     interpolation_helpers.h
-    spline_interpolator.hpp
     load_vector_integrator.hpp
     mass_matrix_integrator.hpp
     mesh_intersection.hpp
-        copy.h
+    interpolator.h
+    copy.h
 )
 
 
