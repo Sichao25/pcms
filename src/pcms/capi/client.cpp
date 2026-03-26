@@ -74,8 +74,9 @@ inline ClientState::HandleVariant RegisterField(Application2& app,
 {
   auto layout = std::make_shared<EmptyFieldLayout>();
   app.AddLayout(name, layout, participates);
-  auto field = Field<int>(
-    nullptr, std::make_unique<SimpleFieldData<int>>(layout, FieldMetadata{}));
+  auto field =
+    Field<int>(layout, nullptr,
+               std::make_unique<SimpleFieldData<int>>(layout, FieldMetadata{}));
   std::unique_ptr<FieldSerializer<int>> serializer =
     std::make_unique<FieldSerializer<int>>();
   return ClientState::HandleVariant{app.AddField(

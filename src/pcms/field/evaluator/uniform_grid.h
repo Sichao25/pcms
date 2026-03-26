@@ -76,13 +76,11 @@ public:
     LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
     int n_comp = layout_->GetNumComponents();
 
-    if (&field.GetLayout() != layout_.get()) {
-      throw pcms_error(
-        "UniformGridPointEvaluator::Evaluate: FieldData layout does not match "
-        "the evaluator layout");
-    }
     PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
     PCMS_ALWAYS_ASSERT(values.extent(1) == static_cast<size_t>(n_comp));
+    PCMS_ALWAYS_ASSERT(
+      dof_data.size() == static_cast<size_t>(layout_->GetNumOwnedDofHolder() *
+                                             layout_->GetNumComponents()));
 
     auto cell_indices = hint_.cell_indices_;
     auto coordinates = hint_.coordinates_;

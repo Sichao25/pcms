@@ -1,7 +1,6 @@
 #ifndef PCMS_FIELD_DATA_H
 #define PCMS_FIELD_DATA_H
 
-#include "field_layout.h"
 #include "field_metadata.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
@@ -30,8 +29,7 @@ namespace pcms
 // data.
 //
 // Contract:
-//   - GetLayout() and GetMetadata() describe the interpretation expected by the
-//     FieldEvaluatorFactory that consumes this object.
+//   - GetMetadata() describes the stored coefficient data.
 //   - The flattened DOF-holder data ordering must match the layout ordering.
 //   - Views returned by GetDOFHolderDataHost()/GetDOFHolderDataDevice() remain
 //     valid until this FieldData object is mutated or destroyed.
@@ -50,15 +48,7 @@ class FieldData
 public:
   using value_type = T;
 
-  virtual const FieldLayout& GetLayout() const = 0;
   virtual const FieldMetadata& GetMetadata() const = 0;
-
-  // Convenience access to the layout-owned DOF-holder coordinates for
-  // coefficient initialization and inspection.
-  CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const
-  {
-    return GetLayout().GetDOFHolderCoordinates();
-  }
 
   // Direct access to flattened DOFHolder-ordered coefficient data.
   // The returned view remains valid until the FieldData is mutated or

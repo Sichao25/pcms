@@ -33,7 +33,7 @@ TEST_CASE("evaluate linear 2d omega_h_field")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, pcms::test::linear_f);
+  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
   pcms::test::CheckEvaluation(factory, *field, pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
 }

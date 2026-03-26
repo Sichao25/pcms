@@ -3,6 +3,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <Kokkos_Core.hpp>
+#include "pcms/field/field.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/field_evaluator_factory.h"
 #include "pcms/field/point_evaluator.h"
@@ -59,11 +60,11 @@ inline std::vector<Real> EvaluateReferenceFunction(
 
 // Set scalar DOF data by sampling func at each DOF-holder coordinate.
 template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
-inline void SetField(FieldData<Real>& field, Func func)
+inline void SetField(const FieldLayout& layout, FieldData<Real>& field, Func func)
 {
   using MemorySpace = typename ExecutionSpace::memory_space;
 
-  auto dof_coords = field.GetDOFHolderCoordinatesHost().GetCoordinates();
+  auto dof_coords = layout.GetDOFHolderCoordinates().GetCoordinates();
   int n = static_cast<int>(dof_coords.extent(0));
   Kokkos::View<Real *[2], MemorySpace> coords_device("coords_device", n);
   auto coords_host = Kokkos::View<const Real **, HostMemorySpace>(
@@ -82,9 +83,22 @@ inline void SetField(FieldData<Real>& field, Func func)
     Rank1View<const Real, HostMemorySpace>(data_host.data(), n));
 }
 
+template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
+inline void SetField(Field<Real>& field, Func func)
+{
+  SetField<ExecutionSpace>(field.GetLayout(), field.GetData(), func);
+}
+
+template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
+inline void SetField(FieldData<Real>& field, const FieldLayout& layout, Func func)
+{
+  SetField<ExecutionSpace>(layout, field, func);
+}
+
 // Check that serialize followed by deserialize round-trips the data.
 // Uses an identity permutation so permutation[i] = i.
-inline void CheckSerializeDeserialize(FieldData<Real>& field)
+inline void CheckSerializeDeserialize(const FieldLayout& layout,
+                                      FieldData<Real>& field)
 {
   auto data_before = field.GetDOFHolderDataHost();
   int n = static_cast<int>(data_before.size());
@@ -98,8 +112,9 @@ inline void CheckSerializeDeserialize(FieldData<Real>& field)
   Rank1View<const LO, HostMemorySpace> perm_view(perm.data(), n);
 
   FieldSerializer<Real> serializer;
-  serializer.Serialize(field, buf_view, perm_view);
-  serializer.Deserialize(field, Rank1View<const Real, HostMemorySpace>(buf_view),
+  serializer.Serialize(field, layout, buf_view, perm_view);
+  serializer.Deserialize(field, layout,
+                         Rank1View<const Real, HostMemorySpace>(buf_view),
                          perm_view);
 
   auto data_after = field.GetDOFHolderDataHost();
@@ -107,6 +122,11 @@ inline void CheckSerializeDeserialize(FieldData<Real>& field)
   for (int i = 0; i < n; ++i) {
     REQUIRE(data_after[i] == Catch::Approx(data_before[i]));
   }
+}
+
+inline void CheckSerializeDeserialize(Field<Real>& field)
+{
+  CheckSerializeDeserialize(field.GetLayout(), field.GetData());
 }
 
 // Evaluate field at explicit test points using a PointEvaluator and check results.

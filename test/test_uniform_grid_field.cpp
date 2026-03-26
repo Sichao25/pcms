@@ -220,7 +220,7 @@ TEST_CASE("UniformGrid field serialization")
     pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
       data.data(), data.size()));
 
-  pcms::test::CheckSerializeDeserialize(*field);
+  pcms::test::CheckSerializeDeserialize(*layout, *field);
 }
 
 TEST_CASE("UniformGrid field copy")
@@ -243,14 +243,14 @@ TEST_CASE("UniformGrid field copy")
   };
 
   auto field = pcms::Field<pcms::Real>(
-    nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
+    layout, nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
                layout, pcms::FieldMetadata{}));
   field.SetDOFHolderDataHost(
     pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
       data.data(), data.size()));
 
   auto field2 = pcms::Field<pcms::Real>(
-    nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
+    layout, nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
                layout, pcms::FieldMetadata{}));
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian);
@@ -272,7 +272,7 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   auto omega_h_factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto omega_h_field = omega_h_factory.CreateField(pcms::FieldMetadata{});
-  pcms::test::SetField(omega_h_field.GetData(), pcms::test::linear_f);
+  pcms::test::SetField(omega_h_field, pcms::test::linear_f);
 
   pcms::UniformGrid<2> grid;
   grid.edge_length = {1.0, 1.0};
@@ -578,7 +578,7 @@ TEST_CASE("UniformGrid workflow")
   auto omega_h_factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto omega_h_field = omega_h_factory.CreateField(pcms::FieldMetadata{});
-  pcms::test::SetField(omega_h_field.GetData(), pcms::test::linear_f);
+  pcms::test::SetField(omega_h_field, pcms::test::linear_f);
 
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian);

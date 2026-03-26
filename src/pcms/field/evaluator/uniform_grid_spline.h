@@ -42,12 +42,6 @@ public:
   void Evaluate(const FieldData<Real>& field,
                 Rank2View<Real, HostMemorySpace> values) const override
   {
-    if (&field.GetLayout() != layout_.get()) {
-      throw pcms_error(
-        "UniformGridSplinePointEvaluator2D::Evaluate: FieldData layout does "
-        "not match the evaluator layout");
-    }
-
     LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
     PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
     PCMS_ALWAYS_ASSERT(values.extent(1) == 1);

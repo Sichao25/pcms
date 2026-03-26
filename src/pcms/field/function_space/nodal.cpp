@@ -58,7 +58,7 @@ std::unique_ptr<PointEvaluator<Real>> NodalFunctionSpace::CreatePointEvaluator(
 
 Field<Real> NodalFunctionSpace::CreateField(FieldMetadata metadata) const
 {
-  return Field<Real>(evaluator_factory_, CreateFieldData(metadata));
+  return Field<Real>(layout_, evaluator_factory_, CreateFieldData(metadata));
 }
 
 std::unique_ptr<FieldData<Real>> NodalFunctionSpace::CreateFieldData(

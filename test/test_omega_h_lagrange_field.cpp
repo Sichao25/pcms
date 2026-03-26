@@ -12,6 +12,7 @@
 #include "field_test_utils.h"
 
 #include <memory>
+#include <optional>
 #include <stdexcept>
 
 using pcms::Real;
@@ -110,10 +111,10 @@ TEST_CASE("OmegaHLagrangeLayout layout sharing")
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
 
-  auto f1 = factory.CreateFieldData(pcms::FieldMetadata{});
-  auto f2 = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto f1 = factory.CreateField(pcms::FieldMetadata{});
+  auto f2 = factory.CreateField(pcms::FieldMetadata{});
 
-  REQUIRE(&f1->GetLayout() == &f2->GetLayout());
+  REQUIRE(&f1.GetLayout() == &f2.GetLayout());
 }
 
 // ---- Order-1 field tests ----------------------------------------------------
@@ -148,7 +149,7 @@ TEST_CASE("OmegaHLagrangeField order-1: linear function evaluation")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, pcms::test::linear_f);
+  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
   pcms::test::CheckEvaluation(factory, *field,
                               pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
@@ -164,7 +165,7 @@ TEST_CASE("MeshFieldsAdapter order-1: linear function evaluation (shared util)")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, pcms::test::linear_f);
+  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
   pcms::test::CheckEvaluation(factory, *field,
                               pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
@@ -178,7 +179,7 @@ TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, pcms::test::linear_f);
+  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
 
   Real fill_value = -999.0;
   std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5, 0.5, -0.5, 0.5, 1.5};
@@ -193,8 +194,8 @@ TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, pcms::test::linear_f);
-  pcms::test::CheckSerializeDeserialize(*field);
+  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), *field);
 }
 
 // ---- Order-0 field tests ----------------------------------------------------
@@ -280,7 +281,7 @@ TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")
   pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), nelems);
   field->SetDOFHolderDataHost(view);
 
-  pcms::test::CheckSerializeDeserialize(*field);
+  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), *field);
 }
 
 // ---- Layout sharing communicator contract -----------------------------------
@@ -304,11 +305,11 @@ TEST_CASE("OmegaHLagrangeField: field valid after layout destruction")
   auto lib = Omega_h::Library{};
   auto mesh = MakeBox2D(lib.world());
 
-  std::unique_ptr<pcms::FieldData<Real>> field;
+  std::optional<pcms::Field<Real>> field;
   {
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-    field = factory.CreateFieldData(pcms::FieldMetadata{});
+    field.emplace(factory.CreateField(pcms::FieldMetadata{}));
   } // factory goes out of scope; field keeps layout alive
 
   pcms::test::SetField(*field, pcms::test::linear_f);

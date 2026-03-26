@@ -25,7 +25,7 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateFieldData(pcms::FieldMetadata{});
-  pcms::test::SetField(*field, fill_mode_f);
+  pcms::test::SetField(*field, *factory.GetLayout(), fill_mode_f);
 
   Real fill_value = -999.0;
 

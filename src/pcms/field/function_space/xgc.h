@@ -43,7 +43,7 @@ public:
   [[nodiscard]] Field<T> CreateField(Rank1View<T, HostMemorySpace> data,
                                      FieldMetadata metadata = {}) const
   {
-    return Field<T>(nullptr,
+    return Field<T>(layout_, nullptr,
                     std::make_unique<XGCFieldData<T>>(layout_, metadata, data));
   }
 

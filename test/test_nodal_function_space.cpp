@@ -60,10 +60,10 @@ TEST_CASE("NodalFunctionSpace fields share layout")
 
   auto factory =
     pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
-  auto source = factory.CreateFieldData(pcms::FieldMetadata{});
-  auto target = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto source = factory.CreateField(pcms::FieldMetadata{});
+  auto target = factory.CreateField(pcms::FieldMetadata{});
 
-  REQUIRE(&source->GetLayout() == &target->GetLayout());
+  REQUIRE(&source.GetLayout() == &target.GetLayout());
 }
 
 TEST_CASE("NodalFunctionSpace point-cloud field set/get DOF round-trip")
@@ -91,15 +91,15 @@ TEST_CASE("NodalFunctionSpace point-cloud field serialize / deserialize round-tr
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
-  auto field =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
-      .CreateFieldData(pcms::FieldMetadata{});
+  auto factory =
+    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
 
   std::vector<Real> data{5.0, 6.0, 7.0, 8.0};
   Rank1View<const Real, HostMemorySpace> data_view(data.data(), data.size());
   field->SetDOFHolderDataHost(data_view);
 
-  pcms::test::CheckSerializeDeserialize(*field);
+  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), *field);
 }
 
 TEST_CASE("NodalFunctionSpace field keeps layout alive after temporary factory destruction")
@@ -107,20 +107,22 @@ TEST_CASE("NodalFunctionSpace field keeps layout alive after temporary factory d
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
-  auto field =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
-      .CreateFieldData(pcms::FieldMetadata{});
+  auto field = [&]() {
+    auto factory =
+      pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+    return factory.CreateField(pcms::FieldMetadata{});
+  }();
 
   auto point_cloud_layout =
-    dynamic_cast<const pcms::PointCloudLayout*>(&field->GetLayout());
+    dynamic_cast<const pcms::PointCloudLayout*>(&field.GetLayout());
   REQUIRE(point_cloud_layout != nullptr);
   REQUIRE(point_cloud_layout->GetNumOwnedDofHolder() == 4);
 
   std::vector<Real> data{9.0, 10.0, 11.0, 12.0};
   Rank1View<const Real, HostMemorySpace> data_view(data.data(), data.size());
-  field->SetDOFHolderDataHost(data_view);
+  field.SetDOFHolderDataHost(data_view);
 
-  auto got = field->GetDOFHolderDataHost();
+  auto got = field.GetDOFHolderDataHost();
   REQUIRE(got[0] == Catch::Approx(9.0));
   REQUIRE(got[3] == Catch::Approx(12.0));
 }

@@ -193,7 +193,7 @@ void bind_create_field_module(py::module& m)
     .def(
       "get_dof_holder_coordinates",
       [](const Field<Real>& self) {
-        auto cv    = self.GetData().GetDOFHolderCoordinatesHost();
+        auto cv    = self.GetLayout().GetDOFHolderCoordinates();
         auto coords = cv.GetCoordinates();
         py::array_t<Real> result({static_cast<py::ssize_t>(coords.extent(0)),
                                    static_cast<py::ssize_t>(coords.extent(1))});
@@ -290,7 +290,7 @@ void bind_create_field_module(py::module& m)
     [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions) -> py::tuple {
       auto [layout, field] =
         CreateUniformGridBinaryField<2>(mesh, divisions);
-      auto mask_field = Field<Real>(nullptr, std::move(field));
+      auto mask_field = Field<Real>(layout, nullptr, std::move(field));
       return py::make_tuple(layout, std::move(mask_field));
     },
     py::arg("mesh"), py::arg("divisions"),

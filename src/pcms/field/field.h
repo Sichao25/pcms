@@ -23,9 +23,11 @@ template <typename T>
 class Field
 {
 public:
-  Field(std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory,
+  Field(std::shared_ptr<const FieldLayout> layout,
+        std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory,
         std::unique_ptr<FieldData<T>> data)
-    : evaluator_factory_(std::move(evaluator_factory)),
+    : layout_(std::move(layout)),
+      evaluator_factory_(std::move(evaluator_factory)),
       data_(std::move(data))
   {
   }
@@ -38,7 +40,7 @@ public:
   FieldData<T>& GetData() noexcept { return *data_; }
   const FieldData<T>& GetData() const noexcept { return *data_; }
 
-  const FieldLayout& GetLayout() const { return data_->GetLayout(); }
+  const FieldLayout& GetLayout() const { return *layout_; }
 
   // Returns the evaluator factory for this field's function space.
   // Null if the field was not created with an evaluatable function space.
@@ -70,6 +72,7 @@ public:
 #endif
 
 private:
+  std::shared_ptr<const FieldLayout> layout_;
   std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory_;
   std::unique_ptr<FieldData<T>> data_;
 };

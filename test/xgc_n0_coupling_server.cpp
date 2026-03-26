@@ -48,7 +48,7 @@ static RegisteredField AddField(
   PCMS_ALWAYS_ASSERT(application != nullptr);
   auto field_name = MakeFieldName(name, plane);
   auto field = pcms::Field<pcms::Real>(
-    nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
+    layout, nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
                layout, pcms::FieldMetadata{}));
   std::unique_ptr<pcms::FieldSerializer<pcms::Real>> serializer =
     std::make_unique<pcms::FieldSerializer<pcms::Real>>();

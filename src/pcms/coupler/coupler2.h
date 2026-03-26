@@ -260,12 +260,11 @@ pcms::FieldHandle<T> pcms::Application2::AddField(
     throw pcms_error("Field with this name already exists");
   }
   auto& field_obj = std::get<Field<T>>(field_it->second);
-  FieldData<T>& field_data = field_obj.GetData();
-  const FieldLayout& layout = field_data.GetLayout();
+  const FieldLayout& layout = field_obj.GetLayout();
   FieldLayoutCommunicator& layout_communicator = GetLayoutCommunicator(layout);
   FieldCommunicator2Ptr field_communicator =
     std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
-                                            field_data,
+                                            field_obj,
                                             std::move(serializer));
 
   auto [it, inserted] = field_communicators_.emplace(name,

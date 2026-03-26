@@ -34,11 +34,6 @@ public:
                 Rank2View<T, HostMemorySpace> values) const override
   {
     PCMS_FUNCTION_TIMER;
-    if (&field.GetLayout() != layout_.get()) {
-      throw pcms_error(
-        "MeshFieldsPointEvaluator::Evaluate: FieldData layout does not match "
-        "the evaluator layout");
-    }
     PCMS_ALWAYS_ASSERT(values.extent(0) ==
                        hint_.coordinates_.extent(0) + hint_.num_missing_);
     PCMS_ALWAYS_ASSERT(values.extent(1) ==

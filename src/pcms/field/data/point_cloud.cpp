@@ -14,11 +14,6 @@ PointCloud::PointCloud(std::shared_ptr<const PointCloudLayout> layout)
 {
 }
 
-const FieldLayout& PointCloud::GetLayout() const
-{
-  return *layout_;
-}
-
 const FieldMetadata& PointCloud::GetMetadata() const
 {
   return metadata_;

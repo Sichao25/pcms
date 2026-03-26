@@ -76,7 +76,7 @@ TEST_CASE("XGC FieldData serializer preserves inactive entries")
     std::count_if(owned.data_handle(), owned.data_handle() + data_size,
                   [](bool is_owned) { return is_owned; });
 
-  REQUIRE(serializer.Serialize(field, pcms::make_array_view(buffer),
+  REQUIRE(serializer.Serialize(field, *layout, pcms::make_array_view(buffer),
                                pcms::make_const_array_view(permutation)) ==
           data_size);
   REQUIRE(num_owned == 4);
@@ -90,7 +90,7 @@ TEST_CASE("XGC FieldData serializer preserves inactive entries")
     }
   }
 
-  serializer.Deserialize(field, pcms::make_const_array_view(buffer),
+  serializer.Deserialize(field, *layout, pcms::make_const_array_view(buffer),
                          pcms::make_const_array_view(permutation));
 
   auto after = field.GetDOFHolderDataHost();

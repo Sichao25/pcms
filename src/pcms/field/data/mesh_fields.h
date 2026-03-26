@@ -36,8 +36,6 @@ public:
     }
   }
 
-  const FieldLayout& GetLayout() const override { return *layout_; }
-
   const FieldMetadata& GetMetadata() const override { return metadata_; }
 
   Rank1View<const T, HostMemorySpace> GetDOFHolderDataHost() const override

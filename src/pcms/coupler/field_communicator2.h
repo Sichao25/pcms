@@ -2,8 +2,8 @@
 #define FIELD_COMMUNICATOR2_H_
 
 #include "pcms/coupler/field_layout_communicator.h"
+#include "pcms/field/field.h"
 #include "pcms/field/field_layout.h"
-#include "pcms/field/field_data.h"
 #include "pcms/coupler/field_serializer.h"
 #include "pcms/utility/profile.h"
 #include "pcms/utility/assert.h"
@@ -20,14 +20,14 @@ class FieldCommunicator2
 {
 public:
   FieldCommunicator2(const std::string& name, FieldLayoutCommunicator& layout_comm,
-                     FieldData<T>& field)
+                     Field<T>& field)
     : FieldCommunicator2(name, layout_comm, field,
                          std::make_unique<FieldSerializer<T>>())
   {
   }
 
   FieldCommunicator2(const std::string& name, FieldLayoutCommunicator& layout_comm,
-                     FieldData<T>& field,
+                     Field<T>& field,
                      std::unique_ptr<FieldSerializer<T>> serializer)
     : comm_buffer_{},
       layout_comm_(layout_comm),
@@ -46,7 +46,8 @@ public:
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(layout_comm_.GetChannel().InSendCommunicationPhase());
     auto buffer = make_array_view(comm_buffer_);
-    serializer_->Serialize(field_, buffer, layout_comm_.GetPermutationArray());
+    serializer_->Serialize(field_.GetData(), field_.GetLayout(), buffer,
+                           layout_comm_.GetPermutationArray());
     comm_.Send(buffer.data_handle(), mode);
   }
 
@@ -58,7 +59,7 @@ public:
     // mode because we make an immediate call to deserialize after a call to
     // receive.
     auto data = comm_.Recv(redev::Mode::Synchronous);
-    serializer_->Deserialize(field_,
+    serializer_->Deserialize(field_.GetData(), field_.GetLayout(),
                              make_const_array_view(data),
                              layout_comm_.GetPermutationArray());
   }
@@ -67,7 +68,7 @@ private:
   std::vector<T> comm_buffer_;
   redev::BidirectionalComm<T> comm_;
   FieldLayoutCommunicator& layout_comm_;
-  FieldData<T>& field_;
+  Field<T>& field_;
   std::unique_ptr<FieldSerializer<T>> serializer_;
 };
 

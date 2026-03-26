@@ -158,7 +158,7 @@ std::unique_ptr<PointEvaluator<Real>> LagrangeFunctionSpace::CreatePointEvaluato
 
 Field<Real> LagrangeFunctionSpace::CreateField(FieldMetadata metadata) const
 {
-  return Field<Real>(evaluator_factory_, create_field_data_fn_(metadata));
+  return Field<Real>(layout_, evaluator_factory_, create_field_data_fn_(metadata));
 }
 
 std::unique_ptr<FieldData<Real>> LagrangeFunctionSpace::CreateFieldData(

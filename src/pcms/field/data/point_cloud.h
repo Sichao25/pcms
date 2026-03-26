@@ -14,7 +14,6 @@ class PointCloud : public FieldData<Real>
 public:
   PointCloud(std::shared_ptr<const PointCloudLayout> layout);
 
-  const FieldLayout& GetLayout() const override;
   const FieldMetadata& GetMetadata() const override;
 
   Rank1View<const Real, HostMemorySpace> GetDOFHolderDataHost() const override;

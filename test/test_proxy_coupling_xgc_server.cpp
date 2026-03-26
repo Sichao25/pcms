@@ -117,7 +117,7 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian, numbering);
     application->AddLayout(ss.str(), factory.GetLayout());
     auto field = pcms::Field<GO>(
-      nullptr, std::make_unique<pcms::SimpleFieldData<GO>>(
+      factory.GetLayout(), nullptr, std::make_unique<pcms::SimpleFieldData<GO>>(
                  factory.GetLayout(), pcms::FieldMetadata{}));
     std::unique_ptr<pcms::FieldSerializer<GO>> serializer =
       std::make_unique<pcms::FieldSerializer<GO>>();

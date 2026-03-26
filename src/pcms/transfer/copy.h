@@ -20,12 +20,13 @@ inline bool CompatibleMetadata(const FieldMetadata& source,
 }
 
 template <typename T>
-void CheckCopyCompatible(const FieldData<T>& source, const FieldData<T>& target)
+void CheckCopyCompatible(const Field<T>& source, const Field<T>& target)
 {
   if (&source.GetLayout() != &target.GetLayout()) {
     throw pcms_error("Copy: source and target layouts differ");
   }
-  if (!CompatibleMetadata(source.GetMetadata(), target.GetMetadata())) {
+  if (!CompatibleMetadata(source.GetData().GetMetadata(),
+                          target.GetData().GetMetadata())) {
     throw pcms_error("Copy: source and target metadata differ");
   }
 }
@@ -49,7 +50,7 @@ public:
   void Apply(const Field<T>& source, Field<T>& target) const
   {
     PCMS_FUNCTION_TIMER;
-    detail::CheckCopyCompatible(source.GetData(), target.GetData());
+    detail::CheckCopyCompatible(source, target);
     target.SetDOFHolderDataHost(source.GetDOFHolderDataHost());
   }
 };

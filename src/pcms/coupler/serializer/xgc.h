@@ -21,7 +21,7 @@ public:
   {
   }
 
-  int Serialize(const FieldData<T>& field,
+  int Serialize(const FieldData<T>& field, const FieldLayout& layout,
                 Rank1View<T, HostMemorySpace> buffer,
                 Rank1View<const LO, HostMemorySpace> permutation) const override
   {
@@ -35,7 +35,7 @@ public:
     }
 
     auto data = xgc_field->GetDOFHolderDataHost();
-    auto owned = xgc_field->GetLayout().GetOwned();
+    auto owned = layout.GetOwned();
     if (buffer.size() > 0) {
       for (LO i = 0; i < static_cast<LO>(data.size()); ++i) {
         if (owned[i]) {
@@ -46,7 +46,7 @@ public:
     return static_cast<int>(buffer.size());
   }
 
-  void Deserialize(FieldData<T>& field,
+  void Deserialize(FieldData<T>& field, const FieldLayout& layout,
                    Rank1View<const T, HostMemorySpace> buffer,
                    Rank1View<const LO, HostMemorySpace> permutation) const override
   {
@@ -57,7 +57,7 @@ public:
     }
 
     auto current = xgc_field->GetDOFHolderDataHost();
-    auto owned = xgc_field->GetLayout().GetOwned();
+    auto owned = layout.GetOwned();
     std::vector<T> full_data(current.size());
     for (size_t i = 0; i < current.size(); ++i) {
       full_data[i] = current[i];
