@@ -15,6 +15,7 @@
 #include "pcms/field/data/simple.h"
 #include "../coordinate_system.h"
 #include "pcms/utility/arrays.h"
+#include "pcms/utility/uniform_grid.h"
 #include "pcms/utility/types.h"
 #include "pcms/utility/memory_spaces.h"
 
@@ -46,9 +47,13 @@ public:
 
   // Structured uniform grid — order-1 H1-conforming nodal field on a regular grid
   [[nodiscard]] static LagrangeFunctionSpace FromUniformGrid(
-    Rank1View<Real, HostMemorySpace> edge_length,
-    Rank1View<Real, HostMemorySpace> bot_left,
-    Rank1View<LO, HostMemorySpace>   divisions,
+    const UniformGrid<2>& grid,
+    int num_components,
+    CoordinateSystem coordinate_system,
+    int order = 1);
+
+  [[nodiscard]] static LagrangeFunctionSpace FromUniformGrid(
+    const UniformGrid<3>& grid,
     int num_components,
     CoordinateSystem coordinate_system,
     int order = 1);

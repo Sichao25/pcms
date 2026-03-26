@@ -131,17 +131,13 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
 {
   // 2D grid: [0,1]^2 with 10x10 divisions
   const int N = 10;
-  std::vector<Real> edge_len   = {1.0, 1.0};
-  std::vector<Real> bot_left_v = {0.0, 0.0};
-  std::vector<int>  divs       = {N, N};
-
-  pcms::Rank1View<Real, pcms::HostMemorySpace> el(edge_len.data(), 2);
-  pcms::Rank1View<Real, pcms::HostMemorySpace> bl(bot_left_v.data(), 2);
-  pcms::Rank1View<pcms::LO, pcms::HostMemorySpace> dv(
-    reinterpret_cast<pcms::LO*>(divs.data()), 2);
+  pcms::UniformGrid<2> grid;
+  grid.bot_left = {0.0, 0.0};
+  grid.edge_length = {1.0, 1.0};
+  grid.divisions = {N, N};
 
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
-    el, bl, dv, 1, CoordinateSystem::Cartesian, 1);
+    grid, 1, CoordinateSystem::Cartesian, 1);
 
   auto field_data = factory.CreateFieldData();
   pcms::test::SetField(*field_data, pcms::test::linear_f);

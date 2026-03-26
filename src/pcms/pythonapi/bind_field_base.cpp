@@ -242,14 +242,8 @@ void bind_create_field_module(py::module& m)
       "from_uniform_grid",
       [](const UniformGrid<2>& grid, int num_components, CoordinateSystem cs,
          int order) {
-        auto el = grid.edge_length;
-        auto bl = grid.bot_left;
-        auto div = grid.divisions;
-        Rank1View<Real, HostMemorySpace> el_view(el.data(), 2);
-        Rank1View<Real, HostMemorySpace> bl_view(bl.data(), 2);
-        Rank1View<LO, HostMemorySpace> div_view(div.data(), 2);
-        return LagrangeFunctionSpace::FromUniformGrid(el_view, bl_view, div_view,
-                                                     num_components, cs, order);
+        return LagrangeFunctionSpace::FromUniformGrid(grid, num_components, cs,
+                                                      order);
       },
       py::arg("grid"), py::arg("num_components") = 1,
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
@@ -260,14 +254,8 @@ void bind_create_field_module(py::module& m)
       "from_uniform_grid",
       [](const UniformGrid<3>& grid, int num_components, CoordinateSystem cs,
          int order) {
-        auto el = grid.edge_length;
-        auto bl = grid.bot_left;
-        auto div = grid.divisions;
-        Rank1View<Real, HostMemorySpace> el_view(el.data(), 3);
-        Rank1View<Real, HostMemorySpace> bl_view(bl.data(), 3);
-        Rank1View<LO, HostMemorySpace> div_view(div.data(), 3);
-        return LagrangeFunctionSpace::FromUniformGrid(el_view, bl_view, div_view,
-                                                     num_components, cs, order);
+        return LagrangeFunctionSpace::FromUniformGrid(grid, num_components, cs,
+                                                      order);
       },
       py::arg("grid"), py::arg("num_components") = 1,
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,

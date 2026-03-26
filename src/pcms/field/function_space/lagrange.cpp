@@ -87,76 +87,44 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
     std::move(eval_factory));
 }
 
-namespace
+LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
+  const UniformGrid<2>& grid, int num_components,
+  CoordinateSystem coordinate_system, int order)
 {
-template <unsigned Dim>
-UniformGrid<Dim> MakeUniformGrid(
-  const Rank1View<Real, HostMemorySpace> edge_length,
-  const Rank1View<Real, HostMemorySpace> bot_left,
-  const Rank1View<LO, HostMemorySpace> divisions)
-{
-  PCMS_ALWAYS_ASSERT(edge_length.size() == Dim);
-  PCMS_ALWAYS_ASSERT(bot_left.size() == Dim);
-  PCMS_ALWAYS_ASSERT(divisions.size() == Dim);
-
-  UniformGrid<Dim> grid;
-  for (unsigned i = 0; i < Dim; ++i) {
-    grid.edge_length[i] = edge_length[i];
-    grid.bot_left[i] = bot_left[i];
-    grid.divisions[i] = divisions[i];
+  if (order != 0 && order != 1) {
+    throw std::invalid_argument("LagrangeFunctionSpace::FromUniformGrid: only "
+                                "orders 0 and 1 are supported");
   }
-  return grid;
+  auto ug_layout = std::make_shared<UniformGridFieldLayout<2>>(
+    grid, num_components, coordinate_system, order);
+  auto eval_factory =
+    std::make_shared<UniformGridEvaluatorFactory<2>>(ug_layout);
+  return LagrangeFunctionSpace(
+    ug_layout,
+    [ug_layout](FieldMetadata metadata) {
+      return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
+    },
+    std::move(eval_factory));
 }
-} // namespace
 
 LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
-  Rank1View<Real, HostMemorySpace> edge_length,
-  Rank1View<Real, HostMemorySpace> bot_left,
-  Rank1View<LO, HostMemorySpace> divisions,
-  int num_components,
-  CoordinateSystem coordinate_system,
-  int order)
+  const UniformGrid<3>& grid, int num_components,
+  CoordinateSystem coordinate_system, int order)
 {
   if (order != 0 && order != 1) {
     throw std::invalid_argument(
       "LagrangeFunctionSpace::FromUniformGrid: only orders 0 and 1 are supported");
   }
-  if (edge_length.size() != bot_left.size() ||
-      edge_length.size() != divisions.size()) {
-    throw std::invalid_argument(
-      "edge_length, bot_left, and divisions must have the same size");
-  }
-  switch (edge_length.size()) {
-  case 2: {
-    auto ug_layout = std::make_shared<UniformGridFieldLayout<2>>(
-      MakeUniformGrid<2>(edge_length, bot_left, divisions), num_components,
-      coordinate_system, order);
-    auto eval_factory =
-      std::make_shared<UniformGridEvaluatorFactory<2>>(ug_layout);
-    return LagrangeFunctionSpace(
-      ug_layout,
-      [ug_layout](FieldMetadata metadata) {
-        return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
-      },
-      std::move(eval_factory));
-  }
-  case 3: {
-    auto ug_layout = std::make_shared<UniformGridFieldLayout<3>>(
-      MakeUniformGrid<3>(edge_length, bot_left, divisions), num_components,
-      coordinate_system, order);
-    auto eval_factory =
-      std::make_shared<UniformGridEvaluatorFactory<3>>(ug_layout);
-    return LagrangeFunctionSpace(
-      ug_layout,
-      [ug_layout](FieldMetadata metadata) {
-        return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
-      },
-      std::move(eval_factory));
-  }
-  default:
-    throw std::invalid_argument(
-      "LagrangeFunctionSpace::FromUniformGrid: only dim 2 and 3 are supported");
-  }
+  auto ug_layout = std::make_shared<UniformGridFieldLayout<3>>(
+    grid, num_components, coordinate_system, order);
+  auto eval_factory =
+    std::make_shared<UniformGridEvaluatorFactory<3>>(ug_layout);
+  return LagrangeFunctionSpace(
+    ug_layout,
+    [ug_layout](FieldMetadata metadata) {
+      return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
+    },
+    std::move(eval_factory));
 }
 
 std::shared_ptr<const FieldLayout>

@@ -253,12 +253,7 @@ TEST_CASE("UniformGrid field copy")
     nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
                layout, pcms::FieldMetadata{}));
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
-    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(
-      grid.edge_length.data(), 2),
-    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(
-      grid.bot_left.data(), 2),
-    pcms::Rank1View<pcms::LO, pcms::HostMemorySpace>(grid.divisions.data(), 2),
-    1, pcms::CoordinateSystem::Cartesian);
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   pcms::Copy<pcms::Real> copy(factory, factory);
   copy.Apply(field, field2);
 
@@ -279,14 +274,12 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   auto omega_h_field = omega_h_factory.CreateField(pcms::FieldMetadata{});
   pcms::test::SetField(omega_h_field.GetData(), pcms::test::linear_f);
 
-  std::array<pcms::Real, 2> el = {1.0, 1.0};
-  std::array<pcms::Real, 2> bl = {0.0, 0.0};
-  std::array<pcms::LO, 2>   dv = {2, 2};
+  pcms::UniformGrid<2> grid;
+  grid.edge_length = {1.0, 1.0};
+  grid.bot_left = {0.0, 0.0};
+  grid.divisions = {2, 2};
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
-    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(el.data(), 2),
-    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(bl.data(), 2),
-    pcms::Rank1View<pcms::LO,   pcms::HostMemorySpace>(dv.data(), 2),
-    1, pcms::CoordinateSystem::Cartesian);
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto ug_field = ug_factory.CreateField(pcms::FieldMetadata{});
 
   pcms::Interpolator<pcms::Real> interp(omega_h_factory, ug_factory);
@@ -588,10 +581,7 @@ TEST_CASE("UniformGrid workflow")
   pcms::test::SetField(omega_h_field.GetData(), pcms::test::linear_f);
 
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
-    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(grid.edge_length.data(), 2),
-    pcms::Rank1View<pcms::Real, pcms::HostMemorySpace>(grid.bot_left.data(), 2),
-    pcms::Rank1View<pcms::LO,   pcms::HostMemorySpace>(grid.divisions.data(), 2),
-    1, pcms::CoordinateSystem::Cartesian);
+    grid, 1, pcms::CoordinateSystem::Cartesian);
   auto ug_field = ug_factory.CreateField(pcms::FieldMetadata{});
 
   auto [mask_layout, mask_field] =
