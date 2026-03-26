@@ -1,6 +1,7 @@
 #include "client.h"
 #include "pcms.h"
 #include "pcms/field/function_space/xgc.h"
+#include "pcms/field/data/xgc.h"
 #include "pcms/field/layout/xgc.h"
 #include "pcms/coupler/serializer/xgc.h"
 #include "pcms/field/layout/xgc_reverse_classification.h"
@@ -57,8 +58,10 @@ ClientState::HandleVariant RegisterField(
   Application2& app, std::string name,
   const XGCFieldRegistration<T>& registration, bool participates)
 {
-  auto field =
-    registration.function_space.CreateField(registration.data, FieldMetadata{});
+  auto field = registration.function_space.template CreateField<T>(
+    std::make_unique<XGCFieldData<T>>(
+      registration.function_space.GetXGCLayout(), FieldMetadata{},
+      registration.data));
   app.AddLayout(name, registration.function_space.GetLayout(), participates);
   std::unique_ptr<FieldSerializer<T>> serializer =
     std::make_unique<XGCFieldSerializer<T>>(registration.plane_comm,

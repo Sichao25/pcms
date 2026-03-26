@@ -1,6 +1,7 @@
 #include "pcms/field/function_space/lagrange.h"
 #include "pcms/configuration.h"
 #include "pcms/utility/assert.h"
+#include "pcms/utility/common.h"
 #ifdef PCMS_ENABLE_MESHFIELDS
 #include "pcms/field/layout/mesh_fields.h"
 #include "pcms/field/evaluator/mesh_fields.h"
@@ -10,6 +11,7 @@
 #include "pcms/field/evaluator/omega_h_lagrange.h"
 #include "pcms/field/layout/uniform_grid.h"
 #include "pcms/field/evaluator/uniform_grid.h"
+#include "pcms/field/data/simple.h"
 #include "pcms/utility/uniform_grid.h"
 
 #include <stdexcept>
@@ -17,10 +19,44 @@
 namespace pcms
 {
 
+namespace
+{
+
+template <typename T>
+void ValidateLagrangeWrappedFieldData(const FieldLayout& layout,
+                                      const FieldData<T>& data)
+{
+#ifdef PCMS_ENABLE_MESHFIELDS
+  if (dynamic_cast<const MeshFieldsAdapterLayout*>(&layout) != nullptr) {
+    if (dynamic_cast<const MeshFieldsFieldData<T>*>(&data) == nullptr) {
+      throw pcms_error(
+        "LagrangeFunctionSpace::CreateField: MeshFields layout requires "
+        "MeshFieldsFieldData");
+    }
+  }
+  else
+#endif
+  {
+    if (dynamic_cast<const SimpleFieldData<T>*>(&data) == nullptr) {
+      throw pcms_error(
+        "LagrangeFunctionSpace::CreateField: this backend requires "
+        "SimpleFieldData");
+    }
+  }
+
+  if (data.GetDOFHolderDataHost().size() !=
+      detail::ExpectedFlatFieldDataSize(layout)) {
+    throw pcms_error(
+      "LagrangeFunctionSpace::CreateField: field data size does not match "
+      "layout");
+  }
+}
+
+} // namespace
+
 LagrangeFunctionSpace::LagrangeFunctionSpace(
   std::shared_ptr<const FieldLayout> layout,
-  std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
-    create_field_data_fn,
+  std::function<FieldDataVariant(Type, FieldMetadata)> create_field_data_fn,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
   : layout_(std::move(layout)),
     create_field_data_fn_(std::move(create_field_data_fn)),
@@ -58,9 +94,24 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
       std::make_shared<MeshFieldsEvaluatorFactory<Real>>(mesh_layout);
     return LagrangeFunctionSpace(
       mesh_layout,
-      [mesh_layout](FieldMetadata metadata) {
-        return std::make_unique<MeshFieldsFieldData<Real>>(mesh_layout,
-                                                           metadata);
+      [mesh_layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
+        if (t == Type::Float) {
+          if constexpr (std::is_same_v<MeshField::Real4, float> ||
+                        std::is_same_v<MeshField::Real8, float>) {
+            return std::make_unique<MeshFieldsFieldData<float>>(mesh_layout,
+                                                                metadata);
+          }
+          throw pcms_error(
+            "LagrangeFunctionSpace: MeshFields backend does not support "
+            "float in this build");
+        }
+        if (t == Type::Real) {
+          return std::make_unique<MeshFieldsFieldData<double>>(mesh_layout,
+                                                               metadata);
+        }
+        throw pcms_error(
+          "LagrangeFunctionSpace: MeshFields backend only supports the "
+          "MeshFields scalar types enabled in this build");
       },
       std::move(eval_factory));
 #else
@@ -81,8 +132,16 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
     std::make_shared<OmegaHLagrangeEvaluatorFactory<Real>>(layout);
   return LagrangeFunctionSpace(
     layout,
-    [layout](FieldMetadata metadata) {
-      return std::make_unique<SimpleFieldData<Real>>(layout, metadata);
+    [layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
+      return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
+        using T = typename decltype(tag)::type;
+        if constexpr (std::is_same_v<T, int8_t>) {
+          throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
+        }
+        else {
+          return std::make_unique<SimpleFieldData<T>>(layout, metadata);
+        }
+      });
     },
     std::move(eval_factory));
 }
@@ -101,8 +160,16 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
     std::make_shared<UniformGridEvaluatorFactory<2>>(ug_layout);
   return LagrangeFunctionSpace(
     ug_layout,
-    [ug_layout](FieldMetadata metadata) {
-      return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
+    [ug_layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
+      return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
+        using T = typename decltype(tag)::type;
+        if constexpr (std::is_same_v<T, int8_t>) {
+          throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
+        }
+        else {
+          return std::make_unique<SimpleFieldData<T>>(ug_layout, metadata);
+        }
+      });
     },
     std::move(eval_factory));
 }
@@ -121,8 +188,16 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
     std::make_shared<UniformGridEvaluatorFactory<3>>(ug_layout);
   return LagrangeFunctionSpace(
     ug_layout,
-    [ug_layout](FieldMetadata metadata) {
-      return std::make_unique<SimpleFieldData<Real>>(ug_layout, metadata);
+    [ug_layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
+      return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
+        using T = typename decltype(tag)::type;
+        if constexpr (std::is_same_v<T, int8_t>) {
+          throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
+        }
+        else {
+          return std::make_unique<SimpleFieldData<T>>(ug_layout, metadata);
+        }
+      });
     },
     std::move(eval_factory));
 }
@@ -144,27 +219,53 @@ LagrangeFunctionSpace::GetEvaluatorFactory() const
   return *evaluator_factory_;
 }
 
-std::unique_ptr<PointEvaluator<Real>> LagrangeFunctionSpace::CreatePointEvaluator(
+FieldVariant LagrangeFunctionSpace::CreateFieldImpl(
+  Type value_type, FieldMetadata metadata) const
+{
+  auto field_data = create_field_data_fn_(value_type, metadata);
+  return std::visit(
+    [this](auto&& fd) -> FieldVariant {
+      using FD = std::decay_t<decltype(fd)>;
+      using T  = typename FD::element_type::value_type;
+      return Field<T>(layout_, evaluator_factory_, std::move(fd));
+    },
+    std::move(field_data));
+}
+
+FieldVariant LagrangeFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
+{
+  return std::visit(
+    [this](auto&& fd) -> FieldVariant {
+      using FD = std::decay_t<decltype(fd)>;
+      using T  = typename FD::element_type::value_type;
+      PCMS_ALWAYS_ASSERT(fd != nullptr);
+      if constexpr (std::is_same_v<T, int8_t>) {
+        throw pcms_error(
+          "LagrangeFunctionSpace: int8_t is not a supported field type");
+      }
+      else {
+        ValidateLagrangeWrappedFieldData(*layout_, *fd);
+        return Field<T>(layout_, evaluator_factory_, std::move(fd));
+      }
+    },
+    std::move(data));
+}
+
+PointEvaluatorVariant LagrangeFunctionSpace::CreatePointEvaluatorImpl(
+  Type value_type,
   CoordinateView<HostMemorySpace> coords,
   OutOfBoundsPolicy policy) const
 {
+  if (value_type != Type::Real) {
+    throw pcms_error(
+      "LagrangeFunctionSpace: point evaluation only supports double (Real)");
+  }
   if (!evaluator_factory_) {
     throw pcms_error(
-      "LagrangeFunctionSpace::CreatePointEvaluator: evaluator construction is "
-      "not available for this backend");
+      "LagrangeFunctionSpace::CreatePointEvaluatorImpl: evaluator construction "
+      "is not available for this backend");
   }
   return evaluator_factory_->CreatePointEvaluator(coords, policy);
-}
-
-Field<Real> LagrangeFunctionSpace::CreateField(FieldMetadata metadata) const
-{
-  return Field<Real>(layout_, evaluator_factory_, create_field_data_fn_(metadata));
-}
-
-std::unique_ptr<FieldData<Real>> LagrangeFunctionSpace::CreateFieldData(
-  FieldMetadata metadata) const
-{
-  return create_field_data_fn_(metadata);
 }
 
 } // namespace pcms

@@ -162,7 +162,7 @@ void CheckEvaluation(const Factory& factory,
   int n = static_cast<int>(pts.size()) / 2;
   Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
-  auto evaluator = factory.CreatePointEvaluator(cv);
+  auto evaluator = factory.template CreatePointEvaluator<Real>(cv);
   CheckEvaluation<ExecutionSpace>(*evaluator, field_data, pts, func, abs_tol);
 }
 
@@ -191,7 +191,7 @@ void CheckFillMode(const Factory& factory,
   Rank2View<const Real, HostMemorySpace> coords_view(outside_pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
   OutOfBoundsPolicy policy{OutOfBoundsMode::FILL, fill_value};
-  auto evaluator = factory.CreatePointEvaluator(cv, policy);
+  auto evaluator = factory.template CreatePointEvaluator<Real>(cv, policy);
   CheckFillMode(*evaluator, field_data, fill_value, outside_pts);
 }
 
@@ -211,7 +211,7 @@ void CheckEvaluationWithFill(const Factory& factory,
   Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
   OutOfBoundsPolicy policy{OutOfBoundsMode::FILL, fill_value};
-  auto evaluator = factory.CreatePointEvaluator(cv, policy);
+  auto evaluator = factory.template CreatePointEvaluator<Real>(cv, policy);
 
   std::vector<Real> eval(n);
   Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);

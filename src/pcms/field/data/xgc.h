@@ -4,6 +4,7 @@
 #include "pcms/field/layout/xgc.h"
 #include "pcms/field/field_data.h"
 #include "pcms/utility/assert.h"
+#include <Kokkos_Core.hpp>
 #include <memory>
 
 namespace pcms
@@ -13,6 +14,8 @@ template <typename T>
 class XGCFieldData : public FieldData<T>
 {
 public:
+  // Externally-managed storage: the caller owns the underlying data buffer.
+  // The view must remain valid for the lifetime of this object.
   XGCFieldData(std::shared_ptr<const XGCFieldLayout> layout,
                FieldMetadata metadata, Rank1View<T, HostMemorySpace> data)
     : layout_(std::move(layout)),
@@ -22,6 +25,19 @@ public:
     PCMS_ALWAYS_ASSERT(layout_ != nullptr);
     PCMS_ALWAYS_ASSERT(static_cast<LO>(data_.size()) ==
                        layout_->GetFullDataSize());
+  }
+
+  // Self-allocating constructor: XGCFunctionSpace::CreateFieldImpl uses this
+  // to produce a field with internally-managed storage.
+  XGCFieldData(std::shared_ptr<const XGCFieldLayout> layout,
+               FieldMetadata metadata)
+    : layout_(std::move(layout)),
+      metadata_(metadata),
+      owned_data_("xgc_field_data",
+                  static_cast<size_t>(layout_->GetFullDataSize())),
+      data_(owned_data_.data(), owned_data_.extent(0))
+  {
+    PCMS_ALWAYS_ASSERT(layout_ != nullptr);
   }
 
   const FieldMetadata& GetMetadata() const override { return metadata_; }
@@ -45,6 +61,8 @@ public:
 private:
   std::shared_ptr<const XGCFieldLayout> layout_;
   FieldMetadata metadata_;
+  // owned_data_ is non-empty only when the self-allocating constructor is used.
+  Kokkos::View<T*, HostMemorySpace> owned_data_;
   Rank1View<T, HostMemorySpace> data_;
 };
 

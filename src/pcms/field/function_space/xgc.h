@@ -34,17 +34,56 @@ public:
     return CoordinateSystem::XGC;
   }
 
+protected:
   [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override
   {
     throw pcms_error("XGCFunctionSpace does not support evaluator factories");
   }
 
-  template <typename T>
-  [[nodiscard]] Field<T> CreateField(Rank1View<T, HostMemorySpace> data,
-                                     FieldMetadata metadata = {}) const
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    Type value_type, FieldMetadata metadata) const override
   {
-    return Field<T>(layout_, nullptr,
-                    std::make_unique<XGCFieldData<T>>(layout_, metadata, data));
+    return apply_to_type(value_type, [&](auto tag) -> FieldVariant {
+      using T = typename decltype(tag)::type;
+      return Field<T>(layout_, nullptr,
+                      std::make_unique<XGCFieldData<T>>(layout_, metadata));
+    });
+  }
+
+  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override
+  {
+    return std::visit(
+      [this](auto&& fd) -> FieldVariant {
+        using FD = std::decay_t<decltype(fd)>;
+        using T  = typename FD::element_type::value_type;
+        PCMS_ALWAYS_ASSERT(fd != nullptr);
+        if (dynamic_cast<const XGCFieldData<T>*>(fd.get()) == nullptr) {
+          throw pcms_error(
+            "XGCFunctionSpace::CreateField: requires XGCFieldData");
+        }
+        if (fd->GetDOFHolderDataHost().size() !=
+            static_cast<size_t>(layout_->GetFullDataSize())) {
+          throw pcms_error(
+            "XGCFunctionSpace::CreateField: field data size does not match "
+            "layout");
+        }
+        return Field<T>(layout_, nullptr, std::move(fd));
+      },
+      std::move(data));
+  }
+
+  [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
+    Type /*value_type*/,
+    CoordinateView<HostMemorySpace> /*coords*/,
+    OutOfBoundsPolicy /*policy*/) const override
+  {
+    throw pcms_error("XGCFunctionSpace does not support point evaluation");
+  }
+
+public:
+  [[nodiscard]] std::shared_ptr<const XGCFieldLayout> GetXGCLayout() const noexcept
+  {
+    return layout_;
   }
 
 private:

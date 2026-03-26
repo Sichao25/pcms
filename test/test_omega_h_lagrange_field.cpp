@@ -111,8 +111,8 @@ TEST_CASE("OmegaHLagrangeLayout layout sharing")
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
 
-  auto f1 = factory.CreateField(pcms::FieldMetadata{});
-  auto f2 = factory.CreateField(pcms::FieldMetadata{});
+  auto f1 = factory.CreateField<Real>(pcms::FieldMetadata{});
+  auto f2 = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   REQUIRE(&f1.GetLayout() == &f2.GetLayout());
 }
@@ -125,7 +125,7 @@ TEST_CASE("OmegaHLagrangeField order-1: set/get DOF data round-trip")
   auto mesh = MakeBox2D(lib.world());
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   int n = factory.GetLayout()->GetNumOwnedDofHolder();
   std::vector<Real> data(n);
@@ -133,9 +133,9 @@ TEST_CASE("OmegaHLagrangeField order-1: set/get DOF data round-trip")
     data[i] = static_cast<Real>(i);
 
   pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), n);
-  field->SetDOFHolderDataHost(view);
+  field.GetData().SetDOFHolderDataHost(view);
 
-  auto got = field->GetDOFHolderDataHost();
+  auto got = field.GetData().GetDOFHolderDataHost();
   REQUIRE(static_cast<int>(got.size()) == n);
   for (int i = 0; i < n; ++i)
     REQUIRE(got[i] == Catch::Approx(data[i]));
@@ -147,10 +147,10 @@ TEST_CASE("OmegaHLagrangeField order-1: linear function evaluation")
   auto mesh = MakeBox2D(lib.world(), 20, 20);
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::CheckEvaluation(factory, *field,
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::CheckEvaluation(factory, field.GetData(),
                               pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
 }
@@ -163,10 +163,10 @@ TEST_CASE("MeshFieldsAdapter order-1: linear function evaluation (shared util)")
   auto mesh = MakeBox2D(lib.world(), 20, 20);
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::CheckEvaluation(factory, *field,
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::CheckEvaluation(factory, field.GetData(),
                               pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
 }
@@ -177,13 +177,13 @@ TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
   auto mesh = MakeBox2D(lib.world());
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
 
   Real fill_value = -999.0;
   std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5, 0.5, -0.5, 0.5, 1.5};
-  pcms::test::CheckFillMode(factory, *field, fill_value, outside);
+  pcms::test::CheckFillMode(factory, field.GetData(), fill_value, outside);
 }
 
 TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
@@ -192,10 +192,10 @@ TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
   auto mesh = MakeBox2D(lib.world());
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), *field);
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), field.GetData());
 }
 
 // ---- Order-0 field tests ----------------------------------------------------
@@ -206,14 +206,14 @@ TEST_CASE("OmegaHLagrangeField order-0: set/get DOF data round-trip")
   auto mesh = MakeBox2D(lib.world());
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   int n = factory.GetLayout()->GetNumOwnedDofHolder();
   std::vector<Real> data(n, 3.14);
   pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), n);
-  field->SetDOFHolderDataHost(view);
+  field.GetData().SetDOFHolderDataHost(view);
 
-  auto got = field->GetDOFHolderDataHost();
+  auto got = field.GetData().GetDOFHolderDataHost();
   REQUIRE(static_cast<int>(got.size()) == n);
   for (int i = 0; i < n; ++i)
     REQUIRE(got[i] == Catch::Approx(3.14));
@@ -225,24 +225,24 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
   auto mesh = MakeBox2D(lib.world(), 10, 10);
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   const Real kValue = 42.0;
   int nelems = mesh.nelems();
   std::vector<Real> data(nelems, kValue);
   pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), nelems);
-  field->SetDOFHolderDataHost(view);
+  field.GetData().SetDOFHolderDataHost(view);
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
   pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(pts.data(), n, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{factory.GetCoordinateSystem(),
                                                   coords_view};
-  auto evaluator = factory.CreatePointEvaluator(cv);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
 
   std::vector<Real> eval(n);
   pcms::Rank2View<Real, pcms::HostMemorySpace> out(eval.data(), n, 1);
-  evaluator->Evaluate(*field, out);
+  evaluator->Evaluate(field.GetData(), out);
 
   for (int i = 0; i < n; ++i)
     REQUIRE(eval[i] == Catch::Approx(kValue));
@@ -254,16 +254,16 @@ TEST_CASE("OmegaHLagrangeField order-0: out-of-bounds FILL mode")
   auto mesh = MakeBox2D(lib.world());
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   int nelems = mesh.nelems();
   std::vector<Real> data(nelems, 1.0);
   pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), nelems);
-  field->SetDOFHolderDataHost(view);
+  field.GetData().SetDOFHolderDataHost(view);
 
   Real fill_value = -1.0;
   std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5};
-  pcms::test::CheckFillMode(factory, *field, fill_value, outside);
+  pcms::test::CheckFillMode(factory, field.GetData(), fill_value, outside);
 }
 
 TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")
@@ -272,16 +272,16 @@ TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")
   auto mesh = MakeBox2D(lib.world());
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 0, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   int nelems = mesh.nelems();
   std::vector<Real> data(nelems);
   for (int i = 0; i < nelems; ++i)
     data[i] = static_cast<Real>(i);
   pcms::Rank1View<const Real, pcms::HostMemorySpace> view(data.data(), nelems);
-  field->SetDOFHolderDataHost(view);
+  field.GetData().SetDOFHolderDataHost(view);
 
-  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), *field);
+  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), field.GetData());
 }
 
 // ---- Layout sharing communicator contract -----------------------------------
@@ -309,7 +309,7 @@ TEST_CASE("OmegaHLagrangeField: field valid after layout destruction")
   {
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-    field.emplace(factory.CreateField(pcms::FieldMetadata{}));
+    field.emplace(factory.CreateField<Real>(pcms::FieldMetadata{}));
   } // factory goes out of scope; field keeps layout alive
 
   pcms::test::SetField(*field, pcms::test::linear_f);

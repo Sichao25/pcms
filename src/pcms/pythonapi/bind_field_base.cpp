@@ -214,14 +214,6 @@ void bind_create_field_module(py::module& m)
       },
       "Get the field layout")
 
-    .def(
-      "get_evaluator_factory",
-      [](const FunctionSpace& self) -> const FieldEvaluatorFactory<Real>& {
-        return self.GetEvaluatorFactory();
-      },
-      py::return_value_policy::reference_internal,
-      "Get the FieldEvaluatorFactory for this function space")
-
     .def("get_coordinate_system", &FunctionSpace::GetCoordinateSystem,
          "Get the coordinate system for this function space");
 
@@ -264,7 +256,7 @@ void bind_create_field_module(py::module& m)
 
     .def(
       "create_field",
-      [](const LagrangeFunctionSpace& self) { return self.CreateField(); },
+      [](const LagrangeFunctionSpace& self) { return self.CreateField<Real>(); },
       "Create a Field<Real> for this function space");
 
   // Bind CreateUniformGridFromMesh for 2D

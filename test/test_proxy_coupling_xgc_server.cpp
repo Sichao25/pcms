@@ -3,6 +3,8 @@
 #include <pcms/utility/types.h>
 #include <Omega_h_file.hpp>
 #include <Omega_h_for.hpp>
+#include <data/simple.h>
+
 #include "test_support.h"
 #include "pcms/field/function_space/xgc.h"
 #include "pcms/field/layout/xgc.h"
@@ -51,8 +53,10 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     // communicator even though the layouts are geometrically identical.
     auto function_space = pcms::XGCFunctionSpace(
       rc, ts::IsModelEntInOverlap{}, static_cast<pcms::LO>(mesh.nverts()));
-    auto field =
-      function_space.CreateField(make_array_view(data[i]), pcms::FieldMetadata{});
+    auto field = function_space.CreateField<pcms::GO>(
+      std::make_unique<pcms::XGCFieldData<pcms::GO>>(
+        function_space.GetXGCLayout(), pcms::FieldMetadata{},
+        make_array_view(data[i])));
     application->AddLayout(ss.str(), function_space.GetLayout());
     std::unique_ptr<pcms::FieldSerializer<GO>> serializer =
       std::make_unique<pcms::XGCFieldSerializer<GO>>(comm);

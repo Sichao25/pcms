@@ -29,10 +29,10 @@ void test_copy(Omega_h::CommPtr world, int dim, int order, int num_components)
     Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, ndata),
     [=](int i) { ids[i] = i; });
 
-  auto original = factory.CreateField(pcms::FieldMetadata{});
+  auto original = factory.CreateField<Real>(pcms::FieldMetadata{});
   original.SetDOFHolderDataHost(pcms::make_const_array_view(ids));
 
-  auto copied = factory.CreateField(pcms::FieldMetadata{});
+  auto copied = factory.CreateField<Real>(pcms::FieldMetadata{});
   pcms::Copy<Real> copy(factory, factory);
   copy.Apply(original, copied);
   auto copied_array = copied.GetDOFHolderDataHost();

@@ -1,7 +1,6 @@
 #ifndef PCMS_SPLINE_FUNCTION_SPACE_H
 #define PCMS_SPLINE_FUNCTION_SPACE_H
 
-#include "pcms/field/data/simple.h"
 #include "pcms/field/field.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/field_evaluator_factory.h"
@@ -30,16 +29,18 @@ public:
 
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
+protected:
   [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override;
 
-  [[nodiscard]] std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    Type value_type, FieldMetadata metadata) const override;
+
+  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override;
+
+  [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
+    Type value_type,
     CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const;
-
-  [[nodiscard]] Field<Real> CreateField(FieldMetadata metadata = {}) const;
-
-  [[nodiscard]] std::unique_ptr<FieldData<Real>> CreateFieldData(
-    FieldMetadata metadata = {}) const;
+    OutOfBoundsPolicy policy) const override;
 
 private:
   explicit SplineFunctionSpace(

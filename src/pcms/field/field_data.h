@@ -69,13 +69,12 @@ public:
   virtual ~FieldData() noexcept = default;
 };
 
-template <typename T>
-using OwnedFieldDataPtrT = std::unique_ptr<FieldData<T>>;
-
-using OwnedFieldDataPtr =
-  std::variant<OwnedFieldDataPtrT<int8_t>, OwnedFieldDataPtrT<int32_t>,
-               OwnedFieldDataPtrT<int64_t>, OwnedFieldDataPtrT<float>,
-               OwnedFieldDataPtrT<double>>;
+using FieldDataVariant =
+  std::variant<std::unique_ptr<FieldData<int8_t>>,
+               std::unique_ptr<FieldData<int32_t>>,
+               std::unique_ptr<FieldData<int64_t>>,
+               std::unique_ptr<FieldData<float>>,
+               std::unique_ptr<FieldData<double>>>;
 
 } // namespace pcms
 

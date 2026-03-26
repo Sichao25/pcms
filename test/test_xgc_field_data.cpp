@@ -111,10 +111,19 @@ TEST_CASE("XGCFunctionSpace creates fields and rejects evaluator access")
 
   std::vector<pcms::Real> data(data_size);
   std::iota(data.begin(), data.end(), 0.0);
-  auto field =
-    function_space.CreateField(pcms::make_array_view(data), pcms::FieldMetadata{});
+  auto field = function_space.CreateField<pcms::Real>(
+    std::make_unique<pcms::XGCFieldData<pcms::Real>>(
+      function_space.GetXGCLayout(), pcms::FieldMetadata{},
+      pcms::make_array_view(data)));
 
   REQUIRE(&field.GetLayout() == function_space.GetLayout().get());
   REQUIRE(function_space.GetCoordinateSystem() == pcms::CoordinateSystem::XGC);
-  REQUIRE_THROWS_AS(function_space.GetEvaluatorFactory(), pcms::pcms_error);
+  // XGC does not support point evaluation; CreatePointEvaluator throws.
+  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> empty_coords{
+    nullptr, 0, 2};
+  REQUIRE_THROWS_AS(
+    function_space.CreatePointEvaluator<pcms::Real>(
+      pcms::CoordinateView<pcms::HostMemorySpace>{pcms::CoordinateSystem::XGC,
+                                                  empty_coords}),
+    pcms::pcms_error);
 }

@@ -7,7 +7,6 @@
 #include "pcms/field/field_metadata.h"
 #include "pcms/field/function_space.h"
 #include "pcms/field/out_of_bounds_policy.h"
-#include "pcms/field/data/simple.h"
 #include "pcms/field/coordinate_system.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
@@ -31,25 +30,20 @@ public:
 
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
+protected:
   [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override;
 
-  // Delegates PointEvaluator construction to the internal factory.
-  [[nodiscard]] std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    Type value_type, FieldMetadata metadata) const override;
+
+  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override;
+
+  [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
+    Type value_type,
     CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const;
-
-  // Returns a new Field<Real> for this function space.
-  // Prefer this over CreateFieldData() in new code.
-  [[nodiscard]] Field<Real> CreateField(FieldMetadata metadata = {}) const;
-
-  // Low-level: bare FieldData without the evaluator factory reference.
-  // Use when the communicator API requires a raw FieldData; prefer
-  // CreateField() in user code.
-  [[nodiscard]] std::unique_ptr<FieldData<Real>> CreateFieldData(
-    FieldMetadata metadata = {}) const;
+    OutOfBoundsPolicy policy) const override;
 
 private:
-
   explicit NodalFunctionSpace(
     std::shared_ptr<const FieldLayout> layout,
     std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept;

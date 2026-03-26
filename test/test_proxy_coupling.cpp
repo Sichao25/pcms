@@ -92,8 +92,8 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   app->AddLayout("gids", factory.GetLayout());
 
-  auto gids_field = factory.CreateField(pcms::FieldMetadata{});
-  auto gids2_field = factory.CreateField(pcms::FieldMetadata{});
+  auto gids_field = factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto gids2_field = factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   auto* gids_ptr = &gids_field.GetData();
   auto* gids2_ptr = &gids2_field.GetData();
@@ -133,7 +133,7 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   app->AddLayout("gids", factory.GetLayout());
 
-  auto gids_field = factory.CreateField(pcms::FieldMetadata{});
+  auto gids_field = factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   auto* gids_ptr = &gids_field.GetData();
 
@@ -180,9 +180,9 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   delta_f->AddLayout("gids", factory_delta.GetLayout());
   // TODO, fields should have a transfer policy rather than parameters
-  auto total_gids_field = factory_total.CreateField(pcms::FieldMetadata{});
-  auto delta_gids_field = factory_delta.CreateField(pcms::FieldMetadata{});
-  auto delta_gids2_field = factory_delta.CreateField(pcms::FieldMetadata{});
+  auto total_gids_field = factory_total.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto delta_gids_field = factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto delta_gids2_field = factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   auto* total_gids_ptr = &total_gids_field.GetData();
   auto* delta_gids_ptr = &delta_gids_field.GetData();

@@ -271,7 +271,7 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
 
   auto omega_h_factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_field = omega_h_factory.CreateField(pcms::FieldMetadata{});
+  auto omega_h_field = omega_h_factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
   pcms::test::SetField(omega_h_field, pcms::test::linear_f);
 
   pcms::UniformGrid<2> grid;
@@ -280,7 +280,7 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   grid.divisions = {2, 2};
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian);
-  auto ug_field = ug_factory.CreateField(pcms::FieldMetadata{});
+  auto ug_field = ug_factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   pcms::Interpolator<pcms::Real> interp(omega_h_factory, ug_factory);
   interp.Apply(omega_h_field, ug_field);
@@ -577,12 +577,12 @@ TEST_CASE("UniformGrid workflow")
 
   auto omega_h_factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto omega_h_field = omega_h_factory.CreateField(pcms::FieldMetadata{});
+  auto omega_h_field = omega_h_factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
   pcms::test::SetField(omega_h_field, pcms::test::linear_f);
 
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian);
-  auto ug_field = ug_factory.CreateField(pcms::FieldMetadata{});
+  auto ug_field = ug_factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   auto [mask_layout, mask_field] =
     pcms::CreateUniformGridBinaryField<2>(mesh, grid);

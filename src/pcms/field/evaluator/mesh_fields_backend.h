@@ -112,6 +112,13 @@ template <typename T>
 std::shared_ptr<MeshFieldBackend<T>> MakeMeshFieldBackend(
   const MeshFieldsAdapterLayout& layout)
 {
+  if constexpr (!std::is_same_v<T, MeshField::Real4> &&
+                !std::is_same_v<T, MeshField::Real8>) {
+    throw pcms_error(
+      "MeshFieldBackend only supports the MeshFields scalar types enabled in "
+      "this build");
+  }
+
   Omega_h::Mesh& mesh = layout.GetMesh();
   if (mesh.dim() == 3) {
     throw pcms_error("MeshFieldBackend does not support 3D meshes");

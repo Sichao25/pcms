@@ -145,7 +145,7 @@ private:
   redev::Redev& redev_;
   redev::Channel channel_;
   std::vector<std::shared_ptr<const FieldLayout>> layouts_;
-  std::map<std::string, OwnedField> fields_;
+  std::map<std::string, FieldVariant> fields_;
   std::vector<std::unique_ptr<FieldLayoutCommunicator>>
     owned_field_layout_communicators_;
   // map is used rather than unordered_map because we give pointers to the

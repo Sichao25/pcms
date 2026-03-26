@@ -77,7 +77,7 @@ private:
   std::unique_ptr<FieldData<T>> data_;
 };
 
-using OwnedField =
+using FieldVariant =
   std::variant<Field<int8_t>, Field<int32_t>, Field<int64_t>, Field<float>,
                Field<double>>;
 

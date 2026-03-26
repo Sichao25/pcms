@@ -24,8 +24,8 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 10, 10, 0, false);
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
-  pcms::test::SetField(*field, *factory.GetLayout(), fill_mode_f);
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), fill_mode_f);
 
   Real fill_value = -999.0;
 
@@ -40,5 +40,5 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
 
   std::vector<bool> is_inside = {true, false, false, true, false};
   pcms::test::CheckEvaluationWithFill(
-    factory, *field, coords, is_inside, fill_mode_f, fill_value, 1.0e-10);
+    factory, field.GetData(), coords, is_inside, fill_mode_f, fill_value, 1.0e-10);
 }

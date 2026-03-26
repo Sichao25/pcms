@@ -42,7 +42,7 @@ public:
             .GetCoordinates()
             .extent(0))),
       n_comp_(target_space.GetLayout()->GetNumComponents()),
-      evaluator_(source_space.GetEvaluatorFactory().CreatePointEvaluator(
+      evaluator_(source_space.CreatePointEvaluator<T>(
         target_space.GetLayout()->GetDOFHolderCoordinates(), policy))
   {
   }

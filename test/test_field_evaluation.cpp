@@ -31,10 +31,10 @@ TEST_CASE("evaluate linear 2d omega_h_field")
                                  100, 100, 0, false);
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(*field, *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::CheckEvaluation(factory, *field, pcms::test::StandardEvalCoords2D(),
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::CheckEvaluation(factory, field.GetData(), pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
 }
 
@@ -66,10 +66,10 @@ TEST_CASE("evaluate quadratic 2d meshfields_field")
   });
 
   Omega_h::HostWrite<Real> test_f_host(test_f);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
-  field->SetDOFHolderDataHost(pcms::make_const_array_view(test_f_host));
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
+  field.GetData().SetDOFHolderDataHost(pcms::make_const_array_view(test_f_host));
 
-  pcms::test::CheckEvaluation(factory, *field, kEvalCoords, sin_f, 1.0e-2);
+  pcms::test::CheckEvaluation(factory, field.GetData(), kEvalCoords, sin_f, 1.0e-2);
 }
 #endif
 

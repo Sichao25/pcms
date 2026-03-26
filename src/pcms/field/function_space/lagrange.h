@@ -4,7 +4,6 @@
 #include <Omega_h_mesh.hpp>
 #include "pcms/configuration.h"
 #include "pcms/field/field.h"
-#include "pcms/field/field.h"
 #include "pcms/field/field_layout.h"
 #include "pcms/field/function_space.h"
 #include "pcms/field/field_data.h"
@@ -12,12 +11,11 @@
 #include "pcms/field/point_evaluator.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/field/field_evaluator_factory.h"
-#include "pcms/field/data/simple.h"
 #include "../coordinate_system.h"
 #include "pcms/utility/arrays.h"
-#include "pcms/utility/uniform_grid.h"
 #include "pcms/utility/types.h"
 #include "pcms/utility/memory_spaces.h"
+#include "pcms/utility/uniform_grid.h"
 
 #include <functional>
 #include <memory>
@@ -62,35 +60,27 @@ public:
 
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
+protected:
   [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override;
 
-  // Delegates PointEvaluator construction to the internal factory.
-  [[nodiscard]] std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    Type value_type, FieldMetadata metadata) const override;
+
+  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override;
+
+  [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
+    Type value_type,
     CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const;
-
-  // Returns a new Field<Real> for this function space.
-  // The field retains a shared reference to the evaluator factory, so
-  // this LagrangeFunctionSpace need not outlive the returned field.
-  // Prefer this over CreateFieldData() in new code.
-  [[nodiscard]] Field<Real> CreateField(FieldMetadata metadata = {}) const;
-
-  // Low-level: bare FieldData without the evaluator factory reference.
-  // Use when the communicator API or other infrastructure requires a raw
-  // FieldData; prefer CreateField() in user code.
-  [[nodiscard]] std::unique_ptr<FieldData<Real>> CreateFieldData(
-    FieldMetadata metadata = {}) const;
+    OutOfBoundsPolicy policy) const override;
 
 private:
   explicit LagrangeFunctionSpace(
     std::shared_ptr<const FieldLayout> layout,
-    std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
-      create_field_data_fn,
+    std::function<FieldDataVariant(Type, FieldMetadata)> create_field_data_fn,
     std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept;
 
   std::shared_ptr<const FieldLayout> layout_;
-  std::function<std::unique_ptr<FieldData<Real>>(FieldMetadata)>
-    create_field_data_fn_;
+  std::function<FieldDataVariant(Type, FieldMetadata)> create_field_data_fn_;
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory_;
 };
 

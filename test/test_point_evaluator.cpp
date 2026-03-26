@@ -31,8 +31,8 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, CoordinateSystem::Cartesian,
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
 
-  auto field_data = factory.CreateFieldData();
-  pcms::test::SetField(*field_data, *factory.GetLayout(), pcms::test::linear_f);
+  auto field_data = factory.CreateField<Real>();
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
@@ -40,9 +40,9 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
     pts.data(), n, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     CoordinateSystem::Cartesian, coords_view};
-  auto evaluator = factory.CreatePointEvaluator(cv);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
   pcms::test::CheckEvaluation(
-    *evaluator, *field_data,
+    *evaluator, field_data.GetData(),
     pts, pcms::test::linear_f);
 }
 
@@ -60,12 +60,12 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, CoordinateSystem::Cartesian,
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
 
-  auto field_a = factory.CreateFieldData();
-  auto field_b = factory.CreateFieldData();
+  auto field_a = factory.CreateField<Real>();
+  auto field_b = factory.CreateField<Real>();
 
   // field_a: linear_f;  field_b: constant 42
-  pcms::test::SetField(*field_a, *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::SetField(*field_b, *factory.GetLayout(),
+  pcms::test::SetField(field_a.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_b.GetData(), *factory.GetLayout(),
                        [](Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
@@ -77,15 +77,15 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
     CoordinateSystem::Cartesian, coords_view};
 
   // Create the PointEvaluator once
-  auto evaluator = factory.CreatePointEvaluator(cv);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
 
   std::vector<Real> out_a(n), out_b(n);
   pcms::Rank2View<Real, pcms::HostMemorySpace> view_a(out_a.data(), n, 1);
   pcms::Rank2View<Real, pcms::HostMemorySpace> view_b(out_b.data(), n, 1);
 
   // Evaluate field_a then field_b with the same evaluator
-  evaluator->Evaluate(*field_a, view_a);
-  evaluator->Evaluate(*field_b, view_b);
+  evaluator->Evaluate(field_a.GetData(), view_a);
+  evaluator->Evaluate(field_b.GetData(), view_b);
 
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];
@@ -108,8 +108,8 @@ TEST_CASE("PointEvaluator: OmegaH order-1 out-of-bounds fill")
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, CoordinateSystem::Cartesian,
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
 
-  auto field_data = factory.CreateFieldData();
-  pcms::test::SetField(*field_data, *factory.GetLayout(), pcms::test::linear_f);
+  auto field_data = factory.CreateField<Real>();
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
 
   // Points clearly outside [0,1]^2
   const std::vector<Real> outside_pts = {-0.5, 0.5, 1.5, 0.5, 0.5, -0.5,
@@ -120,8 +120,8 @@ TEST_CASE("PointEvaluator: OmegaH order-1 out-of-bounds fill")
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     CoordinateSystem::Cartesian, coords_view};
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
-  auto evaluator = factory.CreatePointEvaluator(cv, policy);
-  pcms::test::CheckFillMode(*evaluator, *field_data, -999.0, outside_pts);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv, policy);
+  pcms::test::CheckFillMode(*evaluator, field_data.GetData(), -999.0, outside_pts);
 }
 
 // ============================================================================
@@ -140,17 +140,17 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, CoordinateSystem::Cartesian, 1);
 
-  auto field_data = factory.CreateFieldData();
-  pcms::test::SetField(*field_data, *factory.GetLayout(), pcms::test::linear_f);
+  auto field_data = factory.CreateField<Real>();
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
   pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(
     pts.data(), n, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     CoordinateSystem::Cartesian, coords_view};
-  auto evaluator = factory.CreatePointEvaluator(cv);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
   pcms::test::CheckEvaluation(
-    *evaluator, *field_data, pts, pcms::test::linear_f, 1e-8);
+    *evaluator, field_data.GetData(), pts, pcms::test::linear_f, 1e-8);
 }
 
 TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
@@ -164,17 +164,17 @@ TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
   auto factory = pcms::SplineFunctionSpace::FromUniformGrid(
     grid, CoordinateSystem::Cartesian);
 
-  auto field_data = factory.CreateFieldData();
-  pcms::test::SetField(*field_data, *factory.GetLayout(), pcms::test::linear_f);
+  auto field_data = factory.CreateField<Real>();
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
   pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(
     pts.data(), n, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     CoordinateSystem::Cartesian, coords_view};
-  auto evaluator = factory.CreatePointEvaluator(cv);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
   pcms::test::CheckEvaluation(
-    *evaluator, *field_data, pts, pcms::test::linear_f, 1e-8);
+    *evaluator, field_data.GetData(), pts, pcms::test::linear_f, 1e-8);
 }
 
 // ============================================================================
@@ -211,7 +211,7 @@ TEST_CASE("FieldData: layout metadata queries")
   auto factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, CoordinateSystem::Cartesian,
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
-  auto field_data = factory.CreateFieldData();
+  auto field_data = factory.CreateField<Real>();
 
   auto coords = factory.GetLayout()->GetDOFHolderCoordinates();
   REQUIRE(coords.GetCoordinateSystem() == CoordinateSystem::Cartesian);
@@ -232,7 +232,7 @@ TEST_CASE("SimpleFieldData: set and get DOF holder data round-trip")
   auto factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, CoordinateSystem::Cartesian,
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
-  auto field_data = factory.CreateFieldData();
+  auto field_data = factory.CreateField<Real>();
 
   auto& layout = *factory.GetLayout();
   int n = layout.GetNumOwnedDofHolder();
@@ -243,10 +243,10 @@ TEST_CASE("SimpleFieldData: set and get DOF holder data round-trip")
   for (int i = 0; i < n; ++i)
     data_in[i] = static_cast<Real>(i) * 0.5;
 
-  field_data->SetDOFHolderDataHost(
+  field_data.GetData().SetDOFHolderDataHost(
     pcms::Rank1View<const Real, pcms::HostMemorySpace>(data_in.data(), n));
 
-  auto data_out = field_data->GetDOFHolderDataHost();
+  auto data_out = field_data.GetData().GetDOFHolderDataHost();
   REQUIRE(static_cast<int>(data_out.size()) == n);
   for (int i = 0; i < n; ++i) {
     REQUIRE(data_out[i] == Catch::Approx(data_in[i]));
@@ -285,8 +285,8 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
     mesh, 1, 1, CoordinateSystem::Cartesian, "global",
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
-  auto field_data = factory.CreateFieldData();
-  pcms::test::SetField(*field_data, *factory.GetLayout(), pcms::test::linear_f);
+  auto field_data = factory.CreateField<Real>();
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
@@ -294,8 +294,8 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
                                                                  2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{CoordinateSystem::Cartesian,
                                                  coords_view};
-  auto evaluator = factory.CreatePointEvaluator(cv);
-  pcms::test::CheckEvaluation(*evaluator, *field_data, pts,
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
+  pcms::test::CheckEvaluation(*evaluator, field_data.GetData(), pts,
                                  pcms::test::linear_f);
 }
 
@@ -309,8 +309,8 @@ TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
     mesh, 1, 1, CoordinateSystem::Cartesian, "global",
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
-  auto field_data = factory.CreateFieldData();
-  pcms::test::SetField(*field_data, *factory.GetLayout(), pcms::test::linear_f);
+  auto field_data = factory.CreateField<Real>();
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
 
   const std::vector<Real> outside_pts = {-0.5, 0.5,  1.5, 0.5,
                                          0.5,  -0.5, 0.5, 1.5};
@@ -320,8 +320,8 @@ TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
   pcms::CoordinateView<pcms::HostMemorySpace> cv{CoordinateSystem::Cartesian,
                                                  coords_view};
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
-  auto evaluator = factory.CreatePointEvaluator(cv, policy);
-  pcms::test::CheckFillMode(*evaluator, *field_data, -999.0, outside_pts);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv, policy);
+  pcms::test::CheckFillMode(*evaluator, field_data.GetData(), -999.0, outside_pts);
 }
 
 TEST_CASE(
@@ -335,10 +335,10 @@ TEST_CASE(
     mesh, 1, 1, CoordinateSystem::Cartesian, "global",
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
-  auto field_a = factory.CreateFieldData();
-  auto field_b = factory.CreateFieldData();
-  pcms::test::SetField(*field_a, *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::SetField(*field_b, *factory.GetLayout(),
+  auto field_a = factory.CreateField<Real>();
+  auto field_b = factory.CreateField<Real>();
+  pcms::test::SetField(field_a.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_b.GetData(), *factory.GetLayout(),
                        [](Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
@@ -348,14 +348,14 @@ TEST_CASE(
   pcms::CoordinateView<pcms::HostMemorySpace> cv{CoordinateSystem::Cartesian,
                                                  coords_view};
 
-  auto evaluator = factory.CreatePointEvaluator(cv);
+  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
 
   std::vector<Real> out_a(n), out_b(n);
   pcms::Rank2View<Real, pcms::HostMemorySpace> view_a(out_a.data(), n, 1);
   pcms::Rank2View<Real, pcms::HostMemorySpace> view_b(out_b.data(), n, 1);
 
-  evaluator->Evaluate(*field_a, view_a);
-  evaluator->Evaluate(*field_b, view_b);
+  evaluator->Evaluate(field_a.GetData(), view_a);
+  evaluator->Evaluate(field_b.GetData(), view_b);
 
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];

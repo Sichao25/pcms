@@ -42,6 +42,13 @@ public:
   virtual ~PointEvaluator() noexcept = default;
 };
 
+using PointEvaluatorVariant =
+  std::variant<std::unique_ptr<PointEvaluator<int8_t>>,
+               std::unique_ptr<PointEvaluator<int32_t>>,
+               std::unique_ptr<PointEvaluator<int64_t>>,
+               std::unique_ptr<PointEvaluator<float>>,
+               std::unique_ptr<PointEvaluator<double>>>;
+
 } // namespace pcms
 
 #endif // PCMS_POINT_EVALUATOR_H

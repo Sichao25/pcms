@@ -60,8 +60,8 @@ TEST_CASE("NodalFunctionSpace fields share layout")
 
   auto factory =
     pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
-  auto source = factory.CreateField(pcms::FieldMetadata{});
-  auto target = factory.CreateField(pcms::FieldMetadata{});
+  auto source = factory.CreateField<Real>(pcms::FieldMetadata{});
+  auto target = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   REQUIRE(&source.GetLayout() == &target.GetLayout());
 }
@@ -73,13 +73,13 @@ TEST_CASE("NodalFunctionSpace point-cloud field set/get DOF round-trip")
 
   auto field =
     pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
-      .CreateFieldData(pcms::FieldMetadata{});
+      .CreateField<Real>(pcms::FieldMetadata{});
 
   std::vector<Real> data{1.0, 2.0, 3.0, 4.0};
   Rank1View<const Real, HostMemorySpace> data_view(data.data(), data.size());
-  field->SetDOFHolderDataHost(data_view);
+  field.GetData().SetDOFHolderDataHost(data_view);
 
-  auto got = field->GetDOFHolderDataHost();
+  auto got = field.GetData().GetDOFHolderDataHost();
   REQUIRE(got.size() == data.size());
   for (LO i = 0; i < static_cast<LO>(data.size()); ++i) {
     REQUIRE(got[i] == Catch::Approx(data[i]));
@@ -93,13 +93,13 @@ TEST_CASE("NodalFunctionSpace point-cloud field serialize / deserialize round-tr
 
   auto factory =
     pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
-  auto field = factory.CreateFieldData(pcms::FieldMetadata{});
+  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   std::vector<Real> data{5.0, 6.0, 7.0, 8.0};
   Rank1View<const Real, HostMemorySpace> data_view(data.data(), data.size());
-  field->SetDOFHolderDataHost(data_view);
+  field.GetData().SetDOFHolderDataHost(data_view);
 
-  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), *field);
+  pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), field.GetData());
 }
 
 TEST_CASE("NodalFunctionSpace field keeps layout alive after temporary factory destruction")
@@ -110,7 +110,7 @@ TEST_CASE("NodalFunctionSpace field keeps layout alive after temporary factory d
   auto field = [&]() {
     auto factory =
       pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
-    return factory.CreateField(pcms::FieldMetadata{});
+    return factory.CreateField<Real>(pcms::FieldMetadata{});
   }();
 
   auto point_cloud_layout =
