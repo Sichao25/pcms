@@ -3,7 +3,7 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
-#include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/field_metadata.h"
 #include "field_test_utils.h"
 #include <Kokkos_Core.hpp>

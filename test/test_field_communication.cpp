@@ -10,9 +10,9 @@
 #include <vector>
 #include "pcms/coupler/field_communicator2.h"
 #include "pcms/coupler/coupler2.h"
-#include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/field_metadata.h"
-#include "pcms/field/simple_field_data.h"
+#include "pcms/field/data/simple.h"
 #include "test_support.h"
 
 namespace ts = test_support;

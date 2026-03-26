@@ -6,50 +6,61 @@ set(PCMS_FIELD_HEADERS
         coordinate_system.h
         field_layout.h
         field_metadata.h
-        empty_field_layout.h
+        layout/empty.h
         out_of_bounds_policy.h
         field_data.h
         point_evaluator.h
-        simple_field_data.h
-        nodal_field_factory.h
-        adapter/point_cloud/point_cloud_layout.h
-        adapter/point_cloud/point_cloud.h
+        data/simple.h
+        function_space/nodal.h
+        layout/point_cloud.h
+        data/point_cloud.h
 )
 set(PCMS_FIELD_SOURCES
-        nodal_field_factory.cpp
-        empty_field_layout.cpp
-        adapter/point_cloud/point_cloud_layout.cpp
-        adapter/point_cloud/point_cloud.cpp
+        function_space/nodal.cpp
+        layout/empty.cpp
+        layout/point_cloud.cpp
+        data/point_cloud.cpp
 )
 
 if (PCMS_ENABLE_OMEGA_H)
     list(APPEND PCMS_FIELD_SOURCES
-            lagrange_field_factory.cpp
-            adapter/omega_h/omega_h_lagrange_layout.cpp
-            adapter/uniform_grid/uniform_grid_field_layout.cpp
+            function_space/lagrange.cpp
+            layout/omega_h_lagrange.cpp
+            layout/uniform_grid.cpp
     )
     list(APPEND PCMS_FIELD_HEADERS
-            lagrange_field_factory.h
+            function_space/lagrange.h
             field_evaluator_factory.h
-            adapter/omega_h/omega_h_lagrange_layout.h
-            adapter/omega_h/omega_h_lagrange_evaluator_factory.h
-            adapter/uniform_grid/uniform_grid_field_layout.h
-            adapter/uniform_grid/uniform_grid_binary_field.h
-            adapter/uniform_grid/uniform_grid_evaluator_factory.h
+            layout/omega_h_lagrange.h
+            evaluator/omega_h_lagrange.h
+            layout/uniform_grid.h
+            uniform_grid_binary_field.h
+            evaluator/uniform_grid.h
     )
 endif ()
 
 if (PCMS_ENABLE_MESHFIELDS)
     list(APPEND PCMS_FIELD_SOURCES
-            adapter/meshfields/mesh_fields_adapter_layout.cpp
+            layout/mesh_fields.cpp
     )
     list(APPEND PCMS_FIELD_HEADERS
-            adapter/meshfields/mesh_fields_adapter_layout.h
-            adapter/meshfields/mesh_fields_backend.h
-            adapter/meshfields/mesh_fields_evaluator_factory.h
-            adapter/meshfields/mesh_fields_field_data.h
+            layout/mesh_fields.h
+            evaluator/mesh_fields_backend.h
+            evaluator/mesh_fields.h
+            data/mesh_fields.h
     )
 endif ()
+
+if(PCMS_ENABLE_XGC)
+    list(APPEND PCMS_FIELD_HEADERS
+            data/xgc.h
+            function_space/xgc.h
+            layout/xgc.h
+            layout/xgc_reverse_classification.h)
+    list(APPEND PCMS_FIELD_SOURCES
+            layout/xgc.cpp
+            layout/xgc_reverse_classification.cpp)
+endif()
 
 add_library(pcms_field ${PCMS_FIELD_SOURCES})
 set_target_properties(pcms_field PROPERTIES

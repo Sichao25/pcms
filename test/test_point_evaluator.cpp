@@ -2,8 +2,8 @@
 #include <Omega_h_build.hpp>
 #include <Omega_h_mesh.hpp>
 
-#include "pcms/field/lagrange_field_factory.h"
-#include "pcms/field/nodal_field_factory.h"
+#include "pcms/field/function_space/lagrange.h"
+#include "pcms/field/function_space/nodal.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/field/out_of_bounds_policy.h"

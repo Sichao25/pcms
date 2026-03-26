@@ -393,7 +393,7 @@ if(Catch2_FOUND)
       test_uniform_grid_field.cpp
       test_interpolation_class.cpp
       test_mesh_geometry.cpp
-      test_nodal_field_factory.cpp
+            test_nodal_function_space.cpp
       test_omega_h_field2_outofbounds.cpp
       test_omega_h_lagrange_field.cpp
       test_point_evaluator.cpp)

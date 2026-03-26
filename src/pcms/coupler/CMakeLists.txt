@@ -17,14 +17,7 @@ set(PCMS_COUPLER_SOURCES
 
 if(PCMS_ENABLE_XGC)
     list(APPEND PCMS_COUPLER_HEADERS
-            adapter/xgc/xgc_field_data.h
-            adapter/xgc/xgc_function_space.h
-            adapter/xgc/xgc_field_layout.h
-            adapter/xgc/xgc_field_serializer.h
-            adapter/xgc/xgc_reverse_classification.h)
-    list(APPEND PCMS_COUPLER_SOURCES
-            adapter/xgc/xgc_field_layout.cpp
-            adapter/xgc/xgc_reverse_classification.cpp)
+            serializer/xgc.h)
 endif()
 
 add_library(pcms_coupler ${PCMS_COUPLER_SOURCES})

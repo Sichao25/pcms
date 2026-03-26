@@ -4,7 +4,7 @@
 #include <Omega_h_build.hpp>
 #include <Omega_h_for.hpp>
 #include "pcms/transfer/copy.h"
-#include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/utility/assert.h"
 #include <Kokkos_Core.hpp>

@@ -4,12 +4,12 @@
 #include <Omega_h_file.hpp>
 #include <Omega_h_for.hpp>
 #include "test_support.h"
-#include "pcms/coupler/adapter/xgc/xgc_function_space.h"
-#include "pcms/coupler/adapter/xgc/xgc_field_layout.h"
-#include "pcms/coupler/adapter/xgc/xgc_field_serializer.h"
+#include "pcms/field/function_space/xgc.h"
+#include "pcms/field/layout/xgc.h"
+#include "pcms/coupler/serializer/xgc.h"
 #include "pcms/coupler/coupler2.h"
 #include "pcms/field/field_metadata.h"
-#include "pcms/field/lagrange_field_factory.h"
+#include "pcms/field/function_space/lagrange.h"
 
 using pcms::ConstructRCFromOmegaHMesh;
 using pcms::GO;

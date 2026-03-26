@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
-#include "pcms/coupler/adapter/xgc/xgc_field_data.h"
-#include "pcms/coupler/adapter/xgc/xgc_function_space.h"
-#include "pcms/coupler/adapter/xgc/xgc_field_serializer.h"
+#include "pcms/field/data/xgc.h"
+#include "pcms/field/function_space/xgc.h"
+#include "pcms/coupler/serializer/xgc.h"
 #include <algorithm>
 #include <numeric>
 

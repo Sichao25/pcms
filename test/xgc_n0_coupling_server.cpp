@@ -5,10 +5,10 @@
 #include "test_support.h"
 #include "pcms/coupler/coupler2.h"
 #include "pcms/coupler/field_serializer.h"
-#include "pcms/field/adapter/omega_h/omega_h_lagrange_layout.h"
+#include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/field.h"
 #include "pcms/field/field_metadata.h"
-#include "pcms/field/simple_field_data.h"
+#include "pcms/field/data/simple.h"
 #include "pcms/transfer/copy.h"
 #include <chrono>
 #include <optional>

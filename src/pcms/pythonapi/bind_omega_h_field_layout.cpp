@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "pcms/field/adapter/meshfields/mesh_fields_adapter_layout.h"
+#include "pcms/field/layout/mesh_fields.h"
 #include "pcms/field/field.h"
 #include "pcms/field/field_layout.h"
 #include "numpy_array_transform.h"
