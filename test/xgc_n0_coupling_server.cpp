@@ -5,6 +5,7 @@
 #include "test_support.h"
 #include "pcms/coupler/coupler2.h"
 #include "pcms/coupler/field_serializer.h"
+#include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/field.h"
 #include "pcms/field/field_metadata.h"
@@ -42,14 +43,12 @@ struct RegisteredField
 [[nodiscard]]
 static RegisteredField AddField(
   pcms::Application2* application,
-  const std::shared_ptr<const pcms::FieldLayout>& layout,
+  const pcms::LagrangeFunctionSpace& function_space,
   const std::string& name, const std::string& path, int plane)
 {
   PCMS_ALWAYS_ASSERT(application != nullptr);
   auto field_name = MakeFieldName(name, plane);
-  auto field = pcms::Field<pcms::Real>(
-    layout, nullptr, std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
-               layout, pcms::FieldMetadata{}));
+  auto field = function_space.CreateField<pcms::Real>(pcms::FieldMetadata{});
   std::unique_ptr<pcms::FieldSerializer<pcms::Real>> serializer =
     std::make_unique<pcms::FieldSerializer<pcms::Real>>();
   auto handle = application->AddField(path + field_name, std::move(field),
@@ -220,8 +219,10 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
       // return 0;
       return 1;
     });
-  auto layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, is_overlap, numbering);
+  auto function_space = pcms::LagrangeFunctionSpace::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, is_overlap, numbering,
+    pcms::LagrangeFunctionSpace::Backend::OmegaH);
+  auto layout = function_space.GetLayout();
   core->AddLayout("core_layout", layout);
   edge->AddLayout("edge_layout", layout);
   auto time2 = std::chrono::steady_clock::now();
@@ -238,48 +239,48 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     core_analysis.dpot[0].push_back(
-      AddField(core, layout, "dpot_0_plane", "core/", i));
+      AddField(core, function_space, "dpot_0_plane", "core/", i));
     core_analysis.dpot[1].push_back(
-      AddField(core, layout, "dpot_1_plane", "core/", i));
+      AddField(core, function_space, "dpot_1_plane", "core/", i));
     // core_analysis.dpot[3].push_back(AddField(core, "dpot_2_plane", "core/",
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     core_analysis.pot0.push_back(
-      AddField(core, layout, "pot0_plane", "core/", i));
+      AddField(core, function_space, "pot0_plane", "core/", i));
     core_analysis.edensity[0].push_back(
-      AddField(core, layout, "edensity_1_plane", "core/", i));
+      AddField(core, function_space, "edensity_1_plane", "core/", i));
     core_analysis.edensity[1].push_back(
-      AddField(core, layout, "edensity_2_plane", "core/", i));
+      AddField(core, function_space, "edensity_2_plane", "core/", i));
     core_analysis.idensity[0].push_back(
-      AddField(core, layout, "idensity_1_plane", "core/", i));
+      AddField(core, function_space, "idensity_1_plane", "core/", i));
     core_analysis.idensity[1].push_back(
-      AddField(core, layout, "idensity_2_plane", "core/", i));
+      AddField(core, function_space, "idensity_2_plane", "core/", i));
 
     // edge_analysis.dpot[0].push_back(AddField(edge, "dpot_m1_plane", "edge/",
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     edge_analysis.dpot[0].push_back(
-      AddField(edge, layout, "dpot_0_plane", "edge/", i));
+      AddField(edge, function_space, "dpot_0_plane", "edge/", i));
     edge_analysis.dpot[1].push_back(
-      AddField(edge, layout, "dpot_1_plane", "edge/", i));
+      AddField(edge, function_space, "dpot_1_plane", "edge/", i));
     // edge_analysis.dpot[3].push_back(AddField(edge, "dpot_2_plane", "edge/",
     //                                          is_overlap, numbering, mesh,
     //                                          i));
     edge_analysis.pot0.push_back(
-      AddField(edge, layout, "pot0_plane", "edge/", i));
+      AddField(edge, function_space, "pot0_plane", "edge/", i));
     edge_analysis.edensity[0].push_back(
-      AddField(edge, layout, "edensity_1_plane", "edge/", i));
+      AddField(edge, function_space, "edensity_1_plane", "edge/", i));
     edge_analysis.edensity[1].push_back(
-      AddField(edge, layout, "edensity_2_plane", "edge/", i));
+      AddField(edge, function_space, "edensity_2_plane", "edge/", i));
     edge_analysis.idensity[0].push_back(
-      AddField(edge, layout, "idensity_1_plane", "edge/", i));
+      AddField(edge, function_space, "idensity_1_plane", "edge/", i));
     edge_analysis.idensity[1].push_back(
-      AddField(edge, layout, "idensity_2_plane", "edge/", i));
+      AddField(edge, function_space, "idensity_2_plane", "edge/", i));
   }
-  core_analysis.psi = AddField(core, layout, "psi", "core/", -1);
-  edge_analysis.psi = AddField(edge, layout, "psi", "edge/", -1);
-  core_analysis.gids = AddField(core, layout, "gid_debug", "core/", -1);
-  edge_analysis.gids = AddField(edge, layout, "gid_debug", "edge/", -1);
+  core_analysis.psi = AddField(core, function_space, "psi", "core/", -1);
+  edge_analysis.psi = AddField(edge, function_space, "psi", "edge/", -1);
+  core_analysis.gids = AddField(core, function_space, "gid_debug", "core/", -1);
+  edge_analysis.gids = AddField(edge, function_space, "gid_debug", "edge/", -1);
   auto time3 = std::chrono::steady_clock::now();
   elapsed_seconds = time3 - time2;
   ts::timeMinMaxAvg(elapsed_seconds.count(), min, max, avg);

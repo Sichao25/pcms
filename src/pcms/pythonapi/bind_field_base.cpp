@@ -282,8 +282,7 @@ void bind_create_field_module(py::module& m)
     [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions) -> py::tuple {
       auto [layout, field] =
         CreateUniformGridBinaryField<2>(mesh, divisions);
-      auto mask_field = Field<Real>(layout, nullptr, std::move(field));
-      return py::make_tuple(layout, std::move(mask_field));
+      return py::make_tuple(layout, std::move(field));
     },
     py::arg("mesh"), py::arg("divisions"),
     "Create a 2D vertex mask field indicating inside/outside mesh");

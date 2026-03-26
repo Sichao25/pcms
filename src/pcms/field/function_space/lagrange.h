@@ -43,6 +43,13 @@ public:
     std::string global_id_name = "global",
     Backend backend = DefaultBackend);
 
+  [[nodiscard]] static LagrangeFunctionSpace FromMesh(
+    Omega_h::Mesh& mesh, int order, int num_components,
+    CoordinateSystem coordinate_system,
+    Omega_h::Read<Omega_h::I8> owned_mask,
+    std::string global_id_name = "global",
+    Backend backend = DefaultBackend);
+
   // Structured uniform grid — order-1 H1-conforming nodal field on a regular grid
   [[nodiscard]] static LagrangeFunctionSpace FromUniformGrid(
     const UniformGrid<2>& grid,
@@ -61,8 +68,6 @@ public:
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
 protected:
-  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override;
-
   [[nodiscard]] FieldVariant CreateFieldImpl(
     Type value_type, FieldMetadata metadata) const override;
 

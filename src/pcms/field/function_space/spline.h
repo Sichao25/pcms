@@ -30,8 +30,6 @@ public:
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
 protected:
-  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override;
-
   [[nodiscard]] FieldVariant CreateFieldImpl(
     Type value_type, FieldMetadata metadata) const override;
 

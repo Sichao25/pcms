@@ -13,6 +13,8 @@
 namespace pcms
 {
 
+class FunctionSpace;
+
 // Field<T> is a composed per-field object: it owns coefficient data and holds
 // a shared reference to the evaluator factory so the function space stays alive
 // as long as the field does.
@@ -23,15 +25,6 @@ template <typename T>
 class Field
 {
 public:
-  Field(std::shared_ptr<const FieldLayout> layout,
-        std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory,
-        std::unique_ptr<FieldData<T>> data)
-    : layout_(std::move(layout)),
-      evaluator_factory_(std::move(evaluator_factory)),
-      data_(std::move(data))
-  {
-  }
-
   Field(Field&&) = default;
   Field& operator=(Field&&) = default;
   Field(const Field&)            = delete;
@@ -41,13 +34,6 @@ public:
   const FieldData<T>& GetData() const noexcept { return *data_; }
 
   const FieldLayout& GetLayout() const { return *layout_; }
-
-  // Returns the evaluator factory for this field's function space.
-  // Null if the field was not created with an evaluatable function space.
-  const FieldEvaluatorFactory<Real>* GetEvaluatorFactory() const noexcept
-  {
-    return evaluator_factory_.get();
-  }
 
   Rank1View<const T, HostMemorySpace> GetDOFHolderDataHost() const
   {
@@ -72,6 +58,24 @@ public:
 #endif
 
 private:
+  class CtorKey
+  {
+    CtorKey() = default;
+    friend class FunctionSpace;
+  };
+
+  Field(CtorKey,
+        std::shared_ptr<const FieldLayout> layout,
+        std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory,
+        std::unique_ptr<FieldData<T>> data)
+    : layout_(std::move(layout)),
+      evaluator_factory_(std::move(evaluator_factory)),
+      data_(std::move(data))
+  {
+  }
+
+  friend class FunctionSpace;
+
   std::shared_ptr<const FieldLayout> layout_;
   std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory_;
   std::unique_ptr<FieldData<T>> data_;

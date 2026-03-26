@@ -75,7 +75,16 @@ public:
     OutOfBoundsPolicy policy = {}) const;
 
 protected:
-  virtual const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const = 0;
+  template <typename T>
+  static Field<T> WrapField(
+    std::shared_ptr<const FieldLayout> layout,
+    std::unique_ptr<FieldData<T>> data,
+    std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory =
+      nullptr)
+  {
+    return Field<T>(typename Field<T>::CtorKey{}, std::move(layout),
+                    std::move(evaluator_factory), std::move(data));
+  }
 
   virtual FieldVariant CreateFieldImpl(
     Type value_type,

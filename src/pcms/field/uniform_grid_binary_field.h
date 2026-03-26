@@ -1,11 +1,9 @@
 #ifndef PCMS_UNIFORM_GRID_BINARY_FIELD_H
 #define PCMS_UNIFORM_GRID_BINARY_FIELD_H
 
-// FIXME: This file currently models an older version of the APIs and needs to
-// be updated to work with the Field<T>
-
 #include "pcms/field/layout/uniform_grid.h"
 #include "pcms/field/data/simple.h"
+#include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/localization/point_search.h"
 #include "pcms/utility/arrays.h"
@@ -32,16 +30,19 @@ namespace pcms
  * \tparam Dim  Spatial dimension (2 or 3).
  * \param mesh       The Omega_h mesh defining the domain.
  * \param grid       Uniform grid whose vertices are tested.
- * \return Pair of (layout, field data) with binary mask values.
+ * \return Pair of (layout, field) with binary mask values.
  */
 template <unsigned Dim>
-std::pair<std::shared_ptr<UniformGridFieldLayout<Dim>>,
-          std::unique_ptr<SimpleFieldData<Real>>>
+std::pair<std::shared_ptr<const UniformGridFieldLayout<Dim>>,
+          Field<Real>>
 CreateUniformGridBinaryField(Omega_h::Mesh& mesh, const UniformGrid<Dim>& grid)
 {
-  auto layout = std::make_shared<UniformGridFieldLayout<Dim>>(
-    grid, 1, CoordinateSystem::Cartesian);
-  auto field = std::make_unique<SimpleFieldData<Real>>(layout, FieldMetadata{});
+  auto function_space =
+    LagrangeFunctionSpace::FromUniformGrid(grid, 1, CoordinateSystem::Cartesian);
+  auto layout =
+    std::dynamic_pointer_cast<const UniformGridFieldLayout<Dim>>(function_space.GetLayout());
+  PCMS_ALWAYS_ASSERT(layout != nullptr);
+  auto field = function_space.template CreateField<Real>(FieldMetadata{});
 
   auto coord_view = layout->GetDOFHolderCoordinates();
   auto coords     = coord_view.GetCoordinates();
@@ -72,7 +73,7 @@ CreateUniformGridBinaryField(Omega_h::Mesh& mesh, const UniformGrid<Dim>& grid)
   for (LO i = 0; i < n; ++i)
     data(i) = (results_h(i).element_id >= 0) ? 1.0 : 0.0;
 
-  field->SetDOFHolderDataHost(
+  field.SetDOFHolderDataHost(
     Rank1View<const Real, HostMemorySpace>(data.data(), n));
 
   return {std::move(layout), std::move(field)};
@@ -82,8 +83,8 @@ CreateUniformGridBinaryField(Omega_h::Mesh& mesh, const UniformGrid<Dim>& grid)
  * \brief Convenience overload: derives the grid from the mesh bounding box.
  */
 template <unsigned Dim>
-std::pair<std::shared_ptr<UniformGridFieldLayout<Dim>>,
-          std::unique_ptr<SimpleFieldData<Real>>>
+std::pair<std::shared_ptr<const UniformGridFieldLayout<Dim>>,
+          Field<Real>>
 CreateUniformGridBinaryField(Omega_h::Mesh& mesh,
                               const std::array<LO, Dim>& divisions)
 {

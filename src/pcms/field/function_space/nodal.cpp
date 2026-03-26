@@ -44,12 +44,6 @@ CoordinateSystem NodalFunctionSpace::GetCoordinateSystem() const noexcept
   return evaluator_factory_->GetCoordinateSystem();
 }
 
-const FieldEvaluatorFactory<Real>&
-NodalFunctionSpace::GetEvaluatorFactory() const
-{
-  return *evaluator_factory_;
-}
-
 FieldVariant NodalFunctionSpace::CreateFieldImpl(
   Type value_type, FieldMetadata metadata) const
 {
@@ -59,9 +53,9 @@ FieldVariant NodalFunctionSpace::CreateFieldImpl(
       throw pcms_error("NodalFunctionSpace: only double (Real) is supported");
     }
     else {
-      return Field<double>(layout_, evaluator_factory_,
-                           std::make_unique<SimpleFieldData<double>>(layout_,
-                                                                      metadata));
+      return WrapField<double>(
+        layout_, std::make_unique<SimpleFieldData<double>>(layout_, metadata),
+        evaluator_factory_);
     }
   });
 }
@@ -83,7 +77,7 @@ FieldVariant NodalFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
       "NodalFunctionSpace::CreateField: field data size does not match "
       "layout");
   }
-  return Field<double>(layout_, evaluator_factory_, std::move(fd));
+  return WrapField<double>(layout_, std::move(fd), evaluator_factory_);
 }
 
 PointEvaluatorVariant NodalFunctionSpace::CreatePointEvaluatorImpl(

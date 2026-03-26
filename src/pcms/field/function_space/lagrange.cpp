@@ -120,7 +120,6 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
       "PCMS_ENABLE_MESHFIELDS is not set");
 #endif
   }
-  // OmegaH backend
   if (order > 1) {
     throw pcms_error(
       "LagrangeFunctionSpace::FromMesh: OmegaH backend only supports "
@@ -128,6 +127,44 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
   }
   auto layout = std::make_shared<OmegaHLagrangeLayout>(
     mesh, order, num_components, coordinate_system, std::move(global_id_name));
+  auto eval_factory =
+    std::make_shared<OmegaHLagrangeEvaluatorFactory<Real>>(layout);
+  return LagrangeFunctionSpace(
+    layout,
+    [layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
+      return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
+        using T = typename decltype(tag)::type;
+        if constexpr (std::is_same_v<T, int8_t>) {
+          throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
+        }
+        else {
+          return std::make_unique<SimpleFieldData<T>>(layout, metadata);
+        }
+      });
+    },
+    std::move(eval_factory));
+}
+
+LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
+  Omega_h::Mesh& mesh, int order, int num_components,
+  CoordinateSystem coordinate_system,
+  Omega_h::Read<Omega_h::I8> owned_mask,
+  std::string global_id_name,
+  Backend backend)
+{
+  if (backend == Backend::MeshFields) {
+    throw pcms_error(
+      "LagrangeFunctionSpace::FromMesh: owned-mask construction is only "
+      "supported by the OmegaH backend");
+  }
+  if (order > 1) {
+    throw pcms_error(
+      "LagrangeFunctionSpace::FromMesh: OmegaH backend only supports "
+      "Lagrange orders 0 and 1");
+  }
+  auto layout = std::make_shared<OmegaHLagrangeLayout>(
+    mesh, order, num_components, coordinate_system, std::move(owned_mask),
+    std::move(global_id_name));
   auto eval_factory =
     std::make_shared<OmegaHLagrangeEvaluatorFactory<Real>>(layout);
   return LagrangeFunctionSpace(
@@ -213,12 +250,6 @@ CoordinateSystem LagrangeFunctionSpace::GetCoordinateSystem() const noexcept
   return evaluator_factory_->GetCoordinateSystem();
 }
 
-const FieldEvaluatorFactory<Real>&
-LagrangeFunctionSpace::GetEvaluatorFactory() const
-{
-  return *evaluator_factory_;
-}
-
 FieldVariant LagrangeFunctionSpace::CreateFieldImpl(
   Type value_type, FieldMetadata metadata) const
 {
@@ -227,7 +258,7 @@ FieldVariant LagrangeFunctionSpace::CreateFieldImpl(
     [this](auto&& fd) -> FieldVariant {
       using FD = std::decay_t<decltype(fd)>;
       using T  = typename FD::element_type::value_type;
-      return Field<T>(layout_, evaluator_factory_, std::move(fd));
+      return WrapField<T>(layout_, std::move(fd), evaluator_factory_);
     },
     std::move(field_data));
 }
@@ -245,7 +276,7 @@ FieldVariant LagrangeFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
       }
       else {
         ValidateLagrangeWrappedFieldData(*layout_, *fd);
-        return Field<T>(layout_, evaluator_factory_, std::move(fd));
+        return WrapField<T>(layout_, std::move(fd), evaluator_factory_);
       }
     },
     std::move(data));

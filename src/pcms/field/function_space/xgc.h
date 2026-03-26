@@ -35,18 +35,13 @@ public:
   }
 
 protected:
-  [[nodiscard]] const FieldEvaluatorFactory<Real>& GetEvaluatorFactory() const override
-  {
-    throw pcms_error("XGCFunctionSpace does not support evaluator factories");
-  }
-
   [[nodiscard]] FieldVariant CreateFieldImpl(
     Type value_type, FieldMetadata metadata) const override
   {
     return apply_to_type(value_type, [&](auto tag) -> FieldVariant {
       using T = typename decltype(tag)::type;
-      return Field<T>(layout_, nullptr,
-                      std::make_unique<XGCFieldData<T>>(layout_, metadata));
+      return WrapField<T>(layout_,
+                          std::make_unique<XGCFieldData<T>>(layout_, metadata));
     });
   }
 
@@ -67,7 +62,7 @@ protected:
             "XGCFunctionSpace::CreateField: field data size does not match "
             "layout");
         }
-        return Field<T>(layout_, nullptr, std::move(fd));
+        return WrapField<T>(layout_, std::move(fd));
       },
       std::move(data));
   }

@@ -118,11 +118,12 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
     // field registration, so each XGC plane is registered as a separate layout
     // communicator even though the layouts are geometrically identical.
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
-      mesh, 1, 1, pcms::CoordinateSystem::Cartesian, numbering);
+      mesh, 1, 1, pcms::CoordinateSystem::Cartesian, numbering,
+      pcms::LagrangeFunctionSpace::Backend::OmegaH);
     application->AddLayout(ss.str(), factory.GetLayout());
-    auto field = pcms::Field<GO>(
-      factory.GetLayout(), nullptr, std::make_unique<pcms::SimpleFieldData<GO>>(
-                 factory.GetLayout(), pcms::FieldMetadata{}));
+    auto field = factory.CreateField<GO>(
+      std::make_unique<pcms::SimpleFieldData<GO>>(
+        factory.GetLayout(), pcms::FieldMetadata{}));
     std::unique_ptr<pcms::FieldSerializer<GO>> serializer =
       std::make_unique<pcms::FieldSerializer<GO>>();
     fields.push_back(application->AddField(

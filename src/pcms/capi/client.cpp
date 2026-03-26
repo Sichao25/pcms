@@ -17,6 +17,9 @@
 namespace pcms
 {
 
+namespace detail
+{
+
 template <typename T>
 struct XGCFieldRegistration
 {
@@ -28,6 +31,70 @@ struct XGCFieldRegistration
 struct DummyFieldRegistration
 {};
 
+class EmptyFunctionSpace : public FunctionSpace
+{
+public:
+  EmptyFunctionSpace() : layout_(std::make_shared<EmptyFieldLayout>()) {}
+
+  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout()
+    const noexcept override
+  {
+    return layout_;
+  }
+
+  [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override
+  {
+    return CoordinateSystem::Cartesian;
+  }
+
+protected:
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    Type value_type, FieldMetadata metadata) const override
+  {
+    return apply_to_type(
+      value_type, [this, metadata](auto tag) -> FieldVariant {
+        using T = typename decltype(tag)::type;
+        return WrapField<T>(
+          layout_, std::make_unique<SimpleFieldData<T>>(layout_, metadata));
+      });
+  }
+
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    FieldDataVariant data) const override
+  {
+    return std::visit(
+      [this](auto&& fd) -> FieldVariant {
+        using FD = std::decay_t<decltype(fd)>;
+        using T = typename FD::element_type::value_type;
+        PCMS_ALWAYS_ASSERT(fd != nullptr);
+        if (dynamic_cast<const SimpleFieldData<T>*>(fd.get()) == nullptr) {
+          throw pcms_error(
+            "EmptyFunctionSpace::CreateField: requires SimpleFieldData");
+        }
+        if (fd->GetDOFHolderDataHost().size() !=
+            detail::ExpectedFlatFieldDataSize(*layout_)) {
+          throw pcms_error(
+            "EmptyFunctionSpace::CreateField: field data size does not match "
+            "layout");
+        }
+        return WrapField<T>(layout_, std::move(fd));
+      },
+      std::move(data));
+  }
+
+  [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
+    Type /*value_type*/, CoordinateView<HostMemorySpace> /*coords*/,
+    OutOfBoundsPolicy /*policy*/) const override
+  {
+    throw pcms_error("EmptyFunctionSpace does not support point evaluation");
+  }
+
+private:
+  std::shared_ptr<const EmptyFieldLayout> layout_;
+};
+
+} // namespace detail
+
 struct ClientState
 {
   std::unique_ptr<Coupler2> coupler;
@@ -37,10 +104,10 @@ struct ClientState
   std::map<std::string, HandleVariant> field_handles;
 };
 
-using FieldAdapterVariant =
-  std::variant<std::monostate, XGCFieldRegistration<double>,
-               XGCFieldRegistration<float>, XGCFieldRegistration<int>,
-               XGCFieldRegistration<pcms::GO>, DummyFieldRegistration>;
+using FieldAdapterVariant = std::variant<
+  std::monostate, detail::XGCFieldRegistration<double>,
+  detail::XGCFieldRegistration<float>, detail::XGCFieldRegistration<int>,
+  detail::XGCFieldRegistration<pcms::GO>, detail::DummyFieldRegistration>;
 
 template <typename T>
 using ClientFieldHandle = FieldHandle<T>;
@@ -56,7 +123,7 @@ inline ClientState::HandleVariant RegisterField(Application2& /*app*/,
 template <typename T>
 ClientState::HandleVariant RegisterField(
   Application2& app, std::string name,
-  const XGCFieldRegistration<T>& registration, bool participates)
+  const detail::XGCFieldRegistration<T>& registration, bool participates)
 {
   auto field = registration.function_space.template CreateField<T>(
     std::make_unique<XGCFieldData<T>>(
@@ -70,16 +137,13 @@ ClientState::HandleVariant RegisterField(
     std::move(name), std::move(field), std::move(serializer), participates)};
 }
 
-inline ClientState::HandleVariant RegisterField(Application2& app,
-                                                std::string name,
-                                                const DummyFieldRegistration&,
-                                                bool participates)
+inline ClientState::HandleVariant RegisterField(
+  Application2& app, std::string name, const detail::DummyFieldRegistration&,
+  bool participates)
 {
-  auto layout = std::make_shared<EmptyFieldLayout>();
-  app.AddLayout(name, layout, participates);
-  auto field =
-    Field<int>(layout, nullptr,
-               std::make_unique<SimpleFieldData<int>>(layout, FieldMetadata{}));
+  auto function_space = detail::EmptyFunctionSpace{};
+  app.AddLayout(name, function_space.GetLayout(), participates);
+  auto field = function_space.CreateField<int>(FieldMetadata{});
   std::unique_ptr<FieldSerializer<int>> serializer =
     std::make_unique<FieldSerializer<int>>();
   return ClientState::HandleVariant{app.AddField(
@@ -185,7 +249,7 @@ void pcms_create_xgc_field_adapter_t(
     pcms::XGCFunctionSpace(reverse_classification, in_overlap, size);
   pcms::Rank1View<T, pcms::HostMemorySpace> data_view(
     reinterpret_cast<T*>(data), size);
-  field_adapter.emplace<pcms::XGCFieldRegistration<T>>(
+  field_adapter.emplace<pcms::detail::XGCFieldRegistration<T>>(
     std::move(function_space), comm, data_view);
 }
 
@@ -229,7 +293,7 @@ PcmsFieldAdapterHandle pcms_create_xgc_field_adapter(
 PcmsFieldAdapterHandle pcms_create_dummy_field_adapter()
 {
   auto* field_adapter =
-    new pcms::FieldAdapterVariant{pcms::DummyFieldRegistration{}};
+    new pcms::FieldAdapterVariant{pcms::detail::DummyFieldRegistration{}};
   return {reinterpret_cast<void*>(field_adapter)};
 }
 
