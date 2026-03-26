@@ -25,17 +25,20 @@ set(PCMS_FIELD_SOURCES
 if (PCMS_ENABLE_OMEGA_H)
     list(APPEND PCMS_FIELD_SOURCES
             function_space/lagrange.cpp
+            function_space/spline.cpp
             layout/omega_h_lagrange.cpp
             layout/uniform_grid.cpp
     )
     list(APPEND PCMS_FIELD_HEADERS
             function_space/lagrange.h
+            function_space/spline.h
             field_evaluator_factory.h
             layout/omega_h_lagrange.h
             evaluator/omega_h_lagrange.h
             layout/uniform_grid.h
             uniform_grid_binary_field.h
             evaluator/uniform_grid.h
+            evaluator/uniform_grid_spline.h
     )
 endif ()
 

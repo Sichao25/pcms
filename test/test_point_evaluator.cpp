@@ -1,9 +1,11 @@
 #include <catch2/catch_test_macros.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_mesh.hpp>
+#include <stdexcept>
 
 #include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/function_space/nodal.h"
+#include "pcms/field/function_space/spline.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/field/out_of_bounds_policy.h"
@@ -140,6 +142,30 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
 
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     el, bl, dv, 1, CoordinateSystem::Cartesian, 1);
+
+  auto field_data = factory.CreateFieldData();
+  pcms::test::SetField(*field_data, pcms::test::linear_f);
+  auto pts = pcms::test::StandardEvalCoords2D();
+  int n    = static_cast<int>(pts.size()) / 2;
+  pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(
+    pts.data(), n, 2);
+  pcms::CoordinateView<pcms::HostMemorySpace> cv{
+    CoordinateSystem::Cartesian, coords_view};
+  auto evaluator = factory.CreatePointEvaluator(cv);
+  pcms::test::CheckEvaluation(
+    *evaluator, *field_data, pts, pcms::test::linear_f, 1e-8);
+}
+
+TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
+{
+  const int N = 10;
+  pcms::UniformGrid<2> grid;
+  grid.bot_left = {0.0, 0.0};
+  grid.edge_length = {1.0, 1.0};
+  grid.divisions = {N, N};
+
+  auto factory = pcms::SplineFunctionSpace::FromUniformGrid(
+    grid, CoordinateSystem::Cartesian);
 
   auto field_data = factory.CreateFieldData();
   pcms::test::SetField(*field_data, pcms::test::linear_f);
