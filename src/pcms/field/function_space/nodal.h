@@ -12,6 +12,7 @@
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 
+#include <Omega_h_mesh.hpp>
 #include <memory>
 
 namespace pcms
@@ -25,6 +26,12 @@ class NodalFunctionSpace : public FunctionSpace
 public:
   [[nodiscard]] static NodalFunctionSpace Create(
     Rank2View<Real, HostMemorySpace> coords,
+    CoordinateSystem coordinate_system,
+    MLSOptions options = {});
+
+  [[nodiscard]] static NodalFunctionSpace FromMesh(
+    Omega_h::Mesh& mesh,
+    int source_entity_dim,
     CoordinateSystem coordinate_system,
     MLSOptions options = {});
 

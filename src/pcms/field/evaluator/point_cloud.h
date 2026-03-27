@@ -8,8 +8,9 @@
 #include "pcms/field/field_data.h"
 #include "pcms/field/evaluator/mls_options.h"
 #include "pcms/field/evaluator/mls_point_cloud.h"
-#include "pcms/localization/mls_support_helpers.h"
+#include "pcms/localization/localization_factory.h"
 #include "pcms/utility/assert.h"
+#include "pcms/utility/omega_h_array_utils.h"
 
 #include <Omega_h_array.hpp>
 #include <memory>
@@ -20,16 +21,21 @@ namespace pcms
 // PointCloudEvaluatorFactory implements FieldEvaluatorFactory<Real> for
 // point-cloud (nodal) fields backed by PointCloudLayout.
 //
-// Point-cloud evaluation is implemented using Moving Least Squares (MLS).
-// CreatePointEvaluator performs support localization once for the supplied
-// target coordinates and returns an MLSPointEvaluator that can be reused
-// across repeated Evaluate calls at zero additional localization cost.
+// Support localization is delegated to a LocalizationFactory, allowing
+// different search backends (N² point-cloud or mesh-adjacency BFS) to be
+// plugged in without changing this class. CreatePointEvaluator calls
+// LocalizationFactory::Build once for the supplied target coordinates and
+// returns an MLSPointEvaluator that can be reused at zero additional
+// localization cost.
 class PointCloudEvaluatorFactory : public FieldEvaluatorFactory<Real>
 {
 public:
-  explicit PointCloudEvaluatorFactory(
-    std::shared_ptr<const PointCloudLayout> layout, MLSOptions options = {})
-    : layout_(std::move(layout)), options_(options)
+  PointCloudEvaluatorFactory(std::shared_ptr<const PointCloudLayout> layout,
+                             std::shared_ptr<LocalizationFactory> localization,
+                             MLSOptions options = {})
+    : layout_(std::move(layout)),
+      localization_(std::move(localization)),
+      options_(options)
   {
   }
 
@@ -63,30 +69,20 @@ public:
         "supported for MLS point-cloud evaluation");
     }
 
+    // Extract source coordinates for the MLS solve.
     const auto src_view = layout_->GetCoordinatesHost();
     const int dim = layout_->GetDimension();
-    const int n_src = static_cast<int>(src_view.extent(0));
+    Omega_h::Reals source_coords =
+      flatten_to_omega_h_reals(src_view, "src_coords");
 
-    // Convert source rank-2 host view → flat Omega_h::Reals
-    Omega_h::HostWrite<Omega_h::Real> src_hw(n_src * dim, "src_coords");
-    for (int i = 0; i < n_src; ++i)
-      for (int d = 0; d < dim; ++d)
-        src_hw[i * dim + d] = src_view(i, d);
-    Omega_h::Reals source_coords(src_hw);
-
-    // Convert target rank-2 host view → flat Omega_h::Reals
-    const auto tgt_view = target_coords.GetCoordinates(); // [n_tgt][dim]
+    // Extract target coordinates for the MLS solve.
+    const auto tgt_view = target_coords.GetCoordinates();
     PCMS_ALWAYS_ASSERT(static_cast<int>(tgt_view.extent(1)) == dim);
-    const int n_tgt = static_cast<int>(tgt_view.extent(0));
-    Omega_h::HostWrite<Omega_h::Real> tgt_hw(n_tgt * dim, "tgt_coords");
-    for (int i = 0; i < n_tgt; ++i)
-      for (int d = 0; d < dim; ++d)
-        tgt_hw[i * dim + d] = tgt_view(i, d);
-    Omega_h::Reals target_coords_oh(tgt_hw);
+    Omega_h::Reals target_coords_oh =
+      flatten_to_omega_h_reals(tgt_view, "tgt_coords");
 
-    auto supports = BuildPointCloudSupports(
-      source_coords, target_coords_oh, dim, options_.radius,
-      options_.min_req_supports, options_.adapt_radius);
+    // Delegate support localization to the pluggable factory.
+    auto supports = localization_->Build(target_coords);
 
     return std::make_unique<MLSPointEvaluator>(
       std::move(source_coords), std::move(target_coords_oh),
@@ -95,6 +91,7 @@ public:
 
 private:
   std::shared_ptr<const PointCloudLayout> layout_;
+  std::shared_ptr<LocalizationFactory> localization_;
   MLSOptions options_;
 };
 

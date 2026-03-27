@@ -47,6 +47,14 @@ struct SupportResults
 };
 
 SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
+                               const Omega_h::Reals& target_coords,
+                               Omega_h::LO n_targets,
+                               Omega_h::Real& cutoffDistance,
+                               Omega_h::LO min_req_support = 12,
+                               Omega_h::LO max_allowed_support = 36,
+                               bool adapt_radius = true);
+
+SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
                                Omega_h::Mesh& target_mesh,
                                Omega_h::Real& cutoffDistance,
                                Omega_h::LO min_req_support = 12,

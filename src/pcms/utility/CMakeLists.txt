@@ -7,6 +7,7 @@ set(
         mesh_geometry.h
         memory_spaces.h
         mpi_type.h
+        omega_h_array_utils.h
         types.h
         array_mask.h
         inclusive_scan.h

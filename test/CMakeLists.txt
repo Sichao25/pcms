@@ -395,6 +395,7 @@ if(Catch2_FOUND)
       test_mesh_geometry.cpp
             test_nodal_function_space.cpp
       test_nodal_mls_evaluation.cpp
+      test_localization_factory.cpp
       test_omega_h_field2_outofbounds.cpp
       test_omega_h_lagrange_field.cpp
       test_point_evaluator.cpp)

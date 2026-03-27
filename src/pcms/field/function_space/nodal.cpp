@@ -4,8 +4,12 @@
 #include "pcms/field/data/simple.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
+#include "pcms/utility/mesh_geometry.h"
+#include "pcms/localization/point_cloud_localization.h"
+#include "pcms/localization/mesh_localization.h"
 
 #include <Kokkos_Core.hpp>
+#include <Omega_h_array.hpp>
 
 namespace pcms
 {
@@ -30,8 +34,47 @@ NodalFunctionSpace NodalFunctionSpace::Create(
     Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, host_view);
   auto pc_layout =
     std::make_shared<PointCloudLayout>(dim, device_view, coordinate_system);
+  auto localization = std::make_shared<PointCloudLocalizationFactory>(pc_layout, options);
   auto eval_factory =
-    std::make_shared<PointCloudEvaluatorFactory>(pc_layout, options);
+    std::make_shared<PointCloudEvaluatorFactory>(pc_layout, localization, options);
+  return NodalFunctionSpace(pc_layout, std::move(eval_factory));
+}
+
+NodalFunctionSpace NodalFunctionSpace::FromMesh(
+  Omega_h::Mesh& mesh,
+  int source_entity_dim,
+  CoordinateSystem coordinate_system,
+  MLSOptions options)
+{
+  if (coordinate_system != CoordinateSystem::Cartesian) {
+    throw pcms_error(
+      "NodalFunctionSpace::FromMesh: only Cartesian coordinates are "
+      "currently supported for MLS");
+  }
+  if (source_entity_dim < 0 || source_entity_dim > mesh.dim()) {
+    throw pcms_error(
+      "NodalFunctionSpace::FromMesh: source_entity_dim is out of range");
+  }
+
+  const Omega_h::Reals source_coords_oh = get_entity_centroids(mesh, source_entity_dim);
+
+  const int dim = mesh.dim();
+  const int n_src = static_cast<int>(source_coords_oh.size()) / dim;
+
+  Omega_h::HostRead<Omega_h::Real> src_read(source_coords_oh);
+  Kokkos::View<Real**, Kokkos::HostSpace> coords_host("pc_coords", n_src, dim);
+  for (int i = 0; i < n_src; ++i)
+    for (int d = 0; d < dim; ++d)
+      coords_host(i, d) = src_read[i * dim + d];
+  auto coords_dev = Kokkos::create_mirror_view_and_copy(
+    Kokkos::DefaultExecutionSpace{}, coords_host);
+
+  auto pc_layout =
+    std::make_shared<PointCloudLayout>(dim, coords_dev, coordinate_system);
+  auto localization =
+    std::make_shared<AdjacencyLocalizationFactory>(mesh, source_entity_dim, options);
+  auto eval_factory =
+    std::make_shared<PointCloudEvaluatorFactory>(pc_layout, localization, options);
   return NodalFunctionSpace(pc_layout, std::move(eval_factory));
 }
 

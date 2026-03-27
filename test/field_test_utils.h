@@ -10,9 +10,11 @@
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/coupler/field_serializer.h"
 #include "pcms/field/coordinate_system.h"
+#include "pcms/localization/adj_search.hpp"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 #include <cmath>
+#include <unordered_map>
 #include <vector>
 
 // Shared utilities for field tests that apply equally to MeshFields-backed
@@ -31,6 +33,45 @@ KOKKOS_INLINE_FUNCTION Real linear_f(Real x, Real y)
 inline std::vector<Real> StandardEvalCoords2D()
 {
   return {0.1, 0.2, 0.5, 0.5, 0.7, 0.3, 0.9, 0.1, 0.2, 0.8};
+}
+
+inline bool AreArraysEqualUnordered(const Omega_h::HostRead<Omega_h::LO>& array1,
+                                    const Omega_h::HostRead<Omega_h::LO>& array2,
+                                    int start, int end)
+{
+  std::unordered_map<Omega_h::LO, int> freq1, freq2;
+  for (int i = start; i < end; ++i) {
+    freq1[array1[i]]++;
+    freq2[array2[i]]++;
+  }
+  return freq1 == freq2;
+}
+
+inline void CheckSupportResultsEquivalent(const SupportResults& actual,
+                                          const SupportResults& expected)
+{
+  auto actual_ptr = Omega_h::HostRead<Omega_h::LO>(actual.supports_ptr);
+  auto actual_idx = Omega_h::HostRead<Omega_h::LO>(actual.supports_idx);
+  auto expected_ptr = Omega_h::HostRead<Omega_h::LO>(expected.supports_ptr);
+  auto expected_idx = Omega_h::HostRead<Omega_h::LO>(expected.supports_idx);
+
+  REQUIRE(actual_ptr.size() == expected_ptr.size());
+  REQUIRE(actual_idx.size() == expected_idx.size());
+
+  for (int i = 0; i < actual_ptr.size(); ++i)
+    REQUIRE(actual_ptr[i] == expected_ptr[i]);
+
+  for (int i = 0; i < actual_ptr.size() - 1; ++i) {
+    CAPTURE(i);
+    REQUIRE(AreArraysEqualUnordered(actual_idx, expected_idx, actual_ptr[i],
+                                    actual_ptr[i + 1]));
+  }
+}
+
+inline std::vector<Real> CopyOmegaHRealsToVector(const Omega_h::Reals& coords)
+{
+  auto coords_read = Omega_h::HostRead<Omega_h::Real>(coords);
+  return std::vector<Real>(coords_read.data(), coords_read.data() + coords_read.size());
 }
 
 template <typename ExecutionSpace, typename Func>
