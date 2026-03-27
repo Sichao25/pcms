@@ -1,7 +1,7 @@
-#ifndef PCMS_TRANSFER_PCMS_INTERPOLATOR_VIEW_UTILS_HPP
-#define PCMS_TRANSFER_PCMS_INTERPOLATOR_VIEW_UTILS_HPP
+#ifndef PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_VIEW_UTILS_HPP
+#define PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_VIEW_UTILS_HPP
 
-#include <pcms/transfer/pcms_interpolator_aliases.hpp>
+#include <pcms/field/evaluator/pcms_interpolator_aliases.hpp>
 #include <Omega_h_array_ops.hpp>
 #include <cmath>
 #include <Omega_h_fail.hpp>
@@ -22,7 +22,6 @@ namespace detail
 KOKKOS_INLINE_FUNCTION
 void fill(double value, member_type team, ScratchMatView matrix)
 {
-
   int row = matrix.extent(0);
   int col = matrix.extent(1);
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, row), [=](int j) {
@@ -43,7 +42,6 @@ void fill(double value, member_type team, ScratchMatView matrix)
 KOKKOS_INLINE_FUNCTION
 void fill(double value, member_type team, ScratchVecView vector)
 {
-
   int size = vector.extent(0);
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, size),
                        [=](int j) { vector(j) = value; });
@@ -60,7 +58,6 @@ KOKKOS_INLINE_FUNCTION
 void find_sq_root_each(member_type team, ScratchVecView& array)
 {
   int size = array.size();
-
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, size), [=](int i) {
     OMEGA_H_CHECK_PRINTF(
       array(i) >= 0,
@@ -124,7 +121,6 @@ ScratchMatView find_transpose(member_type team, const ScratchMatView& matrix)
 {
   int row = matrix.extent(0);
   int column = matrix.extent(1);
-
   ScratchMatView transMatrix(team.team_scratch(1), column, row);
   fill(0.0, team, transMatrix);
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, row), [=](int i) {
@@ -177,11 +173,9 @@ KOKKOS_INLINE_FUNCTION
 void eval_row_scaling(member_type team, ScratchVecView diagonal_entries,
                       ScratchMatView matrix)
 {
-
   int row = matrix.extent(0);
   int column = matrix.extent(1);
   int vector_size = diagonal_entries.size();
-
   OMEGA_H_CHECK_PRINTF(
     vector_size <= row,
     "[ERROR]: for row scaling the size of diagonal entries vector should be "
@@ -215,10 +209,8 @@ KOKKOS_INLINE_FUNCTION
 void eval_rhs_scaling(member_type team, ScratchVecView diagonal_entries,
                       ScratchVecView rhs_values)
 {
-
   int weight_size = diagonal_entries.size();
   int rhs_size = rhs_values.size();
-
   OMEGA_H_CHECK_PRINTF(
     weight_size == rhs_size,
     "[ERROR]: for row scaling the size of diagonal entries vector should be "
@@ -259,7 +251,6 @@ void scale_and_adjust(member_type team, ScratchVecView& diagonal_entries,
                       ScratchMatView& adjustedMatrix)
 {
   size_t rowA = matrixToScale.extent(0);
-
   size_t rowB = adjustedMatrix.extent(0);
   size_t colB = adjustedMatrix.extent(1);
   OMEGA_H_CHECK(colB == rowA);
@@ -274,4 +265,4 @@ void scale_and_adjust(member_type team, ScratchVecView& diagonal_entries,
 } // namespace detail
 } // namespace pcms
 
-#endif // PCMS_TRANSFER_PCMS_INTERPOLATOR_VIEW_UTILS_HPP
+#endif // PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_VIEW_UTILS_HPP

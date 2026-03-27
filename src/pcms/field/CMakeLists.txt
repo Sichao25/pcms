@@ -1,3 +1,5 @@
+find_package(KokkosKernels REQUIRED)
+
 set(PCMS_FIELD_HEADERS
         coordinate.h
         coordinate_systems.h
@@ -28,6 +30,7 @@ if (PCMS_ENABLE_OMEGA_H)
             function_space/spline.cpp
             layout/omega_h_lagrange.cpp
             layout/uniform_grid.cpp
+            evaluator/mls_interpolation.cpp
     )
     list(APPEND PCMS_FIELD_HEADERS
             function_space/lagrange.h
@@ -39,6 +42,14 @@ if (PCMS_ENABLE_OMEGA_H)
             uniform_grid_binary_field.h
             evaluator/uniform_grid.h
             evaluator/uniform_grid_spline.h
+            evaluator/mls_options.h
+            evaluator/mls_interpolation.hpp
+            evaluator/mls_interpolation_impl.hpp
+            evaluator/pcms_interpolator_aliases.hpp
+            evaluator/pcms_interpolator_view_utils.hpp
+            evaluator/pcms_interpolator_logger.hpp
+            evaluator/mls_point_cloud.h
+            evaluator/point_cloud.h
     )
 endif ()
 
@@ -83,6 +94,7 @@ target_link_libraries(pcms_field PUBLIC
 
 if(PCMS_ENABLE_OMEGA_H)
     target_link_libraries(pcms_field PUBLIC Omega_h::omega_h)
+    target_link_libraries(pcms_field PRIVATE Kokkos::kokkoskernels)
 endif()
 
 if (PCMS_ENABLE_MESHFIELDS)

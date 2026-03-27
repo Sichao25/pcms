@@ -8,6 +8,7 @@
 #include "pcms/field/function_space.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/field/coordinate_system.h"
+#include "pcms/field/evaluator/mls_options.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 
@@ -24,7 +25,8 @@ class NodalFunctionSpace : public FunctionSpace
 public:
   [[nodiscard]] static NodalFunctionSpace Create(
     Rank2View<Real, HostMemorySpace> coords,
-    CoordinateSystem coordinate_system);
+    CoordinateSystem coordinate_system,
+    MLSOptions options = {});
 
   [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept override;
 

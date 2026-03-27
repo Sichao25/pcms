@@ -1,12 +1,12 @@
-#ifndef PCMS_TRANSFER_ADJ_SEARCH_HPP
-#define PCMS_TRANSFER_ADJ_SEARCH_HPP
+#ifndef PCMS_LOCALIZATION_ADJ_SEARCH_HPP
+#define PCMS_LOCALIZATION_ADJ_SEARCH_HPP
 
 #include <pcms/localization/point_search.h>
+#include <pcms/localization/mls_support_helpers.h>
+#include <pcms/localization/queue_visited.hpp>
 #include <pcms/utility/mesh_geometry.h>
 #include <pcms/utility/print.h>
-#include "interpolation_helpers.h" // for helper functions
 
-#include "queue_visited.hpp"
 #include <Kokkos_MathematicalFunctions.hpp>
 
 namespace pcms
@@ -18,7 +18,7 @@ class FindSupports
 {
 private:
   Omega_h::Mesh& source_mesh;
-  Omega_h::Mesh& target_mesh; // TODO it's null when one mesh is used
+  Omega_h::Mesh& target_mesh;
 
 public:
   FindSupports(Omega_h::Mesh& source_mesh_, Omega_h::Mesh& target_mesh_)
@@ -59,4 +59,4 @@ SupportResults searchNeighbors(Omega_h::Mesh& mesh,
                                bool adapt_radius = true);
 } // namespace pcms
 
-#endif // PCMS_TRANSFER_ADJ_SEARCH_HPP
+#endif // PCMS_LOCALIZATION_ADJ_SEARCH_HPP

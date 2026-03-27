@@ -1,0 +1,87 @@
+#ifndef PCMS_FIELD_EVALUATOR_MLS_POINT_CLOUD_H
+#define PCMS_FIELD_EVALUATOR_MLS_POINT_CLOUD_H
+
+#include "pcms/field/point_evaluator.h"
+#include "pcms/field/field_data.h"
+#include "pcms/field/evaluator/mls_options.h"
+#include "pcms/field/evaluator/mls_interpolation.hpp"
+#include "pcms/localization/adj_search.hpp"
+#include "pcms/utility/assert.h"
+
+#include <Omega_h_array.hpp>
+#include <Omega_h_array_ops.hpp>
+
+namespace pcms
+{
+
+// MLSPointEvaluator is a concrete PointEvaluator<Real> that evaluates a
+// point-cloud-backed scalar field at a fixed set of query points using MLS.
+//
+// Supports only scalar fields (num_components == 1). Throws for any other
+// component count.
+//
+// The support structure is built once at construction and reused across
+// repeated Evaluate calls at zero additional localization cost.
+class MLSPointEvaluator : public PointEvaluator<Real>
+{
+public:
+  MLSPointEvaluator(Omega_h::Reals source_coords, Omega_h::Reals target_coords,
+                    SupportResults supports, int dim, MLSOptions options)
+    : source_coords_(std::move(source_coords)),
+      target_coords_(std::move(target_coords)),
+      supports_(std::move(supports)),
+      dim_(dim),
+      options_(options)
+  {
+  }
+
+  void Evaluate(const FieldData<Real>& field,
+                Rank2View<Real, HostMemorySpace> values) const override
+  {
+    if (values.extent(1) != 1) {
+      throw pcms_error(
+        "MLSPointEvaluator: only scalar (num_components==1) evaluation is "
+        "supported in this phase");
+    }
+
+    auto host_data = field.GetDOFHolderDataHost();
+    const int n_sources = static_cast<int>(host_data.size());
+
+    // Convert flat host view to Omega_h::Reals
+    Omega_h::HostWrite<Omega_h::Real> src_hw(n_sources, "mls_source_values");
+    for (int i = 0; i < n_sources; ++i)
+      src_hw[i] = host_data[i];
+    Omega_h::Reals source_values(src_hw);
+
+    auto result = mls_interpolation(
+      source_values, source_coords_, target_coords_, supports_, dim_,
+      static_cast<Omega_h::LO>(options_.degree), options_.basis,
+      options_.lambda, options_.tol, options_.decay_factor);
+
+    Omega_h::HostRead<Omega_h::Real> result_host(result);
+    const int n_targets = result_host.size();
+    PCMS_ALWAYS_ASSERT(static_cast<size_t>(n_targets) == values.extent(0));
+    for (int i = 0; i < n_targets; ++i)
+      values(i, 0) = result_host[i];
+  }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  void Evaluate(const FieldData<Real>& /*field*/,
+                Rank2View<Real, DeviceMemorySpace> /*values*/) const override
+  {
+    throw pcms_error(
+      "MLSPointEvaluator: device-memory Evaluate is not yet implemented");
+  }
+#endif
+
+private:
+  Omega_h::Reals source_coords_;
+  Omega_h::Reals target_coords_;
+  SupportResults supports_;
+  int dim_;
+  MLSOptions options_;
+};
+
+} // namespace pcms
+
+#endif // PCMS_FIELD_EVALUATOR_MLS_POINT_CLOUD_H

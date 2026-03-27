@@ -1,15 +1,6 @@
-find_package(KokkosKernels REQUIRED)
-
 set(PCMS_FIELD_TRANSFER_HEADERS
-    pcms_interpolator_aliases.hpp
-    adj_search.hpp
-    mls_interpolation_impl.hpp
-    queue_visited.hpp
     linear_interpolant.hpp
     multidimarray.hpp
-    mls_interpolation.hpp
-    pcms_interpolator_view_utils.hpp
-    pcms_interpolator_logger.hpp
     interpolation_base.h
     interpolation_helpers.h
     load_vector_integrator.hpp
@@ -21,10 +12,8 @@ set(PCMS_FIELD_TRANSFER_HEADERS
 
 
 set(PCMS_FIELD_TRANSFER_SOURCES
-    adj_search.cpp
     load_vector_integrator.cpp
     mesh_intersection.cpp
-    mls_interpolation.cpp
     interpolation_base.cpp)
 
 
@@ -58,8 +47,9 @@ target_compile_features(pcms_transfer PUBLIC cxx_std_20)
 
 target_link_libraries(pcms_transfer PUBLIC
     pcms::core
-    Omega_h::omega_h
-    PRIVATE Kokkos::kokkoskernels)
+    pcms::field
+    pcms::localization
+    Omega_h::omega_h)
 
 if(PCMS_ENABLE_MESHFIELDS)
   target_link_libraries(pcms_transfer PUBLIC meshfields::meshfields)

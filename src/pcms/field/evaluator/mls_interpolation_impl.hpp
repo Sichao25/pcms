@@ -1,5 +1,5 @@
-#ifndef PCMS_TRANSFER_MLS_INTERPOLATION_IMPL_HPP
-#define PCMS_TRANSFER_MLS_INTERPOLATION_IMPL_HPP
+#ifndef PCMS_FIELD_EVALUATOR_MLS_INTERPOLATION_IMPL_HPP
+#define PCMS_FIELD_EVALUATOR_MLS_INTERPOLATION_IMPL_HPP
 
 #include <cmath>
 #include <Omega_h_fail.hpp>
@@ -12,15 +12,15 @@
 #include <KokkosBlas.hpp>
 #include <KokkosBlas1_team_dot.hpp>
 #include <Kokkos_StdAlgorithms.hpp>
-#include <pcms/transfer/mls_interpolation.hpp>
-#include <pcms/transfer/pcms_interpolator_aliases.hpp>
-#include <pcms/transfer/adj_search.hpp>
+#include <pcms/field/evaluator/mls_interpolation.hpp>
+#include <pcms/field/evaluator/pcms_interpolator_aliases.hpp>
+#include <pcms/localization/adj_search.hpp>
 #include <pcms/utility/assert.h>
 #include <pcms/utility/profile.h>
-#include <pcms/transfer/pcms_interpolator_view_utils.hpp>
-#include <pcms/transfer/pcms_interpolator_logger.hpp>
+#include <pcms/field/evaluator/pcms_interpolator_view_utils.hpp>
+#include <pcms/field/evaluator/pcms_interpolator_logger.hpp>
 
-#include <KokkosBlas2_gemv.hpp> //KokkosBlas::gemv
+#include <KokkosBlas2_gemv.hpp>
 #include <KokkosBatched_SVD_Decl.hpp>
 #include <KokkosBatched_SVD_Serial_Impl.hpp>
 #include <KokkosBlas2_serial_gemv_impl.hpp>
@@ -133,7 +133,6 @@ void eval_basis_vector(const IntDeviceMatView& slice_length, const double* p,
   int curr_col = 1;
 
   double point[MAX_DIM];
-
   for (int i = 0; i < dim; ++i) {
     point[i] = p[i];
   }
@@ -144,10 +143,8 @@ void eval_basis_vector(const IntDeviceMatView& slice_length, const double* p,
       for (int k = 0; k < slice_length(i, j); ++k) {
         basis_vector(offset + k) = basis_vector(prev_col + k) * point[j];
       }
-
       offset += slice_length(i, j);
     }
-
     prev_col = curr_col;
     curr_col = offset;
   }
@@ -233,11 +230,9 @@ KOKKOS_INLINE_FUNCTION void compute_phi_vector(
   const double* target_point, const ScratchMatView& local_source_points, int j,
   double cuttoff_dis_sq, Func rbf_func, ScratchVecView phi)
 {
-  int N = local_source_points.extent(0);
   int dim = local_source_points.extent(1);
 
   double ds_sq = 0;
-
   for (int i = 0; i < dim; ++i) {
     double temp = target_point[i] - local_source_points(j, i);
     ds_sq += temp * temp;
@@ -268,19 +263,15 @@ void scale_column_trans_matrix(const ScratchMatView& matrix,
                                member_type /*unused*/, int j,
                                ScratchMatView result_matrix)
 {
-
   int N = matrix.extent(1);
 
   ScratchVecView matrix_row = Kokkos::subview(matrix, j, Kokkos::ALL());
   for (int k = 0; k < N; k++) {
     OMEGA_H_CHECK_PRINTF(!std::isnan(matrix_row(k)),
                          "ERROR: given matrix is NaN for k = %d\n", k);
-
     OMEGA_H_CHECK_PRINTF(!std::isnan(vector(j)),
                          "ERROR: given vector is NaN for j = %d\n", j);
-
     result_matrix(k, j) = matrix_row(k) * vector(j);
-
     OMEGA_H_CHECK_PRINTF(!std::isnan(result_matrix(k, j)),
                          "ERROR: result_matrix is NaN for k = %d, j = %d\n", k,
                          j);
@@ -325,11 +316,8 @@ void solve_matrix_svd(member_type team, const ScratchVecView& weight,
                       ScratchVecView rhs_values, ScratchMatView matrix,
                       ScratchVecView solution_vector, double lambda, double tol)
 {
-
   int row = matrix.extent(0);
-
   int column = matrix.extent(1);
-
   int weight_size = weight.size();
 
   OMEGA_H_CHECK_PRINTF(
@@ -339,9 +327,7 @@ void solve_matrix_svd(member_type team, const ScratchVecView& weight,
     weight_size, row);
 
   eval_row_scaling(team, weight, matrix);
-
   team.team_barrier();
-
   eval_rhs_scaling(team, weight, rhs_values);
   team.team_barrier();
 
@@ -376,7 +362,6 @@ void solve_matrix_svd(member_type team, const ScratchVecView& weight,
   team.team_barrier();
 
   calculate_shrinkage_factor(team, lambda, sigma);
-
   auto Ut = find_transpose(team, U);
 
   scale_and_adjust(team, sigma, Ut, temp_matrix); // S^-1 U^T
@@ -446,16 +431,12 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
 
   IntHostMatView host_slice_length(
     "stores slice length of  polynomial basis in host", degree, dim);
-
   Kokkos::deep_copy(host_slice_length, 0);
-
   calculate_basis_slice_lengths(host_slice_length);
-
   auto basis_size = calculate_basis_vector_size(host_slice_length);
 
   IntDeviceMatView slice_length(
     "stores slice length of polynomial basis in device", degree, dim);
-
   auto slice_length_hd = Kokkos::create_mirror_view(slice_length);
   Kokkos::deep_copy(slice_length_hd, host_slice_length);
   Kokkos::deep_copy(slice_length, slice_length_hd);
@@ -464,13 +445,7 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
     calculate_scratch_shared_size(support, ntargets, basis_size, dim);
 
   team_policy tp(ntargets, Kokkos::AUTO);
-  // printf("num of targets: ", ntargets);
-
   int scratch_size = tp.scratch_size_max(1);
-  // printf("Scratch Size = %d\n", scratch_size);
-  // printf("Shared Size = %d\n", shared_size);
-  // printf("Shared Size to be set = %d bytes (%.2f KB)\n", shared_size,
-  // shared_size / 1024.0);
   PCMS_ALWAYS_ASSERT(scratch_size > shared_size);
 
   // calculates the interpolated values
@@ -527,16 +502,10 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
         }
       }
 
-      //       logger.logMatrix(team, LogLevel::DEBUG, local_source_points,
-      //                        "Support Coordinates");
       double target_point[MAX_DIM] = {};
-
       for (int i = 0; i < dim; ++i) {
         target_point[i] = target_coordinates[league_rank * dim + i];
       }
-
-      //       logger.logArray(team, LogLevel::DEBUG, target_point, dim,
-      //                       "Target points");
 
       /** phi(nsupports) is the array of rbf functions evaluated at the
        * source supports In the actual implementation, Phi(nsupports,
@@ -551,7 +520,6 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
           compute_phi_vector(target_point, local_source_points, j,
                              support.radii2[league_rank], rbf_func, phi_vector);
         });
-
       team.team_barrier();
 
       /** support_values(nsupports) (or known rhs vector b) is the vector of
@@ -567,12 +535,7 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
           OMEGA_H_CHECK_PRINTF(!std::isnan(support_values(j)),
                                "ERROR: NaN found: at support %d\n", j);
         });
-
       team.team_barrier();
-
-      //      logger.log(team, LogLevel::DEBUG, "The search  starts");
-      //      logger.logVector(team, LogLevel::DEBUG, support_values, "Support
-      //      values");
 
       /**
        * step 3: normalize local source supports and target point
@@ -600,14 +563,9 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
           create_vandermonde_matrix(local_source_points, j, slice_length,
                                     vandermonde_matrix);
         });
-
       team.team_barrier();
 
-      //       logger.logMatrix(team, LogLevel::DEBUG, vandermonde_matrix,
-      //                        "vandermonde matrix");
-
       OMEGA_H_CHECK_PRINTF(
-
         support.radii2[league_rank] > 0,
         "ERROR: radius2 has to be positive but found to be %.16f\n",
         support.radii2[league_rank]);
@@ -623,10 +581,6 @@ void mls_interpolation(RealConstDefaultRank1View source_values,
       double target_value = KokkosBlas::Experimental::dot(
         team, solution_coefficients, target_basis_vector);
 
-      // printf("Target Point : %d \t\t Value: %5.6f\n", league_rank,
-      // target_value);
-      //       logger.logScalar(team, LogLevel::DEBUG, target_value,
-      //                        "interpolated value");
       if (team.team_rank() == 0) {
         OMEGA_H_CHECK_PRINTF(!std::isnan(target_value), "Nan at %d\n",
                              league_rank);
@@ -659,25 +613,19 @@ Omega_h::Write<Omega_h::Real> mls_interpolation(
   const Omega_h::LO& dim, const Omega_h::LO& degree, Func rbf_func,
   double lambda, double tol)
 {
-  const auto nsources = source_coordinates.size() / dim;
-
   const auto ntargets = target_coordinates.size() / dim;
 
   RealConstDefaultRank1View source_values_array_view(source_values.data(),
                                                      source_values.size());
-
   RealConstDefaultRank1View source_coordinates_array_view(
     source_coordinates.data(), source_coordinates.size());
-
   RealConstDefaultRank1View target_coordinates_array_view(
     target_coordinates.data(), target_coordinates.size());
-
   RealDefaultRank1View radii2_array_view(support.radii2.data(),
                                          support.radii2.size());
 
   Omega_h::Write<Omega_h::Real> interpolated_values(
     ntargets, 0, "approximated target values");
-
   RealDefaultRank1View interpolated_values_array_view(
     interpolated_values.data(), interpolated_values.size());
 
@@ -691,4 +639,4 @@ Omega_h::Write<Omega_h::Real> mls_interpolation(
 } // namespace detail
 } // namespace pcms
 
-#endif // PCMS_TRANSFER_MLS_INTERPOLATION_IMPL_HPP
+#endif // PCMS_FIELD_EVALUATOR_MLS_INTERPOLATION_IMPL_HPP

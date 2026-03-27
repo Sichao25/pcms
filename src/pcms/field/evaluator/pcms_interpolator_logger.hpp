@@ -1,7 +1,7 @@
-#ifndef PCMS_TRANSFER_PCMS_INTERPOLATOR_LOGGER_HPP
-#define PCMS_TRANSFER_PCMS_INTERPOLATOR_LOGGER_HPP
+#ifndef PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_LOGGER_HPP
+#define PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_LOGGER_HPP
 
-#include <pcms/transfer/pcms_interpolator_aliases.hpp>
+#include <pcms/field/evaluator/pcms_interpolator_aliases.hpp>
 #include <Kokkos_Printf.hpp>
 
 namespace pcms
@@ -26,7 +26,6 @@ public:
   {
   }
 
-  // log level info
   template <typename... Args>
   KOKKOS_INLINE_FUNCTION void log(const member_type& team, const LogLevel level,
                                   const char* fmt, Args... args)
@@ -45,7 +44,6 @@ public:
   void logStruct(const member_type& team, const LogLevel level, const Coord& p,
                  const char* name)
   {
-
     if (team.league_rank() == selected_league_rank_) {
       Kokkos::single(Kokkos::PerTeam(team), [&]() {
         Kokkos::printf("[%s] (League %d) %s: \n", logLevelToString(level),
@@ -56,17 +54,14 @@ public:
     }
   }
 
-  // log array
   KOKKOS_INLINE_FUNCTION
   void logArray(const member_type& team, const LogLevel level,
                 const double* array, const int size, const char* name)
   {
-
     if (team.league_rank() == selected_league_rank_) {
       Kokkos::single(Kokkos::PerTeam(team), [&]() {
         Kokkos::printf("[%s] (League %d) %s: \n", logLevelToString(level),
                        team.league_rank(), name);
-
         for (int i = 0; i < size; ++i) {
           Kokkos::printf("%12.6f\n", array[i]);
         }
@@ -74,7 +69,7 @@ public:
       });
     }
   }
-  // log scratch vector
+
   KOKKOS_INLINE_FUNCTION
   void logVector(const member_type& team, const LogLevel level,
                  const ScratchVecView& vector, const char* name) const
@@ -91,7 +86,6 @@ public:
     }
   }
 
-  // log scratch matrix
   KOKKOS_INLINE_FUNCTION
   void logMatrix(const member_type& team, const LogLevel level,
                  const ScratchMatView& matrix, const char* name) const
@@ -106,13 +100,11 @@ public:
           }
           Kokkos::printf("\n");
         }
-
         Kokkos::printf("\n");
       });
     }
   }
 
-  // log scalar
   KOKKOS_INLINE_FUNCTION
   void logScalar(const member_type& team, const LogLevel level,
                  const double value, const char* name) const
@@ -133,15 +125,12 @@ private:
   {
     switch (loglevel) {
       case LogLevel::INFO: return "INFO";
-
       case LogLevel::WARNING: return "WARNING";
-
       case LogLevel::ERROR: return "ERROR";
-
       case LogLevel::DEBUG: return "DEBUG";
       default: return "UNKNOWN";
     }
   }
 };
-} // end namespace pcms
-#endif // PCMS_TRANSFER_PCMS_INTERPOLATOR_LOGGER_HPP
+} // namespace pcms
+#endif // PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_LOGGER_HPP

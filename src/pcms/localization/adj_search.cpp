@@ -1,4 +1,4 @@
-#include "pcms/transfer/adj_search.hpp"
+#include "pcms/localization/adj_search.hpp"
 #include <Omega_h_array_ops.hpp>
 
 namespace pcms
@@ -25,6 +25,7 @@ namespace pcms
   Kokkos::fence();
   pcms::printInfo("\n");
 }
+
 // Debug helper retained intentionally: useful for tracing CSR support contents
 // for a specific target id during local debugging.
 [[maybe_unused]] static void printSupportsForTarget(
@@ -123,7 +124,6 @@ void FindSupports::adjBasedSearch(Omega_h::Write<Omega_h::LO>& supports_ptr,
                                   Omega_h::Write<Omega_h::Real>& radii2,
                                   bool is_build_csr_call)
 {
-
   const auto& sourcePoints_coords = source_mesh.coords();
   const auto dim = source_mesh.dim();
 
@@ -137,7 +137,7 @@ void FindSupports::adjBasedSearch(Omega_h::Write<Omega_h::LO>& supports_ptr,
   const auto& cells2verts = source_mesh.ask_verts_of(dim);
 
   Kokkos::View<Omega_h::Real* [2]> target_points("test_points",
-                                                 nvertices_target);
+                                                  nvertices_target);
   Omega_h::parallel_for(
     nvertices_target, OMEGA_H_LAMBDA(const Omega_h::LO i) {
       target_points(i, 0) = targetPoints_coords[i * dim];
@@ -147,7 +147,6 @@ void FindSupports::adjBasedSearch(Omega_h::Write<Omega_h::LO>& supports_ptr,
 
   pcms::GridPointSearch2D search_cell(source_mesh, 10, 10);
   auto results = search_cell(target_points);
-  // checkTargetPoints(results);
 
   Omega_h::parallel_for(
     nvertices_target,
@@ -197,11 +196,6 @@ void FindSupports::adjBasedSearch(Omega_h::Write<Omega_h::LO>& supports_ptr,
         if (count > count_before && count >= 500) {
           printf("Warning: count exceeds 500 for target %d with %d supports\n",
                  id, end_ptr - start_ptr);
-          printf("Warning: Target %d: coors: (%f, %f) and support %d: "
-                 "coords: (%f, %f)\n",
-                 id, target_coords[0], target_coords[1], vert_id,
-                 sourcePoints_coords[vert_id * dim + 0],
-                 sourcePoints_coords[vert_id * dim + 1]);
         }
       }
 
@@ -228,14 +222,11 @@ void FindSupports::adjBasedSearch(Omega_h::Write<Omega_h::LO>& supports_ptr,
                    id, start, end, cutoffDistance, neighborIndex);
           }
         }
-      } // end of while loop
+      }
 
       nSupports[id] = count;
-    }, // lambda
+    },
     "count the number of supports in each target point");
-  if (is_build_csr_call == false) {
-    // printSupportsForTarget(2057,  supports_ptr, nSupports, support_idx);
-  }
 }
 
 void FindSupports::adjBasedSearchCentroidNodes(
@@ -244,7 +235,6 @@ void FindSupports::adjBasedSearchCentroidNodes(
   Omega_h::Write<Omega_h::LO>& support_idx,
   Omega_h::Write<Omega_h::Real>& radii2, bool is_build_csr_call)
 {
-  // Mesh Info
   const auto& mesh_coords = source_mesh.coords();
   const auto& nvertices = source_mesh.nverts();
   const auto& dim = source_mesh.dim();
@@ -259,7 +249,6 @@ void FindSupports::adjBasedSearchCentroidNodes(
                        "Only 2D meshes are supported but found %d\n",
                        source_mesh.dim());
   auto cell_centroids = pcms::get_entity_centroids(source_mesh, Omega_h::FACE);
-  // * Got the adj data and cell centroids
 
   Omega_h::parallel_for(
     nvertices,
@@ -287,7 +276,7 @@ void FindSupports::adjBasedSearchCentroidNodes(
           queue, count, is_build_csr_call, start_counter, support_idx);
       }
 
-      while (!queue.isEmpty()) { // ? can queue be empty?
+      while (!queue.isEmpty()) {
         Omega_h::LO currentCell = queue.front();
         queue.pop_front();
         Omega_h::LO start = currentCell * num_verts_in_dim;
@@ -308,19 +297,15 @@ void FindSupports::adjBasedSearchCentroidNodes(
               neighbor_cell_index, cutoffDistance, target_coords,
               cell_centroids, dim, visited, queue, count, is_build_csr_call,
               start_counter, support_idx);
-          } // end of loop over adj cells to the current vertex
-        } // end of loop over nodes
-
-      } // end of while loop
+          }
+        }
+      }
 
       nSupports[id] = count;
-    }, // end of lambda
+    },
     "count the number of supports in each target point");
-
-  if (is_build_csr_call == false) {
-    // printSupportsForTarget(2057,  supports_ptr, nSupports, support_idx);
-  }
 }
+
 SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
                                Omega_h::Mesh& target_mesh,
                                Omega_h::Real& cutoffDistance,
@@ -400,6 +385,7 @@ SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
   target_mesh.add_tag<Omega_h::Real>(Omega_h::VERT, "radii2", 1, radii2);
   return SupportResults{read(supports_ptr), read(supports_idx), radii2};
 }
+
 SupportResults searchNeighbors(Omega_h::Mesh& mesh,
                                Omega_h::Real cutoffDistance,
                                Omega_h::LO min_support, bool adapt_radius)
@@ -451,10 +437,10 @@ SupportResults searchNeighbors(Omega_h::Mesh& mesh,
 
       adapt_radii(min_support, 3 * min_support, radii2.size(), radii2,
                   nSupports);
-    } // while loop
+    }
     pcms::printInfo("INFO: Took %d loops to adjust the radius\n",
                     r_adjust_loop);
-  } // adaptive radius search
+  }
 
   // offset array for the supports of each target vertex
   Omega_h::LO total_supports = 0;
@@ -474,4 +460,5 @@ SupportResults searchNeighbors(Omega_h::Mesh& mesh,
   mesh.add_tag<Omega_h::Real>(Omega_h::VERT, "support_radius", 1, radii2);
   return SupportResults{read(supports_ptr), read(supports_idx), radii2};
 }
+
 } // namespace pcms

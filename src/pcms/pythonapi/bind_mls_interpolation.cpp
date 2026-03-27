@@ -1,8 +1,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <Omega_h_graph.hpp>
-#include <pcms/transfer/mls_interpolation.hpp>
-#include <pcms/transfer/adj_search.hpp>
+#include <pcms/field/evaluator/mls_interpolation.hpp>
+#include <pcms/localization/adj_search.hpp>
 #include "numpy_array_transform.h"
 
 namespace py = pybind11;

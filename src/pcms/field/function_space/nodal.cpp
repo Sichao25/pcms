@@ -20,7 +20,8 @@ NodalFunctionSpace::NodalFunctionSpace(
 
 NodalFunctionSpace NodalFunctionSpace::Create(
   Rank2View<Real, HostMemorySpace> coords,
-  CoordinateSystem coordinate_system)
+  CoordinateSystem coordinate_system,
+  MLSOptions options)
 {
   int dim = static_cast<int>(coords.extent(1));
   Kokkos::View<Real**, Kokkos::HostSpace> host_view(
@@ -29,7 +30,8 @@ NodalFunctionSpace NodalFunctionSpace::Create(
     Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, host_view);
   auto pc_layout =
     std::make_shared<PointCloudLayout>(dim, device_view, coordinate_system);
-  auto eval_factory = std::make_shared<PointCloudEvaluatorFactory>(pc_layout);
+  auto eval_factory =
+    std::make_shared<PointCloudEvaluatorFactory>(pc_layout, options);
   return NodalFunctionSpace(pc_layout, std::move(eval_factory));
 }
 

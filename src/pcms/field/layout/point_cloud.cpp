@@ -10,6 +10,7 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
   : dim_(dim),
     coordinate_system_(coordinate_system),
     coords_(coords),
+    coords_host_(Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords_)),
     owned_("", coords.extent(0)),
     gids_("", coords.extent(0)),
     owned_host_("", coords.extent(0)),
@@ -60,8 +61,8 @@ GlobalIDView<HostMemorySpace> PointCloudLayout::GetGids() const
 CoordinateView<HostMemorySpace> PointCloudLayout::GetDOFHolderCoordinates()
   const
 {
-  Rank2View<const Real, HostMemorySpace> coords_view(coords_.data(),
-                                                     coords_.extent(0), 2);
+  Rank2View<const Real, HostMemorySpace> coords_view(
+    coords_host_.data(), coords_host_.extent(0), dim_);
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
 }
 
@@ -90,6 +91,12 @@ std::array<int, 4> PointCloudLayout::GetNodesPerDim() const
     nodes[i] = 0;
   nodes[0] = 1;
   return nodes;
+}
+
+Kokkos::View<const Real**, HostMemorySpace>
+PointCloudLayout::GetCoordinatesHost() const
+{
+  return coords_host_;
 }
 
 int PointCloudLayout::GetDimension() const

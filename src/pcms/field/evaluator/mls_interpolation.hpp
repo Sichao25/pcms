@@ -1,12 +1,11 @@
-#ifndef PCMS_TRANSFER_MLS_INTERPOLATION_HPP
-#define PCMS_TRANSFER_MLS_INTERPOLATION_HPP
+#ifndef PCMS_FIELD_EVALUATOR_MLS_INTERPOLATION_HPP
+#define PCMS_FIELD_EVALUATOR_MLS_INTERPOLATION_HPP
 
 #include <Omega_h_array.hpp>
 
 namespace pcms
 {
-// struct holds results neighbor search
-// defined in adj_search
+// Forward declaration — full definition is in pcms/localization/adj_search.hpp
 struct SupportResults;
 
 /**
@@ -132,11 +131,11 @@ enum class RadialBasisFunction
  * - Choose `lambda` and `decay_factor` carefully to balance accuracy and
  * stability: a larger decay factor often requires a slightly higher `lambda`.
  */
-
 Omega_h::Write<Omega_h::Real> mls_interpolation(
   const Omega_h::Reals source_values, const Omega_h::Reals source_coordinates,
   const Omega_h::Reals target_coordinates, const SupportResults& support,
   const Omega_h::LO& dim, const Omega_h::LO& degree, RadialBasisFunction bf,
   double lambda = 0, double tol = 1e-6, double decay_factor = 5.0);
+
 } // namespace pcms
-#endif // PCMS_TRANSFER_MLS_INTERPOLATION_HPP
+#endif // PCMS_FIELD_EVALUATOR_MLS_INTERPOLATION_HPP

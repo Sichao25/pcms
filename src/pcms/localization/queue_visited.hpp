@@ -1,5 +1,5 @@
-#ifndef PCMS_TRANSFER_QUEUE_VISITED_HPP
-#define PCMS_TRANSFER_QUEUE_VISITED_HPP
+#ifndef PCMS_LOCALIZATION_QUEUE_VISITED_HPP
+#define PCMS_LOCALIZATION_QUEUE_VISITED_HPP
 
 #include <Omega_h_build.hpp>
 #include <Omega_h_file.hpp>
@@ -136,5 +136,6 @@ int Track::size()
 {
   return count;
 }
+
 } // namespace pcms
-#endif // PCMS_TRANSFER_QUEUE_VISITED_HPP
+#endif // PCMS_LOCALIZATION_QUEUE_VISITED_HPP

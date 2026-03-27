@@ -1,5 +1,5 @@
-#ifndef PCMS_TRANSFER_PCMS_INTERPOLATOR_ALIASES_HPP
-#define PCMS_TRANSFER_PCMS_INTERPOLATOR_ALIASES_HPP
+#ifndef PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_ALIASES_HPP
+#define PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_ALIASES_HPP
 
 #include <Kokkos_Core.hpp>
 #include "pcms/utility/arrays.h"
@@ -15,8 +15,6 @@ struct Coord
 using range_policy = typename Kokkos::RangePolicy<>;
 using team_policy = typename Kokkos::TeamPolicy<>;
 using member_type = typename Kokkos::TeamPolicy<>::member_type;
-
-// alias for scratch view
 
 using ScratchSpace =
   typename Kokkos::DefaultExecutionSpace::scratch_memory_space;
@@ -44,4 +42,4 @@ using RealConstDefaultRank1View =
   Rank1View<const double, DefaultExecutionSpace>;
 
 } // namespace pcms
-#endif // PCMS_TRANSFER_PCMS_INTERPOLATOR_ALIASES_HPP
+#endif // PCMS_FIELD_EVALUATOR_PCMS_INTERPOLATOR_ALIASES_HPP
