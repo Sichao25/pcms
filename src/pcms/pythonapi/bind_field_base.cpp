@@ -12,6 +12,8 @@
 #include "pcms/field/layout/uniform_grid.h"
 #include "pcms/field/uniform_grid_binary_field.h"
 #include "pcms/field/function_space/lagrange.h"
+#include "pcms/field/function_space/nodal.h"
+#include "pcms/field/evaluator/mls_options.h"
 #include "pcms/utility/uniform_grid.h"
 #include "numpy_array_transform.h"
 
@@ -139,12 +141,6 @@ void bind_coordinate_module(py::module& m)
 
 void bind_create_field_module(py::module& m)
 {
-  // Bind FieldLayout abstract base with shared_ptr holder so Python can hold
-  // references returned by LagrangeFunctionSpace::get_layout().
-  py::class_<FieldLayout, std::shared_ptr<FieldLayout>>(m, "FieldLayout")
-    .def("get_num_components", &FieldLayout::GetNumComponents,
-         "Number of field components per DOF holder");
-
   // Bind Field<Real>: composed per-field object returned by
   // FunctionSpace-backed factories' create_field(). Move-only in C++; Python
   // holds it by value in a heap-allocated wrapper.
@@ -208,12 +204,17 @@ void bind_create_field_module(py::module& m)
 
   py::class_<FunctionSpace>(m, "FunctionSpace")
     .def(
-      "get_layout",
-      [](const FunctionSpace& self) -> std::shared_ptr<FieldLayout> {
-        return std::const_pointer_cast<FieldLayout>(self.GetLayout());
+      "create_point_evaluator",
+      [](const FunctionSpace& self, py::array_t<Real> coords,
+         OutOfBoundsPolicy policy) {
+        auto coords_view = numpy_to_view_2d<const Real>(coords);
+        return self.CreatePointEvaluator<Real>(
+          CoordinateView<HostMemorySpace>(self.GetCoordinateSystem(),
+                                          coords_view),
+          policy);
       },
-      "Get the field layout")
-
+      py::arg("coordinates"), py::arg("policy") = OutOfBoundsPolicy{},
+      "Create a reusable point evaluator for the given query coordinates.")
     .def("get_coordinate_system", &FunctionSpace::GetCoordinateSystem,
          "Get the coordinate system for this function space");
 
@@ -259,6 +260,47 @@ void bind_create_field_module(py::module& m)
       [](const LagrangeFunctionSpace& self) { return self.CreateField<Real>(); },
       "Create a Field<Real> for this function space");
 
+  // Bind MLSOptions: configuration struct for NodalFunctionSpace MLS
+  // evaluation.
+  py::class_<MLSOptions>(m, "MLSOptions")
+    .def(py::init<>(), "Default MLSOptions")
+    .def_readwrite("radius", &MLSOptions::radius)
+    .def_readwrite("min_req_supports", &MLSOptions::min_req_supports)
+    .def_readwrite("degree", &MLSOptions::degree)
+    .def_readwrite("adapt_radius", &MLSOptions::adapt_radius)
+    .def_readwrite("lambda_reg", &MLSOptions::lambda)
+    .def_readwrite("tol", &MLSOptions::tol)
+    .def_readwrite("decay_factor", &MLSOptions::decay_factor)
+    .def_readwrite("basis", &MLSOptions::basis);
+
+  // Bind NodalFunctionSpace: point-cloud function space backed by MLS.
+  py::class_<NodalFunctionSpace, FunctionSpace>(m, "NodalFunctionSpace")
+    .def_static(
+      "from_coords",
+      [](py::array_t<Real> coords, CoordinateSystem cs, MLSOptions opts) {
+        auto view = numpy_to_view_2d<Real>(coords);
+        return NodalFunctionSpace::Create(view, cs, opts);
+      },
+      py::arg("coords"),
+      py::arg("coordinate_system") = CoordinateSystem::Cartesian,
+      py::arg("options") = MLSOptions{},
+      "Create a NodalFunctionSpace from a 2D array of source coordinates "
+      "(shape: num_points × dim).")
+    .def_static(
+      "from_mesh",
+      [](Omega_h::Mesh& mesh, int source_entity_dim, CoordinateSystem cs,
+         MLSOptions opts) {
+        return NodalFunctionSpace::FromMesh(mesh, source_entity_dim, cs, opts);
+      },
+      py::arg("mesh"), py::arg("source_entity_dim"),
+      py::arg("coordinate_system") = CoordinateSystem::Cartesian,
+      py::arg("options") = MLSOptions{},
+      "Create a NodalFunctionSpace from mesh entity coordinates.")
+    .def(
+      "create_field",
+      [](const NodalFunctionSpace& self) { return self.CreateField<Real>(); },
+      "Create a Field<Real> for this function space.");
+
   // Bind CreateUniformGridFromMesh for 2D
   m.def(
     "create_uniform_grid_from_mesh",
@@ -279,10 +321,10 @@ void bind_create_field_module(py::module& m)
 
   m.def(
     "create_uniform_grid_binary_field",
-    [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions) -> py::tuple {
-      auto [layout, field] =
-        CreateUniformGridBinaryField<2>(mesh, divisions);
-      return py::make_tuple(layout, std::move(field));
+    [](Omega_h::Mesh& mesh, const std::array<LO, 2>& divisions) {
+      auto [layout, field] = CreateUniformGridBinaryField<2>(mesh, divisions);
+      static_cast<void>(layout);
+      return field;
     },
     py::arg("mesh"), py::arg("divisions"),
     "Create a 2D vertex mask field indicating inside/outside mesh");

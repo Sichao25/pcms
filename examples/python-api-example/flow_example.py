@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import pcms
 import numpy as np
-import os
 # import matplotlib.pyplot as plt
 
 
@@ -45,7 +44,7 @@ def demonstrate_face_field_transfer(mesh):
         mesh, face_field_values, face_dim
     )
     print(
-        f"Vertex field (MLS): min={vertex_field_values.min():.6f}, "
+        f"Vertex field: min={vertex_field_values.min():.6f}, "
         f"max={vertex_field_values.max():.6f}, "
         f"mean={vertex_field_values.mean():.6f}"
     )
@@ -63,9 +62,12 @@ def demonstrate_face_field_transfer(mesh):
     )
     ug_field = ug_factory.create_field()
     
-    omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
     print(f"Interpolating field from OmegaH mesh to uniform grid...")
-    interp = pcms.Interpolator(omega_h_factory, ug_factory)
+    interp = pcms.Interpolator(
+        omega_h_factory,
+        ug_factory,
+        pcms.OutOfBoundsPolicy(pcms.OutOfBoundsMode.FILL, 0.0),
+    )
     interp.apply(omega_h_field, ug_field)
     
     transferred_data = ug_field.get_dof_holder_data()

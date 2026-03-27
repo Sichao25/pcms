@@ -1,12 +1,6 @@
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
 #include "pcms/utility/arrays.h"
 #include "pcms/field/out_of_bounds_policy.h"
-#include "pcms/field/coordinate_system.h"
-#include "pcms/field/coordinate.h"
-#include "pcms/utility/memory_spaces.h"
-#include "numpy_array_transform.h"
 
 namespace py = pybind11;
 
@@ -39,16 +33,6 @@ void bind_omega_h_field2(py::module& m)
     .def_readwrite("mode", &OutOfBoundsPolicy::mode, "Out-of-bounds handling mode")
     .def_readwrite("fill_value", &OutOfBoundsPolicy::fill_value,
                    "Fill value (used only when mode == FILL)");
-
-  // Helper: create a CoordinateView from a 2D numpy array
-  m.def(
-    "create_coordinate_view",
-    [](py::array_t<Real> coordinates, const CoordinateSystem& coord_system) {
-      auto coords_view = numpy_to_view_2d<const Real>(coordinates);
-      return CoordinateView<HostMemorySpace>(coord_system, coords_view);
-    },
-    py::arg("coordinates"), py::arg("coordinate_system"),
-    "Create a CoordinateView from a 2D numpy array");
 
   // NOTE: MeshFieldsAdapter2<Real> and FieldT<Real> have been removed from
   // the C++ API. Python now works with Field<Real> objects created from

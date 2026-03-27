@@ -113,9 +113,8 @@ Create a mask where each uniform grid vertex is marked as 1 (inside mesh) or 0 (
 
 ```python
 # Create binary mask indicating which vertices are inside the mesh
-# Returns tuple of (layout, field) - layout must be kept alive while using field
-mask_layout, mask_field = pcms.create_uniform_grid_binary_field(mesh, [4, 4])
-print(f"Created mask field with {mask_layout.get_num_vertices()} vertices")
+mask_field = pcms.create_uniform_grid_binary_field(mesh, [4, 4])
+print(f"Created mask field with {mask_field.get_num_dof_holders()} vertices")
 ```
 
 **Accessing Values**:
@@ -155,8 +154,6 @@ for i in range(num_nodes):
 
 omega_h_field.set_dof_holder_data(omega_h_data)
 
-# Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
-omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
 ```
 
 #### Option B: Use Existing Element/Face Field from Mesh Tags
@@ -180,8 +177,6 @@ omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
 omega_h_field = omega_h_factory.create_field()
 omega_h_field.set_dof_holder_data(vertex_field)
 
-# Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
-omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
 ```
 
 ---
@@ -231,15 +226,14 @@ x, y = ug_coords[vertex_id, 0], ug_coords[vertex_id, 1]
 
 ---
 
-### Step 9: Export Field Data with `to_mdspan`
+### Step 9: Export Flat Field Data
 
-Convert field data to a structured $x \times y$ (or $x \times y \times z$) array
-for downstream analyses.
+Retrieve the flat DOF arrays for downstream analyses.
 
 ```python
-# Convert field data to a structured array
-grid_values = ug_field.to_numpy()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
-mask_values = mask_field.to_numpy()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
+# Get flat DOF arrays
+grid_values = ug_field.get_dof_holder_data()
+mask_values = mask_field.get_dof_holder_data()
 
 # Save to file (example)
 np.save('field_data.npy', grid_values)
@@ -265,8 +259,6 @@ np.save('field_data.npy', grid_values)
 - `field.get_dof_holder_coordinates()` - DOF holder coordinates as a 2D numpy array
 - `field.set_dof_holder_data(data)` - Set field values
 - `field.get_dof_holder_data()` - Get field values
-- `field.to_mdspan()` - Get field values as a structured array
-- `field.set_out_of_bounds_mode(mode, fill_value=0.0)` - Set behavior for points outside mesh
 - `Interpolator(source_space, target_space)` - Create an interpolator between FunctionSpaces (cached localization)
 - `interpolator.apply(source_field, target_field)` - Interpolate between fields
 - `Copy(source_space, target_space)` - Create a copy operator for compatible FunctionSpaces
@@ -304,8 +296,8 @@ np.save('field_data.npy', grid_values)
 ### Grid Properties
 - `grid.get_num_cells()` - Total number of cells
 - `grid.divisions` - Cell divisions in each dimension
-- `layout.get_num_vertices()` - Total number of vertices
-- `layout.get_dof_holder_coordinates()` - Vertex coordinates
+- `field.get_num_dof_holders()` - Total number of field DOF holders
+- `field.get_dof_holder_coordinates()` - DOF holder coordinates
 
 ---
 

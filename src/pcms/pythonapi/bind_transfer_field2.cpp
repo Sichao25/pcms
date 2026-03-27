@@ -1,10 +1,13 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 #include "pcms/transfer/copy.h"
 #include "pcms/field/field.h"
 #include "pcms/field/function_space.h"
+#include "pcms/field/point_evaluator.h"
 #include "../transfer/interpolator.h"
 #include "pcms/field/out_of_bounds_policy.h"
+#include "numpy_array_transform.h"
 #include "pcms/utility/types.h"
 
 namespace py = pybind11;
@@ -14,6 +17,20 @@ namespace pcms
 
 void bind_transfer_field2_module(py::module& m)
 {
+  py::class_<PointEvaluator<Real>, std::unique_ptr<PointEvaluator<Real>>>(
+    m, "PointEvaluator")
+    .def(
+      "evaluate",
+      [](const PointEvaluator<Real>& self, const Field<Real>& field,
+         py::array_t<Real> output) {
+        auto output_view = numpy_to_view_2d<Real>(output);
+        self.Evaluate(field.GetData(), output_view);
+      },
+      py::arg("field"), py::arg("output"),
+      "Evaluate the given field at the cached query coordinates into a "
+      "preallocated 2D numpy array of shape "
+      "(num_query_points, num_components).");
+
   // Bind Interpolator<Real>: construct once per source×target function-space
   // pair (localization happens at construction), then call apply() repeatedly
   // for different field states at zero additional localization cost.
