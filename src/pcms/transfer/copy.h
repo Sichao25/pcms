@@ -5,6 +5,7 @@
 #include "pcms/field/function_space.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/profile.h"
+#include "pcms/transfer/transfer_operator.hpp"
 
 namespace pcms
 {
@@ -34,7 +35,7 @@ void CheckCopyCompatible(const Field<T>& source, const Field<T>& target)
 } // namespace detail
 
 template <typename T>
-class Copy
+class Copy : public TransferOperator<T>
 {
 public:
   Copy(const FunctionSpace& source_space, const FunctionSpace& target_space)
@@ -47,7 +48,7 @@ public:
     }
   }
 
-  void Apply(const Field<T>& source, Field<T>& target) const
+  void Apply(const Field<T>& source, Field<T>& target) const override
   {
     PCMS_FUNCTION_TIMER;
     detail::CheckCopyCompatible(source, target);

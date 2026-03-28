@@ -8,6 +8,7 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     mesh_intersection.hpp
     interpolator.h
     copy.h
+    transfer_operator.hpp
 )
 
 

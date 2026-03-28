@@ -12,6 +12,7 @@
 #include "pcms/utility/types.h"
 #include <Kokkos_Core.hpp>
 #include <memory>
+#include <transfer_operator.hpp>
 
 namespace pcms
 {
@@ -29,7 +30,7 @@ namespace pcms
 //   interp.Apply(src_field, tgt_field);   // cheap; called in coupling loop
 //   interp.Apply(src_field2, tgt_field2); // reuses cached localization
 template <typename T>
-class Interpolator
+class Interpolator : public TransferOperator<T>
 {
 public:
   // Expensive: localizes target DOF coords into source mesh. Called once.
@@ -49,7 +50,7 @@ public:
 
   // Cheap: apply to any Field whose layout matches the target space.
   // Localization is not repeated.
-  void Apply(const Field<T>& source, Field<T>& target) const
+  void Apply(const Field<T>& source, Field<T>& target) const override
   {
     PCMS_FUNCTION_TIMER;
     const LO num_points = num_points_;
