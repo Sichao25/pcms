@@ -118,7 +118,7 @@ public:
   {
   }
 
-  void Evaluate(const FieldData<T>& field,
+  void Evaluate(const Field<T>& field,
                 Rank2View<T, HostMemorySpace> values) const override
   {
     PCMS_FUNCTION_TIMER;

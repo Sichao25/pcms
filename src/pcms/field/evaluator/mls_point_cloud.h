@@ -35,7 +35,7 @@ public:
   {
   }
 
-  void Evaluate(const FieldData<Real>& field,
+  void Evaluate(const Field<Real>& field,
                 Rank2View<Real, HostMemorySpace> values) const override
   {
     if (values.extent(1) != 1) {
@@ -66,7 +66,7 @@ public:
   }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  void Evaluate(const FieldData<Real>& /*field*/,
+  void Evaluate(const Field<Real>& /*field*/,
                 Rank2View<Real, DeviceMemorySpace> /*values*/) const override
   {
     throw pcms_error(

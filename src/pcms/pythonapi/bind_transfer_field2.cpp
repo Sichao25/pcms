@@ -24,7 +24,7 @@ void bind_transfer_field2_module(py::module& m)
       [](const PointEvaluator<Real>& self, const Field<Real>& field,
          py::array_t<Real> output) {
         auto output_view = numpy_to_view_2d<Real>(output);
-        self.Evaluate(field.GetData(), output_view);
+        self.Evaluate(field, output_view);
       },
       py::arg("field"), py::arg("output"),
       "Evaluate the given field at the cached query coordinates into a "

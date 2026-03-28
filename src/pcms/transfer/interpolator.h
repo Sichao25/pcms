@@ -59,7 +59,7 @@ public:
                                                n_comp);
     Rank2View<T, HostMemorySpace> output_view(output.data(), num_points,
                                                n_comp);
-    evaluator_->Evaluate(source.GetData(), output_view);
+    evaluator_->Evaluate(source, output_view);
     Kokkos::View<T*, HostMemorySpace> flat(
       "interp_flat", static_cast<size_t>(num_points) * n_comp);
     Kokkos::parallel_for(

@@ -42,7 +42,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
     CoordinateSystem::Cartesian, coords_view};
   auto evaluator = factory.CreatePointEvaluator<Real>(cv);
   pcms::test::CheckEvaluation(
-    *evaluator, field_data.GetData(),
+    *evaluator, field_data,
     pts, pcms::test::linear_f);
 }
 
@@ -84,8 +84,8 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
   pcms::Rank2View<Real, pcms::HostMemorySpace> view_b(out_b.data(), n, 1);
 
   // Evaluate field_a then field_b with the same evaluator
-  evaluator->Evaluate(field_a.GetData(), view_a);
-  evaluator->Evaluate(field_b.GetData(), view_b);
+  evaluator->Evaluate(field_a, view_a);
+  evaluator->Evaluate(field_b, view_b);
 
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];
@@ -121,7 +121,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 out-of-bounds fill")
     CoordinateSystem::Cartesian, coords_view};
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
   auto evaluator = factory.CreatePointEvaluator<Real>(cv, policy);
-  pcms::test::CheckFillMode(*evaluator, field_data.GetData(), -999.0, outside_pts);
+  pcms::test::CheckFillMode(*evaluator, field_data, -999.0, outside_pts);
 }
 
 // ============================================================================
@@ -150,7 +150,7 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
     CoordinateSystem::Cartesian, coords_view};
   auto evaluator = factory.CreatePointEvaluator<Real>(cv);
   pcms::test::CheckEvaluation(
-    *evaluator, field_data.GetData(), pts, pcms::test::linear_f, 1e-8);
+    *evaluator, field_data, pts, pcms::test::linear_f, 1e-8);
 }
 
 TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
@@ -174,7 +174,7 @@ TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
     CoordinateSystem::Cartesian, coords_view};
   auto evaluator = factory.CreatePointEvaluator<Real>(cv);
   pcms::test::CheckEvaluation(
-    *evaluator, field_data.GetData(), pts, pcms::test::linear_f, 1e-8);
+    *evaluator, field_data, pts, pcms::test::linear_f, 1e-8);
 }
 
 // ============================================================================
@@ -295,8 +295,8 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
   pcms::CoordinateView<pcms::HostMemorySpace> cv{CoordinateSystem::Cartesian,
                                                  coords_view};
   auto evaluator = factory.CreatePointEvaluator<Real>(cv);
-  pcms::test::CheckEvaluation(*evaluator, field_data.GetData(), pts,
-                                 pcms::test::linear_f);
+  pcms::test::CheckEvaluation(*evaluator, field_data, pts,
+                              pcms::test::linear_f);
 }
 
 TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
@@ -321,7 +321,7 @@ TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
                                                  coords_view};
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
   auto evaluator = factory.CreatePointEvaluator<Real>(cv, policy);
-  pcms::test::CheckFillMode(*evaluator, field_data.GetData(), -999.0, outside_pts);
+  pcms::test::CheckFillMode(*evaluator, field_data, -999.0, outside_pts);
 }
 
 TEST_CASE(
@@ -354,8 +354,8 @@ TEST_CASE(
   pcms::Rank2View<Real, pcms::HostMemorySpace> view_a(out_a.data(), n, 1);
   pcms::Rank2View<Real, pcms::HostMemorySpace> view_b(out_b.data(), n, 1);
 
-  evaluator->Evaluate(field_a.GetData(), view_a);
-  evaluator->Evaluate(field_b.GetData(), view_b);
+  evaluator->Evaluate(field_a, view_a);
+  evaluator->Evaluate(field_b, view_b);
 
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];

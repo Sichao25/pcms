@@ -141,7 +141,7 @@ void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basi
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
   auto evaluator = fs.CreatePointEvaluator<Real>(cv);
-  pcms::test::CheckEvaluation(*evaluator, field.GetData(), pts, func, abs_tol);
+  pcms::test::CheckEvaluation(*evaluator, field, pts, func, abs_tol);
 }
 
 } // namespace
@@ -199,8 +199,8 @@ TEST_CASE("NodalFunctionSpace MLS: same PointEvaluator reused for two "
   Rank2View<Real, HostMemorySpace> view_a(out_a.data(), n, 1);
   Rank2View<Real, HostMemorySpace> view_b(out_b.data(), n, 1);
 
-  evaluator->Evaluate(field_a.GetData(), view_a);
-  evaluator->Evaluate(field_b.GetData(), view_b);
+  evaluator->Evaluate(field_a, view_a);
+  evaluator->Evaluate(field_b, view_b);
 
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];
@@ -232,7 +232,7 @@ TEST_CASE("NodalFunctionSpace MLS: Evaluate throws for num_components != 1")
   // Two-component output — must throw
   std::vector<Real> out(n * 2);
   Rank2View<Real, HostMemorySpace> out_view(out.data(), n, 2);
-  REQUIRE_THROWS(evaluator->Evaluate(field.GetData(), out_view));
+  REQUIRE_THROWS(evaluator->Evaluate(field, out_view));
 }
 
 // ============================================================================
@@ -261,7 +261,7 @@ TEST_CASE("NodalFunctionSpace MLS: default MLSOptions — smoke evaluation")
   std::vector<Real> out(n);
   Rank2View<Real, HostMemorySpace> out_view(out.data(), n, 1);
   // Just verify it runs without error and returns finite values
-  REQUIRE_NOTHROW(evaluator->Evaluate(field.GetData(), out_view));
+  REQUIRE_NOTHROW(evaluator->Evaluate(field, out_view));
   for (int i = 0; i < n; ++i)
     REQUIRE(std::isfinite(out[i]));
 }
@@ -327,7 +327,7 @@ TEST_CASE(
   auto evaluator = fs.CreatePointEvaluator<Real>(cv);
   std::vector<Real> out(1);
   Rank2View<Real, HostMemorySpace> out_view(out.data(), 1, 1);
-  evaluator->Evaluate(field.GetData(), out_view);
+  evaluator->Evaluate(field, out_view);
 
   REQUIRE(out[0] == Catch::Approx(1.0).margin(1e-8));
 }
@@ -367,7 +367,7 @@ TEST_CASE("NodalFunctionSpace MLS: 3D point clouds preserve z coordinates in "
   auto evaluator = fs.CreatePointEvaluator<Real>(cv);
   std::vector<Real> out(2);
   Rank2View<Real, HostMemorySpace> out_view(out.data(), 2, 1);
-  evaluator->Evaluate(field.GetData(), out_view);
+  evaluator->Evaluate(field, out_view);
 
   // This 3D case is a small, low-resolution support cloud with MLS weights
   // built from a finite-radius neighborhood rather than exact nodal lookup, so

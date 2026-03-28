@@ -173,14 +173,14 @@ inline void CheckSerializeDeserialize(Field<Real>& field)
 // Evaluate field at explicit test points using a PointEvaluator and check results.
 template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
 void CheckEvaluation(const PointEvaluator<Real>& evaluator,
-                     FieldData<Real>& field_data,
+                     const Field<Real>& field,
                      const std::vector<Real>& pts, Func func,
                      double abs_tol = 1e-10)
 {
   int n = static_cast<int>(pts.size()) / 2;
   std::vector<Real> eval(n);
   Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
-  evaluator.Evaluate(field_data, out);
+  evaluator.Evaluate(field, out);
 
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 
@@ -196,7 +196,7 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
 template <typename Factory, typename ExecutionSpace = DefaultExecutionSpace,
           typename Func>
 void CheckEvaluation(const Factory& factory,
-                     FieldData<Real>& field_data,
+                     const Field<Real>& field,
                      const std::vector<Real>& pts, Func func,
                      double abs_tol = 1e-10)
 {
@@ -204,18 +204,18 @@ void CheckEvaluation(const Factory& factory,
   Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
   auto evaluator = factory.template CreatePointEvaluator<Real>(cv);
-  CheckEvaluation<ExecutionSpace>(*evaluator, field_data, pts, func, abs_tol);
+  CheckEvaluation<ExecutionSpace>(*evaluator, field, pts, func, abs_tol);
 }
 
 // Evaluate field at points known to be outside the mesh and verify fill value.
 inline void CheckFillMode(const PointEvaluator<Real>& evaluator,
-                          FieldData<Real>& field_data, Real fill_value,
+                          const Field<Real>& field, Real fill_value,
                           const std::vector<Real>& outside_pts)
 {
   int n = static_cast<int>(outside_pts.size()) / 2;
   std::vector<Real> eval(n);
   Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
-  evaluator.Evaluate(field_data, out);
+  evaluator.Evaluate(field, out);
 
   for (int i = 0; i < n; ++i) {
     REQUIRE(eval[i] == fill_value);
@@ -225,7 +225,7 @@ inline void CheckFillMode(const PointEvaluator<Real>& evaluator,
 // Overload that creates the evaluator from any factory with FILL policy.
 template <typename Factory>
 void CheckFillMode(const Factory& factory,
-                   FieldData<Real>& field_data, Real fill_value,
+                   const Field<Real>& field, Real fill_value,
                    const std::vector<Real>& outside_pts)
 {
   int n = static_cast<int>(outside_pts.size()) / 2;
@@ -233,7 +233,7 @@ void CheckFillMode(const Factory& factory,
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
   OutOfBoundsPolicy policy{OutOfBoundsMode::FILL, fill_value};
   auto evaluator = factory.template CreatePointEvaluator<Real>(cv, policy);
-  CheckFillMode(*evaluator, field_data, fill_value, outside_pts);
+  CheckFillMode(*evaluator, field, fill_value, outside_pts);
 }
 
 // Check a mix of inside/outside points. inside points verified against func,
@@ -241,7 +241,7 @@ void CheckFillMode(const Factory& factory,
 template <typename Factory, typename ExecutionSpace = DefaultExecutionSpace,
           typename Func>
 void CheckEvaluationWithFill(const Factory& factory,
-                             FieldData<Real>& field_data,
+                             const Field<Real>& field,
                              const std::vector<Real>& pts,
                              const std::vector<bool>& is_inside, Func func,
                              Real fill_value, double abs_tol = 1e-10)
@@ -256,7 +256,7 @@ void CheckEvaluationWithFill(const Factory& factory,
 
   std::vector<Real> eval(n);
   Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
-  evaluator->Evaluate(field_data, out);
+  evaluator->Evaluate(field, out);
 
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 

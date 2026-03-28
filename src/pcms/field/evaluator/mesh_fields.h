@@ -30,7 +30,7 @@ public:
   {
   }
 
-  void Evaluate(const FieldData<T>& field,
+  void Evaluate(const Field<T>& field,
                 Rank2View<T, HostMemorySpace> values) const override
   {
     PCMS_FUNCTION_TIMER;
@@ -39,7 +39,7 @@ public:
     PCMS_ALWAYS_ASSERT(values.extent(1) ==
                        static_cast<size_t>(layout_->GetNumComponents()));
     auto const* mesh_field_data =
-      dynamic_cast<const MeshFieldsFieldData<T>*>(&field);
+      dynamic_cast<const MeshFieldsFieldData<T>*>(&field.GetData());
     if (!mesh_field_data) {
       throw pcms_error(
         "MeshFieldsPointEvaluator::Evaluate: incompatible FieldData type");

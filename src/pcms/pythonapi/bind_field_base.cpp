@@ -204,6 +204,10 @@ void bind_create_field_module(py::module& m)
 
   py::class_<FunctionSpace>(m, "FunctionSpace")
     .def(
+      "create_field",
+      [](const FunctionSpace& self) { return self.CreateField<Real>(); },
+      "Create a Field<Real> for this function space.")
+    .def(
       "create_point_evaluator",
       [](const FunctionSpace& self, py::array_t<Real> coords,
          OutOfBoundsPolicy policy) {
@@ -218,7 +222,7 @@ void bind_create_field_module(py::module& m)
     .def("get_coordinate_system", &FunctionSpace::GetCoordinateSystem,
          "Get the coordinate system for this function space");
 
-  // Bind LagrangeFunctionSpace
+  // Bind LagrangeFunctionSpace as a concrete FunctionSpace subtype.
   py::class_<LagrangeFunctionSpace, FunctionSpace>(m, "LagrangeFunctionSpace")
     .def_static(
       "from_mesh",
@@ -253,12 +257,7 @@ void bind_create_field_module(py::module& m)
       py::arg("grid"), py::arg("num_components") = 1,
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
       py::arg("order") = 1,
-      "Create a LagrangeFunctionSpace from a 3D uniform grid")
-
-    .def(
-      "create_field",
-      [](const LagrangeFunctionSpace& self) { return self.CreateField<Real>(); },
-      "Create a Field<Real> for this function space");
+      "Create a LagrangeFunctionSpace from a 3D uniform grid");
 
   // Bind MLSOptions: configuration struct for NodalFunctionSpace MLS
   // evaluation.
@@ -273,7 +272,7 @@ void bind_create_field_module(py::module& m)
     .def_readwrite("decay_factor", &MLSOptions::decay_factor)
     .def_readwrite("basis", &MLSOptions::basis);
 
-  // Bind NodalFunctionSpace: point-cloud function space backed by MLS.
+  // Bind NodalFunctionSpace as a concrete FunctionSpace subtype.
   py::class_<NodalFunctionSpace, FunctionSpace>(m, "NodalFunctionSpace")
     .def_static(
       "from_coords",
@@ -296,10 +295,7 @@ void bind_create_field_module(py::module& m)
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
       py::arg("options") = MLSOptions{},
       "Create a NodalFunctionSpace from mesh entity coordinates.")
-    .def(
-      "create_field",
-      [](const NodalFunctionSpace& self) { return self.CreateField<Real>(); },
-      "Create a Field<Real> for this function space.");
+    ;
 
   // Bind CreateUniformGridFromMesh for 2D
   m.def(

@@ -150,7 +150,7 @@ TEST_CASE("OmegaHLagrangeField order-1: linear function evaluation")
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::CheckEvaluation(factory, field.GetData(),
+  pcms::test::CheckEvaluation(factory, field,
                               pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
 }
@@ -166,7 +166,7 @@ TEST_CASE("MeshFieldsAdapter order-1: linear function evaluation (shared util)")
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::CheckEvaluation(factory, field.GetData(),
+  pcms::test::CheckEvaluation(factory, field,
                               pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
 }
@@ -183,7 +183,7 @@ TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
 
   Real fill_value = -999.0;
   std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5, 0.5, -0.5, 0.5, 1.5};
-  pcms::test::CheckFillMode(factory, field.GetData(), fill_value, outside);
+  pcms::test::CheckFillMode(factory, field, fill_value, outside);
 }
 
 TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
@@ -242,7 +242,7 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
 
   std::vector<Real> eval(n);
   pcms::Rank2View<Real, pcms::HostMemorySpace> out(eval.data(), n, 1);
-  evaluator->Evaluate(field.GetData(), out);
+  evaluator->Evaluate(field, out);
 
   for (int i = 0; i < n; ++i)
     REQUIRE(eval[i] == Catch::Approx(kValue));
@@ -263,7 +263,7 @@ TEST_CASE("OmegaHLagrangeField order-0: out-of-bounds FILL mode")
 
   Real fill_value = -1.0;
   std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5};
-  pcms::test::CheckFillMode(factory, field.GetData(), fill_value, outside);
+  pcms::test::CheckFillMode(factory, field, fill_value, outside);
 }
 
 TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")

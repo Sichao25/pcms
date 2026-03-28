@@ -39,7 +39,7 @@ public:
     }
   }
 
-  void Evaluate(const FieldData<Real>& field,
+  void Evaluate(const Field<Real>& field,
                 Rank2View<Real, HostMemorySpace> values) const override
   {
     LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));

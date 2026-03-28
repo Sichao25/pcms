@@ -34,7 +34,7 @@ TEST_CASE("evaluate linear 2d omega_h_field")
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
-  pcms::test::CheckEvaluation(factory, field.GetData(), pcms::test::StandardEvalCoords2D(),
+  pcms::test::CheckEvaluation(factory, field, pcms::test::StandardEvalCoords2D(),
                               pcms::test::linear_f);
 }
 
@@ -69,7 +69,7 @@ TEST_CASE("evaluate quadratic 2d meshfields_field")
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
   field.GetData().SetDOFHolderDataHost(pcms::make_const_array_view(test_f_host));
 
-  pcms::test::CheckEvaluation(factory, field.GetData(), kEvalCoords, sin_f, 1.0e-2);
+  pcms::test::CheckEvaluation(factory, field, kEvalCoords, sin_f, 1.0e-2);
 }
 #endif
 

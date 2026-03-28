@@ -40,5 +40,5 @@ TEST_CASE("omega_h_field2 out of bounds FILL mode")
 
   std::vector<bool> is_inside = {true, false, false, true, false};
   pcms::test::CheckEvaluationWithFill(
-    factory, field.GetData(), coords, is_inside, fill_mode_f, fill_value, 1.0e-10);
+    factory, field, coords, is_inside, fill_mode_f, fill_value, 1.0e-10);
 }

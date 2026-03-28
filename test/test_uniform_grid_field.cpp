@@ -18,14 +18,6 @@
 
 using pcms::CreateUniformGridFromMesh;
 
-// Helper to create a SimpleFieldData + UniformGridEvaluatorFactory for the given layout.
-static auto MakeUniformGridField(
-  std::shared_ptr<pcms::UniformGridFieldLayout<2>> layout)
-{
-  return std::make_unique<pcms::SimpleFieldData<pcms::Real>>(
-    layout, pcms::FieldMetadata{});
-}
-
 // Helper to verify ug_field values against f(x,y) = x + 2*y.
 void VerifyUniformGridFieldValues(
   const pcms::UniformGrid<2>& grid,
@@ -46,7 +38,7 @@ void VerifyUniformGridFieldValues(
 
 // Helper to verify binary mask field (all values == 1.0).
 void VerifyMaskFieldValues(const pcms::UniformGrid<2>& grid,
-                           const pcms::FieldData<pcms::Real>& mask_field)
+                           const pcms::Field<pcms::Real>& mask_field)
 {
   auto mask_data = mask_field.GetDOFHolderDataHost();
   for (int j = 0; j <= grid.divisions[1]; ++j) {
@@ -72,8 +64,11 @@ TEST_CASE("UniformGrid field creation")
   REQUIRE(layout->GetNumGlobalDofHolder() == 36);
   REQUIRE_FALSE(layout->IsDistributed());
 
-  auto field = MakeUniformGridField(layout);
-  REQUIRE(field != nullptr);
+  auto field_space = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
+  auto field = field_space.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  REQUIRE(field.GetDOFHolderDataHost().size() ==
+          static_cast<size_t>(layout->OwnedSize()));
 }
 
 TEST_CASE("UniformGrid order-0 field creation and evaluation")
@@ -85,7 +80,9 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian, 0);
-  auto field = MakeUniformGridField(layout);
+  auto field_space = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    grid, 1, pcms::CoordinateSystem::Cartesian, 0);
+  auto field = field_space.CreateField<pcms::Real>(pcms::FieldMetadata{});
   pcms::UniformGridEvaluatorFactory<2> eval_factory(layout);
 
   REQUIRE(layout->GetOrder() == 0);
@@ -98,9 +95,9 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
   REQUIRE(coords(3, 1) == Catch::Approx(7.5));
 
   std::vector<pcms::Real> data = {1.0, 2.0, 3.0, 4.0};
-  field->SetDOFHolderDataHost(
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
-      data.data(), data.size()));
+  field.SetDOFHolderDataHost(
+    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(data.data(),
+                                                             data.size()));
 
   std::vector<pcms::Real> eval_coords = {
     1.0, 1.0, 9.0, 1.0, 1.0, 9.0, 9.0, 9.0
@@ -113,7 +110,7 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
 
   std::vector<pcms::Real> results(4);
   pcms::Rank2View<pcms::Real, pcms::HostMemorySpace> out(results.data(), 4, 1);
-  evaluator->Evaluate(*field, out);
+  evaluator->Evaluate(field, out);
 
   REQUIRE(results[0] == Catch::Approx(1.0));
   REQUIRE(results[1] == Catch::Approx(2.0));
@@ -130,17 +127,19 @@ TEST_CASE("UniformGrid field data operations", "[uniform_grid_field]")
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = MakeUniformGridField(layout);
+  auto field_space = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
+  auto field = field_space.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   std::vector<pcms::Real> data(25);
   for (size_t i = 0; i < 25; ++i)
     data[i] = static_cast<pcms::Real>(i);
 
-  field->SetDOFHolderDataHost(
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
-      data.data(), data.size()));
+  field.SetDOFHolderDataHost(
+    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(data.data(),
+                                                             data.size()));
 
-  auto retrieved = field->GetDOFHolderDataHost();
+  auto retrieved = field.GetDOFHolderDataHost();
   REQUIRE(retrieved.size() == 25);
   for (size_t i = 0; i < 25; ++i)
     REQUIRE(retrieved[i] == static_cast<pcms::Real>(i));
@@ -155,7 +154,9 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = MakeUniformGridField(layout);
+  auto field_space = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
+  auto field = field_space.CreateField<pcms::Real>(pcms::FieldMetadata{});
   pcms::UniformGridEvaluatorFactory<2> eval_factory(layout);
 
   // Set vertex values for a 2x2 cell grid (3x3 = 9 vertices)
@@ -170,9 +171,9 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
     2.0, 2.5, 3.0, // v3, v4, v5 (middle row, y=5)
     3.0, 3.5, 4.0  // v6, v7, v8 (top row, y=10)
   };
-  field->SetDOFHolderDataHost(
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
-      data.data(), data.size()));
+  field.SetDOFHolderDataHost(
+    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(data.data(),
+                                                             data.size()));
 
   std::vector<pcms::Real> eval_coords = {
     2.5, 2.5, // Cell 0 center
@@ -188,7 +189,7 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
 
   std::vector<pcms::Real> results(4);
   pcms::Rank2View<pcms::Real, pcms::HostMemorySpace> out(results.data(), 4, 1);
-  evaluator->Evaluate(*field, out);
+  evaluator->Evaluate(field, out);
 
   // Check results - interpolated from vertices
   // Cell 0 center (2.5, 2.5): avg of v0,v1,v3,v4 = (1.0+1.5+2.0+2.5)/4 = 1.75
@@ -210,17 +211,19 @@ TEST_CASE("UniformGrid field serialization")
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = MakeUniformGridField(layout);
+  auto field_space = pcms::LagrangeFunctionSpace::FromUniformGrid(
+    grid, 1, pcms::CoordinateSystem::Cartesian);
+  auto field = field_space.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   std::vector<pcms::Real> data(16);
   for (size_t i = 0; i < 16; ++i)
     data[i] = static_cast<pcms::Real>(i * 10);
 
-  field->SetDOFHolderDataHost(
-    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(
-      data.data(), data.size()));
+  field.SetDOFHolderDataHost(
+    pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace>(data.data(),
+                                                             data.size()));
 
-  pcms::test::CheckSerializeDeserialize(*layout, *field);
+  pcms::test::CheckSerializeDeserialize(field);
 }
 
 TEST_CASE("UniformGrid field copy")
@@ -590,5 +593,5 @@ TEST_CASE("UniformGrid workflow")
   auto ug_field_data = ug_field.GetDOFHolderDataHost();
   VerifyUniformGridFieldValues(grid, ug_coords, ug_field_data);
 
-  VerifyMaskFieldValues(grid, mask_field.GetData());
+  VerifyMaskFieldValues(grid, mask_field);
 }
