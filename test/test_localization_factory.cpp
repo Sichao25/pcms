@@ -3,14 +3,39 @@
 #include <Omega_h_build.hpp>
 #include <Omega_h_library.hpp>
 
+#include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/layout/point_cloud.h"
 #include "pcms/field/evaluator/mls_options.h"
 #include "pcms/localization/adj_search.hpp"
+#include "pcms/localization/localization_path_selection.h"
 #include "pcms/localization/mesh_localization.h"
 #include "pcms/localization/mls_support_helpers.h"
 #include "pcms/localization/point_cloud_localization.h"
 #include "pcms/discretization/discretization/omega_h.hpp"
 #include "field_test_utils.h"
+
+namespace
+{
+
+std::shared_ptr<pcms::PointCloudLayout> MakeMeshPointCloudLayout(
+  Omega_h::Mesh& mesh,
+  int entity_dim)
+{
+  auto coords_oh = pcms::get_entity_centroids(mesh, entity_dim);
+  auto coords_read = Omega_h::HostRead<Omega_h::Real>(coords_oh);
+  Kokkos::View<pcms::Real**, Kokkos::HostSpace> coords_host(
+    "mesh_point_cloud_coords", mesh.nents(entity_dim), mesh.dim());
+  for (int i = 0; i < mesh.nents(entity_dim); ++i)
+    for (int d = 0; d < mesh.dim(); ++d)
+      coords_host(i, d) = coords_read[i * mesh.dim() + d];
+  auto coords_dev = Kokkos::create_mirror_view_and_copy(
+    Kokkos::DefaultExecutionSpace{}, coords_host);
+  return std::make_shared<pcms::PointCloudLayout>(
+    mesh.dim(), coords_dev, pcms::CoordinateSystem::Cartesian,
+    std::make_shared<pcms::OmegaHDiscretization>(mesh), entity_dim);
+}
+
+} // namespace
 
 TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupports")
 {
@@ -86,6 +111,46 @@ TEST_CASE("LocalizationFactory: vertex adjacency Build matches two-mesh searchNe
   pcms::test::CheckSupportResultsEquivalent(actual, expected);
 }
 
+TEST_CASE("Localization path selection: vertex source uses adjacency for pointwise requests")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh =
+    Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 8, 8, 0, false);
+
+  auto source_layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+
+  REQUIRE(pcms::detail::SelectLocalizationPath(*source_layout) ==
+          pcms::detail::LocalizationPath::VertexAdjacencySearch);
+}
+
+TEST_CASE("Localization path selection: centroid-to-vertex uses same-mesh adjacency")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh =
+    Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 8, 8, 0, false);
+
+  auto source_layout = MakeMeshPointCloudLayout(mesh, pcms::Face);
+  auto target_layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
+
+  REQUIRE(pcms::detail::SelectLocalizationPath(
+            *source_layout, target_layout.get()) ==
+          pcms::detail::LocalizationPath::CentroidToVertexAdjacencySearch);
+}
+
+TEST_CASE("Localization path selection: centroid source uses point-cloud supports for arbitrary points")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh =
+    Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 8, 8, 0, false);
+
+  auto source_layout = MakeMeshPointCloudLayout(mesh, pcms::Face);
+
+  REQUIRE(pcms::detail::SelectLocalizationPath(*source_layout) ==
+          pcms::detail::LocalizationPath::PointCloudSupports);
+}
+
 TEST_CASE("LocalizationFactory: centroid-to-vertex Build correct on same-mesh fast path")
 {
   auto lib = Omega_h::Library{};
@@ -99,16 +164,7 @@ TEST_CASE("LocalizationFactory: centroid-to-vertex Build correct on same-mesh fa
 
   // Source: face centroids on the mesh; target: mesh vertices.
   pcms::AdjacencyLocalizationFactory factory(mesh, Omega_h::FACE, options);
-
-  pcms::OmegaHDiscretization target_disc(mesh);
-
-  auto vertex_coords = pcms::test::CopyOmegaHRealsToVector(mesh.coords());
-  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> target_view(
-    vertex_coords.data(), mesh.nverts(), mesh.dim());
-  pcms::CoordinateView<pcms::HostMemorySpace> target_cv{
-    pcms::CoordinateSystem::Cartesian, target_view};
-
-  auto actual = factory.Build(target_cv, target_disc);
+  auto actual = factory.BuildSameMeshCentroidToVertex();
 
   // Reference: direct call to the single-mesh centroid-to-vertex overload.
   Omega_h::Real radius_sq = options.radius * options.radius;
@@ -137,9 +193,6 @@ TEST_CASE("LocalizationFactory: correct with different meshes")
   pcms::AdjacencyLocalizationFactory factory(source_mesh, Omega_h::FACE,
                                              options);
 
-  // Target discretization from a different mesh — must fall back to N^2.
-  pcms::OmegaHDiscretization different_disc(target_mesh);
-
   auto target_coords = pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
   pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> target_view(
     target_coords.data(), target_mesh.nverts(), target_mesh.dim());
@@ -147,7 +200,7 @@ TEST_CASE("LocalizationFactory: correct with different meshes")
     pcms::CoordinateSystem::Cartesian, target_view};
 
   // Should not throw — falls back to point-cloud N^2 path.
-  auto result = factory.Build(target_cv, different_disc);
+  auto result = factory.Build(target_cv);
   auto ptr_host = Omega_h::HostRead<Omega_h::LO>(result.supports_ptr);
   REQUIRE(ptr_host.size() == target_mesh.nverts() + 1);
 }

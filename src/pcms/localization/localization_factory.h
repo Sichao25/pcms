@@ -4,7 +4,6 @@
 #include "pcms/localization/adj_search.hpp"
 #include "pcms/field/coordinate_system.h"
 #include "pcms/utility/memory_spaces.h"
-#include "pcms/discretization/discretization.h"
 
 namespace pcms
 {
@@ -22,12 +21,6 @@ public:
 
   virtual SupportResults Build(
     CoordinateView<HostMemorySpace> target_coords) const = 0;
-
-  virtual SupportResults Build(CoordinateView<HostMemorySpace> target_coords,
-                               const Discretization& /* target_disc */) const
-  {
-    return Build(target_coords);
-  }
 };
 
 } // namespace pcms

@@ -9,6 +9,8 @@
 #include "pcms/field/evaluation_request.h"
 #include "pcms/field/evaluator/mls_options.h"
 #include "pcms/field/evaluator/mls_point_cloud.h"
+#include "pcms/localization/localization_path_selection.h"
+#include "pcms/localization/mesh_localization.h"
 #include "pcms/localization/localization_factory.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/omega_h_array_utils.h"
@@ -82,10 +84,17 @@ public:
     Omega_h::Reals target_coords_oh =
       flatten_to_omega_h_reals(tgt_view, "tgt_coords");
 
-    auto* query_disc = request.GetQueryDiscretization();
-    auto supports = query_disc != nullptr ?
-      localization_->Build(target_coords, *query_disc) :
-      localization_->Build(target_coords);
+    SupportResults supports;
+    auto path =
+      detail::SelectLocalizationPath(*layout_, request.GetQueryLayout());
+    if (path == detail::LocalizationPath::CentroidToVertexAdjacencySearch) {
+      auto* adjacency =
+        dynamic_cast<const AdjacencyLocalizationFactory*>(localization_.get());
+      PCMS_ALWAYS_ASSERT(adjacency != nullptr);
+      supports = adjacency->BuildSameMeshCentroidToVertex();
+    } else {
+      supports = localization_->Build(target_coords);
+    }
 
     return std::make_unique<MLSPointEvaluator>(
       std::move(source_coords), std::move(target_coords_oh),
