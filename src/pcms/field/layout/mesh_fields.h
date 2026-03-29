@@ -4,6 +4,7 @@
 #include <Omega_h_mesh.hpp>
 
 #include "pcms/utility/arrays.h"
+#include "pcms/discretization/discretization/omega_h.hpp"
 #include "pcms/field/field_layout.h"
 #include "pcms/field/coordinate_system.h"
 #include "pcms/field/field.h"
@@ -19,6 +20,9 @@ public:
                           int num_components,
                           CoordinateSystem coordinate_system,
                           std::string global_id_name = "global");
+
+  std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept override;
 
   int GetNumComponents() const override;
   // nodes for standard lagrange FEM
@@ -66,6 +70,7 @@ private:
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
+  std::shared_ptr<const Discretization> discretization_;
 };
 
 } // namespace pcms

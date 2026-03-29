@@ -1,6 +1,7 @@
 #ifndef PCMS_EMPTY_FIELD_LAYOUT_H
 #define PCMS_EMPTY_FIELD_LAYOUT_H
 
+#include "pcms/discretization/discretization/empty.hpp"
 #include "pcms/field/field_layout.h"
 #include <Kokkos_Core.hpp>
 
@@ -11,6 +12,9 @@ class EmptyFieldLayout : public FieldLayout
 {
 public:
   EmptyFieldLayout();
+
+  std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;
@@ -32,6 +36,7 @@ private:
   Kokkos::View<LO*, HostMemorySpace> class_dims_;
   Kokkos::View<LO*, HostMemorySpace> class_ids_;
   Kokkos::View<Real**, HostMemorySpace> coords_;
+  std::shared_ptr<const Discretization> discretization_;
 };
 
 } // namespace pcms

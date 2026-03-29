@@ -18,6 +18,46 @@
 
 using pcms::CreateUniformGridFromMesh;
 
+TEST_CASE("UniformGridDiscretization SameEntities: identical grids")
+{
+  pcms::UniformGrid<2> grid;
+  grid.bot_left    = {0.0, 0.0};
+  grid.edge_length = {1.0, 1.0};
+  grid.divisions   = {4, 4};
+
+  pcms::UniformGridFieldLayout<2> layout_a(grid, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::UniformGridFieldLayout<2> layout_b(grid, 1, pcms::CoordinateSystem::Cartesian);
+
+  auto disc_a = layout_a.GetDiscretization();
+  auto disc_b = layout_b.GetDiscretization();
+
+  REQUIRE(disc_a != nullptr);
+  REQUIRE(disc_b != nullptr);
+  REQUIRE(disc_a->SameEntities(*disc_b));
+}
+
+TEST_CASE("UniformGridDiscretization SameEntities: different grids")
+{
+  pcms::UniformGrid<2> grid_a;
+  grid_a.bot_left    = {0.0, 0.0};
+  grid_a.edge_length = {1.0, 1.0};
+  grid_a.divisions   = {4, 4};
+
+  pcms::UniformGrid<2> grid_b;
+  grid_b.bot_left    = {0.0, 0.0};
+  grid_b.edge_length = {1.0, 1.0};
+  grid_b.divisions   = {8, 8};
+
+  pcms::UniformGridFieldLayout<2> layout_a(grid_a, 1, pcms::CoordinateSystem::Cartesian);
+  pcms::UniformGridFieldLayout<2> layout_b(grid_b, 1, pcms::CoordinateSystem::Cartesian);
+
+  auto disc_a = layout_a.GetDiscretization();
+  auto disc_b = layout_b.GetDiscretization();
+
+  REQUIRE_FALSE(disc_a->SameEntities(*disc_b));
+}
+
+
 // Helper to verify ug_field values against f(x,y) = x + 2*y.
 void VerifyUniformGridFieldValues(
   const pcms::UniformGrid<2>& grid,

@@ -3,6 +3,7 @@
 
 #include <Omega_h_mesh.hpp>
 #include "pcms/utility/arrays.h"
+#include "pcms/discretization/discretization/omega_h.hpp"
 #include "pcms/field/field_layout.h"
 #include "pcms/field/coordinate_system.h"
 #include "pcms/field/field.h"
@@ -24,6 +25,9 @@ public:
                        CoordinateSystem coordinate_system,
                        Omega_h::Read<Omega_h::I8> owned_mask,
                        std::string global_id_name = "global");
+
+  std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;
@@ -62,6 +66,7 @@ private:
   Omega_h::HostRead<Omega_h::I8> class_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
+  std::shared_ptr<const Discretization> discretization_;
 };
 
 } // namespace pcms

@@ -207,6 +207,13 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
     classification_dims_host_(i) = static_cast<LO>(class_dims_h[i]);
     classification_ids_host_(i) = static_cast<LO>(class_ids_h[i]);
   }
+  discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
+}
+
+std::shared_ptr<const Discretization>
+MeshFieldsAdapterLayout::GetDiscretization() const noexcept
+{
+  return discretization_;
 }
 
 int MeshFieldsAdapterLayout::GetNumComponents() const

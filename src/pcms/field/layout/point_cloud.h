@@ -2,6 +2,7 @@
 #define POINT_CLOUD_LAYOUT_H_
 
 #include "pcms/field/field.h"
+#include "pcms/discretization/discretization/point_cloud.hpp"
 
 namespace pcms
 {
@@ -11,6 +12,13 @@ class PointCloudLayout : public FieldLayout
 public:
   PointCloudLayout(int dim, Kokkos::View<Real**> coords,
                    CoordinateSystem coordinate_system);
+  PointCloudLayout(int dim, Kokkos::View<Real**> coords,
+                   CoordinateSystem coordinate_system,
+                   std::shared_ptr<const Discretization> discretization,
+                   int classification_entity_dim);
+
+  std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept override;
 
   int GetNumComponents() const override;
   // nodes for standard lagrange FEM
@@ -49,6 +57,7 @@ private:
   Kokkos::View<GO*, HostMemorySpace> gids_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
+  std::shared_ptr<const Discretization> discretization_;
 };
 } // namespace pcms
 

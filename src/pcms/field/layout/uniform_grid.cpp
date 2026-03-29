@@ -89,6 +89,14 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
     Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
   Kokkos::deep_copy(classification_dims_host_, static_cast<LO>(entity_dim));
   Kokkos::deep_copy(classification_ids_host_, LO{0});
+  discretization_ = std::make_shared<UniformGridDiscretization<Dim>>(grid_);
+}
+
+template <unsigned Dim>
+std::shared_ptr<const Discretization>
+UniformGridFieldLayout<Dim>::GetDiscretization() const noexcept
+{
+  return discretization_;
 }
 
 template <unsigned Dim>

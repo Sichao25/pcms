@@ -1,15 +1,16 @@
-#ifndef PCMS_COUPLING_XGC_REVERSE_CLASSIFICATION_H
-#define PCMS_COUPLING_XGC_REVERSE_CLASSIFICATION_H
-#include <Kokkos_Core.hpp>
-#include <mpi.h>
-#include "pcms/utility/types.h"
-#include <unordered_map>
-#include <set>
-#include "mdspan/mdspan.hpp"
+#ifndef PCMS_DISCRETIZATION_XGC_REVERSE_CLASSIFICATION_H
+#define PCMS_DISCRETIZATION_XGC_REVERSE_CLASSIFICATION_H
+
+#include "pcms/configuration.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
-#include "pcms/configuration.h"
-// #include <filesystem>
+#include "pcms/utility/types.h"
+
+#include <Kokkos_Core.hpp>
+#include <mpi.h>
+#include <set>
+#include <unordered_map>
+
 #ifdef PCMS_ENABLE_OMEGA_H
 #include <Omega_h_mesh.hpp>
 #include "pcms/utility/assert.h"
@@ -17,6 +18,7 @@
 
 namespace pcms
 {
+
 struct DimID
 {
   LO dim;
@@ -26,9 +28,12 @@ struct DimID
     return (dim == other.dim) && (id == other.id);
   }
 };
+
 } // namespace pcms
+
 namespace std
 {
+
 template <>
 struct hash<pcms::DimID>
 {
@@ -40,7 +45,9 @@ struct hash<pcms::DimID>
                            // https://en.cppreference.com/w/cpp/utility/hash
   }
 };
+
 } // namespace std
+
 namespace pcms
 {
 ///
@@ -53,12 +60,16 @@ public:
   // each geometric entity in iteration order (for xgc) where the gids are in
   // ascending order
   using DataMapType = std::unordered_map<DimID, std::set<LO>>;
-  void Insert(const DimID& key, Rank1View<LO, pcms::HostMemorySpace> data);
+
+  void Insert(const DimID& key, Rank1View<LO, HostMemorySpace> data);
   void Insert(const DimID& key, LO data);
+
   [[nodiscard]] std::vector<LO> Serialize() const;
-  void Deserialize(Rank1View<LO, pcms::HostMemorySpace> serialized_data);
+  void Deserialize(Rank1View<LO, HostMemorySpace> serialized_data);
+
   [[nodiscard]] bool operator==(const ReverseClassificationVertex& other) const;
   [[nodiscard]] const std::set<LO>* Query(const DimID& geometry) const noexcept;
+
   [[nodiscard]] DataMapType::iterator begin() noexcept { return data_.begin(); }
   [[nodiscard]] DataMapType::iterator end() noexcept { return data_.end(); }
   [[nodiscard]] DataMapType::const_iterator begin() const noexcept
@@ -69,7 +80,9 @@ public:
   {
     return data_.end();
   }
+
   [[nodiscard]] LO GetTotalVerts() const noexcept { return total_verts_; }
+
   friend std::ostream& operator<<(std::ostream& os,
                                   const ReverseClassificationVertex& v);
 
@@ -88,37 +101,39 @@ ReverseClassificationVertex ReadReverseClassificationVertex(std::string,
                                                             int root = 0);
 
 #ifdef PCMS_ENABLE_OMEGA_H
+
 enum class IndexBase
 {
   Zero = 0,
   One = 1
 };
+
 template <typename T = Omega_h::LO>
 [[nodiscard]] ReverseClassificationVertex ConstructRCFromOmegaHMesh(
   Omega_h::Mesh& mesh, std::string numbering = "simNumbering",
   IndexBase index_base = IndexBase::One)
 {
-  // transfer vtx classification to host
-  auto classIds_h = Omega_h::HostRead<Omega_h::ClassId>(
+  auto class_ids_h = Omega_h::HostRead<Omega_h::ClassId>(
     mesh.get_array<Omega_h::ClassId>(0, "class_id"));
-  auto classDims_h =
+  auto class_dims_h =
     Omega_h::HostRead<Omega_h::I8>(mesh.get_array<Omega_h::I8>(0, "class_dim"));
-  auto vertid = Omega_h::HostRead<T>(mesh.get_array<T>(0, numbering));
-  pcms::ReverseClassificationVertex rc;
-  PCMS_ALWAYS_ASSERT(classDims_h.size() == classIds_h.size());
-  for (int i = 0; i < classDims_h.size(); ++i) {
-    pcms::DimID geom{classDims_h[i], classIds_h[i]};
+  auto vert_id = Omega_h::HostRead<T>(mesh.get_array<T>(0, numbering));
+  ReverseClassificationVertex rc;
+  PCMS_ALWAYS_ASSERT(class_dims_h.size() == class_ids_h.size());
+  for (int i = 0; i < class_dims_h.size(); ++i) {
+    DimID geom{class_dims_h[i], class_ids_h[i]};
     if (index_base == IndexBase::Zero) {
-      rc.Insert(geom, vertid[i]);
+      rc.Insert(geom, vert_id[i]);
     } else {
-      PCMS_ALWAYS_ASSERT(vertid[i] > 0);
-      rc.Insert(geom, vertid[i] - 1);
+      PCMS_ALWAYS_ASSERT(vert_id[i] > 0);
+      rc.Insert(geom, vert_id[i] - 1);
     }
   }
   return rc;
 }
 
 #endif
+
 } // namespace pcms
 
-#endif // PCMS_COUPLING_XGC_REVERSE_CLASSIFICATION_H
+#endif // PCMS_DISCRETIZATION_XGC_REVERSE_CLASSIFICATION_H

@@ -1,9 +1,6 @@
 find_package(KokkosKernels REQUIRED)
 
 set(PCMS_FIELD_HEADERS
-        coordinate.h
-        coordinate_systems.h
-        coordinate_transform.h
         field.h
         coordinate_system.h
         field_layout.h
@@ -11,6 +8,7 @@ set(PCMS_FIELD_HEADERS
         layout/empty.h
         out_of_bounds_policy.h
         field_data.h
+        function_space.h
         point_evaluator.h
         data/simple.h
         function_space/nodal.h
@@ -69,11 +67,9 @@ if(PCMS_ENABLE_XGC)
     list(APPEND PCMS_FIELD_HEADERS
             data/xgc.h
             function_space/xgc.h
-            layout/xgc.h
-            layout/xgc_reverse_classification.h)
+            layout/xgc.h)
     list(APPEND PCMS_FIELD_SOURCES
-            layout/xgc.cpp
-            layout/xgc_reverse_classification.cpp)
+            layout/xgc.cpp)
 endif()
 
 add_library(pcms_field ${PCMS_FIELD_SOURCES})
@@ -90,6 +86,7 @@ target_compile_features(pcms_field PUBLIC cxx_std_20)
 
 target_link_libraries(pcms_field PUBLIC
         pcms::utility
+        pcms::discretization
         pcms::localization)
 
 if(PCMS_ENABLE_OMEGA_H)

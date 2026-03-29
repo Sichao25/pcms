@@ -105,6 +105,7 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
     classification_dims_host_(i) = static_cast<LO>(class_dims_host_[i]);
     classification_ids_host_(i) = static_cast<LO>(class_ids_host_[i]);
   }
+  discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
 }
 
 OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
@@ -140,6 +141,13 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
     classification_dims_host_(i) = static_cast<LO>(class_dims_host_[i]);
     classification_ids_host_(i) = static_cast<LO>(class_ids_host_[i]);
   }
+  discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
+}
+
+std::shared_ptr<const Discretization>
+OmegaHLagrangeLayout::GetDiscretization() const noexcept
+{
+  return discretization_;
 }
 
 int OmegaHLagrangeLayout::GetNumComponents() const

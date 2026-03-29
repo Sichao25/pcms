@@ -5,8 +5,42 @@
 namespace pcms
 {
 
-PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
-                                   CoordinateSystem coordinate_system)
+namespace
+{
+
+std::shared_ptr<const Discretization> MakePointCloudDiscretization(
+  int dim, Kokkos::View<Real**> coords)
+{
+  auto coords_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords);
+  return std::make_shared<PointCloudDiscretization>(
+    dim, coords_host, static_cast<const void*>(coords.data()));
+}
+
+void InitializePointCloudClassification(
+  Kokkos::View<LO*, HostMemorySpace> classification_dims_host,
+  Kokkos::View<LO*, HostMemorySpace> classification_ids_host,
+  LO n, LO classification_entity_dim)
+{
+  Kokkos::deep_copy(classification_dims_host, classification_entity_dim);
+  for (LO i = 0; i < n; ++i) {
+    classification_ids_host(i) = i;
+  }
+}
+
+} // namespace
+
+PointCloudLayout::PointCloudLayout(
+  int dim, Kokkos::View<Real**> coords, CoordinateSystem coordinate_system)
+  : PointCloudLayout(
+      dim, coords, coordinate_system, MakePointCloudDiscretization(dim, coords),
+      Vertex)
+{
+}
+
+PointCloudLayout::PointCloudLayout(
+  int dim, Kokkos::View<Real**> coords, CoordinateSystem coordinate_system,
+  std::shared_ptr<const Discretization> discretization,
+  int classification_entity_dim)
   : dim_(dim),
     coordinate_system_(coordinate_system),
     coords_(coords),
@@ -27,8 +61,16 @@ PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
     Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
   classification_ids_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
-  Kokkos::deep_copy(classification_dims_host_, static_cast<LO>(dim_));
-  Kokkos::deep_copy(classification_ids_host_, LO{0});
+  InitializePointCloudClassification(classification_dims_host_,
+                                     classification_ids_host_, n,
+                                     classification_entity_dim);
+  discretization_ = std::move(discretization);
+}
+
+std::shared_ptr<const Discretization>
+PointCloudLayout::GetDiscretization() const noexcept
+{
+  return discretization_;
 }
 
 int PointCloudLayout::GetNumComponents() const

@@ -34,6 +34,14 @@ XGCFieldLayout::XGCFieldLayout(
       class_ids_(vert) = geom.id;
     }
   }
+  discretization_ =
+    std::make_shared<XGCDiscretization>(reverse_classification, num_plane_nodes_);
+}
+
+std::shared_ptr<const Discretization>
+XGCFieldLayout::GetDiscretization() const noexcept
+{
+  return discretization_;
 }
 
 int XGCFieldLayout::GetNumComponents() const

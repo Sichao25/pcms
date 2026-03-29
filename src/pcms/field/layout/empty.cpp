@@ -10,6 +10,13 @@ EmptyFieldLayout::EmptyFieldLayout()
     class_ids_("null_class_ids", 0),
     coords_("null_coords", 0, 2)
 {
+  discretization_ = std::make_shared<EmptyDiscretization>();
+}
+
+std::shared_ptr<const Discretization>
+EmptyFieldLayout::GetDiscretization() const noexcept
+{
+  return discretization_;
 }
 
 int EmptyFieldLayout::GetNumComponents() const

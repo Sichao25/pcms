@@ -3,9 +3,13 @@
 
 #include "pcms/field/function_space/nodal.h"
 #include "pcms/field/field_metadata.h"
+#include "pcms/discretization/discretization.h"
+#include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/layout/point_cloud.h"
 #include "field_test_utils.h"
 
+#include <Omega_h_build.hpp>
+#include <Omega_h_library.hpp>
 #include <vector>
 
 using pcms::CoordinateSystem;
@@ -125,4 +129,69 @@ TEST_CASE("NodalFunctionSpace field keeps layout alive after temporary factory d
   auto got = field.GetDOFHolderDataHost();
   REQUIRE(got[0] == Catch::Approx(9.0));
   REQUIRE(got[3] == Catch::Approx(12.0));
+}
+
+TEST_CASE("Different layouts on the same mesh report SameEntities")
+{
+  Omega_h::Library lib;
+  auto mesh = Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 2,
+                                 2, 0, false);
+
+  auto nodal =
+    pcms::NodalFunctionSpace::FromMesh(mesh, pcms::Face, CoordinateSystem::Cartesian);
+  auto lagrange = pcms::LagrangeFunctionSpace::FromMesh(
+    mesh, 1, 1, CoordinateSystem::Cartesian);
+
+  auto nodal_disc = nodal.GetLayout()->GetDiscretization();
+  auto lagrange_disc = lagrange.GetLayout()->GetDiscretization();
+
+  REQUIRE(nodal_disc != nullptr);
+  REQUIRE(lagrange_disc != nullptr);
+  REQUIRE(nodal_disc->SameEntities(*lagrange_disc));
+
+  REQUIRE(nodal.GetLayout()->GetNumOwnedDofHolder() == mesh.nfaces());
+  REQUIRE(lagrange.GetLayout()->GetNumOwnedDofHolder() == mesh.nverts());
+
+  REQUIRE(nodal_disc->GetNumEntities(pcms::Face) == mesh.nfaces());
+  REQUIRE(lagrange_disc->GetNumEntities(pcms::Vertex) == mesh.nverts());
+}
+
+TEST_CASE("Layouts on different meshes do not report SameEntities")
+{
+  Omega_h::Library lib;
+  auto mesh_a = Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0,
+                                   2, 2, 0, false);
+  auto mesh_b = Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0,
+                                   3, 3, 0, false);
+
+  auto nodal_a =
+    pcms::NodalFunctionSpace::FromMesh(mesh_a, pcms::Vertex, CoordinateSystem::Cartesian);
+  auto nodal_b =
+    pcms::NodalFunctionSpace::FromMesh(mesh_b, pcms::Vertex, CoordinateSystem::Cartesian);
+
+  auto disc_a = nodal_a.GetLayout()->GetDiscretization();
+  auto disc_b = nodal_b.GetLayout()->GetDiscretization();
+
+  REQUIRE_FALSE(disc_a->SameEntities(*disc_b));
+}
+
+TEST_CASE("Standalone point-cloud layout does not report SameEntities with mesh layout")
+{
+  Omega_h::Library lib;
+  auto mesh = Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1.0, 1.0, 0.0, 2,
+                                 2, 0, false);
+
+  auto lagrange = pcms::LagrangeFunctionSpace::FromMesh(
+    mesh, 1, 1, CoordinateSystem::Cartesian);
+
+  auto coords = MakeCoords2D();
+  Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
+  auto standalone = pcms::NodalFunctionSpace::Create(
+    coords_view, CoordinateSystem::Cartesian);
+
+  auto mesh_disc       = lagrange.GetLayout()->GetDiscretization();
+  auto point_cloud_disc = standalone.GetLayout()->GetDiscretization();
+
+  REQUIRE_FALSE(mesh_disc->SameEntities(*point_cloud_disc));
+  REQUIRE_FALSE(point_cloud_disc->SameEntities(*mesh_disc));
 }

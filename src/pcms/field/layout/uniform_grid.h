@@ -2,6 +2,7 @@
 #define PCMS_UNIFORM_GRID_FIELD_LAYOUT_H
 
 #include "pcms/utility/arrays.h"
+#include "pcms/discretization/discretization/uniform_grid.hpp"
 #include "pcms/field/field_layout.h"
 #include "pcms/field/coordinate_system.h"
 #include "pcms/field/field.h"
@@ -17,6 +18,9 @@ class UniformGridFieldLayout : public FieldLayout
 public:
   UniformGridFieldLayout(UniformGrid<Dim> grid, int num_components,
                          CoordinateSystem coordinate_system, int order = 1);
+
+  std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;
@@ -55,6 +59,7 @@ private:
   Kokkos::View<bool*, HostMemorySpace> owned_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
+  std::shared_ptr<const Discretization> discretization_;
 };
 
 using UniformGridFieldLayout2D = UniformGridFieldLayout<2>;

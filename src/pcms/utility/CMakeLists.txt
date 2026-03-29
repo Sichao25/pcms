@@ -4,6 +4,7 @@ set(
         assert.h
         bounding_box.h
         common.h
+        entity_types.h
         mesh_geometry.h
         memory_spaces.h
         mpi_type.h

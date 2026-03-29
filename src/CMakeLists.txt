@@ -15,6 +15,7 @@ list(APPEND PCMS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/pcms/version.h ${CMAKE_CURR
 
 add_subdirectory(pcms/utility)
 add_subdirectory(pcms/localization)
+add_subdirectory(pcms/discretization)
 add_subdirectory(pcms/field)
 add_subdirectory(pcms/coupler)
 

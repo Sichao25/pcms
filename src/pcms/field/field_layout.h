@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include "pcms/discretization/discretization.h"
 #include "pcms/utility/types.h"
 #include "pcms/utility/arrays.h"
 #include "coordinate_system.h"
@@ -18,6 +19,9 @@ using ReversePartitionMap = std::map<pcms::LO, std::vector<pcms::LO>>;
 class FieldLayout
 {
 public:
+  virtual std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept = 0;
+
   // number of components
   int virtual GetNumComponents() const = 0;
 

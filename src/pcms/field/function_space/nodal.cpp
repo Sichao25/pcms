@@ -2,6 +2,7 @@
 #include "pcms/field/layout/point_cloud.h"
 #include "pcms/field/evaluator/point_cloud.h"
 #include "pcms/field/data/simple.h"
+#include "pcms/discretization/discretization/omega_h.hpp"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/mesh_geometry.h"
@@ -69,8 +70,9 @@ NodalFunctionSpace NodalFunctionSpace::FromMesh(
   auto coords_dev = Kokkos::create_mirror_view_and_copy(
     Kokkos::DefaultExecutionSpace{}, coords_host);
 
-  auto pc_layout =
-    std::make_shared<PointCloudLayout>(dim, coords_dev, coordinate_system);
+  auto discretization = std::make_shared<OmegaHDiscretization>(mesh);
+  auto pc_layout = std::make_shared<PointCloudLayout>(
+    dim, coords_dev, coordinate_system, discretization, source_entity_dim);
   auto localization =
     std::make_shared<AdjacencyLocalizationFactory>(mesh, source_entity_dim, options);
   auto eval_factory =

@@ -1,8 +1,12 @@
-#include "pcms/field/layout/xgc_reverse_classification.h"
+#include "pcms/discretization/discretization/xgc_reverse_classification.h"
+
 #include "mpi.h"
-#include <fstream>
 #include "pcms/utility/assert.h"
+
+#include <fstream>
+#include <sstream>
 #include <string>
+
 namespace pcms
 {
 
@@ -18,8 +22,9 @@ std::vector<LO> ReverseClassificationVertex::Serialize() const
   }
   return serialized_data;
 }
+
 void ReverseClassificationVertex::Deserialize(
-  Rank1View<LO, pcms::HostMemorySpace> serialized_data)
+  Rank1View<LO, HostMemorySpace> serialized_data)
 {
   // expect to deserialize into an empty reverse classification class
   PCMS_ALWAYS_ASSERT(data_.empty());
@@ -35,6 +40,7 @@ void ReverseClassificationVertex::Deserialize(
     i += nverts;
   }
 }
+
 ReverseClassificationVertex ReadReverseClassificationVertex(std::istream& in)
 {
   LO total_nverts;
@@ -64,6 +70,7 @@ ReverseClassificationVertex ReadReverseClassificationVertex(std::istream& in)
   }
   return rc;
 }
+
 ReverseClassificationVertex ReadReverseClassificationVertex(std::istream& instr,
                                                             MPI_Comm comm,
                                                             int root)
@@ -80,23 +87,22 @@ ReverseClassificationVertex ReadReverseClassificationVertex(std::istream& instr,
     MPI_Bcast(serialized_rc.data(), serialized_rc.size(), MPI_INT32_T, root,
               comm);
     return rc;
-  } else {
-    size_t sz = 0;
-    MPI_Bcast(&sz, 1, MPI_INT64_T, root, comm);
-    std::vector<LO> serialized_rc(sz);
-    PCMS_ALWAYS_ASSERT(serialized_rc.size() == sz);
-    MPI_Bcast(serialized_rc.data(), sz, MPI_INT32_T, root, comm);
-    pcms::Rank1View<pcms::LO, pcms::HostMemorySpace> av{serialized_rc.data(),
-                                                        serialized_rc.size()};
-    ReverseClassificationVertex rc;
-    rc.Deserialize(av);
-    return rc;
   }
+
+  size_t sz = 0;
+  MPI_Bcast(&sz, 1, MPI_INT64_T, root, comm);
+  std::vector<LO> serialized_rc(sz);
+  PCMS_ALWAYS_ASSERT(serialized_rc.size() == sz);
+  MPI_Bcast(serialized_rc.data(), sz, MPI_INT32_T, root, comm);
+  Rank1View<LO, HostMemorySpace> av{serialized_rc.data(), serialized_rc.size()};
+  ReverseClassificationVertex rc;
+  rc.Deserialize(av);
+  return rc;
 }
+
 ReverseClassificationVertex ReadReverseClassificationVertex(
   std::string classification_file)
 {
-  // PCMS_ALWAYS_ASSERT(classification_file.has_filename());
   std::ifstream infile(classification_file);
   PCMS_ALWAYS_ASSERT(infile.is_open() && infile.good());
   return ReadReverseClassificationVertex(infile);
@@ -105,7 +111,6 @@ ReverseClassificationVertex ReadReverseClassificationVertex(
 ReverseClassificationVertex ReadReverseClassificationVertex(
   std::string classification_file, MPI_Comm comm, int root)
 {
-  // PCMS_ALWAYS_ASSERT(classification_file.has_filename());
   std::ifstream infile(classification_file);
   if (!infile.is_open()) {
     std::cerr << "Cannot open reverse classification file "
@@ -116,7 +121,7 @@ ReverseClassificationVertex ReadReverseClassificationVertex(
 }
 
 void ReverseClassificationVertex::Insert(
-  const DimID& key, Rank1View<LO, pcms::HostMemorySpace> data)
+  const DimID& key, Rank1View<LO, HostMemorySpace> data)
 {
   // mdspan doesn't have begin currently. This should be switched
   // to range based for-loop
@@ -124,6 +129,7 @@ void ReverseClassificationVertex::Insert(
     Insert(key, data(i));
   }
 }
+
 void ReverseClassificationVertex::Insert(const DimID& key, LO data)
 {
   data_[key].insert(data);
@@ -145,6 +151,7 @@ const std::set<LO>* ReverseClassificationVertex::Query(
   }
   return nullptr;
 }
+
 std::ostream& operator<<(std::ostream& os, const ReverseClassificationVertex& v)
 {
   os << v.GetTotalVerts() << "\n";

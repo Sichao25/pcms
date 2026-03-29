@@ -47,6 +47,12 @@ inline constexpr bool is_supported_field_type_v =
 class FunctionSpace
 {
 public:
+  virtual std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept
+  {
+    return GetLayout()->GetDiscretization();
+  }
+
   virtual std::shared_ptr<const FieldLayout>
   GetLayout() const noexcept = 0;
 

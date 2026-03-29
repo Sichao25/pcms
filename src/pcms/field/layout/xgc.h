@@ -1,7 +1,8 @@
 #ifndef PCMS_XGC_FIELD_LAYOUT_H
 #define PCMS_XGC_FIELD_LAYOUT_H
 
-#include "pcms/field/layout/xgc_reverse_classification.h"
+#include "pcms/discretization/discretization/xgc.hpp"
+#include "pcms/discretization/discretization/xgc_reverse_classification.h"
 #include "pcms/field/coordinate_system.h"
 #include "pcms/field/field_layout.h"
 #include <functional>
@@ -15,6 +16,9 @@ public:
   XGCFieldLayout(const ReverseClassificationVertex& reverse_classification,
                  std::function<int8_t(int, int)> in_overlap,
                  LO num_plane_nodes);
+
+  std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;
@@ -39,6 +43,7 @@ private:
   Kokkos::View<LO*, HostMemorySpace> class_ids_;
   Kokkos::View<Real**, HostMemorySpace> coords_;
   LO num_plane_nodes_;
+  std::shared_ptr<const Discretization> discretization_;
 };
 
 } // namespace pcms
