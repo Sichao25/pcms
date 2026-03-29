@@ -150,7 +150,8 @@ def test_field_evaluation(world, dim, order, num_components):
         ], dtype=np.float64)
 
     print(f"  Evaluating at {eval_coords.shape[0]} points")
-    evaluator = factory.create_point_evaluator(eval_coords)
+    request = pcms.EvaluationRequest.from_coordinates(eval_coords)
+    evaluator = factory.create_point_evaluator(request)
     print("  Created point evaluator")
 
     eval_values = np.zeros((eval_coords.shape[0], num_components),

@@ -144,7 +144,8 @@ def test_uniform_grid_field_evaluation():
     field.set_dof_holder_data(data)
 
     eval_coords = np.array([[2.5, 2.5], [7.5, 7.5]], dtype=np.float64)
-    evaluator = factory.create_point_evaluator(eval_coords)
+    request = pcms.EvaluationRequest.from_coordinates(eval_coords)
+    evaluator = factory.create_point_evaluator(request)
     results = np.zeros((len(eval_coords), 1), dtype=np.float64)
     evaluator.evaluate(field, results)
 

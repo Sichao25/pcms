@@ -62,7 +62,8 @@ def test_mls_interpolation_polynomial_reproduction():
             source_xy, pcms.CoordinateSystem.Cartesian, opts
         )
         field = factory.create_field()
-        evaluator = factory.create_point_evaluator(target_xy)
+        request = pcms.EvaluationRequest.from_coordinates(target_xy)
+        evaluator = factory.create_point_evaluator(request)
         results = np.zeros((num_targets, 1), dtype=np.float64)
 
         for func_degree in range(interp_degree, -1, -1):

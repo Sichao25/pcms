@@ -248,9 +248,19 @@ If work in SCOREC system, you can directly use the spack-scorec.yaml which conta
    Then add the binded python module to your `PYTHONPATH` environment variable. You can find the install prefix with `find $(spack location -i pcms) -name "*.so" | grep -i pcms`.
    ```console
     $ export PYTHONPATH=$<your-path-to-module>:$PYTHONPATH
-    ```
+   ```
 
    Test the python API with `python -c "import pcms; print(pcms.__version__)"`. You should see the version of PCMS printed out without any errors. 
+
+   Point-evaluator construction in Python uses `EvaluationRequest`, for
+   example:
+   ```python
+   request = pcms.EvaluationRequest.from_coordinates(eval_coords)
+   evaluator = source_space.create_point_evaluator(request)
+
+   optimized_request = pcms.EvaluationRequest.from_function_space(target_space)
+   evaluator = source_space.create_point_evaluator(optimized_request)
+   ```
    
    PS: If you need certain config options for the python API, you can specify them in the spack spec. For example, to build the python API with Exodus support, one compatible config is `pcms+python ^omega-h+trilinos ^trilinos@15.0.0:+exodus ^netcdf-c@4.8.1+mpi`. At this moment, omega-h spack package does not have the exodus support, so you need to manually add `args.append("-Omega_h_USE_SEACASExodus:BOOL=ON")` to the `package.py` file of omega-h in spack before installing pcms with spack.
 
@@ -270,4 +280,3 @@ module load clang-format
 module load llvm
 find . -regex '.*\.\(cpp\|cxx\|cc\|c\|hpp\|h\)' -exec clang-format -style=file -i {} \;
 ```
-

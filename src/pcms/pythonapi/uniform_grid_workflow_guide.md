@@ -254,6 +254,9 @@ np.save('field_data.npy', grid_values)
 
 ### Field Operations
 - `space.create_field()` - Create a real-valued field from a concrete FunctionSpace
+- `EvaluationRequest.from_coordinates(coords, coord_system=Cartesian, policy=...)` - Build an explicit coordinate-based evaluation request
+- `EvaluationRequest.from_function_space(space, policy=...)` - Build an evaluation request from another FunctionSpace's DOF-holder sites
+- `space.create_point_evaluator(request)` - Create a reusable point evaluator from an `EvaluationRequest`
 - `field.get_num_dof_holders()` - Number of owned DOF holders (nodes/elements)
 - `field.get_num_components()` - Number of field components per DOF holder
 - `field.get_dof_holder_coordinates()` - DOF holder coordinates as a 2D numpy array

@@ -22,6 +22,17 @@ namespace py = pybind11;
 namespace pcms
 {
 
+namespace
+{
+
+struct PythonEvaluationRequest
+{
+  EvaluationRequest request;
+  py::object owner;
+};
+
+} // namespace
+
 void bind_coordinate_system_module(py::module& m)
 {
   // Bind CoordinateSystem enum
@@ -141,6 +152,32 @@ void bind_coordinate_module(py::module& m)
 
 void bind_create_field_module(py::module& m)
 {
+  py::class_<PythonEvaluationRequest>(m, "EvaluationRequest")
+    .def_static(
+      "from_coordinates",
+      [](py::array_t<Real> coords, CoordinateSystem coordinate_system,
+         OutOfBoundsPolicy policy) {
+        auto coords_view = numpy_to_view_2d<const Real>(coords);
+        return PythonEvaluationRequest{
+          EvaluationRequest::FromCoordinates(
+            CoordinateView<HostMemorySpace>(coordinate_system, coords_view),
+            policy),
+          py::reinterpret_borrow<py::object>(coords)};
+      },
+      py::arg("coordinates"),
+      py::arg("coordinate_system") = CoordinateSystem::Cartesian,
+      py::arg("policy") = OutOfBoundsPolicy{},
+      "Create an EvaluationRequest from an explicit coordinate array.")
+    .def_static(
+      "from_function_space",
+      [](const FunctionSpace& function_space, OutOfBoundsPolicy policy) {
+        return PythonEvaluationRequest{
+          EvaluationRequest::FromFunctionSpace(function_space, policy),
+          py::none()};
+      },
+      py::arg("function_space"), py::arg("policy") = OutOfBoundsPolicy{},
+      "Create an EvaluationRequest from a FunctionSpace's DOF-holder sites.");
+
   // Bind Field<Real>: composed per-field object returned by
   // FunctionSpace-backed factories' create_field(). Move-only in C++; Python
   // holds it by value in a heap-allocated wrapper.
@@ -209,17 +246,11 @@ void bind_create_field_module(py::module& m)
       "Create a Field<Real> for this function space.")
     .def(
       "create_point_evaluator",
-      [](const FunctionSpace& self, py::array_t<Real> coords,
-         OutOfBoundsPolicy policy) {
-        auto coords_view = numpy_to_view_2d<const Real>(coords);
-        return self.CreatePointEvaluator<Real>(
-          EvaluationRequest::FromCoordinates(
-            CoordinateView<HostMemorySpace>(self.GetCoordinateSystem(),
-                                            coords_view),
-            policy));
+      [](const FunctionSpace& self, const PythonEvaluationRequest& request) {
+        return self.CreatePointEvaluator<Real>(request.request);
       },
-      py::arg("coordinates"), py::arg("policy") = OutOfBoundsPolicy{},
-      "Create a reusable point evaluator for the given query coordinates.")
+      py::arg("request"),
+      "Create a reusable point evaluator from an EvaluationRequest.")
     .def("get_coordinate_system", &FunctionSpace::GetCoordinateSystem,
          "Get the coordinate system for this function space");
 
