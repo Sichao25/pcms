@@ -83,8 +83,7 @@ protected:
   }
 
   [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
-    Type /*value_type*/, CoordinateView<HostMemorySpace> /*coords*/,
-    OutOfBoundsPolicy /*policy*/) const override
+    Type /*value_type*/, const EvaluationRequest& /*request*/) const override
   {
     throw pcms_error("EmptyFunctionSpace does not support point evaluation");
   }

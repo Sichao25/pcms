@@ -146,7 +146,8 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
     eval_coords.data(), 4, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     pcms::CoordinateSystem::Cartesian, coords_view};
-  auto evaluator = eval_factory.CreatePointEvaluator(cv);
+  auto evaluator = eval_factory.CreatePointEvaluator(
+    pcms::EvaluationRequest::FromCoordinates(cv));
 
   std::vector<pcms::Real> results(4);
   pcms::Rank2View<pcms::Real, pcms::HostMemorySpace> out(results.data(), 4, 1);
@@ -225,7 +226,8 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
     eval_coords.data(), 4, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{
     pcms::CoordinateSystem::Cartesian, coords_view};
-  auto evaluator = eval_factory.CreatePointEvaluator(cv);
+  auto evaluator = eval_factory.CreatePointEvaluator(
+    pcms::EvaluationRequest::FromCoordinates(cv));
 
   std::vector<pcms::Real> results(4);
   pcms::Rank2View<pcms::Real, pcms::HostMemorySpace> out(results.data(), 4, 1);

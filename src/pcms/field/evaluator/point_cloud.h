@@ -6,6 +6,7 @@
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/field/field_data.h"
+#include "pcms/field/evaluation_request.h"
 #include "pcms/field/evaluator/mls_options.h"
 #include "pcms/field/evaluator/mls_point_cloud.h"
 #include "pcms/localization/localization_factory.h"
@@ -56,9 +57,9 @@ public:
   bool SupportsNearestBoundary() const override { return false; }
 
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
-    CoordinateView<HostMemorySpace> target_coords,
-    OutOfBoundsPolicy /* policy */ = {}) const override
+    const EvaluationRequest& request) const override
   {
+    const auto target_coords = request.coords;
     if (target_coords.GetCoordinateSystem() != GetCoordinateSystem()) {
       throw pcms_error(
         "PointCloudEvaluatorFactory: coordinate system mismatch");
@@ -81,8 +82,10 @@ public:
     Omega_h::Reals target_coords_oh =
       flatten_to_omega_h_reals(tgt_view, "tgt_coords");
 
-    // Delegate support localization to the pluggable factory.
-    auto supports = localization_->Build(target_coords);
+    auto* query_disc = request.GetQueryDiscretization();
+    auto supports = query_disc != nullptr ?
+      localization_->Build(target_coords, *query_disc) :
+      localization_->Build(target_coords);
 
     return std::make_unique<MLSPointEvaluator>(
       std::move(source_coords), std::move(target_coords_oh),

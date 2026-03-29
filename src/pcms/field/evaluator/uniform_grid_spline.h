@@ -157,9 +157,10 @@ public:
   bool SupportsNearestBoundary() const override { return false; }
 
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
-    CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
+    const EvaluationRequest& request) const override
   {
+    const auto coords = request.coords;
+    const auto policy = request.policy;
     if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
       throw pcms_error(
         "UniformGridSplineEvaluatorFactory2D: coordinate system mismatch");

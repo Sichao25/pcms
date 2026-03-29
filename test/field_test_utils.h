@@ -6,6 +6,7 @@
 #include "pcms/field/field.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/field_evaluator_factory.h"
+#include "pcms/field/evaluation_request.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/coupler/field_serializer.h"
@@ -203,7 +204,8 @@ void CheckEvaluation(const Factory& factory,
   int n = static_cast<int>(pts.size()) / 2;
   Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
-  auto evaluator = factory.template CreatePointEvaluator<Real>(cv);
+  auto evaluator = factory.template CreatePointEvaluator<Real>(
+    EvaluationRequest::FromCoordinates(cv));
   CheckEvaluation<ExecutionSpace>(*evaluator, field, pts, func, abs_tol);
 }
 
@@ -232,7 +234,8 @@ void CheckFillMode(const Factory& factory,
   Rank2View<const Real, HostMemorySpace> coords_view(outside_pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
   OutOfBoundsPolicy policy{OutOfBoundsMode::FILL, fill_value};
-  auto evaluator = factory.template CreatePointEvaluator<Real>(cv, policy);
+  auto evaluator = factory.template CreatePointEvaluator<Real>(
+    EvaluationRequest::FromCoordinates(cv, policy));
   CheckFillMode(*evaluator, field, fill_value, outside_pts);
 }
 
@@ -252,7 +255,8 @@ void CheckEvaluationWithFill(const Factory& factory,
   Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
   OutOfBoundsPolicy policy{OutOfBoundsMode::FILL, fill_value};
-  auto evaluator = factory.template CreatePointEvaluator<Real>(cv, policy);
+  auto evaluator = factory.template CreatePointEvaluator<Real>(
+    EvaluationRequest::FromCoordinates(cv, policy));
 
   std::vector<Real> eval(n);
   Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);

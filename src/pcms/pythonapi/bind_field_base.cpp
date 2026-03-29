@@ -213,9 +213,10 @@ void bind_create_field_module(py::module& m)
          OutOfBoundsPolicy policy) {
         auto coords_view = numpy_to_view_2d<const Real>(coords);
         return self.CreatePointEvaluator<Real>(
-          CoordinateView<HostMemorySpace>(self.GetCoordinateSystem(),
-                                          coords_view),
-          policy);
+          EvaluationRequest::FromCoordinates(
+            CoordinateView<HostMemorySpace>(self.GetCoordinateSystem(),
+                                            coords_view),
+            policy));
       },
       py::arg("coordinates"), py::arg("policy") = OutOfBoundsPolicy{},
       "Create a reusable point evaluator for the given query coordinates.")

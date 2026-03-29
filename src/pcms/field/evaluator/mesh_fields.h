@@ -125,10 +125,11 @@ public:
   bool SupportsNearestBoundary() const override { return false; }
 
   std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
-    CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
+    const EvaluationRequest& request) const override
   {
     PCMS_FUNCTION_TIMER;
+    const auto coords = request.coords;
+    const auto policy = request.policy;
     if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
       throw pcms_error(
         "MeshFieldsEvaluatorFactory: coordinate system mismatch");

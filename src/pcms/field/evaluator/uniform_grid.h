@@ -201,10 +201,11 @@ public:
   bool SupportsNearestBoundary() const override { return true; }
 
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
-    CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
+    const EvaluationRequest& request) const override
   {
     PCMS_FUNCTION_TIMER;
+    const auto coords = request.coords;
+    const auto policy = request.policy;
     if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
       throw pcms_error(
         "UniformGridEvaluatorFactory: coordinate system mismatch");

@@ -129,15 +129,14 @@ FieldVariant NodalFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
 
 PointEvaluatorVariant NodalFunctionSpace::CreatePointEvaluatorImpl(
   Type value_type,
-  CoordinateView<HostMemorySpace> coords,
-  OutOfBoundsPolicy policy) const
+  const EvaluationRequest& request) const
 {
   if (value_type != Type::Real) {
     throw pcms_error(
       "NodalFunctionSpace: point evaluation only supports double (Real)");
   }
   PCMS_ALWAYS_ASSERT(evaluator_factory_ != nullptr);
-  return evaluator_factory_->CreatePointEvaluator(coords, policy);
+  return evaluator_factory_->CreatePointEvaluator(request);
 }
 
 } // namespace pcms

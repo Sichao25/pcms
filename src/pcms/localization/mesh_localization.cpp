@@ -5,6 +5,7 @@
 #include "pcms/utility/assert.h"
 #include "pcms/utility/mesh_geometry.h"
 #include "pcms/utility/omega_h_array_utils.h"
+#include "pcms/discretization/discretization/omega_h.hpp"
 
 #include <Omega_h_array.hpp>
 
@@ -38,9 +39,9 @@ SupportResults AdjacencyLocalizationFactory::Build(
                            options_.adapt_radius);
   }
   else {
-    // Non-vertex source entities currently use generic point-cloud
-    // localization. A centroid-adjacency fast path will be added separately
-    // once seed localization and entity-neighbor traversal are split apart.
+    // Non-vertex source entities without a matching target discretization
+    // use generic point-cloud localization. When source and target share the
+    // same mesh, call Build(coords, disc) to get the centroid-adjacency path.
     const Omega_h::Reals src_oh =
       get_entity_centroids(source_mesh_, source_entity_dim_);
 
@@ -51,6 +52,27 @@ SupportResults AdjacencyLocalizationFactory::Build(
                                    options_.radius, options_.min_req_supports,
                                    options_.adapt_radius);
   }
+}
+
+SupportResults AdjacencyLocalizationFactory::Build(
+  CoordinateView<HostMemorySpace> target_coords,
+  const Discretization& target_disc) const
+{
+  // Use the efficient centroid-to-vertex adjacency path when:
+  //   1. Source entities are centroids (not vertices)
+  //   2. The mesh is 2D (adjBasedSearchCentroidNodes is 2D only)
+  //   3. Source and target share the same underlying mesh
+  if (source_entity_dim_ != Omega_h::VERT && source_mesh_.dim() == 2 &&
+      source_disc_.SameEntities(target_disc)) {
+    PCMS_ALWAYS_ASSERT(
+      static_cast<int>(target_coords.GetCoordinates().extent(0)) ==
+      source_mesh_.nverts());
+    Omega_h::Real radius_sq = options_.radius * options_.radius;
+    return searchNeighbors(source_mesh_, radius_sq,
+                           static_cast<Omega_h::LO>(options_.min_req_supports),
+                           options_.adapt_radius);
+  }
+  return Build(target_coords);
 }
 
 } // namespace pcms

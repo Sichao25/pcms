@@ -78,8 +78,7 @@ FieldVariant SplineFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
 
 PointEvaluatorVariant SplineFunctionSpace::CreatePointEvaluatorImpl(
   Type value_type,
-  CoordinateView<HostMemorySpace> coords,
-  OutOfBoundsPolicy policy) const
+  const EvaluationRequest& request) const
 {
   if (value_type != Type::Real) {
     throw pcms_error(
@@ -90,7 +89,7 @@ PointEvaluatorVariant SplineFunctionSpace::CreatePointEvaluatorImpl(
       "SplineFunctionSpace::CreatePointEvaluatorImpl: evaluator construction "
       "is not available for this backend");
   }
-  return evaluator_factory_->CreatePointEvaluator(coords, policy);
+  return evaluator_factory_->CreatePointEvaluator(request);
 }
 
 } // namespace pcms

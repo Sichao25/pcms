@@ -140,7 +140,8 @@ void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basi
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
-  auto evaluator = fs.CreatePointEvaluator<Real>(cv);
+  auto evaluator = fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(cv));
   pcms::test::CheckEvaluation(*evaluator, field, pts, func, abs_tol);
 }
 
@@ -193,7 +194,8 @@ TEST_CASE("NodalFunctionSpace MLS: same PointEvaluator reused for two "
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
-  auto evaluator = fs.CreatePointEvaluator<Real>(cv);
+  auto evaluator = fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(cv));
 
   std::vector<Real> out_a(n), out_b(n);
   Rank2View<Real, HostMemorySpace> view_a(out_a.data(), n, 1);
@@ -227,7 +229,8 @@ TEST_CASE("NodalFunctionSpace MLS: Evaluate throws for num_components != 1")
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
-  auto evaluator = fs.CreatePointEvaluator<Real>(cv);
+  auto evaluator = fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(cv));
 
   // Two-component output — must throw
   std::vector<Real> out(n * 2);
@@ -256,7 +259,8 @@ TEST_CASE("NodalFunctionSpace MLS: default MLSOptions — smoke evaluation")
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
-  auto evaluator = fs.CreatePointEvaluator<Real>(cv);
+  auto evaluator = fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(cv));
 
   std::vector<Real> out(n);
   Rank2View<Real, HostMemorySpace> out_view(out.data(), n, 1);
@@ -280,7 +284,8 @@ TEST_CASE("NodalFunctionSpace MLS: CreatePointEvaluator rejects coordinate "
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
-  REQUIRE_THROWS(fs.CreatePointEvaluator<Real>(cv));
+  REQUIRE_THROWS(
+    fs.CreatePointEvaluator<Real>(pcms::EvaluationRequest::FromCoordinates(cv)));
 }
 
 TEST_CASE("NodalFunctionSpace MLS: CreatePointEvaluator rejects non-Cartesian "
@@ -297,7 +302,8 @@ TEST_CASE("NodalFunctionSpace MLS: CreatePointEvaluator rejects non-Cartesian "
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cylindrical, qv};
 
-  REQUIRE_THROWS(fs.CreatePointEvaluator<Real>(cv));
+  REQUIRE_THROWS(
+    fs.CreatePointEvaluator<Real>(pcms::EvaluationRequest::FromCoordinates(cv)));
 }
 
 TEST_CASE(
@@ -324,7 +330,8 @@ TEST_CASE(
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), 1, 2);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
-  auto evaluator = fs.CreatePointEvaluator<Real>(cv);
+  auto evaluator = fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(cv));
   std::vector<Real> out(1);
   Rank2View<Real, HostMemorySpace> out_view(out.data(), 1, 1);
   evaluator->Evaluate(field, out_view);
@@ -364,7 +371,8 @@ TEST_CASE("NodalFunctionSpace MLS: 3D point clouds preserve z coordinates in "
   Rank2View<const Real, HostMemorySpace> qv(pts.data(), 2, 3);
   CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
 
-  auto evaluator = fs.CreatePointEvaluator<Real>(cv);
+  auto evaluator = fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(cv));
   std::vector<Real> out(2);
   Rank2View<Real, HostMemorySpace> out_view(out.data(), 2, 1);
   evaluator->Evaluate(field, out_view);

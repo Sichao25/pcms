@@ -37,8 +37,7 @@ protected:
 
   [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
     Type value_type,
-    CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy) const override;
+    const EvaluationRequest& request) const override;
 
 private:
   explicit SplineFunctionSpace(

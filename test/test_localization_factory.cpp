@@ -9,6 +9,7 @@
 #include "pcms/localization/mesh_localization.h"
 #include "pcms/localization/mls_support_helpers.h"
 #include "pcms/localization/point_cloud_localization.h"
+#include "pcms/discretization/discretization/omega_h.hpp"
 #include "field_test_utils.h"
 
 TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupports")
@@ -83,4 +84,70 @@ TEST_CASE("LocalizationFactory: vertex adjacency Build matches two-mesh searchNe
     options.adapt_radius);
 
   pcms::test::CheckSupportResultsEquivalent(actual, expected);
+}
+
+TEST_CASE("LocalizationFactory: centroid-to-vertex Build correct on same-mesh fast path")
+{
+  auto lib = Omega_h::Library{};
+  auto mesh =
+    Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 8, 8, 0, false);
+
+  pcms::MLSOptions options;
+  options.radius = 0.25;
+  options.min_req_supports = 8;
+  options.adapt_radius = true;
+
+  // Source: face centroids on the mesh; target: mesh vertices.
+  pcms::AdjacencyLocalizationFactory factory(mesh, Omega_h::FACE, options);
+
+  pcms::OmegaHDiscretization target_disc(mesh);
+
+  auto vertex_coords = pcms::test::CopyOmegaHRealsToVector(mesh.coords());
+  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> target_view(
+    vertex_coords.data(), mesh.nverts(), mesh.dim());
+  pcms::CoordinateView<pcms::HostMemorySpace> target_cv{
+    pcms::CoordinateSystem::Cartesian, target_view};
+
+  auto actual = factory.Build(target_cv, target_disc);
+
+  // Reference: direct call to the single-mesh centroid-to-vertex overload.
+  Omega_h::Real radius_sq = options.radius * options.radius;
+  auto expected =
+    pcms::searchNeighbors(mesh, radius_sq,
+                          static_cast<Omega_h::LO>(options.min_req_supports),
+                          options.adapt_radius);
+
+  pcms::test::CheckSupportResultsEquivalent(actual, expected);
+}
+
+TEST_CASE("LocalizationFactory: correct with different meshes")
+{
+  auto lib = Omega_h::Library{};
+  auto world = lib.world();
+  auto source_mesh =
+    Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 1, 8, 8, 0, false);
+  auto target_mesh =
+    Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 1, 6, 6, 0, false);
+
+  pcms::MLSOptions options;
+  options.radius = 0.25;
+  options.min_req_supports = 8;
+  options.adapt_radius = true;
+
+  pcms::AdjacencyLocalizationFactory factory(source_mesh, Omega_h::FACE,
+                                             options);
+
+  // Target discretization from a different mesh — must fall back to N^2.
+  pcms::OmegaHDiscretization different_disc(target_mesh);
+
+  auto target_coords = pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
+  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> target_view(
+    target_coords.data(), target_mesh.nverts(), target_mesh.dim());
+  pcms::CoordinateView<pcms::HostMemorySpace> target_cv{
+    pcms::CoordinateSystem::Cartesian, target_view};
+
+  // Should not throw — falls back to point-cloud N^2 path.
+  auto result = factory.Build(target_cv, different_disc);
+  auto ptr_host = Omega_h::HostRead<Omega_h::LO>(result.supports_ptr);
+  REQUIRE(ptr_host.size() == target_mesh.nverts() + 1);
 }

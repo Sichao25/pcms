@@ -2,6 +2,7 @@
 #define PCMS_FUNCTION_SPACE_H
 
 #include "coordinate_system.h"
+#include "evaluation_request.h"
 #include "field.h"
 #include "field_data.h"
 #include "field_evaluator_factory.h"
@@ -9,6 +10,7 @@
 #include "field_metadata.h"
 #include "out_of_bounds_policy.h"
 #include "point_evaluator.h"
+#include "pcms/discretization/discretization.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
 #include "pcms/utility/types.h"
@@ -72,13 +74,18 @@ public:
   template <typename T>
   [[nodiscard]] Field<T> CreateField(std::unique_ptr<FieldData<T>> data) const;
 
-  // Create a point evaluator for the given query coordinates.
+  // Create a point evaluator for the given evaluation request.
   // Compile-time error for unsupported T; runtime error for T or capability
   // unsupported by the concrete backend.
+  //
+  // EvaluationRequest is a construction-time object: it supplies the query
+  // coordinates, out-of-bounds policy, and any optional provenance that may
+  // help the backend choose an optimized localization path. The resulting
+  // PointEvaluator caches only the resolved state needed for repeated
+  // Evaluate(...) calls; it is not required to retain the original request.
   template <typename T>
   [[nodiscard]] std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
-    CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const;
+    const EvaluationRequest& request) const;
 
 protected:
   template <typename T>
@@ -100,8 +107,7 @@ protected:
 
   virtual PointEvaluatorVariant CreatePointEvaluatorImpl(
     Type value_type,
-    CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy) const = 0;
+    const EvaluationRequest& request) const = 0;
 };
 
 template <typename T>
@@ -124,12 +130,36 @@ Field<T> FunctionSpace::CreateField(std::unique_ptr<FieldData<T>> data) const
 
 template <typename T>
 std::unique_ptr<PointEvaluator<T>> FunctionSpace::CreatePointEvaluator(
-  CoordinateView<HostMemorySpace> coords,
-  OutOfBoundsPolicy policy) const
+  const EvaluationRequest& request) const
 {
   static_assert(is_supported_field_type_v<T>, "T is not a supported field type");
   return std::get<std::unique_ptr<PointEvaluator<T>>>(
-    CreatePointEvaluatorImpl(TypeEnumFromType<T>(), coords, policy));
+    CreatePointEvaluatorImpl(TypeEnumFromType<T>(), request));
+}
+
+inline EvaluationRequest EvaluationRequest::FromCoordinates(
+  CoordinateView<HostMemorySpace> coords,
+  OutOfBoundsPolicy policy)
+{
+  return EvaluationRequest(coords, nullptr, policy);
+}
+
+inline EvaluationRequest EvaluationRequest::FromLayout(
+  std::shared_ptr<const FieldLayout> layout,
+  OutOfBoundsPolicy policy)
+{
+  if (layout == nullptr) {
+    throw pcms_error("EvaluationRequest::FromLayout: layout must not be null");
+  }
+  return EvaluationRequest(layout->GetDOFHolderCoordinates(), std::move(layout),
+                           policy);
+}
+
+inline EvaluationRequest EvaluationRequest::FromFunctionSpace(
+  const FunctionSpace& function_space,
+  OutOfBoundsPolicy policy)
+{
+  return FromLayout(function_space.GetLayout(), policy);
 }
 
 } // namespace pcms

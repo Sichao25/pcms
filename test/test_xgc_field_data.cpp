@@ -123,7 +123,8 @@ TEST_CASE("XGCFunctionSpace creates fields and rejects evaluator access")
     nullptr, 0, 2};
   REQUIRE_THROWS_AS(
     function_space.CreatePointEvaluator<pcms::Real>(
-      pcms::CoordinateView<pcms::HostMemorySpace>{pcms::CoordinateSystem::XGC,
-                                                  empty_coords}),
+      pcms::EvaluationRequest::FromCoordinates(
+        pcms::CoordinateView<pcms::HostMemorySpace>{
+          pcms::CoordinateSystem::XGC, empty_coords})),
     pcms::pcms_error);
 }

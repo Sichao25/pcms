@@ -3,10 +3,12 @@
 
 #include "field_layout.h"
 #include "coordinate_system.h"
+#include "evaluation_request.h"
 #include "out_of_bounds_policy.h"
 #include "point_evaluator.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
+#include "pcms/discretization/discretization.h"
 #include <memory>
 
 namespace pcms
@@ -35,7 +37,7 @@ namespace pcms
 // own field creation interface.
 //
 // Concrete field factories store a FieldEvaluatorFactory<T> by composition and
-// expose CreatePointEvaluator(coords) as a convenience that delegates to the
+// expose CreatePointEvaluator(request) as a convenience that delegates to the
 // internal factory.
 //
 // Example (sketch of a concrete field factory):
@@ -48,8 +50,7 @@ namespace pcms
 //
 //     // convenience — delegates to the internal FieldEvaluatorFactory:
 //     std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
-//       CoordinateView<HostMemorySpace> coords,
-//       OutOfBoundsPolicy policy = {}) const;
+//       const EvaluationRequest& request) const;
 //
 //   private:
 //     std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory_;
@@ -92,16 +93,15 @@ public:
   // NearestBoundary is requested via OutOfBoundsPolicy.
   virtual bool SupportsNearestBoundary() const = 0;
 
-  // Performs all localization work for the given query point coordinates, shape
-  // [num_query_points][spatial_dim], and returns a PointEvaluator that caches
-  // the result. The OutOfBoundsPolicy controls behavior for points that fall
-  // outside the domain and is baked into the returned PointEvaluator. The
+  // Performs all localization work for the given evaluation request and
+  // returns a PointEvaluator that caches the resolved evaluation state. The
   // PointEvaluator may be reused across Evaluate calls as long as the query
-  // points and underlying geometry/layout remain unchanged. On misuse or
-  // unsupported capability, implementations should throw pcms_error.
+  // points and underlying geometry/layout remain unchanged. Implementations may
+  // discard construction-time request metadata once the cached evaluator state
+  // has been built. On misuse or unsupported capability, implementations
+  // should throw pcms_error.
   virtual std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
-    CoordinateView<HostMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const = 0;
+    const EvaluationRequest& request) const = 0;
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   virtual std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(

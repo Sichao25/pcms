@@ -238,7 +238,8 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
   pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(pts.data(), n, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> cv{factory.GetCoordinateSystem(),
                                                   coords_view};
-  auto evaluator = factory.CreatePointEvaluator<Real>(cv);
+  auto evaluator = factory.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(cv));
 
   std::vector<Real> eval(n);
   pcms::Rank2View<Real, pcms::HostMemorySpace> out(eval.data(), n, 1);
