@@ -1,0 +1,66 @@
+#ifndef PCMS_FIELD_LAYOUT_OMEGA_H_ENTITY_H
+#define PCMS_FIELD_LAYOUT_OMEGA_H_ENTITY_H
+
+#include <Omega_h_mesh.hpp>
+
+#include "pcms/discretization/discretization/omega_h.hpp"
+#include "pcms/field/coordinate_system.h"
+#include "pcms/field/field_layout.h"
+
+namespace pcms
+{
+
+// Layout for fields with one DOF holder on each entity of a single Omega_h
+// mesh dimension. Unlike OmegaHLagrangeLayout, this is not limited to
+// Lagrange orders and directly represents "one value per chosen entity"
+// layouts such as face-centroid reconstruction sites.
+class OmegaHEntityLayout : public FieldLayout
+{
+public:
+  OmegaHEntityLayout(Omega_h::Mesh& mesh,
+                     int entity_dim,
+                     int num_components,
+                     CoordinateSystem coordinate_system,
+                     std::string global_id_name = "global");
+
+  std::shared_ptr<const Discretization>
+  GetDiscretization() const noexcept override;
+
+  int GetNumComponents() const override;
+  LO GetNumOwnedDofHolder() const override;
+  GO GetNumGlobalDofHolder() const override;
+
+  Rank1View<const bool, HostMemorySpace> GetOwned() const override;
+  GlobalIDView<HostMemorySpace> GetGids() const override;
+  CoordinateView<HostMemorySpace> GetDOFHolderCoordinates() const override;
+
+  [[nodiscard]] bool IsDistributed() const override;
+  EntOffsetsArray GetEntOffsets() const override;
+  int GetDimension() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationDimensions() const override;
+
+  Rank1View<const LO, HostMemorySpace>
+  GetDOFHolderClassificationIds() const override;
+
+private:
+  int dimension_;
+  int entity_dim_;
+  int num_components_;
+  GO num_global_dof_holder_;
+  CoordinateSystem coordinate_system_;
+
+  Omega_h::HostWrite<Omega_h::GO> gids_host_;
+  Omega_h::HostRead<Real> coords_host_;
+  Omega_h::HostRead<Omega_h::ClassId> class_ids_host_;
+  Omega_h::HostRead<Omega_h::I8> class_dims_host_;
+  Kokkos::View<bool*, HostMemorySpace> owned_host_;
+  Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
+  Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
+  std::shared_ptr<const Discretization> discretization_;
+};
+
+} // namespace pcms
+
+#endif // PCMS_FIELD_LAYOUT_OMEGA_H_ENTITY_H

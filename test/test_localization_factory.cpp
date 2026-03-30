@@ -3,6 +3,7 @@
 #include <Omega_h_build.hpp>
 #include <Omega_h_library.hpp>
 
+#include "pcms/field/layout/omega_h_entity.h"
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/layout/point_cloud.h"
 #include "pcms/field/evaluator/mls_options.h"
@@ -17,22 +18,12 @@
 namespace
 {
 
-std::shared_ptr<pcms::PointCloudLayout> MakeMeshPointCloudLayout(
+std::shared_ptr<pcms::OmegaHEntityLayout> MakeMeshEntityLayout(
   Omega_h::Mesh& mesh,
   int entity_dim)
 {
-  auto coords_oh = pcms::get_entity_centroids(mesh, entity_dim);
-  auto coords_read = Omega_h::HostRead<Omega_h::Real>(coords_oh);
-  Kokkos::View<pcms::Real**, Kokkos::HostSpace> coords_host(
-    "mesh_point_cloud_coords", mesh.nents(entity_dim), mesh.dim());
-  for (int i = 0; i < mesh.nents(entity_dim); ++i)
-    for (int d = 0; d < mesh.dim(); ++d)
-      coords_host(i, d) = coords_read[i * mesh.dim() + d];
-  auto coords_dev = Kokkos::create_mirror_view_and_copy(
-    Kokkos::DefaultExecutionSpace{}, coords_host);
-  return std::make_shared<pcms::PointCloudLayout>(
-    mesh.dim(), coords_dev, pcms::CoordinateSystem::Cartesian,
-    std::make_shared<pcms::OmegaHDiscretization>(mesh), entity_dim);
+  return std::make_shared<pcms::OmegaHEntityLayout>(
+    mesh, entity_dim, 1, pcms::CoordinateSystem::Cartesian);
 }
 
 } // namespace
@@ -130,7 +121,7 @@ TEST_CASE("Localization path selection: centroid-to-vertex uses same-mesh adjace
   auto mesh =
     Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 8, 8, 0, false);
 
-  auto source_layout = MakeMeshPointCloudLayout(mesh, pcms::Face);
+  auto source_layout = MakeMeshEntityLayout(mesh, pcms::Face);
   auto target_layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
 
@@ -145,7 +136,7 @@ TEST_CASE("Localization path selection: centroid source uses point-cloud support
   auto mesh =
     Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 8, 8, 0, false);
 
-  auto source_layout = MakeMeshPointCloudLayout(mesh, pcms::Face);
+  auto source_layout = MakeMeshEntityLayout(mesh, pcms::Face);
 
   REQUIRE(pcms::detail::SelectLocalizationPath(*source_layout) ==
           pcms::detail::LocalizationPath::PointCloudSupports);

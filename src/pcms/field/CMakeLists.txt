@@ -27,6 +27,7 @@ if (PCMS_ENABLE_OMEGA_H)
     list(APPEND PCMS_FIELD_SOURCES
             function_space/lagrange.cpp
             function_space/spline.cpp
+            layout/omega_h_entity.cpp
             layout/omega_h_lagrange.cpp
             layout/uniform_grid.cpp
             evaluator/mls_interpolation.cpp
@@ -35,6 +36,7 @@ if (PCMS_ENABLE_OMEGA_H)
             function_space/lagrange.h
             function_space/spline.h
             field_evaluator_factory.h
+            layout/omega_h_entity.h
             layout/omega_h_lagrange.h
             evaluator/omega_h_lagrange.h
             layout/uniform_grid.h

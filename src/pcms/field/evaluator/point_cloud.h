@@ -1,7 +1,6 @@
 #ifndef PCMS_POINT_CLOUD_EVALUATOR_FACTORY_H
 #define PCMS_POINT_CLOUD_EVALUATOR_FACTORY_H
 
-#include "pcms/field/layout/point_cloud.h"
 #include "pcms/field/field_evaluator_factory.h"
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/field/point_evaluator.h"
@@ -22,7 +21,7 @@ namespace pcms
 {
 
 // PointCloudEvaluatorFactory implements FieldEvaluatorFactory<Real> for
-// point-cloud (nodal) fields backed by PointCloudLayout.
+// reconstructed fields that provide source coordinates through FieldLayout.
 //
 // Support localization is delegated to a LocalizationFactory, allowing
 // different search backends (N² point-cloud or mesh-adjacency BFS) to be
@@ -33,7 +32,7 @@ namespace pcms
 class PointCloudEvaluatorFactory : public FieldEvaluatorFactory<Real>
 {
 public:
-  PointCloudEvaluatorFactory(std::shared_ptr<const PointCloudLayout> layout,
+  PointCloudEvaluatorFactory(std::shared_ptr<const FieldLayout> layout,
                              std::shared_ptr<LocalizationFactory> localization,
                              MLSOptions options = {})
     : layout_(std::move(layout)),
@@ -73,7 +72,7 @@ public:
     }
 
     // Extract source coordinates for the MLS solve.
-    const auto src_view = layout_->GetCoordinatesHost();
+    const auto src_view = layout_->GetDOFHolderCoordinates().GetCoordinates();
     const int dim = layout_->GetDimension();
     Omega_h::Reals source_coords =
       flatten_to_omega_h_reals(src_view, "src_coords");
@@ -102,7 +101,7 @@ public:
   }
 
 private:
-  std::shared_ptr<const PointCloudLayout> layout_;
+  std::shared_ptr<const FieldLayout> layout_;
   std::shared_ptr<LocalizationFactory> localization_;
   MLSOptions options_;
 };

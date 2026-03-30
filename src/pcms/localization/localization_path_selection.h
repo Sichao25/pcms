@@ -17,8 +17,9 @@ enum class LocalizationPath
 };
 
 // Returns the unique entity dimension represented by all DOF holders in the
-// layout when it maps one-to-one onto a discretization entity set. Otherwise,
-// returns std::nullopt.
+// layout when its offsets contain exactly one populated entity block and the
+// full DOF-holder coordinate set matches that discretization entity count.
+// Otherwise, returns std::nullopt.
 inline std::optional<int> GetUniformDofHolderEntityDim(
   const FieldLayout& layout)
 {
@@ -27,20 +28,25 @@ inline std::optional<int> GetUniformDofHolderEntityDim(
     return std::nullopt;
   }
 
-  auto class_dims = layout.GetDOFHolderClassificationDimensions();
-  if (class_dims.extent(0) == 0) {
-    return std::nullopt;
-  }
-
-  const int entity_dim = static_cast<int>(class_dims(0));
-  for (decltype(class_dims.extent(0)) i = 1; i < class_dims.extent(0); ++i) {
-    if (class_dims(i) != entity_dim) {
-      return std::nullopt;
+  const auto offsets = layout.GetEntOffsets();
+  std::optional<int> entity_dim;
+  for (int dim = 0; dim < ent_offsets_len - 1; ++dim) {
+    const auto block_size = offsets[dim + 1] - offsets[dim];
+    if (block_size > 0) {
+      if (entity_dim.has_value()) {
+        return std::nullopt;
+      }
+      entity_dim = dim;
     }
   }
 
-  if (layout.GetNumOwnedDofHolder() != disc->GetNumEntities(entity_dim)) {
+  if (!entity_dim.has_value()) {
     return std::nullopt;
+  }
+
+  if (static_cast<LO>(layout.GetDOFHolderCoordinates().GetCoordinates().extent(0)) !=
+      disc->GetNumEntities(*entity_dim)) {
+      return std::nullopt;
   }
 
   return entity_dim;
