@@ -23,12 +23,14 @@ if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
       calculate_load_vector.hpp
       calculate_mass_matrix.hpp
       conservative_projection_solver.hpp
+      omega_h_conservative_projection.hpp
       coo_assembly_utils.hpp
       petsc_utils.hpp)
   list(APPEND PCMS_FIELD_TRANSFER_SOURCES
       calculate_load_vector.cpp
       calculate_mass_matrix.cpp
       conservative_projection_solver.cpp
+      omega_h_conservative_projection.cpp
       petsc_utils.cpp
       coo_assembly_utils.cpp)
 endif()

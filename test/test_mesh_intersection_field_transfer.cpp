@@ -7,6 +7,9 @@
 
 #include <pcms/transfer/conservative_projection_solver.hpp>
 #include <pcms/transfer/mesh_intersection.hpp>
+#include <pcms/transfer/omega_h_conservative_projection.hpp>
+#include <pcms/field/function_space/lagrange.h>
+#include "field_test_utils.h"
 
 namespace
 {
@@ -34,6 +37,16 @@ double integrate_linear_field(Omega_h::Mesh& mesh, const Omega_h::Reals& u)
     integral += area * avg;
   }
   return integral;
+}
+
+Omega_h::Reals make_omega_h_reals(
+  pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace> values)
+{
+  Omega_h::HostWrite<Omega_h::Real> values_h(values.size());
+  for (size_t i = 0; i < values.size(); ++i) {
+    values_h[i] = values[i];
+  }
+  return Omega_h::Reals(values_h);
 }
 
 } // namespace
@@ -109,5 +122,57 @@ TEST_CASE("mesh intersection linear/constant conservation",
       const double expected = tgt_coords_h[2 * i + 0] + tgt_coords_h[2 * i + 1];
       REQUIRE(projected_h[i] == Catch::Approx(expected).margin(1e-9));
     }
+  }
+}
+
+TEST_CASE("OmegaHConservativeProjection matches conservative projection solver",
+          "[transfer][mesh_intersection]")
+{
+  Omega_h::Library lib;
+
+  Omega_h::Reals coords({
+    0.0, 0.0,
+    1.0, 0.0,
+    1.0, 1.0,
+    0.0, 1.0
+  });
+
+  Omega_h::LOs ev2v_source({0, 1, 2, 0, 2, 3});
+  Omega_h::Mesh source_mesh(&lib);
+  Omega_h::build_from_elems_and_coords(&source_mesh, OMEGA_H_SIMPLEX, 2,
+                                       ev2v_source, coords);
+
+  Omega_h::LOs ev2v_target({0, 1, 3, 1, 2, 3});
+  Omega_h::Mesh target_mesh(&lib);
+  Omega_h::build_from_elems_and_coords(&target_mesh, OMEGA_H_SIMPLEX, 2,
+                                       ev2v_target, coords);
+
+  auto source_space = pcms::LagrangeFunctionSpace::FromMesh(
+    source_mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::Backend::OmegaH);
+  auto target_space = pcms::LagrangeFunctionSpace::FromMesh(
+    target_mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::Backend::OmegaH);
+
+  auto source = source_space.CreateField<pcms::Real>();
+  auto target = target_space.CreateField<pcms::Real>();
+
+  pcms::test::SetField(source, [](pcms::Real x, pcms::Real y) {
+    return x * x + x * y + 0.5 * y * y;
+  });
+
+  const auto intersections = pcms::intersectTargets(source_mesh, target_mesh);
+  const auto expected = pcms::solveGalerkinProjection(
+    target_mesh, source_mesh, intersections,
+    make_omega_h_reals(source.GetDOFHolderDataHost()));
+  const auto expected_h = Omega_h::HostRead<Omega_h::Real>(expected);
+
+  pcms::OmegaHConservativeProjection projection(source_space, target_space);
+  projection.Apply(source, target);
+
+  const auto target_values = target.GetDOFHolderDataHost();
+  REQUIRE(static_cast<Omega_h::LO>(target_values.size()) == target_mesh.nverts());
+  for (Omega_h::LO i = 0; i < target_mesh.nverts(); ++i) {
+    REQUIRE(target_values[i] == Catch::Approx(expected_h[i]).margin(1e-12));
   }
 }
