@@ -6,7 +6,7 @@
 #include <Omega_h_for.hpp>
 #include <redev_variant_tools.h>
 #include "test_support.h"
-#include "pcms/coupler/coupler2.h"
+#include "pcms/coupler/coupler.hpp"
 #include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/field_metadata.h"
 #include <chrono>
@@ -85,8 +85,8 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
   int rank;
   MPI_Comm_rank(comm, &rank);
 
-  pcms::Coupler2 coupler("proxy_couple", comm, false, {});
-  pcms::Application2* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
+  pcms::Coupler coupler("proxy_couple", comm, false, {});
+  pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
@@ -126,8 +126,8 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
   int rank;
   MPI_Comm_rank(comm, &rank);
 
-  pcms::Coupler2 coupler("proxy_couple", comm, false, {});
-  pcms::Application2* app = coupler.AddApplication("proxy_couple_xgc_total_f");
+  pcms::Coupler coupler("proxy_couple", comm, false, {});
+  pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
@@ -166,7 +166,7 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
   // coupling server using same mesh as application
   // note the xgc_coupler stores a reference to the internal mesh and it is the
   // user responsibility to keep it alive!
-  pcms::Coupler2 cpl(
+  pcms::Coupler cpl(
     "proxy_couple", comm, true,
     redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());

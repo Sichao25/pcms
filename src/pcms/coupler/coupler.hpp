@@ -4,9 +4,9 @@
 #include "pcms/coupler/coupler_types.h"
 #include "pcms/field/field.h"
 #include "pcms/field/field_layout.h"
-#include "field_layout_communicator.h"
-#include "field_communicator2.h"
-#include "field_exchange_planner.h"
+#include "pcms/coupler/field_layout_communicator.h"
+#include "pcms/coupler/field_communicator.hpp"
+#include "pcms/coupler/field_exchange_planner.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/profile.h"
@@ -15,13 +15,13 @@
 namespace pcms
 {
 
-class Application2;
+class Application;
 
 template <typename T>
 class FieldHandle
 {
 public:
-  FieldHandle(Application2* app, std::string name)
+  FieldHandle(Application* app, std::string name)
     : app_(app), name_(std::move(name))
   {
   }
@@ -31,16 +31,16 @@ public:
   [[nodiscard]] Field<T>& GetField() const;
 
 private:
-  Application2* app_;
+  Application* app_;
   std::string name_;
 };
 
-class Application2
+class Application
 {
 public:
-  Application2(std::string name, MPI_Comm comm, redev::Redev& redev,
-               adios2::Params params, redev::TransportType transport_type,
-               std::string path)
+  Application(std::string name, MPI_Comm comm, redev::Redev& redev,
+              adios2::Params params, redev::TransportType transport_type,
+              std::string path)
     : mpi_comm_(comm),
       redev_(redev),
       channel_{redev_.CreateAdiosChannel(std::move(name), std::move(params),
@@ -156,7 +156,7 @@ private:
     field_layout_communicators_;
 };
 
-class Coupler2
+class Coupler
 {
 private:
   redev::Redev SetUpRedev(bool isServer, redev::Partition partition)
@@ -168,15 +168,15 @@ private:
   }
 
 public:
-  Coupler2(std::string name, MPI_Comm comm, bool isServer,
-           redev::Partition partition)
+  Coupler(std::string name, MPI_Comm comm, bool isServer,
+          redev::Partition partition)
     : name_(std::move(name)),
       mpi_comm_(comm),
       redev_(SetUpRedev(isServer, std::move(partition)))
   {
     PCMS_FUNCTION_TIMER;
   }
-  Application2* AddApplication(
+  Application* AddApplication(
     std::string name, std::string path = "",
     redev::TransportType transport_type = redev::TransportType::BP4,
     adios2::Params params = {{"Streaming", "On"}, {"OpenTimeoutSecs", "60"}})
@@ -203,7 +203,7 @@ private:
   MPI_Comm mpi_comm_;
   redev::Redev redev_;
   // gather and scatter operations have reference to internal fields
-  std::map<std::string, Application2> applications_;
+  std::map<std::string, Application> applications_;
 };
 
 } // namespace pcms
@@ -230,7 +230,7 @@ pcms::Field<T>& pcms::FieldHandle<T>::GetField() const
 }
 
 template <typename T>
-pcms::Field<T>& pcms::Application2::GetField(const std::string& name)
+pcms::Field<T>& pcms::Application::GetField(const std::string& name)
 {
   auto* field = std::get_if<Field<T>>(&detail::find_or_error(name, fields_));
   if (field == nullptr) {
@@ -240,16 +240,16 @@ pcms::Field<T>& pcms::Application2::GetField(const std::string& name)
 }
 
 template <typename T>
-pcms::FieldHandle<T> pcms::Application2::AddField(std::string name,
-                                                  Field<T>&& field,
-                                                  bool participates)
+pcms::FieldHandle<T> pcms::Application::AddField(std::string name,
+                                                 Field<T>&& field,
+                                                 bool participates)
 {
   return AddField(std::move(name), std::move(field),
                   std::make_unique<FieldSerializer<T>>(), participates);
 }
 
 template <typename T>
-pcms::FieldHandle<T> pcms::Application2::AddField(
+pcms::FieldHandle<T> pcms::Application::AddField(
   std::string name, Field<T>&& field,
   std::unique_ptr<FieldSerializer<T>> serializer, bool participates)
 {
@@ -263,9 +263,8 @@ pcms::FieldHandle<T> pcms::Application2::AddField(
   const FieldLayout& layout = field_obj.GetLayout();
   FieldLayoutCommunicator& layout_communicator = GetLayoutCommunicator(layout);
   FieldCommunicator2Ptr field_communicator =
-    std::make_unique<FieldCommunicator2<T>>(name, layout_communicator,
-                                            field_obj,
-                                            std::move(serializer));
+    std::make_unique<FieldCommunicator<T>>(name, layout_communicator, field_obj,
+                                           std::move(serializer));
 
   auto [it, inserted] = field_communicators_.emplace(name,
                                                      std::move(field_communicator));

@@ -28,7 +28,7 @@ namespace pcms
 // Usage:
 //   Interpolator<Real> interp(src_space, tgt_space);
 //   interp.Apply(src_field, tgt_field);   // cheap; called in coupling loop
-//   interp.Apply(src_field2, tgt_field2); // reuses cached localization
+//   interp.Apply(src_field_next, tgt_field_next); // reuses cached localization
 template <typename T>
 class Interpolator : public TransferOperator<T>
 {

@@ -16,17 +16,17 @@ namespace pcms
 {
 
 template <typename T>
-class FieldCommunicator2
+class FieldCommunicator
 {
 public:
-  FieldCommunicator2(const std::string& name, FieldLayoutCommunicator& layout_comm,
+  FieldCommunicator(const std::string& name, FieldLayoutCommunicator& layout_comm,
                      Field<T>& field)
-    : FieldCommunicator2(name, layout_comm, field,
+    : FieldCommunicator(name, layout_comm, field,
                          std::make_unique<FieldSerializer<T>>())
   {
   }
 
-  FieldCommunicator2(const std::string& name, FieldLayoutCommunicator& layout_comm,
+  FieldCommunicator(const std::string& name, FieldLayoutCommunicator& layout_comm,
                      Field<T>& field,
                      std::unique_ptr<FieldSerializer<T>> serializer)
     : comm_buffer_{},
@@ -73,7 +73,7 @@ private:
 };
 
 template <typename T>
-using FieldCommunicator2PtrT = std::unique_ptr<FieldCommunicator2<T>>;
+using FieldCommunicator2PtrT = std::unique_ptr<FieldCommunicator<T>>;
 
 using FieldCommunicator2Ptr =
   std::variant<FieldCommunicator2PtrT<int8_t>, FieldCommunicator2PtrT<int32_t>,

@@ -15,7 +15,7 @@ namespace py = pybind11;
 namespace pcms
 {
 
-void bind_transfer_field2_module(py::module& m)
+void bind_transfer_field_module(py::module& m)
 {
   py::class_<PointEvaluator<Real>, std::unique_ptr<PointEvaluator<Real>>>(
     m, "PointEvaluator")

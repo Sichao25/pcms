@@ -2,7 +2,7 @@ import pcms
 import numpy as np
 
 def test_copy(world, dim, order, num_components):
-    """Test copying omega_h_field2 data"""
+    """Test copying omega_h field data."""
     nx = 100
     ny = 100 if dim > 1 else 0
     nz = 100 if dim > 2 else 0
@@ -61,7 +61,7 @@ def test_copy(world, dim, order, num_components):
 
 def main():
     """Run all test cases"""
-    print("Testing copy omega_h_field2 data...")
+    print("Testing copy omega_h field data...")
 
     # Initialize Omega_h library
     lib = pcms.OmegaHLibrary()

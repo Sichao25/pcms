@@ -1,9 +1,9 @@
-#include "pcms/coupler/coupler2.h"
+#include "pcms/coupler/coupler.hpp"
 
 namespace pcms
 {
 
-FieldLayoutCommunicator& Application2::GetLayoutCommunicator(
+FieldLayoutCommunicator& Application::GetLayoutCommunicator(
   const FieldLayout& layout)
 {
   PCMS_FUNCTION_TIMER;
@@ -16,7 +16,7 @@ FieldLayoutCommunicator& Application2::GetLayoutCommunicator(
   }
 }
 
-const FieldLayout& Application2::AddLayout(
+const FieldLayout& Application::AddLayout(
   std::string name, std::shared_ptr<const FieldLayout> layout,
   bool participates)
 {
@@ -25,7 +25,7 @@ const FieldLayout& Application2::AddLayout(
                    participates);
 }
 
-const FieldLayout& Application2::AddLayout(
+const FieldLayout& Application::AddLayout(
   std::string name, std::shared_ptr<const FieldLayout> layout,
   std::unique_ptr<FieldExchangePlanner> planner, bool participates)
 {

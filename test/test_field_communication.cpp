@@ -8,8 +8,8 @@
 #include <Omega_h_for.hpp>
 #include <redev.h>
 #include <vector>
-#include "pcms/coupler/field_communicator2.h"
-#include "pcms/coupler/coupler2.h"
+#include "pcms/coupler/field_communicator.hpp"
+#include "pcms/coupler/coupler.hpp"
 #include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/field/data/simple.h"
@@ -73,7 +73,7 @@ static void test_shared_layout(Omega_h::Library& lib, std::string_view mesh_file
 
   if (is_server) {
     auto partition = setupServerPartition(mesh, cpn_file);
-    pcms::Coupler2 cpl("shared_layout_server", mpi_comm, true,
+    pcms::Coupler cpl("shared_layout_server", mpi_comm, true,
                        redev::Partition{partition});
     auto* app = cpl.AddApplication("shared_layout");
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
@@ -94,7 +94,7 @@ static void test_shared_layout(Omega_h::Library& lib, std::string_view mesh_file
       f2.Send();
     });
   } else {
-    pcms::Coupler2 cpl("shared_layout_client", mpi_comm, false, redev::Partition{});
+    pcms::Coupler cpl("shared_layout_client", mpi_comm, false, redev::Partition{});
     auto* app = cpl.AddApplication("shared_layout");
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
@@ -136,7 +136,7 @@ void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
 
   pcms::FieldLayoutCommunicator layout_comm(comm_name + "1", comm, rdv, channel,
                                             *layout);
-  pcms::FieldCommunicator2<pcms::Real> field_comm(layout_comm.GetName(),
+  pcms::FieldCommunicator<pcms::Real> field_comm(layout_comm.GetName(),
                                                   layout_comm, field);
 
   channel.BeginSendCommunicationPhase();
@@ -160,7 +160,7 @@ void client2(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
   pcms::FieldLayoutCommunicator layout_comm(comm_name + "2", comm, rdv, channel,
                                             *layout);
-  pcms::FieldCommunicator2<pcms::Real> field_comm(layout_comm.GetName(),
+  pcms::FieldCommunicator<pcms::Real> field_comm(layout_comm.GetName(),
                                                   layout_comm, field);
 
   channel.BeginReceiveCommunicationPhase();
@@ -225,9 +225,9 @@ void server(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
                                              channel1, *layout);
   pcms::FieldLayoutCommunicator layout_comm2(comm_name + "2", comm, rdv,
                                              channel2, *layout);
-  pcms::FieldCommunicator2<pcms::Real> field_comm1(layout_comm1.GetName(),
+  pcms::FieldCommunicator<pcms::Real> field_comm1(layout_comm1.GetName(),
                                                    layout_comm1, field);
-  pcms::FieldCommunicator2<pcms::Real> field_comm2(layout_comm2.GetName(),
+  pcms::FieldCommunicator<pcms::Real> field_comm2(layout_comm2.GetName(),
                                                    layout_comm2, field);
 
   channel1.BeginReceiveCommunicationPhase();

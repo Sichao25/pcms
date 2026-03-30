@@ -9,7 +9,7 @@
 #include "pcms/field/function_space/xgc.h"
 #include "pcms/field/layout/xgc.h"
 #include "pcms/coupler/serializer/xgc.h"
-#include "pcms/coupler/coupler2.h"
+#include "pcms/coupler/coupler.hpp"
 #include "pcms/field/field_metadata.h"
 #include "pcms/field/function_space/lagrange.h"
 
@@ -26,7 +26,7 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
   // coupling server using same mesh as application
   // note the xgc_coupler stores a reference to the internal mesh and it is the
   // user responsibility to keep it alive!
-  pcms::Coupler2 cpl("proxy_couple_server", comm, true,
+  pcms::Coupler cpl("proxy_couple_server", comm, true,
                      redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
   ReverseClassificationVertex rc;
@@ -91,7 +91,7 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
   // coupling server using same mesh as application
   // note the xgc_coupler stores a reference to the internal mesh and it is the
   // user responsibility to keep it alive!
-  pcms::Coupler2 cpl("proxy_couple_server", comm, true,
+  pcms::Coupler cpl("proxy_couple_server", comm, true,
                      redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
   auto* application = cpl.AddApplication("proxy_couple");

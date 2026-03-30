@@ -5,7 +5,7 @@
 #include "pcms/field/layout/xgc.h"
 #include "pcms/coupler/serializer/xgc.h"
 #include "pcms/discretization/discretization/xgc_reverse_classification.h"
-#include "pcms/coupler/coupler2.h"
+#include "pcms/coupler/coupler.hpp"
 #include "pcms/field/layout/empty.h"
 #include "pcms/field/data/simple.h"
 #include "pcms/utility/assert.h"
@@ -96,8 +96,8 @@ private:
 
 struct ClientState
 {
-  std::unique_ptr<Coupler2> coupler;
-  Application2* app = nullptr;
+  std::unique_ptr<Coupler> coupler;
+  Application* app = nullptr;
   using HandleVariant = std::variant<FieldHandle<double>, FieldHandle<float>,
                                      FieldHandle<int>, FieldHandle<pcms::GO>>;
   std::map<std::string, HandleVariant> field_handles;
@@ -111,7 +111,7 @@ using FieldAdapterVariant = std::variant<
 template <typename T>
 using ClientFieldHandle = FieldHandle<T>;
 
-inline ClientState::HandleVariant RegisterField(Application2& /*app*/,
+inline ClientState::HandleVariant RegisterField(Application& /*app*/,
                                                 std::string name,
                                                 const std::monostate&, bool)
 {
@@ -121,7 +121,7 @@ inline ClientState::HandleVariant RegisterField(Application2& /*app*/,
 
 template <typename T>
 ClientState::HandleVariant RegisterField(
-  Application2& app, std::string name,
+  Application& app, std::string name,
   const detail::XGCFieldRegistration<T>& registration, bool participates)
 {
   auto field = registration.function_space.template CreateField<T>(
@@ -137,7 +137,7 @@ ClientState::HandleVariant RegisterField(
 }
 
 inline ClientState::HandleVariant RegisterField(
-  Application2& app, std::string name, const detail::DummyFieldRegistration&,
+  Application& app, std::string name, const detail::DummyFieldRegistration&,
   bool participates)
 {
   auto function_space = detail::EmptyFunctionSpace{};
@@ -156,7 +156,7 @@ inline ClientState::HandleVariant RegisterField(
 {
   auto* client = new pcms::ClientState{};
   client->coupler =
-    std::make_unique<pcms::Coupler2>(name, comm, false, redev::Partition{});
+    std::make_unique<pcms::Coupler>(name, comm, false, redev::Partition{});
   client->app = client->coupler->AddApplication(name);
   return {reinterpret_cast<void*>(client),
           reinterpret_cast<void*>(client->app)};
@@ -186,7 +186,7 @@ PcmsFieldHandle pcms_add_field(PcmsClientHandle client_handle, const char* name,
 {
   auto* client =
     reinterpret_cast<pcms::ClientState*>(client_handle.couplerPointer);
-  auto* app = reinterpret_cast<pcms::Application2*>(client_handle.appPointer);
+  auto* app = reinterpret_cast<pcms::Application*>(client_handle.appPointer);
   auto* adapter =
     reinterpret_cast<pcms::FieldAdapterVariant*>(adapter_handle.pointer);
   PCMS_ALWAYS_ASSERT(client != nullptr);
@@ -209,14 +209,14 @@ PcmsFieldHandle pcms_add_field(PcmsClientHandle client_handle, const char* name,
 
 void pcms_send_field_name(PcmsClientHandle client_handle, const char* name)
 {
-  auto* app = reinterpret_cast<pcms::Application2*>(client_handle.appPointer);
+  auto* app = reinterpret_cast<pcms::Application*>(client_handle.appPointer);
   PCMS_ALWAYS_ASSERT(app != nullptr);
   app->SendField(name);
 }
 
 void pcms_receive_field_name(PcmsClientHandle client_handle, const char* name)
 {
-  auto* app = reinterpret_cast<pcms::Application2*>(client_handle.appPointer);
+  auto* app = reinterpret_cast<pcms::Application*>(client_handle.appPointer);
   PCMS_ALWAYS_ASSERT(app != nullptr);
   app->ReceiveField(name);
 }
@@ -315,28 +315,28 @@ int pcms_reverse_classification_count_verts(PcmsReverseClassificationHandle rc)
 
 void pcms_begin_send_phase(PcmsClientHandle h)
 {
-  auto* app = reinterpret_cast<pcms::Application2*>(h.appPointer);
+  auto* app = reinterpret_cast<pcms::Application*>(h.appPointer);
   PCMS_ALWAYS_ASSERT(app != nullptr);
   app->BeginSendPhase();
 }
 
 void pcms_end_send_phase(PcmsClientHandle h)
 {
-  auto* app = reinterpret_cast<pcms::Application2*>(h.appPointer);
+  auto* app = reinterpret_cast<pcms::Application*>(h.appPointer);
   PCMS_ALWAYS_ASSERT(app != nullptr);
   app->EndSendPhase();
 }
 
 void pcms_begin_receive_phase(PcmsClientHandle h)
 {
-  auto* app = reinterpret_cast<pcms::Application2*>(h.appPointer);
+  auto* app = reinterpret_cast<pcms::Application*>(h.appPointer);
   PCMS_ALWAYS_ASSERT(app != nullptr);
   app->BeginReceivePhase();
 }
 
 void pcms_end_receive_phase(PcmsClientHandle h)
 {
-  auto* app = reinterpret_cast<pcms::Application2*>(h.appPointer);
+  auto* app = reinterpret_cast<pcms::Application*>(h.appPointer);
   PCMS_ALWAYS_ASSERT(app != nullptr);
   app->EndReceivePhase();
 }

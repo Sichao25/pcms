@@ -7,7 +7,7 @@ namespace py = pybind11;
 namespace pcms
 {
 
-void bind_omega_h_field2(py::module& m)
+void bind_omega_h_field(py::module& m)
 {
   // Bind OutOfBoundsMode enum
   py::enum_<OutOfBoundsMode>(m, "OutOfBoundsMode")

@@ -1,7 +1,7 @@
 set(PCMS_COUPLER_HEADERS
         coupler_types.h
-        field_communicator2.h
-        coupler2.h
+        field_communicator.hpp
+        coupler.hpp
         field_serializer.h
         field_layout_communicator.h
         field_exchange_planner.h
@@ -10,7 +10,7 @@ set(PCMS_COUPLER_HEADERS
 
 
 set(PCMS_COUPLER_SOURCES
-        coupler2.cpp
+        coupler.cpp
         field_layout_communicator.cpp
         field_exchange_planner.cpp
 )

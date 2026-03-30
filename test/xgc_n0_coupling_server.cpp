@@ -3,7 +3,7 @@
 #include <Omega_h_file.hpp>
 #include <Omega_h_for.hpp>
 #include "test_support.h"
-#include "pcms/coupler/coupler2.h"
+#include "pcms/coupler/coupler.hpp"
 #include "pcms/coupler/field_serializer.h"
 #include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/layout/omega_h_lagrange.h"
@@ -42,7 +42,7 @@ struct RegisteredField
 
 [[nodiscard]]
 static RegisteredField AddField(
-  pcms::Application2* application,
+  pcms::Application* application,
   const pcms::LagrangeFunctionSpace& function_space,
   const std::string& name, const std::string& path, int plane)
 {
@@ -90,7 +90,7 @@ static void CopyFields(const std::vector<RegisteredField>& from_fields,
   }
 }
 
-void SendRecvDensity(pcms::Application2* core, pcms::Application2* edge,
+void SendRecvDensity(pcms::Application* core, pcms::Application* edge,
                      XGCAnalysis& core_analysis, XGCAnalysis& edge_analysis,
                      int rank)
 {
@@ -143,7 +143,7 @@ void SendRecvDensity(pcms::Application2* core, pcms::Application2* edge,
   if (!rank)
     ts::printTime("Send Density", min, max, avg);
 }
-void SendRecvPotential(pcms::Application2* core, pcms::Application2* edge,
+void SendRecvPotential(pcms::Application* core, pcms::Application* edge,
                        XGCAnalysis& core_analysis, XGCAnalysis& edge_analysis,
                        int rank)
 {
@@ -200,7 +200,7 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
   MPI_Comm_rank(comm, &rank);
   auto time1 = std::chrono::steady_clock::now();
 
-  pcms::Coupler2 cpl(
+  pcms::Coupler cpl(
     "xgc_n0_coupling", comm, true,
     redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
