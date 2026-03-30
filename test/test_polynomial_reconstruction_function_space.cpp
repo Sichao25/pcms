@@ -1,7 +1,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "pcms/field/function_space/nodal.h"
+#include "pcms/field/function_space/polynomial_reconstruction.hpp"
 #include "pcms/field/field_metadata.h"
 #include "pcms/discretization/discretization.h"
 #include "pcms/field/function_space/lagrange.h"
@@ -34,13 +34,13 @@ std::vector<Real> MakeCoords2D()
 
 } // namespace
 
-TEST_CASE("NodalFunctionSpace creates point-cloud layout metadata")
+TEST_CASE("PolynomialReconstructionFunctionSpace creates point-cloud layout metadata")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto factory =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto layout = factory.GetLayout();
 
   REQUIRE(layout->GetNumComponents() == 1);
@@ -57,26 +57,26 @@ TEST_CASE("NodalFunctionSpace creates point-cloud layout metadata")
   }
 }
 
-TEST_CASE("NodalFunctionSpace fields share layout")
+TEST_CASE("PolynomialReconstructionFunctionSpace fields share layout")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto factory =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto source = factory.CreateField<Real>(pcms::FieldMetadata{});
   auto target = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   REQUIRE(&source.GetLayout() == &target.GetLayout());
 }
 
-TEST_CASE("NodalFunctionSpace point-cloud field set/get DOF round-trip")
+TEST_CASE("PolynomialReconstructionFunctionSpace point-cloud field set/get DOF round-trip")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto field =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
+    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian)
       .CreateField<Real>(pcms::FieldMetadata{});
 
   std::vector<Real> data{1.0, 2.0, 3.0, 4.0};
@@ -90,13 +90,13 @@ TEST_CASE("NodalFunctionSpace point-cloud field set/get DOF round-trip")
   }
 }
 
-TEST_CASE("NodalFunctionSpace point-cloud field serialize / deserialize round-trip")
+TEST_CASE("PolynomialReconstructionFunctionSpace point-cloud field serialize / deserialize round-trip")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto factory =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
   std::vector<Real> data{5.0, 6.0, 7.0, 8.0};
@@ -106,14 +106,14 @@ TEST_CASE("NodalFunctionSpace point-cloud field serialize / deserialize round-tr
   pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), field.GetData());
 }
 
-TEST_CASE("NodalFunctionSpace field keeps layout alive after temporary factory destruction")
+TEST_CASE("PolynomialReconstructionFunctionSpace field keeps layout alive after temporary factory destruction")
 {
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
 
   auto field = [&]() {
     auto factory =
-      pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+      pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
     return factory.CreateField<Real>(pcms::FieldMetadata{});
   }();
 
@@ -138,7 +138,7 @@ TEST_CASE("Different layouts on the same mesh report SameEntities")
                                  2, 0, false);
 
   auto nodal =
-    pcms::NodalFunctionSpace::FromMesh(mesh, pcms::Face, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::FromMesh(mesh, pcms::Face, CoordinateSystem::Cartesian);
   auto lagrange = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, CoordinateSystem::Cartesian);
 
@@ -165,9 +165,9 @@ TEST_CASE("Layouts on different meshes do not report SameEntities")
                                    3, 3, 0, false);
 
   auto nodal_a =
-    pcms::NodalFunctionSpace::FromMesh(mesh_a, pcms::Vertex, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::FromMesh(mesh_a, pcms::Vertex, CoordinateSystem::Cartesian);
   auto nodal_b =
-    pcms::NodalFunctionSpace::FromMesh(mesh_b, pcms::Vertex, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::FromMesh(mesh_b, pcms::Vertex, CoordinateSystem::Cartesian);
 
   auto disc_a = nodal_a.GetLayout()->GetDiscretization();
   auto disc_b = nodal_b.GetLayout()->GetDiscretization();
@@ -186,7 +186,7 @@ TEST_CASE("Standalone point-cloud layout does not report SameEntities with mesh 
 
   auto coords = MakeCoords2D();
   Rank2View<Real, HostMemorySpace> coords_view(coords.data(), 4, 2);
-  auto standalone = pcms::NodalFunctionSpace::Create(
+  auto standalone = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cartesian);
 
   auto mesh_disc       = lagrange.GetLayout()->GetDiscretization();

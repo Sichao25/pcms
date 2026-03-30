@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Tests for MLS-backed NodalFunctionSpace using the Field<T>-based API.
+Tests for MLS-backed PolynomialReconstructionFunctionSpace using the
+Field<T>-based API.
 """
 
 import numpy as np
@@ -46,7 +47,7 @@ def test_mls_interpolation_polynomial_reproduction():
     )
     num_targets = target_xy.shape[0]
 
-    print("Testing MLS polynomial reproduction via NodalFunctionSpace...")
+    print("Testing MLS polynomial reproduction via PolynomialReconstructionFunctionSpace...")
 
     for interp_degree in range(1, 4):
         # Use a radius that covers the entire unit square from any target so
@@ -58,7 +59,7 @@ def test_mls_interpolation_polynomial_reproduction():
         opts.adapt_radius = False
         opts.basis = pcms.RadialBasisFunction.NO_OP
 
-        factory = pcms.NodalFunctionSpace.from_coords(
+        factory = pcms.PolynomialReconstructionFunctionSpace.from_coords(
             source_xy, pcms.CoordinateSystem.Cartesian, opts
         )
         field = factory.create_field()

@@ -1,7 +1,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "pcms/field/function_space/nodal.h"
+#include "pcms/field/function_space/polynomial_reconstruction.hpp"
 #include "pcms/field/evaluator/mls_options.h"
 #include "pcms/field/field_metadata.h"
 #include "pcms/field/coordinate_system.h"
@@ -130,7 +130,7 @@ void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basi
   auto src = MakeGrid2D(9);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 81, 2);
 
-  auto fs = pcms::NodalFunctionSpace::Create(
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cartesian, SweepTestOptions(degree, basis));
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
   pcms::test::SetField(field.GetData(), *fs.GetLayout(), func);
@@ -151,7 +151,7 @@ void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basi
 // Polynomial reproduction sweep
 // ============================================================================
 
-TEST_CASE("NodalFunctionSpace MLS: reproduces representative polynomials "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: reproduces representative polynomials "
           "across degree and basis options")
 {
   auto bases = std::array{
@@ -172,13 +172,13 @@ TEST_CASE("NodalFunctionSpace MLS: reproduces representative polynomials "
 // PointEvaluator reused across two FieldData objects
 // ============================================================================
 
-TEST_CASE("NodalFunctionSpace MLS: same PointEvaluator reused for two "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused for two "
           "FieldData objects")
 {
   auto src = MakeGrid2D(7);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 49, 2);
 
-  auto fs = pcms::NodalFunctionSpace::Create(
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cartesian, DefaultTestOptions());
   auto field_a = fs.CreateField<Real>(pcms::FieldMetadata{});
   auto field_b = fs.CreateField<Real>(pcms::FieldMetadata{});
@@ -215,13 +215,13 @@ TEST_CASE("NodalFunctionSpace MLS: same PointEvaluator reused for two "
 // Non-scalar output view must throw
 // ============================================================================
 
-TEST_CASE("NodalFunctionSpace MLS: Evaluate throws for num_components != 1")
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for num_components != 1")
 {
   auto src = MakeGrid2D(5);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 25, 2);
 
   auto fs =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
 
   auto pts = QueryPoints();
@@ -242,14 +242,14 @@ TEST_CASE("NodalFunctionSpace MLS: Evaluate throws for num_components != 1")
 // Default MLSOptions (no explicit options) — smoke test
 // ============================================================================
 
-TEST_CASE("NodalFunctionSpace MLS: default MLSOptions — smoke evaluation")
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: default MLSOptions — smoke evaluation")
 {
   auto src = MakeGrid2D(7);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 49, 2);
 
   // Use default options — no third argument
   auto fs =
-    pcms::NodalFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
   pcms::test::SetField(field.GetData(), *fs.GetLayout(),
                        [](Real, Real) { return Real(1.0); });
@@ -270,13 +270,13 @@ TEST_CASE("NodalFunctionSpace MLS: default MLSOptions — smoke evaluation")
     REQUIRE(std::isfinite(out[i]));
 }
 
-TEST_CASE("NodalFunctionSpace MLS: CreatePointEvaluator rejects coordinate "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejects coordinate "
           "system mismatch")
 {
   auto src = MakeGrid2D(5);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 25, 2);
 
-  auto fs = pcms::NodalFunctionSpace::Create(
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cylindrical, DefaultTestOptions());
 
   auto pts = QueryPoints();
@@ -288,13 +288,13 @@ TEST_CASE("NodalFunctionSpace MLS: CreatePointEvaluator rejects coordinate "
     fs.CreatePointEvaluator<Real>(pcms::EvaluationRequest::FromCoordinates(cv)));
 }
 
-TEST_CASE("NodalFunctionSpace MLS: CreatePointEvaluator rejects non-Cartesian "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejects non-Cartesian "
           "point-cloud coordinates")
 {
   auto src = MakeGrid2D(5);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 25, 2);
 
-  auto fs = pcms::NodalFunctionSpace::Create(
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cylindrical, DefaultTestOptions());
 
   auto pts = QueryPoints();
@@ -307,7 +307,7 @@ TEST_CASE("NodalFunctionSpace MLS: CreatePointEvaluator rejects non-Cartesian "
 }
 
 TEST_CASE(
-  "NodalFunctionSpace MLS: radius option is interpreted as a physical cutoff")
+  "PolynomialReconstructionFunctionSpace MLS: radius option is interpreted as a physical cutoff")
 {
   std::vector<Real> src{0.0, 0.0, 0.6, 0.0};
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 2, 2);
@@ -319,7 +319,7 @@ TEST_CASE(
   opts.adapt_radius = false;
   opts.basis = pcms::RadialBasisFunction::RBF_CONST;
 
-  auto fs = pcms::NodalFunctionSpace::Create(coords_view,
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(coords_view,
                                              CoordinateSystem::Cartesian, opts);
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
   std::vector<Real> dof_values{1.0, 5.0};
@@ -339,13 +339,13 @@ TEST_CASE(
   REQUIRE(out[0] == Catch::Approx(1.0).margin(1e-8));
 }
 
-TEST_CASE("NodalFunctionSpace MLS: 3D point clouds preserve z coordinates in "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z coordinates in "
           "layout and evaluation")
 {
   auto src = MakeGrid3D(3);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 27, 3);
 
-  auto fs = pcms::NodalFunctionSpace::Create(
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cartesian, DefaultTestOptions3D());
   auto layout_coords =
     fs.GetLayout()->GetDOFHolderCoordinates().GetCoordinates();

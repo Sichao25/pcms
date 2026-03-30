@@ -12,7 +12,7 @@
 #include "pcms/field/layout/uniform_grid.h"
 #include "pcms/field/uniform_grid_binary_field.h"
 #include "pcms/field/function_space/lagrange.h"
-#include "pcms/field/function_space/nodal.h"
+#include "pcms/field/function_space/polynomial_reconstruction.hpp"
 #include "pcms/field/evaluator/mls_options.h"
 #include "pcms/utility/uniform_grid.h"
 #include "numpy_array_transform.h"
@@ -291,7 +291,8 @@ void bind_create_field_module(py::module& m)
       py::arg("order") = 1,
       "Create a LagrangeFunctionSpace from a 3D uniform grid");
 
-  // Bind MLSOptions: configuration struct for NodalFunctionSpace MLS
+  // Bind MLSOptions: configuration struct for
+  // PolynomialReconstructionFunctionSpace MLS
   // evaluation.
   py::class_<MLSOptions>(m, "MLSOptions")
     .def(py::init<>(), "Default MLSOptions")
@@ -304,29 +305,32 @@ void bind_create_field_module(py::module& m)
     .def_readwrite("decay_factor", &MLSOptions::decay_factor)
     .def_readwrite("basis", &MLSOptions::basis);
 
-  // Bind NodalFunctionSpace as a concrete FunctionSpace subtype.
-  py::class_<NodalFunctionSpace, FunctionSpace>(m, "NodalFunctionSpace")
+  // Bind PolynomialReconstructionFunctionSpace as a concrete FunctionSpace
+  // subtype.
+  py::class_<PolynomialReconstructionFunctionSpace, FunctionSpace>(
+    m, "PolynomialReconstructionFunctionSpace")
     .def_static(
       "from_coords",
       [](py::array_t<Real> coords, CoordinateSystem cs, MLSOptions opts) {
         auto view = numpy_to_view_2d<Real>(coords);
-        return NodalFunctionSpace::Create(view, cs, opts);
+        return PolynomialReconstructionFunctionSpace::Create(view, cs, opts);
       },
       py::arg("coords"),
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
       py::arg("options") = MLSOptions{},
-      "Create a NodalFunctionSpace from a 2D array of source coordinates "
-      "(shape: num_points × dim).")
+      "Create a PolynomialReconstructionFunctionSpace from a 2D array of "
+      "source coordinates (shape: num_points × dim).")
     .def_static(
       "from_mesh",
       [](Omega_h::Mesh& mesh, int source_entity_dim, CoordinateSystem cs,
          MLSOptions opts) {
-        return NodalFunctionSpace::FromMesh(mesh, source_entity_dim, cs, opts);
+        return PolynomialReconstructionFunctionSpace::FromMesh(mesh, source_entity_dim, cs, opts);
       },
       py::arg("mesh"), py::arg("source_entity_dim"),
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
       py::arg("options") = MLSOptions{},
-      "Create a NodalFunctionSpace from mesh entity coordinates.")
+      "Create a PolynomialReconstructionFunctionSpace from mesh entity "
+      "coordinates.")
     ;
 
   // Bind CreateUniformGridFromMesh for 2D

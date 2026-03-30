@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 #include "pcms/field/function_space/lagrange.h"
-#include "pcms/field/function_space/nodal.h"
+#include "pcms/field/function_space/polynomial_reconstruction.hpp"
 #include "pcms/field/function_space/spline.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/point_evaluator.h"

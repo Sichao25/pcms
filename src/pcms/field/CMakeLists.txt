@@ -12,12 +12,12 @@ set(PCMS_FIELD_HEADERS
         function_space.h
         point_evaluator.h
         data/simple.h
-        function_space/nodal.h
+        function_space/polynomial_reconstruction.hpp
         layout/point_cloud.h
         data/point_cloud.h
 )
 set(PCMS_FIELD_SOURCES
-        function_space/nodal.cpp
+        function_space/polynomial_reconstruction.cpp
         layout/empty.cpp
         layout/point_cloud.cpp
         data/point_cloud.cpp

@@ -7,7 +7,8 @@ namespace pcms
 {
 
 /// Configuration for Moving Least Squares evaluation.
-/// Passed to NodalFunctionSpace::Create and PointCloudEvaluatorFactory.
+/// Passed to PolynomialReconstructionFunctionSpace::Create and
+/// PointCloudEvaluatorFactory.
 struct MLSOptions
 {
   double radius = 0.5;

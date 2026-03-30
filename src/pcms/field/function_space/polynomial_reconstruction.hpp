@@ -1,5 +1,5 @@
-#ifndef PCMS_NODAL_FIELD_FACTORY_H
-#define PCMS_NODAL_FIELD_FACTORY_H
+#ifndef PCMS_POLYNOMIAL_RECONSTRUCTION_FUNCTION_SPACE_H
+#define PCMS_POLYNOMIAL_RECONSTRUCTION_FUNCTION_SPACE_H
 
 #include "pcms/field/field.h"
 #include "pcms/field/field_layout.h"
@@ -21,15 +21,15 @@ namespace pcms
 template <typename T>
 class FieldEvaluatorFactory;
 
-class NodalFunctionSpace : public FunctionSpace
+class PolynomialReconstructionFunctionSpace : public FunctionSpace
 {
 public:
-  [[nodiscard]] static NodalFunctionSpace Create(
+  [[nodiscard]] static PolynomialReconstructionFunctionSpace Create(
     Rank2View<Real, HostMemorySpace> coords,
     CoordinateSystem coordinate_system,
     MLSOptions options = {});
 
-  [[nodiscard]] static NodalFunctionSpace FromMesh(
+  [[nodiscard]] static PolynomialReconstructionFunctionSpace FromMesh(
     Omega_h::Mesh& mesh,
     int source_entity_dim,
     CoordinateSystem coordinate_system,
@@ -50,7 +50,7 @@ protected:
     const EvaluationRequest& request) const override;
 
 private:
-  explicit NodalFunctionSpace(
+  explicit PolynomialReconstructionFunctionSpace(
     std::shared_ptr<const FieldLayout> layout,
     std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept;
 
@@ -60,4 +60,4 @@ private:
 
 } // namespace pcms
 
-#endif // PCMS_NODAL_FIELD_FACTORY_H
+#endif // PCMS_POLYNOMIAL_RECONSTRUCTION_FUNCTION_SPACE_H

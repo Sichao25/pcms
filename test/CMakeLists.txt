@@ -393,8 +393,8 @@ if(Catch2_FOUND)
       test_uniform_grid_field.cpp
       test_interpolation_class.cpp
       test_mesh_geometry.cpp
-            test_nodal_function_space.cpp
-      test_nodal_mls_evaluation.cpp
+            test_polynomial_reconstruction_function_space.cpp
+            test_polynomial_reconstruction_mls_evaluation.cpp
       test_localization_factory.cpp
       test_omega_h_field2_outofbounds.cpp
       test_omega_h_lagrange_field.cpp

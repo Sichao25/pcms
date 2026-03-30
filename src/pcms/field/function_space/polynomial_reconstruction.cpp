@@ -1,4 +1,4 @@
-#include "pcms/field/function_space/nodal.h"
+#include "pcms/field/function_space/polynomial_reconstruction.hpp"
 #include "pcms/field/layout/omega_h_entity.h"
 #include "pcms/field/layout/point_cloud.h"
 #include "pcms/field/evaluator/point_cloud.h"
@@ -16,17 +16,16 @@
 namespace pcms
 {
 
-NodalFunctionSpace::NodalFunctionSpace(
+PolynomialReconstructionFunctionSpace::PolynomialReconstructionFunctionSpace(
   std::shared_ptr<const FieldLayout> layout,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
-  : layout_(std::move(layout)),
-    evaluator_factory_(std::move(evaluator_factory))
+  : layout_(std::move(layout)), evaluator_factory_(std::move(evaluator_factory))
 {
 }
 
-NodalFunctionSpace NodalFunctionSpace::Create(
-  Rank2View<Real, HostMemorySpace> coords,
-  CoordinateSystem coordinate_system,
+PolynomialReconstructionFunctionSpace
+PolynomialReconstructionFunctionSpace::Create(
+  Rank2View<Real, HostMemorySpace> coords, CoordinateSystem coordinate_system,
   MLSOptions options)
 {
   int dim = static_cast<int>(coords.extent(1));
@@ -39,23 +38,24 @@ NodalFunctionSpace NodalFunctionSpace::Create(
   auto localization = std::make_shared<PointCloudLocalizationFactory>(pc_layout, options);
   auto eval_factory =
     std::make_shared<PointCloudEvaluatorFactory>(pc_layout, localization, options);
-  return NodalFunctionSpace(pc_layout, std::move(eval_factory));
+  return PolynomialReconstructionFunctionSpace(pc_layout,
+                                               std::move(eval_factory));
 }
 
-NodalFunctionSpace NodalFunctionSpace::FromMesh(
-  Omega_h::Mesh& mesh,
-  int source_entity_dim,
-  CoordinateSystem coordinate_system,
-  MLSOptions options)
+PolynomialReconstructionFunctionSpace
+PolynomialReconstructionFunctionSpace::FromMesh(
+  Omega_h::Mesh& mesh, int source_entity_dim,
+  CoordinateSystem coordinate_system, MLSOptions options)
 {
   if (coordinate_system != CoordinateSystem::Cartesian) {
     throw pcms_error(
-      "NodalFunctionSpace::FromMesh: only Cartesian coordinates are "
-      "currently supported for MLS");
+      "PolynomialReconstructionFunctionSpace::FromMesh: only Cartesian "
+      "coordinates are currently supported for MLS");
   }
   if (source_entity_dim < 0 || source_entity_dim > mesh.dim()) {
     throw pcms_error(
-      "NodalFunctionSpace::FromMesh: source_entity_dim is out of range");
+      "PolynomialReconstructionFunctionSpace::FromMesh: source_entity_dim is "
+      "out of range");
   }
 
   auto mesh_layout = std::make_shared<OmegaHEntityLayout>(
@@ -64,27 +64,31 @@ NodalFunctionSpace NodalFunctionSpace::FromMesh(
     std::make_shared<AdjacencyLocalizationFactory>(mesh, source_entity_dim, options);
   auto eval_factory = std::make_shared<PointCloudEvaluatorFactory>(
     mesh_layout, localization, options);
-  return NodalFunctionSpace(mesh_layout, std::move(eval_factory));
+  return PolynomialReconstructionFunctionSpace(mesh_layout,
+                                               std::move(eval_factory));
 }
 
 std::shared_ptr<const FieldLayout>
-NodalFunctionSpace::GetLayout() const noexcept
+PolynomialReconstructionFunctionSpace::GetLayout() const noexcept
 {
   return layout_;
 }
 
-CoordinateSystem NodalFunctionSpace::GetCoordinateSystem() const noexcept
+CoordinateSystem PolynomialReconstructionFunctionSpace::GetCoordinateSystem()
+  const noexcept
 {
   return evaluator_factory_->GetCoordinateSystem();
 }
 
-FieldVariant NodalFunctionSpace::CreateFieldImpl(
+FieldVariant PolynomialReconstructionFunctionSpace::CreateFieldImpl(
   Type value_type, FieldMetadata metadata) const
 {
   return apply_to_type(value_type, [&](auto tag) -> FieldVariant {
     using T = typename decltype(tag)::type;
     if constexpr (!std::is_same_v<T, double>) {
-      throw pcms_error("NodalFunctionSpace: only double (Real) is supported");
+      throw pcms_error(
+        "PolynomialReconstructionFunctionSpace: only double (Real) is "
+        "supported");
     }
     else {
       return WrapField<double>(
@@ -94,33 +98,38 @@ FieldVariant NodalFunctionSpace::CreateFieldImpl(
   });
 }
 
-FieldVariant NodalFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
+FieldVariant PolynomialReconstructionFunctionSpace::CreateFieldImpl(
+  FieldDataVariant data) const
 {
   if (!std::holds_alternative<std::unique_ptr<FieldData<double>>>(data)) {
-    throw pcms_error("NodalFunctionSpace: only double (Real) is supported");
+    throw pcms_error(
+      "PolynomialReconstructionFunctionSpace: only double (Real) is "
+      "supported");
   }
   auto fd = std::move(std::get<std::unique_ptr<FieldData<double>>>(data));
   PCMS_ALWAYS_ASSERT(fd != nullptr);
   if (dynamic_cast<const SimpleFieldData<double>*>(fd.get()) == nullptr) {
     throw pcms_error(
-      "NodalFunctionSpace::CreateField: requires SimpleFieldData<double>");
+      "PolynomialReconstructionFunctionSpace::CreateField: requires "
+      "SimpleFieldData<double>");
   }
   if (fd->GetDOFHolderDataHost().size() !=
       detail::ExpectedFlatFieldDataSize(*layout_)) {
     throw pcms_error(
-      "NodalFunctionSpace::CreateField: field data size does not match "
-      "layout");
+      "PolynomialReconstructionFunctionSpace::CreateField: field data size "
+      "does not match layout");
   }
   return WrapField<double>(layout_, std::move(fd), evaluator_factory_);
 }
 
-PointEvaluatorVariant NodalFunctionSpace::CreatePointEvaluatorImpl(
-  Type value_type,
-  const EvaluationRequest& request) const
+PointEvaluatorVariant
+PolynomialReconstructionFunctionSpace::CreatePointEvaluatorImpl(
+  Type value_type, const EvaluationRequest& request) const
 {
   if (value_type != Type::Real) {
     throw pcms_error(
-      "NodalFunctionSpace: point evaluation only supports double (Real)");
+      "PolynomialReconstructionFunctionSpace: point evaluation only supports "
+      "double (Real)");
   }
   PCMS_ALWAYS_ASSERT(evaluator_factory_ != nullptr);
   return evaluator_factory_->CreatePointEvaluator(request);
