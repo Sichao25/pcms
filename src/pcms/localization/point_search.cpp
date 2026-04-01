@@ -571,7 +571,6 @@ Kokkos::View<GridPointSearch3D::Result*> GridPointSearch3D::operator()(
 
       auto nearest_triangle = candidates_begin;
       auto dimensionality = GridPointSearch3D::Result::Dimensionality::EDGE;
-      Omega_h::Real distance_to_nearest{INFINITY};
       Omega_h::Vector<DIM + 1> parametric_coords_to_nearest;
       // create array that's size of number of candidates x num coords to store
       // parametric inversion

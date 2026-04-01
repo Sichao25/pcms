@@ -144,11 +144,6 @@ namespace pcms
   const int old_n = poly.nverts;
   int new_n = 0;
 
-  int old2new[r3d::MaxVerts<2>::value];
-  for (int i = 0; i < old_n; ++i) {
-    old2new[i] = -1;
-  }
-
   // geometric deupliactes filtering
   for (int i = 0; i < old_n; ++i) {
     const auto& pi = poly.verts[i].pos;
@@ -158,12 +153,10 @@ namespace pcms
       if (Kokkos::fabs(pi[0] - pj[0]) < tol &&
           Kokkos::fabs(pi[1] - pj[1]) < tol) {
         dup = true;
-        old2new[i] = j;
         break;
       }
     }
     if (!dup) {
-      old2new[i] = new_n;
       poly.verts[new_n] = poly.verts[i];
       ++new_n;
     }
