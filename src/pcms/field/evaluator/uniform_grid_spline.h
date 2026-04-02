@@ -122,6 +122,14 @@ public:
     }
   }
 
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  void Evaluate(const Field<Real>& field,
+                Rank2View<Real, DeviceMemorySpace> values) const override
+  {
+    throw pcms_error("UniformGridSplineEvaluatorFactory2D: device evaluation not yet implemented");
+  }
+#endif
+
 private:
   std::shared_ptr<const UniformGridFieldLayout<2>> layout_;
   const UniformGrid<2>& grid_;
@@ -218,6 +226,22 @@ public:
     return std::make_unique<UniformGridSplinePointEvaluator2D>(
       layout_, std::move(hint), policy.fill_value);
   }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    throw pcms_error(
+      "UniformGridSplineEvaluatorFactory2D: GetDOFHolderCoordinatesDevice not yet implemented");
+  }
+
+  std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
+    CoordinateView<DeviceMemorySpace> coords,
+    OutOfBoundsPolicy policy = {}) const override
+  {
+    throw pcms_error(
+      "UniformGridSplineEvaluatorFactory2D: CreatePointEvaluator with device coordinates not yet implemented");
+  }
+#endif
 
 private:
   std::shared_ptr<const UniformGridFieldLayout<2>> layout_;

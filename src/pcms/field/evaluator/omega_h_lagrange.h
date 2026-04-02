@@ -169,6 +169,16 @@ public:
     }
   }
 
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  void Evaluate(const Field<T>& field,
+                Rank2View<T, DeviceMemorySpace> values) const override
+  {
+    throw pcms_error(
+      "OmegaHLagrangePointEvaluator: Evaluate with device values not yet implemented");
+
+  }
+#endif
+
 private:
   std::shared_ptr<const OmegaHLagrangeLayout> layout_;
   OmegaHLagrangeLocHint hint_;
@@ -233,10 +243,10 @@ public:
         using SearchT = std::decay_t<decltype(search)>;
         constexpr int Dim = SearchT::DIM;
 
-        Kokkos::View<Real* [Dim]> coords_d("coords_d", n_pts);
+        Kokkos::View<Real**> coords_d("coords_d", n_pts, Dim);
         auto coords_h = Kokkos::View<const Real**, HostMemorySpace>(
           raw_coords.data_handle(), n_pts, Dim);
-        deep_copy_mismatch_layouts(coords_d, coords_h);
+        DeepCopyMismatchLayouts(coords_d, coords_h);
 
         auto results_d = search(coords_d);
         Kokkos::View<typename PointLocalizationSearch<Dim>::Result*,
@@ -252,6 +262,22 @@ public:
     return std::make_unique<OmegaHLagrangePointEvaluator<T>>(
       layout_, std::move(hint), policy.fill_value);
   }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    throw pcms_error(
+      "OmegaHLagrangeEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+  }
+
+  std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
+    CoordinateView<DeviceMemorySpace> coords,
+    OutOfBoundsPolicy policy = {}) const override
+  {
+    throw pcms_error(
+      "OmegaHLagrangeEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+  }
+#endif
 
 private:
   std::shared_ptr<const OmegaHLagrangeLayout> layout_;

@@ -33,9 +33,9 @@ TEST_CASE("evaluate linear 2d omega_h_field")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   pcms::test::CheckEvaluation(factory, field, pcms::test::StandardEvalCoords2D(),
-                              pcms::test::linear_f);
+                              OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 }
 
 #ifdef PCMS_ENABLE_MESHFIELDS
@@ -69,7 +69,7 @@ TEST_CASE("evaluate quadratic 2d meshfields_field")
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
   field.GetData().SetDOFHolderDataHost(pcms::make_const_array_view(test_f_host));
 
-  pcms::test::CheckEvaluation(factory, field, kEvalCoords, sin_f, 1.0e-2);
+  pcms::test::CheckEvaluation(factory, field, kEvalCoords, OMEGA_H_LAMBDA(Real x, Real y) { return std::sin(20 * x * y) / 2 + 0.5; }, 1.0e-2);
 }
 #endif
 

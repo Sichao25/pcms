@@ -20,10 +20,16 @@ public:
   void SetDOFHolderDataHost(
     Rank1View<const Real, HostMemorySpace> data) override;
 
+  #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  Rank1View<const Real, DeviceMemorySpace> GetDOFHolderDataDevice() const override;
+  void SetDOFHolderDataDevice(
+    Rank1View<const Real, DeviceMemorySpace> data) override;
+  #endif
+
 private:
   std::shared_ptr<const PointCloudLayout> layout_;
   FieldMetadata metadata_;
-  Kokkos::View<Real*> data_;
+  Kokkos::View<Real*, DeviceMemorySpace> data_;
   Kokkos::View<Real*, HostMemorySpace> data_host_;
 };
 } // namespace pcms

@@ -34,7 +34,7 @@ TEST_CASE("interpolate linear 2d omega_h_field")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
   auto interpolated = factory.CreateField<Real>(pcms::FieldMetadata{});
-  pcms::test::SetField(field, interpolation_linear_f);
+  pcms::test::SetField(field, OMEGA_H_LAMBDA(Real x, Real y) { return -0.3 * x + 0.5 * y; });
 
   pcms::Interpolator<Real> interp(factory, factory);
   interp.Apply(field, interpolated);
@@ -137,7 +137,7 @@ TEST_CASE("Interpolator: construct once, apply twice with different data")
   pcms::Interpolator<pcms::Real> interp(factory, factory);
 
   // First application: linear function f(x,y) = -0.3*x + 0.5*y
-  pcms::test::SetField(source, interpolation_linear_f);
+  pcms::test::SetField(source, OMEGA_H_LAMBDA(Real x, Real y) { return -0.3 * x + 0.5 * y; });
   interp.Apply(source, target);
 
   {
@@ -153,7 +153,7 @@ TEST_CASE("Interpolator: construct once, apply twice with different data")
 
   // Second application: constant function f(x,y) = 7.0
   // Apply is called without re-constructing the interpolator (no re-localization).
-  pcms::test::SetField(source, interpolation_constant_f);
+  pcms::test::SetField(source, OMEGA_H_LAMBDA(Real, Real) { return 7.0; });
   interp.Apply(source, target);
 
   {

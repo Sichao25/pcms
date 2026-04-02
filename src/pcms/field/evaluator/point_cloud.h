@@ -55,6 +55,14 @@ public:
     return layout_->GetDOFHolderCoordinates();
   }
 
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    throw pcms_error(
+      "PointCloudEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+  }
+#endif
+
   bool SupportsNearestBoundary() const override { return false; }
 
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
@@ -99,6 +107,16 @@ public:
       std::move(source_coords), std::move(target_coords_oh),
       std::move(supports), dim, options_);
   }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
+    CoordinateView<DeviceMemorySpace> coords,
+    OutOfBoundsPolicy policy = {}) const override
+  {
+    throw pcms_error(
+      "PointCloudEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+  }
+#endif
 
 private:
   std::shared_ptr<const FieldLayout> layout_;

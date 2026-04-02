@@ -14,6 +14,14 @@ template <typename ElementType, typename MemorySpace>
 struct memory_space_accessor : public Kokkos::default_accessor<ElementType>
 {
   using memory_space = MemorySpace;
+
+  // Default constructor
+  memory_space_accessor() = default;
+
+  // Converting constructor to allow adding const qualification
+  template <typename OtherElementType,
+            typename = std::enable_if_t<std::is_convertible_v<OtherElementType(*)[], ElementType(*)[]>>>
+  constexpr memory_space_accessor(const memory_space_accessor<OtherElementType, MemorySpace>&) noexcept {}
 };
 
 } // namespace detail
@@ -132,7 +140,7 @@ auto make_const_array_view(T& array)
 // memory spaces, the workaround is provided from
 // https://kokkos.org/kokkos-core-wiki/API/core/view/deep_copy.html#how-to-get-layout-incompatible-views-copied
 template <typename DestView, typename SrcView>
-auto deep_copy_mismatch_layouts(DestView& dest, const SrcView& src)
+auto DeepCopyMismatchLayouts(DestView& dest, const SrcView& src)
 {
   static_assert(Kokkos::is_view<DestView>::value &&
                   Kokkos::is_view<SrcView>::value,
@@ -165,5 +173,70 @@ void iota_view(Kokkos::View<T*> view, T start = 0)
   Kokkos::parallel_for(
     "iota_view", view.extent(0), KOKKOS_LAMBDA(LO i) { view[i] = start + i; });
 }
+
+// utility function to copy device Rank1View to device Kokkos View
+template <typename T>
+void CopyDeviceRank1ViewToDeviceView(Kokkos::View<T*, DeviceMemorySpace> dest,
+                                     Rank1View<const T, DeviceMemorySpace> src)
+{
+  if (dest.extent(0) != src.size()) {
+    throw pcms_error("CopyDeviceRank1ViewToDeviceView: size mismatch");
+  }
+  Kokkos::parallel_for(
+    "CopyDeviceRank1ViewToDeviceView", dest.extent(0),
+    KOKKOS_LAMBDA(LO i) { dest(i) = src(i); });
+}
+
+// utility function to copy device Rank1View to host Kokkos View
+template <typename T>
+void CopyDeviceRank1ViewToHostView(Kokkos::View<T*, HostMemorySpace> dest,
+                                   Rank1View<const T, DeviceMemorySpace> src)
+{
+  if (dest.extent(0) != src.size()) {
+    throw pcms_error("CopyDeviceRank1ViewToHostView: size mismatch");
+  }
+  Kokkos::View<T*, DeviceMemorySpace> src_tmp("CopyDeviceRank1ViewToHostView_tmp", src.size());
+  Kokkos::parallel_for(
+    "CopyDeviceRank1ViewToHostView", src.size(),
+    KOKKOS_LAMBDA(LO i) { src_tmp(i) = src(i); });
+  Kokkos::deep_copy(dest, src_tmp);
+}
+
+template <typename T>
+void CopyHostRank1ViewToDeviceView(Kokkos::View<T*, DeviceMemorySpace> dest,
+                                    Rank1View<T, HostMemorySpace> src)
+{
+  if (dest.extent(0) != src.size()) {
+    throw pcms_error("CopyHostRank1ViewToDeviceView: size mismatch");
+  }
+  Kokkos::View<T*, HostMemorySpace> src_tmp("CopyHostRank1ViewToDeviceView_tmp", src.size());
+  Kokkos::parallel_for(
+    "CopyHostRank1ViewToDeviceView", src.size(),
+    KOKKOS_LAMBDA(LO i) { src_tmp(i) = src(i); });
+  Kokkos::deep_copy(dest, src_tmp);
+}
+
+
+// utility function to copy from Rank1View to Rank1View
+template <typename T>
+void CopyRank1ViewToHost(Rank1View<T, HostMemorySpace> dest,
+                              Rank1View<const T, DeviceMemorySpace> src)
+{
+  if (dest.size() != src.size()) {
+    throw pcms_error("CopyRank1ViewToHost: size mismatch");
+  }
+  Kokkos::View<T*, DeviceMemorySpace> src_tmp("CopyRank1ViewToHost_tmp", src.size());
+  Kokkos::parallel_for(
+    "CopyRank1ViewToHost", src.size(),
+    KOKKOS_LAMBDA(LO i) { src_tmp(i) = src(i); });
+  Kokkos::View<T*, HostMemorySpace> src_tmp_h("CopyRank1ViewToHost_tmp_h", src.size());
+  Kokkos::deep_copy(src_tmp_h, src_tmp);
+  for (size_t i = 0; i < src.size(); ++i) {
+    dest(i) = src_tmp_h(i);
+  }
+
+}
+
+
 } // namespace pcms
 #endif // PCMS_COUPLING_ARRAYS_H

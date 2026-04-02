@@ -85,7 +85,7 @@ inline std::vector<Real> EvaluateReferenceFunction(
   Kokkos::View<Real *[2], MemorySpace> pts_device("pts_device", n);
   auto pts_host =
     Kokkos::View<const Real **, HostMemorySpace>(pts.data(), n, 2);
-  deep_copy_mismatch_layouts(pts_device, pts_host);
+  DeepCopyMismatchLayouts(pts_device, pts_host);
 
   Kokkos::View<Real *, MemorySpace> expected_device("expected_device", n);
   Kokkos::parallel_for(
@@ -100,6 +100,23 @@ inline std::vector<Real> EvaluateReferenceFunction(
                            expected_host.data() + expected_host.extent(0));
 }
 
+template <typename MemorySpace, typename Func>
+struct SetFieldFunctor {
+    Kokkos::View<Real *, MemorySpace> data;
+    Kokkos::View<Real *[2], MemorySpace> coords;
+    Func f;
+
+    SetFieldFunctor(Kokkos::View<Real *, MemorySpace> data_,
+                    Kokkos::View<Real *[2], MemorySpace> coords_,
+                    Func f_)
+      : data(data_), coords(coords_), f(f_) {}
+    
+    KOKKOS_INLINE_FUNCTION
+    void operator()(int i) const {
+      data(i) = f(coords(i, 0), coords(i, 1));
+    }
+  };
+
 // Set scalar DOF data by sampling func at each DOF-holder coordinate.
 template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
 inline void SetField(const FieldLayout& layout, FieldData<Real>& field, Func func)
@@ -111,14 +128,12 @@ inline void SetField(const FieldLayout& layout, FieldData<Real>& field, Func fun
   Kokkos::View<Real *[2], MemorySpace> coords_device("coords_device", n);
   auto coords_host = Kokkos::View<const Real **, HostMemorySpace>(
     dof_coords.data_handle(), n, 2);
-  deep_copy_mismatch_layouts(coords_device, coords_host);
+  DeepCopyMismatchLayouts(coords_device, coords_host);
 
   Kokkos::View<Real *, MemorySpace> data_device("data_device", n);
   Kokkos::parallel_for(
     "field_test_utils_set_field", Kokkos::RangePolicy<ExecutionSpace>(0, n),
-    KOKKOS_LAMBDA(int i) {
-      data_device(i) = func(coords_device(i, 0), coords_device(i, 1));
-    });
+    SetFieldFunctor{data_device, coords_device, func});
 
   auto data_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), data_device);
   field.SetDOFHolderDataHost(

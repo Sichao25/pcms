@@ -149,10 +149,10 @@ TEST_CASE("OmegaHLagrangeField order-1: linear function evaluation")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   pcms::test::CheckEvaluation(factory, field,
                               pcms::test::StandardEvalCoords2D(),
-                              pcms::test::linear_f);
+                              OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 }
 
 // The same linear evaluation test run on the MeshFields-backed order-1 field
@@ -165,10 +165,10 @@ TEST_CASE("MeshFieldsAdapter order-1: linear function evaluation (shared util)")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   pcms::test::CheckEvaluation(factory, field,
                               pcms::test::StandardEvalCoords2D(),
-                              pcms::test::linear_f);
+                              OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 }
 
 TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
@@ -179,7 +179,7 @@ TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 
   Real fill_value = -999.0;
   std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5, 0.5, -0.5, 0.5, 1.5};
@@ -194,7 +194,7 @@ TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), field.GetData());
 }
 
@@ -313,7 +313,7 @@ TEST_CASE("OmegaHLagrangeField: field valid after layout destruction")
     field.emplace(factory.CreateField<Real>(pcms::FieldMetadata{}));
   } // factory goes out of scope; field keeps layout alive
 
-  pcms::test::SetField(*field, pcms::test::linear_f);
+  pcms::test::SetField(*field, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   // Just verify data was set correctly (no evaluator needed for this lifetime test)
   auto data = field->GetDOFHolderDataHost();
   REQUIRE(data.size() > 0);

@@ -146,6 +146,44 @@ TEST_CASE("OmegaHConservativeProjection matches conservative projection solver",
   Omega_h::Mesh target_mesh(&lib);
   Omega_h::build_from_elems_and_coords(&target_mesh, OMEGA_H_SIMPLEX, 2,
                                        ev2v_target, coords);
+  
+  // Add classification for all dimensions
+  // Vertices (dim 0)
+  source_mesh.add_tag<Omega_h::I8>(0, "class_dim", 1,
+    Omega_h::Read<Omega_h::I8>(source_mesh.nverts(), Omega_h::I8(0)));
+  source_mesh.add_tag<Omega_h::ClassId>(0, "class_id", 1,
+    Omega_h::Read<Omega_h::ClassId>(source_mesh.nverts(), Omega_h::ClassId(0)));
+  
+  // Edges (dim 1)
+  source_mesh.add_tag<Omega_h::I8>(1, "class_dim", 1,
+    Omega_h::Read<Omega_h::I8>(source_mesh.nedges(), Omega_h::I8(1)));
+  source_mesh.add_tag<Omega_h::ClassId>(1, "class_id", 1,
+    Omega_h::Read<Omega_h::ClassId>(source_mesh.nedges(), Omega_h::ClassId(0)));
+  
+  // Faces (dim 2)
+  source_mesh.add_tag<Omega_h::I8>(2, "class_dim", 1,
+    Omega_h::Read<Omega_h::I8>(source_mesh.nelems(), Omega_h::I8(2)));
+  source_mesh.add_tag<Omega_h::ClassId>(2, "class_id", 1,
+    Omega_h::Read<Omega_h::ClassId>(source_mesh.nelems(), Omega_h::ClassId(0)));
+  
+  // Add classification for all dimensions
+  // Vertices (dim 0)
+  target_mesh.add_tag<Omega_h::I8>(0, "class_dim", 1,
+    Omega_h::Read<Omega_h::I8>(target_mesh.nverts(), Omega_h::I8(0)));
+  target_mesh.add_tag<Omega_h::ClassId>(0, "class_id", 1,
+    Omega_h::Read<Omega_h::ClassId>(target_mesh.nverts(), Omega_h::ClassId(0)));
+  
+  // Edges (dim 1)
+  target_mesh.add_tag<Omega_h::I8>(1, "class_dim", 1,
+    Omega_h::Read<Omega_h::I8>(target_mesh.nedges(), Omega_h::I8(1)));
+  target_mesh.add_tag<Omega_h::ClassId>(1, "class_id", 1,
+    Omega_h::Read<Omega_h::ClassId>(target_mesh.nedges(), Omega_h::ClassId(0)));
+  
+  // Faces (dim 2)
+  target_mesh.add_tag<Omega_h::I8>(2, "class_dim", 1,
+    Omega_h::Read<Omega_h::I8>(target_mesh.nelems(), Omega_h::I8(2)));
+  target_mesh.add_tag<Omega_h::ClassId>(2, "class_id", 1,
+    Omega_h::Read<Omega_h::ClassId>(target_mesh.nelems(), Omega_h::ClassId(0)));
 
   auto source_space = pcms::LagrangeFunctionSpace::FromMesh(
     source_mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
@@ -157,7 +195,7 @@ TEST_CASE("OmegaHConservativeProjection matches conservative projection solver",
   auto source = source_space.CreateField<pcms::Real>();
   auto target = target_space.CreateField<pcms::Real>();
 
-  pcms::test::SetField(source, [](pcms::Real x, pcms::Real y) {
+  pcms::test::SetField(source, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) {
     return x * x + x * y + 0.5 * y * y;
   });
 

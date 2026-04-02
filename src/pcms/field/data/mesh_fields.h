@@ -66,8 +66,8 @@ public:
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
-    Kokkos::deep_copy(device_data_, values);
-    Kokkos::deep_copy(data_, values);
+    CopyDeviceRank1ViewToDeviceView(device_data_, values);
+    CopyDeviceRank1ViewToHostView(data_, values);
     SyncBackend(make_const_array_view(data_));
   }
 #endif

@@ -31,8 +31,8 @@ PolynomialReconstructionFunctionSpace::Create(
   int dim = static_cast<int>(coords.extent(1));
   Kokkos::View<Real**, Kokkos::HostSpace> host_view(
     coords.data_handle(), coords.extent(0), coords.extent(1));
-  auto device_view =
-    Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, host_view);
+  auto device_view = Kokkos::View<Real**>("device_view", host_view.extent(0), host_view.extent(1));
+  DeepCopyMismatchLayouts(device_view, host_view);
   auto pc_layout =
     std::make_shared<PointCloudLayout>(dim, device_view, coordinate_system);
   auto localization = std::make_shared<PointCloudLocalizationFactory>(pc_layout, options);

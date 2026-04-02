@@ -13,6 +13,7 @@
 #include "pcms/localization/mls_support_helpers.h"
 #include "pcms/localization/point_cloud_localization.h"
 #include "pcms/discretization/discretization/omega_h.hpp"
+#include "pcms/utility/arrays.h"
 #include "field_test_utils.h"
 
 namespace
@@ -53,8 +54,10 @@ TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupport
   for (int i = 0; i < mesh.nverts(); ++i)
     for (int d = 0; d < dim; ++d)
       coords_host(i, d) = coords_read[i * dim + d];
-  auto coords_dev = Kokkos::create_mirror_view_and_copy(
-    Kokkos::DefaultExecutionSpace{}, coords_host);
+  // auto coords_dev = Kokkos::create_mirror_view_and_copy(
+  //   Kokkos::DefaultExecutionSpace{}, coords_host);
+  auto coords_dev = Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace>("point_cloud_coords", mesh.nverts(), dim);
+  pcms::DeepCopyMismatchLayouts(coords_dev, coords_host);
 
   auto layout = std::make_shared<pcms::PointCloudLayout>(
     dim, coords_dev, pcms::CoordinateSystem::Cartesian);

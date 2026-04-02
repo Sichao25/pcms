@@ -143,8 +143,10 @@ public:
 
     RealVecView values_interp("values_interp",
                               static_cast<size_t>(dof_data.size()));
+    auto values_interp_host = Kokkos::create_mirror_view(values_interp);
     for (size_t i = 0; i < dof_data.size(); ++i)
-      values_interp(i) = dof_data[i];
+      values_interp_host(i) = dof_data[i];
+    Kokkos::deep_copy(values_interp, values_interp_host);
 
     auto interpolator = RegularGridInterpolator(
       parametric_coords, values_interp, cell_indices_interp, dimensions_view);
@@ -160,6 +162,14 @@ public:
       }
     }
   }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  void Evaluate(const Field<Real>& field,
+                Rank2View<Real, DeviceMemorySpace> values) const override
+  {
+    throw pcms_error("UniformGridEvaluatorFactory: device evaluation not yet implemented");
+  }
+#endif
 
 private:
   std::shared_ptr<const UniformGridFieldLayout<Dim>> layout_;
@@ -260,6 +270,22 @@ public:
     return std::make_unique<UniformGridPointEvaluator<Dim>>(
       layout_, std::move(hint), policy.fill_value);
   }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    throw pcms_error(
+      "UniformGridEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+  }
+
+  std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
+    CoordinateView<DeviceMemorySpace> coords,
+    OutOfBoundsPolicy policy = {}) const override
+  {
+    throw pcms_error(
+      "UniformGridEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+  }
+#endif
 
 private:
   std::shared_ptr<const UniformGridFieldLayout<Dim>> layout_;

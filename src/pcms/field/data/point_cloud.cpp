@@ -2,6 +2,7 @@
 #include "pcms/field/layout/point_cloud.h"
 #include "pcms/utility/profile.h"
 #include "pcms/utility/assert.h"
+#include "pcms/utility/arrays.h"
 
 namespace pcms
 {
@@ -35,5 +36,20 @@ void PointCloud::SetDOFHolderDataHost(
     KOKKOS_CLASS_LAMBDA(int i) { data_host_(i) = data[i]; });
   Kokkos::deep_copy(data_, data_host_);
 }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+Rank1View<const Real, DeviceMemorySpace> PointCloud::GetDOFHolderDataDevice() const
+{
+  return make_const_array_view(data_);
+}
+
+void PointCloud::SetDOFHolderDataDevice(
+  Rank1View<const Real, DeviceMemorySpace> data)
+{
+  PCMS_FUNCTION_TIMER;
+  PCMS_ALWAYS_ASSERT(data.size() == data_.size());
+  CopyDeviceRank1ViewToDeviceView(data_, data);
+}
+#endif
 
 } // namespace pcms

@@ -48,7 +48,7 @@ public:
     Kokkos::View<Real**> coordinates_d(
       "coordinates_d", hint_.coordinates_.extent(0),
       hint_.coordinates_.extent(1));
-    deep_copy_mismatch_layouts(coordinates_d, hint_.coordinates_);
+    DeepCopyMismatchLayouts(coordinates_d, hint_.coordinates_);
 
     Kokkos::View<LO*> offsets_d("offsets_d", hint_.offsets_.extent(0));
     Kokkos::deep_copy(offsets_d, hint_.offsets_);
@@ -57,7 +57,7 @@ public:
       coordinates_d, offsets_d);
     Kokkos::View<T**, HostMemorySpace> eval_results_h(
       "eval_results_h", eval_results.extent(0), eval_results.extent(1));
-    deep_copy_mismatch_layouts(eval_results_h, eval_results);
+    DeepCopyMismatchLayouts(eval_results_h, eval_results);
 
     Kokkos::parallel_for(
       "CopyEvalResultsToValues",
@@ -78,6 +78,14 @@ public:
         });
     }
   }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  void Evaluate(const Field<T>& field,
+                Rank2View<T, DeviceMemorySpace> values) const override
+  {
+    throw pcms_error("MeshFieldsPointEvaluator::Evaluate with device values not yet implemented");
+  }
+#endif
 
 private:
   std::shared_ptr<const MeshFieldsAdapterLayout> layout_;
@@ -144,7 +152,7 @@ public:
     auto coords_h = Kokkos::View<const Real**, HostMemorySpace>(
       coordinates.data_handle(), coordinates.extent(0),
       coordinates.extent(1));
-    deep_copy_mismatch_layouts(coords_d, coords_h);
+    DeepCopyMismatchLayouts(coords_d, coords_h);
 
     auto results = search_(coords_d);
     Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> results_h(
@@ -156,6 +164,22 @@ public:
     return std::make_unique<MeshFieldsPointEvaluator<T>>(
       layout_, std::move(hint), policy.fill_value);
   }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    throw pcms_error(
+      "MeshFieldsEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+  }
+
+  std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
+    CoordinateView<DeviceMemorySpace> coords,
+    OutOfBoundsPolicy policy = {}) const override
+  {
+    throw pcms_error(
+      "MeshFieldsEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+  }
+#endif
 
 private:
   std::shared_ptr<const MeshFieldsAdapterLayout> layout_;

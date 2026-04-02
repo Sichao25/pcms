@@ -162,9 +162,9 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: reproduces representative 
   };
 
   for (auto basis : bases) {
-    CheckPolynomialReproduction(0, basis, constant_f, 5e-3);
-    CheckPolynomialReproduction(1, basis, pcms::test::linear_f, 5e-3);
-    CheckPolynomialReproduction(2, basis, quadratic_f, 5e-3);
+    CheckPolynomialReproduction(0, basis, OMEGA_H_LAMBDA(Real, Real) { return 3.14; }, 5e-3);
+    CheckPolynomialReproduction(1, basis, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; }, 5e-3);
+    CheckPolynomialReproduction(2, basis, OMEGA_H_LAMBDA(Real x, Real y) { return x * x + x * y + 2.0 * y * y; }, 5e-3);
   }
 }
 
@@ -184,10 +184,10 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused
   auto field_b = fs.CreateField<Real>(pcms::FieldMetadata{});
 
   pcms::test::SetField(field_a.GetData(), *fs.GetLayout(),
-                       pcms::test::linear_f);
+                       OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   const Real cval = 7.0;
   pcms::test::SetField(field_b.GetData(), *fs.GetLayout(),
-                       [cval](Real, Real) { return cval; });
+                       OMEGA_H_LAMBDA(Real, Real) { return cval; });
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
@@ -252,7 +252,7 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: default MLSOptions — smo
     pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
   pcms::test::SetField(field.GetData(), *fs.GetLayout(),
-                       [](Real, Real) { return Real(1.0); });
+                       OMEGA_H_LAMBDA(Real, Real) { return Real(1.0); });
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;

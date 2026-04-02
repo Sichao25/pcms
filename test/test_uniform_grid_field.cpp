@@ -313,7 +313,7 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   auto omega_h_factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto omega_h_field = omega_h_factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
-  pcms::test::SetField(omega_h_field, pcms::test::linear_f);
+  pcms::test::SetField(omega_h_field, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) { return x + 2.0 * y; });
 
   pcms::UniformGrid<2> grid;
   grid.edge_length = {1.0, 1.0};
@@ -619,7 +619,7 @@ TEST_CASE("UniformGrid workflow")
   auto omega_h_factory =
     pcms::LagrangeFunctionSpace::FromMesh(mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto omega_h_field = omega_h_factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
-  pcms::test::SetField(omega_h_field, pcms::test::linear_f);
+  pcms::test::SetField(omega_h_field, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) { return x + 2.0 * y; });
 
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian);

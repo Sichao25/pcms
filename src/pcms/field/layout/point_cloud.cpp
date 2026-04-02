@@ -1,4 +1,5 @@
 #include "pcms/field/layout/point_cloud.h"
+#include "pcms/utility/arrays.h"
 #include <memory>
 #include <Kokkos_StdAlgorithms.hpp>
 
@@ -11,7 +12,10 @@ namespace
 std::shared_ptr<const Discretization> MakePointCloudDiscretization(
   int dim, Kokkos::View<Real**> coords)
 {
-  auto coords_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords);
+  auto coords_mirror = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords);
+  // Create a view with the default layout for HostMemorySpace to avoid layout incompatibility
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", coords_mirror.extent(0), coords_mirror.extent(1));
+  Kokkos::deep_copy(coords_host, coords_mirror);
   return std::make_shared<PointCloudDiscretization>(
     dim, coords_host, static_cast<const void*>(coords.data()));
 }
@@ -44,13 +48,16 @@ PointCloudLayout::PointCloudLayout(
   : dim_(dim),
     coordinate_system_(coordinate_system),
     coords_(coords),
-    coords_host_(Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords_)),
+    coords_host_("coords_host", coords.extent(0), coords.extent(1)),
     owned_("", coords.extent(0)),
     gids_("", coords.extent(0)),
     owned_host_("", coords.extent(0)),
     gids_host_("", coords.extent(0))
 {
   components_ = 1;
+
+  // Copy coords to coords_host_ with proper layout
+  DeepCopyMismatchLayouts(coords_host_, coords_);
 
   namespace KE = Kokkos::Experimental;
   KE::fill(Kokkos::DefaultExecutionSpace(), owned_, true);

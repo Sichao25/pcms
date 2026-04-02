@@ -58,8 +58,6 @@ public:
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   Rank1View<const T, DeviceMemorySpace> GetDOFHolderDataDevice() const override
   {
-    // Keep a persistent device allocation so the returned view remains valid
-    // until this object is mutated or destroyed.
     Kokkos::deep_copy(device_data_, data_);
     return make_const_array_view(device_data_);
   }
@@ -69,8 +67,8 @@ public:
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
-    Kokkos::deep_copy(device_data_, values);
-    Kokkos::deep_copy(data_, values);
+    CopyDeviceRank1ViewToDeviceView(device_data_, values);
+    CopyDeviceRank1ViewToHostView(data_, values);
   }
 #endif
 

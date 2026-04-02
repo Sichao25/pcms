@@ -32,7 +32,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
 
   auto field_data = factory.CreateField<Real>();
-  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
@@ -44,7 +44,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
     pcms::EvaluationRequest::FromCoordinates(cv));
   pcms::test::CheckEvaluation(
     *evaluator, field_data,
-    pts, pcms::test::linear_f);
+    pts, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 }
 
 // ============================================================================
@@ -65,9 +65,9 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
   auto field_b = factory.CreateField<Real>();
 
   // field_a: linear_f;  field_b: constant 42
-  pcms::test::SetField(field_a.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_a.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   pcms::test::SetField(field_b.GetData(), *factory.GetLayout(),
-                       [](Real, Real) { return Real(42); });
+                       OMEGA_H_LAMBDA(Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
@@ -111,7 +111,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 out-of-bounds fill")
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
 
   auto field_data = factory.CreateField<Real>();
-  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 
   // Points clearly outside [0,1]^2
   const std::vector<Real> outside_pts = {-0.5, 0.5, 1.5, 0.5, 0.5, -0.5,
@@ -144,7 +144,7 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
     grid, 1, CoordinateSystem::Cartesian, 1);
 
   auto field_data = factory.CreateField<Real>();
-  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
   pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(
@@ -154,7 +154,7 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
   auto evaluator = factory.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
   pcms::test::CheckEvaluation(
-    *evaluator, field_data, pts, pcms::test::linear_f, 1e-8);
+    *evaluator, field_data, pts, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; }, 1e-8);
 }
 
 TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
@@ -169,7 +169,7 @@ TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
     grid, CoordinateSystem::Cartesian);
 
   auto field_data = factory.CreateField<Real>();
-  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   auto pts = pcms::test::StandardEvalCoords2D();
   int n    = static_cast<int>(pts.size()) / 2;
   pcms::Rank2View<const Real, pcms::HostMemorySpace> coords_view(
@@ -179,7 +179,7 @@ TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
   auto evaluator = factory.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
   pcms::test::CheckEvaluation(
-    *evaluator, field_data, pts, pcms::test::linear_f, 1e-8);
+    *evaluator, field_data, pts, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; }, 1e-8);
 }
 
 // ============================================================================
@@ -291,7 +291,7 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
   auto field_data = factory.CreateField<Real>();
-  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
@@ -302,7 +302,7 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
   auto evaluator = factory.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
   pcms::test::CheckEvaluation(*evaluator, field_data, pts,
-                              pcms::test::linear_f);
+                              OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 }
 
 TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
@@ -316,7 +316,7 @@ TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
   auto field_data = factory.CreateField<Real>();
-  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_data.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 
   const std::vector<Real> outside_pts = {-0.5, 0.5,  1.5, 0.5,
                                          0.5,  -0.5, 0.5, 1.5};
@@ -344,9 +344,9 @@ TEST_CASE(
 
   auto field_a = factory.CreateField<Real>();
   auto field_b = factory.CreateField<Real>();
-  pcms::test::SetField(field_a.GetData(), *factory.GetLayout(), pcms::test::linear_f);
+  pcms::test::SetField(field_a.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   pcms::test::SetField(field_b.GetData(), *factory.GetLayout(),
-                       [](Real, Real) { return Real(42); });
+                       OMEGA_H_LAMBDA(Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;

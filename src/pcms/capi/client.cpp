@@ -26,6 +26,10 @@ struct XGCFieldRegistration
   XGCFunctionSpace function_space;
   MPI_Comm plane_comm;
   Rank1View<T, HostMemorySpace> data;
+
+  XGCFieldRegistration(XGCFunctionSpace fs, MPI_Comm comm, 
+                       Rank1View<T, HostMemorySpace> d)
+    : function_space(std::move(fs)), plane_comm(comm), data(d) {}
 };
 
 struct DummyFieldRegistration
