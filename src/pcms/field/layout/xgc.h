@@ -27,7 +27,7 @@ public:
   GlobalIDView<HostMemorySpace> GetGids() const override;
   bool IsDistributed() const override;
   EntOffsetsArray GetEntOffsets() const override;
-  CoordinateView<HostMemorySpace> GetDOFHolderCoordinates() const override;
+  CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override;
   int GetDimension() const override;
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensions() const override;

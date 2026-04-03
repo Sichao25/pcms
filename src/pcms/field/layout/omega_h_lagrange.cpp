@@ -176,7 +176,7 @@ GlobalIDView<HostMemorySpace> OmegaHLagrangeLayout::GetGids() const
 }
 
 CoordinateView<HostMemorySpace>
-OmegaHLagrangeLayout::GetDOFHolderCoordinates() const
+OmegaHLagrangeLayout::GetDOFHolderCoordinatesHost() const
 {
   int n = mesh_.nents(EntityDimForOrder(order_, mesh_.dim()));
   int dim = mesh_.dim();

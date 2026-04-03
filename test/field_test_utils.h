@@ -123,7 +123,7 @@ inline void SetField(const FieldLayout& layout, FieldData<Real>& field, Func fun
 {
   using MemorySpace = typename ExecutionSpace::memory_space;
 
-  auto dof_coords = layout.GetDOFHolderCoordinates().GetCoordinates();
+  auto dof_coords = layout.GetDOFHolderCoordinatesHost().GetCoordinates();
   int n = static_cast<int>(dof_coords.extent(0));
   Kokkos::View<Real *[2], MemorySpace> coords_device("coords_device", n);
   auto coords_host = Kokkos::View<const Real **, HostMemorySpace>(

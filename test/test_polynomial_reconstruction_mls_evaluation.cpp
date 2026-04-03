@@ -348,7 +348,7 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z
   auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cartesian, DefaultTestOptions3D());
   auto layout_coords =
-    fs.GetLayout()->GetDOFHolderCoordinates().GetCoordinates();
+    fs.GetLayout()->GetDOFHolderCoordinatesHost().GetCoordinates();
   REQUIRE(static_cast<int>(layout_coords.extent(1)) == 3);
   for (int i = 0; i < 27; ++i) {
     REQUIRE(layout_coords(i, 0) == Catch::Approx(src[3 * i + 0]));

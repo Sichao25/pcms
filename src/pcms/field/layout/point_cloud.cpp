@@ -107,7 +107,7 @@ GlobalIDView<HostMemorySpace> PointCloudLayout::GetGids() const
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
-CoordinateView<HostMemorySpace> PointCloudLayout::GetDOFHolderCoordinates()
+CoordinateView<HostMemorySpace> PointCloudLayout::GetDOFHolderCoordinatesHost()
   const
 {
   Rank2View<const Real, HostMemorySpace> coords_view(

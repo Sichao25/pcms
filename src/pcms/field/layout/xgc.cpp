@@ -82,7 +82,7 @@ EntOffsetsArray XGCFieldLayout::GetEntOffsets() const
           static_cast<size_t>(num_plane_nodes_)};
 }
 
-CoordinateView<HostMemorySpace> XGCFieldLayout::GetDOFHolderCoordinates() const
+CoordinateView<HostMemorySpace> XGCFieldLayout::GetDOFHolderCoordinatesHost() const
 {
   return CoordinateView<HostMemorySpace>{
     CoordinateSystem::XGC,

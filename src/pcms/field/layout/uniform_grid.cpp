@@ -132,7 +132,7 @@ GlobalIDView<HostMemorySpace> UniformGridFieldLayout<Dim>::GetGids() const
 
 template <unsigned Dim>
 CoordinateView<HostMemorySpace>
-UniformGridFieldLayout<Dim>::GetDOFHolderCoordinates() const
+UniformGridFieldLayout<Dim>::GetDOFHolderCoordinatesHost() const
 {
   Rank2View<const Real, HostMemorySpace> coords_view(
     dof_holder_coords_.data(), dof_holder_coords_.extent(0), Dim);

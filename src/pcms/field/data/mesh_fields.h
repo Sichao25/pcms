@@ -23,12 +23,9 @@ public:
     : layout_(std::move(layout)),
       metadata_(metadata),
       mesh_field_(MakeMeshFieldBackend<T>(*layout_)),
-      data_("meshfields_field_data", static_cast<size_t>(layout_->OwnedSize()))
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-      ,
+      data_("meshfields_field_data", static_cast<size_t>(layout_->OwnedSize())),
       device_data_("meshfields_field_data_device",
                    static_cast<size_t>(layout_->OwnedSize()))
-#endif
   {
     if (!mesh_field_) {
       throw pcms_error(
@@ -54,14 +51,13 @@ public:
     SyncBackend(make_const_array_view(data_));
   }
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  Rank1View<const T, DeviceMemorySpace> GetDOFHolderDataDevice() const override
+  Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const override
   {
     Kokkos::deep_copy(device_data_, data_);
     return make_const_array_view(device_data_);
   }
 
-  void SetDOFHolderDataDevice(
+  void SetDOFHolderData(
     Rank1View<const T, DeviceMemorySpace> values) override
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
@@ -70,7 +66,6 @@ public:
     CopyDeviceRank1ViewToHostView(data_, values);
     SyncBackend(make_const_array_view(data_));
   }
-#endif
 
   std::shared_ptr<MeshFieldBackend<T>> GetMeshFieldBackend() const
   {
@@ -101,9 +96,7 @@ private:
   FieldMetadata metadata_;
   std::shared_ptr<MeshFieldBackend<T>> mesh_field_;
   Kokkos::View<T*, HostMemorySpace> data_;
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   mutable Kokkos::View<T*, DeviceMemorySpace> device_data_;
-#endif
 };
 
 } // namespace pcms

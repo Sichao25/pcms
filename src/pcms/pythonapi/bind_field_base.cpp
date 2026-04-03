@@ -226,7 +226,7 @@ void bind_create_field_module(py::module& m)
     .def(
       "get_dof_holder_coordinates",
       [](const Field<Real>& self) {
-        auto cv    = self.GetLayout().GetDOFHolderCoordinates();
+        auto cv    = self.GetLayout().GetDOFHolderCoordinatesHost();
         auto coords = cv.GetCoordinates();
         py::array_t<Real> result({static_cast<py::ssize_t>(coords.extent(0)),
                                    static_cast<py::ssize_t>(coords.extent(1))});

@@ -256,7 +256,7 @@ GlobalIDView<HostMemorySpace> MeshFieldsAdapterLayout::GetGids() const
 }
 
 CoordinateView<HostMemorySpace>
-MeshFieldsAdapterLayout::GetDOFHolderCoordinates() const
+MeshFieldsAdapterLayout::GetDOFHolderCoordinatesHost() const
 {
   DeepCopyMismatchLayouts(dof_holder_coords_host_, dof_holder_coords_);
   Rank2View<const Real, HostMemorySpace> coords_view(

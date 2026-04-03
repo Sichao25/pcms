@@ -48,7 +48,7 @@ TEST_CASE("PolynomialReconstructionFunctionSpace creates point-cloud layout meta
   REQUIRE(layout->GetNumGlobalDofHolder() == 4);
   REQUIRE_FALSE(layout->IsDistributed());
 
-  auto dof_coords = layout->GetDOFHolderCoordinates().GetCoordinates();
+  auto dof_coords = layout->GetDOFHolderCoordinatesHost().GetCoordinates();
   REQUIRE(static_cast<int>(dof_coords.extent(0)) == 4);
   REQUIRE(static_cast<int>(dof_coords.extent(1)) == 2);
   for (int i = 0; i < 4; ++i) {

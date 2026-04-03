@@ -151,8 +151,8 @@ inline EvaluationRequest EvaluationRequest::FromLayout(
   if (layout == nullptr) {
     throw pcms_error("EvaluationRequest::FromLayout: layout must not be null");
   }
-  // Must evaluate GetDOFHolderCoordinates() before std::move(layout)
-  auto coords = layout->GetDOFHolderCoordinates();
+  // Must evaluate GetDOFHolderCoordinatesHost() before std::move(layout)
+  auto coords = layout->GetDOFHolderCoordinatesHost();
   return EvaluationRequest(coords, std::move(layout), policy);
 }
 

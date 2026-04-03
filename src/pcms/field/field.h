@@ -45,17 +45,15 @@ public:
     data_->SetDOFHolderDataHost(v);
   }
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  Rank1View<const T, DeviceMemorySpace> GetDOFHolderDataDevice() const
+  Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const
   {
-    return data_->GetDOFHolderDataDevice();
+    return data_->GetDOFHolderData();
   }
 
-  void SetDOFHolderDataDevice(Rank1View<const T, DeviceMemorySpace> v)
+  void SetDOFHolderData(Rank1View<const T, DeviceMemorySpace> v)
   {
-    data_->SetDOFHolderDataDevice(v);
+    data_->SetDOFHolderData(v);
   }
-#endif
 
 private:
   class CtorKey

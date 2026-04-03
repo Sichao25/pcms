@@ -66,11 +66,35 @@ public:
   }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  void Evaluate(const Field<Real>& /*field*/,
-                Rank2View<Real, DeviceMemorySpace> /*values*/) const override
+  void Evaluate(const Field<Real>& field,
+                Rank2View<Real, DeviceMemorySpace> values) const override
   {
-    throw pcms_error(
-      "MLSPointEvaluator: device-memory Evaluate is not yet implemented");
+    if (values.extent(1) != 1) {
+      throw pcms_error(
+        "MLSPointEvaluator: only scalar (num_components==1) evaluation is "
+        "supported in this phase");
+    }
+
+    auto device_data = field.GetDOFHolderData();
+    const int n_sources = static_cast<int>(device_data.size());
+
+    Omega_h::Write<Omega_h::Real> src_w(n_sources, "mls_source_values");
+    Kokkos::parallel_for(
+      "CopyDeviceDataToOmegaHWrite", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_sources),
+      KOKKOS_LAMBDA(int i) { src_w[i] = device_data(i); });
+    Omega_h::Reals source_values(src_w);
+
+    auto result = mls_interpolation(
+      source_values, source_coords_, target_coords_, supports_, dim_,
+      static_cast<Omega_h::LO>(options_.degree), options_.basis,
+      options_.lambda, options_.tol, options_.decay_factor);
+
+    const int n_targets = result.size();
+    PCMS_ALWAYS_ASSERT(static_cast<size_t>(n_targets) == values.extent(0));
+    Kokkos::parallel_for(
+      "CopyMLSResultToValues", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_targets),
+      KOKKOS_LAMBDA(int i) { values(i, 0) = result[i]; });
+
   }
 #endif
 

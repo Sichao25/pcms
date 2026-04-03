@@ -167,7 +167,108 @@ public:
   void Evaluate(const Field<Real>& field,
                 Rank2View<Real, DeviceMemorySpace> values) const override
   {
-    throw pcms_error("UniformGridEvaluatorFactory: device evaluation not yet implemented");
+    PCMS_FUNCTION_TIMER;
+    auto dof_data = field.GetDOFHolderData();
+    LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
+    int n_comp = layout_->GetNumComponents();
+
+    PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
+    PCMS_ALWAYS_ASSERT(values.extent(1) == static_cast<size_t>(n_comp));
+    PCMS_ALWAYS_ASSERT(
+      dof_data.size() == static_cast<size_t>(layout_->GetNumOwnedDofHolder() *
+                                             layout_->GetNumComponents()));
+
+    auto cell_indices = Kokkos::View<LO*, DeviceMemorySpace>("cell_indices", num_points);
+    Kokkos::deep_copy(cell_indices, hint_.cell_indices_);
+
+    auto coordinates = Kokkos::View<Real**, DeviceMemorySpace>("coordinates", num_points, Dim);
+    Kokkos::deep_copy(coordinates, hint_.coordinates_);
+    auto is_out_of_bounds = Kokkos::View<bool*, DeviceMemorySpace>("is_out_of_bounds", num_points);
+    Kokkos::deep_copy(is_out_of_bounds, hint_.is_out_of_bounds_);
+
+
+    if (layout_->GetOrder() == 0) {
+      OutOfBoundsMode mode = hint_.mode_;
+      Real fv = fill_value_;
+      Kokkos::parallel_for(
+        "evaluate_order0_device",
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_points, n_comp}),
+        KOKKOS_LAMBDA(const LO i, const int c) {
+          if (is_out_of_bounds(i) && mode == OutOfBoundsMode::FILL) {
+            values(i, c) = fv;
+          } else {
+            LO dof_idx = cell_indices(i);
+            values(i, c) = dof_data[dof_idx * n_comp + c];
+          }
+        });
+      return;
+    }
+
+    // Order-1: multilinear interpolation
+    Kokkos::View<LO**, HostMemorySpace> cell_dim_indices("cell_dim_indices",
+                                                         num_points, Dim);
+    for (LO i = 0; i < num_points; ++i) {
+      auto dim_idx = grid_.GetDimensionedIndex(cell_indices[i]);
+      for (unsigned d = 0; d < Dim; ++d)
+        cell_dim_indices(i, d) = dim_idx[d];
+    }
+
+    auto cell_divisions = grid_.divisions;
+    IntVecView dimensions_view("dimensions", Dim);
+    auto dimensions_host = Kokkos::create_mirror_view(dimensions_view);
+    for (unsigned d = 0; d < Dim; ++d)
+      dimensions_host(d) = cell_divisions[d] + 1;
+    Kokkos::deep_copy(dimensions_view, dimensions_host);
+
+    RealMatView parametric_coords("parametric_coords", num_points, Dim);
+    auto param_host = Kokkos::create_mirror_view(parametric_coords);
+    for (LO i = 0; i < num_points; ++i) {
+      auto cell_bbox = grid_.GetCellBBOX(cell_indices[i]);
+      for (unsigned d = 0; d < Dim; ++d) {
+        Real coord = coordinates(i, d);
+        Real cell_min = cell_bbox.center[d] - cell_bbox.half_width[d];
+        Real cell_max = cell_bbox.center[d] + cell_bbox.half_width[d];
+        param_host(i, d) = (coord - cell_min) / (cell_max - cell_min);
+      }
+    }
+    Kokkos::deep_copy(parametric_coords, param_host);
+
+    IntMatView cell_indices_interp("cell_indices_interp", num_points, Dim);
+    auto cell_idx_host = Kokkos::create_mirror_view(cell_indices_interp);
+    for (LO i = 0; i < num_points; ++i)
+      for (unsigned d = 0; d < Dim; ++d)
+        cell_idx_host(i, d) = cell_dim_indices(i, d);
+    Kokkos::deep_copy(cell_indices_interp, cell_idx_host);
+
+    // n_comp == 1 for now (multi-component path would need per-component calls)
+    PCMS_ALWAYS_ASSERT(
+      n_comp == 1 &&
+      "UniformGridPointEvaluator: multi-component order-1 not yet supported");
+
+    RealVecView values_interp("values_interp",
+                              static_cast<size_t>(dof_data.size()));
+    Kokkos::parallel_for(
+      "copy_dof_data_to_values_interp",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, static_cast<LO>(dof_data.size())),
+      KOKKOS_LAMBDA(const LO i) { values_interp(i) = dof_data[i]; });
+
+
+    auto interpolator = RegularGridInterpolator(
+      parametric_coords, values_interp, cell_indices_interp, dimensions_view);
+    auto interpolated = interpolator.linear_interpolation();
+
+    OutOfBoundsMode mode = hint_.mode_;
+    Real fv = fill_value_;
+    Kokkos::parallel_for(
+      "evaluate_order1_device",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+      KOKKOS_LAMBDA(const LO i) {
+        if (is_out_of_bounds(i) && mode == OutOfBoundsMode::FILL) {
+          values(i, 0) = fv;
+        } else {
+          values(i, 0) = interpolated(i);
+        }
+      });
   }
 #endif
 
@@ -198,14 +299,14 @@ public:
 
   CoordinateSystem GetCoordinateSystem() const override
   {
-    return layout_->GetDOFHolderCoordinates().GetCoordinateSystem();
+    return layout_->GetDOFHolderCoordinatesHost().GetCoordinateSystem();
   }
 
   bool HasDOFHolderCoordinates() const override { return true; }
 
   CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override
   {
-    return layout_->GetDOFHolderCoordinates();
+    return layout_->GetDOFHolderCoordinatesHost();
   }
 
   bool SupportsNearestBoundary() const override { return true; }

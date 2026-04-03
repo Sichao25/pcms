@@ -10,8 +10,8 @@ namespace pcms
 PointCloud::PointCloud(std::shared_ptr<const PointCloudLayout> layout)
   : layout_(std::move(layout)),
     metadata_{},
-    data_("", layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0)),
-    data_host_("", layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0))
+    data_("", layout_->GetDOFHolderCoordinatesHost().GetCoordinates().extent(0)),
+    data_host_("", layout_->GetDOFHolderCoordinatesHost().GetCoordinates().extent(0))
 {
 }
 
@@ -37,19 +37,17 @@ void PointCloud::SetDOFHolderDataHost(
   Kokkos::deep_copy(data_, data_host_);
 }
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-Rank1View<const Real, DeviceMemorySpace> PointCloud::GetDOFHolderDataDevice() const
+Rank1View<const Real, DeviceMemorySpace> PointCloud::GetDOFHolderData() const
 {
   return make_const_array_view(data_);
 }
 
-void PointCloud::SetDOFHolderDataDevice(
+void PointCloud::SetDOFHolderData(
   Rank1View<const Real, DeviceMemorySpace> data)
 {
   PCMS_FUNCTION_TIMER;
   PCMS_ALWAYS_ASSERT(data.size() == data_.size());
   CopyDeviceRank1ViewToDeviceView(data_, data);
 }
-#endif
 
 } // namespace pcms

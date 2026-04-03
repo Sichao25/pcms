@@ -128,7 +128,7 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
   REQUIRE(layout->GetOrder() == 0);
   REQUIRE(layout->GetNumOwnedDofHolder() == 4);
 
-  auto coords = layout->GetDOFHolderCoordinates().GetCoordinates();
+  auto coords = layout->GetDOFHolderCoordinatesHost().GetCoordinates();
   REQUIRE(coords(0, 0) == Catch::Approx(2.5));
   REQUIRE(coords(0, 1) == Catch::Approx(2.5));
   REQUIRE(coords(3, 0) == Catch::Approx(7.5));
@@ -327,7 +327,7 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   interp.Apply(omega_h_field, ug_field);
 
   auto transferred_data = ug_field.GetDOFHolderDataHost();
-  auto ug_coords = ug_factory.GetLayout()->GetDOFHolderCoordinates();
+  auto ug_coords = ug_factory.GetLayout()->GetDOFHolderCoordinatesHost();
   int num_ug_nodes = ug_factory.GetLayout()->GetNumOwnedDofHolder();
 
   for (int i = 0; i < num_ug_nodes; ++i) {
@@ -630,7 +630,7 @@ TEST_CASE("UniformGrid workflow")
 
   pcms::Interpolator<pcms::Real> interp(omega_h_factory, ug_factory);
   interp.Apply(omega_h_field, ug_field);
-  auto ug_coords = ug_factory.GetLayout()->GetDOFHolderCoordinates();
+  auto ug_coords = ug_factory.GetLayout()->GetDOFHolderCoordinatesHost();
 
   auto ug_field_data = ug_field.GetDOFHolderDataHost();
   VerifyUniformGridFieldValues(grid, ug_coords, ug_field_data);

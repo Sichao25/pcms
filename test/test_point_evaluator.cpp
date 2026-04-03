@@ -197,7 +197,7 @@ TEST_CASE("FieldLayout: metadata queries")
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
   auto layout = factory.GetLayout();
 
-  auto coords = layout->GetDOFHolderCoordinates();
+  auto coords = layout->GetDOFHolderCoordinatesHost();
   REQUIRE(coords.GetCoordinateSystem() == CoordinateSystem::Cartesian);
   REQUIRE(coords.GetCoordinates().extent(0) > 0);
   REQUIRE(coords.GetCoordinates().extent(1) == 2);
@@ -218,7 +218,7 @@ TEST_CASE("FieldData: layout metadata queries")
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
   auto field_data = factory.CreateField<Real>();
 
-  auto coords = factory.GetLayout()->GetDOFHolderCoordinates();
+  auto coords = factory.GetLayout()->GetDOFHolderCoordinatesHost();
   REQUIRE(coords.GetCoordinateSystem() == CoordinateSystem::Cartesian);
   REQUIRE(coords.GetCoordinates().extent(0) > 0);
   REQUIRE(coords.GetCoordinates().extent(1) == 2);
@@ -274,7 +274,7 @@ TEST_CASE("FieldLayout: MeshFields metadata queries")
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
   auto layout = factory.GetLayout();
-  auto coords = layout->GetDOFHolderCoordinates();
+  auto coords = layout->GetDOFHolderCoordinatesHost();
   REQUIRE(coords.GetCoordinateSystem() == CoordinateSystem::Cartesian);
   REQUIRE(coords.GetCoordinates().extent(0) > 0);
   REQUIRE(coords.GetCoordinates().extent(1) == 2);

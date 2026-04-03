@@ -45,14 +45,14 @@ public:
 
   CoordinateSystem GetCoordinateSystem() const override
   {
-    return layout_->GetDOFHolderCoordinates().GetCoordinateSystem();
+    return layout_->GetDOFHolderCoordinatesHost().GetCoordinateSystem();
   }
 
   bool HasDOFHolderCoordinates() const override { return true; }
 
   CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override
   {
-    return layout_->GetDOFHolderCoordinates();
+    return layout_->GetDOFHolderCoordinatesHost();
   }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
@@ -80,7 +80,7 @@ public:
     }
 
     // Extract source coordinates for the MLS solve.
-    const auto src_view = layout_->GetDOFHolderCoordinates().GetCoordinates();
+    const auto src_view = layout_->GetDOFHolderCoordinatesHost().GetCoordinates();
     const int dim = layout_->GetDimension();
     Omega_h::Reals source_coords =
       flatten_to_omega_h_reals(src_view, "src_coords");

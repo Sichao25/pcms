@@ -58,20 +58,18 @@ public:
     }
   }
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  Rank1View<const T, DeviceMemorySpace> GetDOFHolderDataDevice() const override
+  Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const override
   {
     CopyHostRank1ViewToDeviceView(device_data_, data_);
     return make_const_array_view(device_data_);
   }
 
-  void SetDOFHolderDataDevice(
+  void SetDOFHolderData(
     Rank1View<const T, DeviceMemorySpace> values) override
   {
     CopyDeviceRank1ViewToDeviceView(device_data_, values);
     CopyRank1ViewToHost(data_, values);
   }
-#endif
 
 private:
   std::shared_ptr<const XGCFieldLayout> layout_;
@@ -79,9 +77,7 @@ private:
   // owned_data_ is non-empty only when the self-allocating constructor is used.
   Kokkos::View<T*, HostMemorySpace> owned_data_;
   Rank1View<T, HostMemorySpace> data_;
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   mutable Kokkos::View<T*, DeviceMemorySpace> device_data_;
-#endif
 };
 
 } // namespace pcms

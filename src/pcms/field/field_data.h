@@ -31,9 +31,9 @@ namespace pcms
 // Contract:
 //   - GetMetadata() describes the stored coefficient data.
 //   - The flattened DOF-holder data ordering must match the layout ordering.
-//   - Views returned by GetDOFHolderDataHost()/GetDOFHolderDataDevice() remain
+//   - Views returned by GetDOFHolderDataHost()/GetDOFHolderData() remain
 //     valid until this FieldData object is mutated or destroyed.
-//   - SetDOFHolderDataHost()/SetDOFHolderDataDevice() replace the entire stored
+//   - SetDOFHolderDataHost()/SetDOFHolderData() replace the entire stored
 //     coefficient array; partial updates are not part of this interface.
 //   - Basic coefficient operations should be expressible from FieldData and
 //     its associated FieldLayout; callers should not need the originating
@@ -57,14 +57,12 @@ public:
   virtual void SetDOFHolderDataHost(
     Rank1View<const T, HostMemorySpace> values) = 0;
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   // The returned view remains valid until the FieldData is mutated or
   // destroyed.
   virtual Rank1View<const T, DeviceMemorySpace>
-  GetDOFHolderDataDevice() const = 0;
-  virtual void SetDOFHolderDataDevice(
+  GetDOFHolderData() const = 0;
+  virtual void SetDOFHolderData(
     Rank1View<const T, DeviceMemorySpace> values) = 0;
-#endif
 
   virtual ~FieldData() noexcept = default;
 };

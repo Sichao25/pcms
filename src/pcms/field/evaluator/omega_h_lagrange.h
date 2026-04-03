@@ -173,8 +173,20 @@ public:
   void Evaluate(const Field<T>& field,
                 Rank2View<T, DeviceMemorySpace> values) const override
   {
-    throw pcms_error(
-      "OmegaHLagrangePointEvaluator: Evaluate with device values not yet implemented");
+    // TODO: rewrite this after switch backend to device-native evaluation
+    auto values_host_view = Kokkos::View<T**, HostMemorySpace>(values.data_handle(), values.extent(0), values.extent(1));
+    auto values_host = Rank2View<T, HostMemorySpace>(values_host_view.data(), values_host_view.extent(0), values_host_view.extent(1));
+    Evaluate(field, values_host);
+    auto values_device_view = Kokkos::View<T**, DeviceMemorySpace>(values.data_handle(), values.extent(0), values.extent(1));
+    Kokkos::deep_copy(values_device_view, values_host_view);
+    Kokkos::parallel_for("CopyHostToDevice", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, values.extent(0)),
+                         KOKKOS_LAMBDA(int i) {
+                           for (int j = 0; j < values.extent(1); ++j) {
+                             values(i, j) = values_host(i, j);
+                           }
+                         });
+
+
 
   }
 #endif
@@ -207,14 +219,14 @@ public:
 
   CoordinateSystem GetCoordinateSystem() const override
   {
-    return layout_->GetDOFHolderCoordinates().GetCoordinateSystem();
+    return layout_->GetDOFHolderCoordinatesHost().GetCoordinateSystem();
   }
 
   bool HasDOFHolderCoordinates() const override { return true; }
 
   CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override
   {
-    return layout_->GetDOFHolderCoordinates();
+    return layout_->GetDOFHolderCoordinatesHost();
   }
 
   bool SupportsNearestBoundary() const override { return false; }

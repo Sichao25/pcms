@@ -83,7 +83,53 @@ public:
   void Evaluate(const Field<T>& field,
                 Rank2View<T, DeviceMemorySpace> values) const override
   {
-    throw pcms_error("MeshFieldsPointEvaluator::Evaluate with device values not yet implemented");
+    // TODO: rewrite this after switch backend to device-native evaluation
+    PCMS_FUNCTION_TIMER;
+    PCMS_ALWAYS_ASSERT(values.extent(0) ==
+                       hint_.coordinates_.extent(0) + hint_.num_missing_);
+    PCMS_ALWAYS_ASSERT(values.extent(1) ==
+                       static_cast<size_t>(layout_->GetNumComponents()));
+    auto const* mesh_field_data =
+      dynamic_cast<const MeshFieldsFieldData<T>*>(&field.GetData());
+    if (!mesh_field_data) {
+      throw pcms_error(
+        "MeshFieldsPointEvaluator::Evaluate: incompatible FieldData type");
+    }
+
+    auto indices_device = Kokkos::View<LO*, DeviceMemorySpace>("indices_device", hint_.indices_.extent(0));
+    Kokkos::deep_copy(indices_device, hint_.indices_);
+    auto missing_indices_device = Kokkos::View<LO*, DeviceMemorySpace>("missing_indices_device", hint_.missing_indices_.extent(0));
+    Kokkos::deep_copy(missing_indices_device, hint_.missing_indices_);
+
+    Kokkos::View<Real**> coordinates_d(
+      "coordinates_d", hint_.coordinates_.extent(0),
+      hint_.coordinates_.extent(1));
+    DeepCopyMismatchLayouts(coordinates_d, hint_.coordinates_);
+
+    Kokkos::View<LO*> offsets_d("offsets_d", hint_.offsets_.extent(0));
+    Kokkos::deep_copy(offsets_d, hint_.offsets_);
+
+    auto eval_results = mesh_field_data->GetMeshFieldBackend()->evaluate(
+      coordinates_d, offsets_d);
+
+    Kokkos::parallel_for(
+      "CopyEvalResultsToValues",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
+        0, eval_results.extent(0)),
+      KOKKOS_LAMBDA(LO i) {
+        values(indices_device(i), 0) = eval_results(i, 0);
+      });
+
+    if (hint_.num_missing_ > 0 && hint_.mode_ == OutOfBoundsMode::FILL) {
+      T fill_val = static_cast<T>(fill_value_);
+      Kokkos::parallel_for(
+        "FillMissingValues",
+        Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
+          0, hint_.num_missing_),
+        KOKKOS_LAMBDA(LO i) {
+          values(missing_indices_device(i), 0) = fill_val;
+        });
+    }
   }
 #endif
 
@@ -120,14 +166,14 @@ public:
 
   CoordinateSystem GetCoordinateSystem() const override
   {
-    return layout_->GetDOFHolderCoordinates().GetCoordinateSystem();
+    return layout_->GetDOFHolderCoordinatesHost().GetCoordinateSystem();
   }
 
   bool HasDOFHolderCoordinates() const override { return true; }
 
   CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override
   {
-    return layout_->GetDOFHolderCoordinates();
+    return layout_->GetDOFHolderCoordinatesHost();
   }
 
   bool SupportsNearestBoundary() const override { return false; }

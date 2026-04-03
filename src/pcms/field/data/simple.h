@@ -29,12 +29,9 @@ public:
     : layout_(std::move(layout)),
       metadata_(metadata),
       data_("simple_field_data",
-            static_cast<size_t>(layout_->OwnedSize()))
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-      ,
+            static_cast<size_t>(layout_->OwnedSize())),
       device_data_("simple_field_data_device",
                    static_cast<size_t>(layout_->OwnedSize()))
-#endif
   {
   }
 
@@ -55,14 +52,13 @@ public:
     }
   }
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  Rank1View<const T, DeviceMemorySpace> GetDOFHolderDataDevice() const override
+  Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const override
   {
     Kokkos::deep_copy(device_data_, data_);
     return make_const_array_view(device_data_);
   }
 
-  void SetDOFHolderDataDevice(
+  void SetDOFHolderData(
     Rank1View<const T, DeviceMemorySpace> values) override
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
@@ -70,15 +66,12 @@ public:
     CopyDeviceRank1ViewToDeviceView(device_data_, values);
     CopyDeviceRank1ViewToHostView(data_, values);
   }
-#endif
 
 private:
   std::shared_ptr<const FieldLayout> layout_;
   FieldMetadata metadata_;
   Kokkos::View<T*, HostMemorySpace> data_;
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   mutable Kokkos::View<T*, DeviceMemorySpace> device_data_;
-#endif
 };
 
 } // namespace pcms

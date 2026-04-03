@@ -179,7 +179,7 @@ static ReversePartitionMap2 BuildReversePartitionMap(
   auto owned = layout.GetOwned();
   auto class_dims = layout.GetDOFHolderClassificationDimensions();
   auto class_ids = layout.GetDOFHolderClassificationIds();
-  auto coords = layout.GetDOFHolderCoordinates().GetCoordinates();
+  auto coords = layout.GetDOFHolderCoordinatesHost().GetCoordinates();
   auto ent_offsets = layout.GetEntOffsets();
   int mesh_dim = static_cast<int>(coords.extent(1));
 

@@ -126,7 +126,107 @@ public:
   void Evaluate(const Field<Real>& field,
                 Rank2View<Real, DeviceMemorySpace> values) const override
   {
-    throw pcms_error("UniformGridSplineEvaluatorFactory2D: device evaluation not yet implemented");
+    LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
+    PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
+    PCMS_ALWAYS_ASSERT(values.extent(1) == 1);
+
+    auto dof_data = field.GetDOFHolderData();
+    LO nx = grid_.divisions[0] + 1;
+    LO ny = grid_.divisions[1] + 1;
+    PCMS_ALWAYS_ASSERT(static_cast<LO>(dof_data.size()) == nx * ny);
+
+    Kokkos::View<Real*, DeviceMemorySpace> spline_values(
+      "uniform_grid_spline_values", static_cast<size_t>(nx * ny));
+    Kokkos::parallel_for(
+      "copy_spline_values_device",
+      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {ny, nx}),
+      KOKKOS_LAMBDA(const LO iy, const LO ix) {
+        spline_values(ix * ny + iy) = dof_data[iy * nx + ix];
+      });
+
+    if (hint_.num_out_of_bounds_ == static_cast<size_t>(num_points) &&
+        hint_.mode_ == OutOfBoundsMode::FILL) {
+      Kokkos::parallel_for(
+        "fill_out_of_bounds_values",
+        Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+        KOKKOS_LAMBDA(LO i) { values(i, 0) = fill_value_; });
+      return;
+    }
+
+    LO num_in_bounds = static_cast<LO>(num_points - hint_.num_out_of_bounds_);
+    Kokkos::View<Real*, DeviceMemorySpace> eval_x("uniform_grid_spline_eval_x",
+                                                num_in_bounds);
+    Kokkos::View<Real*, DeviceMemorySpace> eval_y("uniform_grid_spline_eval_y",
+                                                num_in_bounds);
+    Kokkos::View<LO*, DeviceMemorySpace> in_bounds_indices(
+      "uniform_grid_spline_in_bounds_indices", num_in_bounds);
+
+    auto coordinates_device = Kokkos::View<Real**,
+      DeviceMemorySpace>("uniform_grid_spline_coordinates_device", num_points, 2);
+    Kokkos::deep_copy(coordinates_device, hint_.coordinates_);
+
+    auto is_out_of_bounds_device = Kokkos::View<bool*,
+      DeviceMemorySpace>("uniform_grid_spline_is_out_of_bounds_device", num_points);
+    Kokkos::deep_copy(is_out_of_bounds_device, hint_.is_out_of_bounds_);
+
+    // Stream compaction: filter in-bounds points using parallel_scan
+    Kokkos::parallel_scan(
+      "compact_in_bounds_points",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+      KOKKOS_LAMBDA(const LO i, LO& update, const bool final) {
+        const bool is_in_bounds = !is_out_of_bounds_device(i);
+        if (is_in_bounds && final) {
+          eval_x(update) = coordinates_device(i, 0);
+          eval_y(update) = coordinates_device(i, 1);
+          in_bounds_indices(update) = i;
+        }
+        if (is_in_bounds) {
+          update += 1;
+        }
+      });
+
+    Kokkos::View<Real**, DeviceMemorySpace> spline_output(
+      "uniform_grid_spline_output", num_in_bounds, 1);
+    Kokkos::View<Real*, DeviceMemorySpace> empty_bc(
+      "uniform_grid_spline_empty_bc", 0);
+
+    CompactBiCubicSplineInterpolator<Real, DeviceMemorySpace> interpolator(
+      Rank1View<Real, DeviceMemorySpace>(x_coords_.data(), x_coords_.extent(0)),
+      Rank1View<Real, DeviceMemorySpace>(y_coords_.data(), y_coords_.extent(0)),
+      Rank1View<Real, DeviceMemorySpace>(spline_values.data(),
+                                       spline_values.extent(0)),
+      BoundaryCondition::NOT_A_KNOT,
+      Rank1View<Real, DeviceMemorySpace>(empty_bc.data(), empty_bc.extent(0)),
+      BoundaryCondition::NOT_A_KNOT,
+      Rank1View<Real, DeviceMemorySpace>(empty_bc.data(), empty_bc.extent(0)),
+      BoundaryCondition::NOT_A_KNOT,
+      Rank1View<Real, DeviceMemorySpace>(empty_bc.data(), empty_bc.extent(0)),
+      BoundaryCondition::NOT_A_KNOT,
+      Rank1View<Real, DeviceMemorySpace>(empty_bc.data(), empty_bc.extent(0)));
+    interpolator.evaluate(
+      Rank1View<Real, DeviceMemorySpace>(eval_x.data(), eval_x.extent(0)),
+      Rank1View<Real, DeviceMemorySpace>(eval_y.data(), eval_y.extent(0)),
+      Rank2View<Real, DeviceMemorySpace>(spline_output.data(),
+                                       spline_output.extent(0), 1));
+
+    if (hint_.mode_ == OutOfBoundsMode::FILL) {
+      Kokkos::parallel_for(
+        "fill_out_of_bounds",
+        Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+        KOKKOS_LAMBDA(LO i) {
+          if (hint_.is_out_of_bounds_(i)) {
+            values(i, 0) = fill_value_;
+          }
+        });
+
+    }
+
+    Kokkos::parallel_for(
+      "copy_in_bounds_values",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_in_bounds),
+      KOKKOS_LAMBDA(LO i) {
+        values(in_bounds_indices(i), 0) = spline_output(i, 0);
+      });
   }
 #endif
 
@@ -152,14 +252,14 @@ public:
 
   CoordinateSystem GetCoordinateSystem() const override
   {
-    return layout_->GetDOFHolderCoordinates().GetCoordinateSystem();
+    return layout_->GetDOFHolderCoordinatesHost().GetCoordinateSystem();
   }
 
   bool HasDOFHolderCoordinates() const override { return true; }
 
   CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override
   {
-    return layout_->GetDOFHolderCoordinates();
+    return layout_->GetDOFHolderCoordinatesHost();
   }
 
   bool SupportsNearestBoundary() const override { return false; }
