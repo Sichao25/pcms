@@ -204,15 +204,15 @@ void CopyDeviceRank1ViewToHostView(Kokkos::View<T*, HostMemorySpace> dest,
 
 template <typename T>
 void CopyHostRank1ViewToDeviceView(Kokkos::View<T*, DeviceMemorySpace> dest,
-                                    Rank1View<T, HostMemorySpace> src)
+                                    Rank1View<const T, HostMemorySpace> src)
 {
   if (dest.extent(0) != src.size()) {
     throw pcms_error("CopyHostRank1ViewToDeviceView: size mismatch");
   }
   Kokkos::View<T*, HostMemorySpace> src_tmp("CopyHostRank1ViewToDeviceView_tmp", src.size());
-  Kokkos::parallel_for(
-    "CopyHostRank1ViewToDeviceView", src.size(),
-    KOKKOS_LAMBDA(LO i) { src_tmp(i) = src(i); });
+  for (size_t i = 0; i < src.size(); ++i) {
+    src_tmp(i) = src(i);
+  }
   Kokkos::deep_copy(dest, src_tmp);
 }
 
@@ -235,6 +235,24 @@ void CopyRank1ViewToHost(Rank1View<T, HostMemorySpace> dest,
     dest(i) = src_tmp_h(i);
   }
 
+}
+
+template <typename T>
+void CopyRank1ViewToDevice(Rank1View<T, DeviceMemorySpace> dest,
+                                Rank1View<const T, HostMemorySpace> src)
+{
+  if (dest.size() != src.size()) {
+    throw pcms_error("CopyRank1ViewToDevice: size mismatch");
+  }
+  Kokkos::View<T*, HostMemorySpace> src_tmp("CopyRank1ViewToDevice_tmp", src.size());
+  for (size_t i = 0; i < src.size(); ++i) {
+    src_tmp(i) = src(i);
+  }
+  Kokkos::View<T*, DeviceMemorySpace> src_tmp_d("CopyRank1ViewToDevice_tmp_d", src.size());
+  Kokkos::deep_copy(src_tmp_d, src_tmp);
+  Kokkos::parallel_for("CopyRank1ViewToDevice", src.size(), KOKKOS_LAMBDA(LO i) {
+    dest(i) = src_tmp_d(i);
+  });
 }
 
 

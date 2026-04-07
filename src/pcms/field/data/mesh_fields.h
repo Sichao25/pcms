@@ -23,7 +23,7 @@ public:
     : layout_(std::move(layout)),
       metadata_(metadata),
       mesh_field_(MakeMeshFieldBackend<T>(*layout_)),
-      data_("meshfields_field_data", static_cast<size_t>(layout_->OwnedSize())),
+      host_data_("meshfields_field_data", static_cast<size_t>(layout_->OwnedSize())),
       device_data_("meshfields_field_data_device",
                    static_cast<size_t>(layout_->OwnedSize()))
   {
@@ -37,7 +37,8 @@ public:
 
   Rank1View<const T, HostMemorySpace> GetDOFHolderDataHost() const override
   {
-    return make_const_array_view(data_);
+    Kokkos::deep_copy(host_data_, device_data_);
+    return make_const_array_view(host_data_);
   }
 
   void SetDOFHolderDataHost(
@@ -45,15 +46,12 @@ public:
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
-    for (size_t i = 0; i < values.size(); ++i) {
-      data_(i) = values[i];
-    }
-    SyncBackend(make_const_array_view(data_));
+    CopyHostRank1ViewToDeviceView(device_data_, values);
+    SyncBackend(make_const_array_view(device_data_));
   }
 
   Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const override
   {
-    Kokkos::deep_copy(device_data_, data_);
     return make_const_array_view(device_data_);
   }
 
@@ -63,8 +61,7 @@ public:
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
     CopyDeviceRank1ViewToDeviceView(device_data_, values);
-    CopyDeviceRank1ViewToHostView(data_, values);
-    SyncBackend(make_const_array_view(data_));
+    SyncBackend(make_const_array_view(device_data_));
   }
 
   std::shared_ptr<MeshFieldBackend<T>> GetMeshFieldBackend() const
@@ -73,7 +70,7 @@ public:
   }
 
 private:
-  void SyncBackend(Rank1View<const T, HostMemorySpace> flat)
+  void SyncBackend(Rank1View<const T, DeviceMemorySpace> flat)
   {
     auto nodes_per_dim = layout_->GetNodesPerDim();
     auto num_components = layout_->GetNumComponents();
@@ -84,7 +81,7 @@ private:
         size_t len = static_cast<size_t>(mesh.nents(i)) *
                      static_cast<size_t>(nodes_per_dim[i]) *
                      static_cast<size_t>(num_components);
-        Rank1View<const T, HostMemorySpace> subspan{flat.data_handle() + offset,
+        Rank1View<const T, DeviceMemorySpace> subspan{flat.data_handle() + offset,
                                                     len};
         mesh_field_->SetData(subspan, nodes_per_dim[i], num_components, i);
         offset += len;
@@ -95,8 +92,8 @@ private:
   std::shared_ptr<const MeshFieldsAdapterLayout> layout_;
   FieldMetadata metadata_;
   std::shared_ptr<MeshFieldBackend<T>> mesh_field_;
-  Kokkos::View<T*, HostMemorySpace> data_;
-  mutable Kokkos::View<T*, DeviceMemorySpace> device_data_;
+  mutable Kokkos::View<T*, HostMemorySpace> host_data_;
+  Kokkos::View<T*, DeviceMemorySpace> device_data_;
 };
 
 } // namespace pcms

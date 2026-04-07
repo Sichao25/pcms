@@ -60,7 +60,11 @@ public:
 
   Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const override
   {
-    CopyHostRank1ViewToDeviceView(device_data_, data_);
+    Kokkos::View<T*, HostMemorySpace> host_view("GetDOFHolderData_host_view", data_.size());
+    for (size_t i = 0; i < data_.size(); ++i) {
+      host_view(i) = data_(i);
+    }
+    Kokkos::deep_copy(device_data_, host_view);
     return make_const_array_view(device_data_);
   }
 

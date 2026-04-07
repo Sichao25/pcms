@@ -10,7 +10,7 @@ namespace pcms
 PointCloud::PointCloud(std::shared_ptr<const PointCloudLayout> layout)
   : layout_(std::move(layout)),
     metadata_{},
-    data_("", layout_->GetDOFHolderCoordinatesHost().GetCoordinates().extent(0)),
+    device_data_("", layout_->GetDOFHolderCoordinatesHost().GetCoordinates().extent(0)),
     data_host_("", layout_->GetDOFHolderCoordinatesHost().GetCoordinates().extent(0))
 {
 }
@@ -22,7 +22,7 @@ const FieldMetadata& PointCloud::GetMetadata() const
 
 Rank1View<const Real, HostMemorySpace> PointCloud::GetDOFHolderDataHost() const
 {
-  Kokkos::deep_copy(data_host_, data_);
+  Kokkos::deep_copy(data_host_, device_data_);
   return make_const_array_view(data_host_);
 }
 
@@ -30,24 +30,21 @@ void PointCloud::SetDOFHolderDataHost(
   Rank1View<const Real, HostMemorySpace> data)
 {
   PCMS_FUNCTION_TIMER;
-  PCMS_ALWAYS_ASSERT(data.size() == data_.size());
-  Kokkos::parallel_for(
-    Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, data.size()),
-    KOKKOS_CLASS_LAMBDA(int i) { data_host_(i) = data[i]; });
-  Kokkos::deep_copy(data_, data_host_);
+  PCMS_ALWAYS_ASSERT(data.size() == device_data_.size());
+  CopyHostRank1ViewToDeviceView(device_data_, data);
 }
 
 Rank1View<const Real, DeviceMemorySpace> PointCloud::GetDOFHolderData() const
 {
-  return make_const_array_view(data_);
+  return make_const_array_view(device_data_);
 }
 
 void PointCloud::SetDOFHolderData(
   Rank1View<const Real, DeviceMemorySpace> data)
 {
   PCMS_FUNCTION_TIMER;
-  PCMS_ALWAYS_ASSERT(data.size() == data_.size());
-  CopyDeviceRank1ViewToDeviceView(data_, data);
+  PCMS_ALWAYS_ASSERT(data.size() == device_data_.size());
+  CopyDeviceRank1ViewToDeviceView(device_data_, data);
 }
 
 } // namespace pcms

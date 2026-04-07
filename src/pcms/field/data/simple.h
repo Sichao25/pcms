@@ -28,7 +28,7 @@ public:
                   FieldMetadata metadata)
     : layout_(std::move(layout)),
       metadata_(metadata),
-      data_("simple_field_data",
+      host_data_("simple_field_data",
             static_cast<size_t>(layout_->OwnedSize())),
       device_data_("simple_field_data_device",
                    static_cast<size_t>(layout_->OwnedSize()))
@@ -39,7 +39,8 @@ public:
 
   Rank1View<const T, HostMemorySpace> GetDOFHolderDataHost() const override
   {
-    return make_const_array_view(data_);
+    Kokkos::deep_copy(host_data_, device_data_);
+    return make_const_array_view(host_data_);
   }
 
   void SetDOFHolderDataHost(
@@ -47,14 +48,11 @@ public:
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
-    for (size_t i = 0; i < values.size(); ++i) {
-      data_(i) = values[i];
-    }
+    CopyHostRank1ViewToDeviceView(device_data_, values);
   }
 
   Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const override
   {
-    Kokkos::deep_copy(device_data_, data_);
     return make_const_array_view(device_data_);
   }
 
@@ -64,14 +62,13 @@ public:
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
     CopyDeviceRank1ViewToDeviceView(device_data_, values);
-    CopyDeviceRank1ViewToHostView(data_, values);
   }
 
 private:
   std::shared_ptr<const FieldLayout> layout_;
   FieldMetadata metadata_;
-  Kokkos::View<T*, HostMemorySpace> data_;
-  mutable Kokkos::View<T*, DeviceMemorySpace> device_data_;
+  mutable Kokkos::View<T*, HostMemorySpace> host_data_;
+  Kokkos::View<T*, DeviceMemorySpace> device_data_;
 };
 
 } // namespace pcms

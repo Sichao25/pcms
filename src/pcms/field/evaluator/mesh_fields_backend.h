@@ -28,9 +28,9 @@ public:
   virtual ~MeshFieldBackend() = default;
   virtual Kokkos::View<T* [1]> evaluate(Kokkos::View<T**> localCoords,
                                         Kokkos::View<LO*> offsets) const = 0;
-  virtual void SetData(Rank1View<const T, HostMemorySpace> data,
+  virtual void SetData(Rank1View<const T, DeviceMemorySpace> data,
                        size_t num_nodes, size_t num_components, int dim) = 0;
-  virtual void GetData(Rank1View<T, HostMemorySpace> data, size_t num_nodes,
+  virtual void GetData(Rank1View<T, DeviceMemorySpace> data, size_t num_nodes,
                        size_t num_components, int dim) const = 0;
 };
 
@@ -56,45 +56,36 @@ public:
                                                     shape_field_);
   }
 
-  void SetData(Rank1View<const T, HostMemorySpace> data, size_t num_nodes,
+  void SetData(Rank1View<const T, DeviceMemorySpace> data, size_t num_nodes,
                size_t num_components, int dim) override
   {
     size_t stride = num_nodes * num_components;
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
-    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d("data_d",
-                                                                 data.size());
-    Kokkos::deep_copy(data_d, Kokkos::View<const T*, HostMemorySpace>(
-                                data.data_handle(), data.size()));
     Kokkos::parallel_for(
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
           for (size_t c = 0; c < num_components; ++c) {
             shape_field_(ent, n, c, topo) =
-              data_d[ent * stride + n * num_components + c];
+              data[ent * stride + n * num_components + c];
           }
         }
       });
   }
 
-  void GetData(Rank1View<T, HostMemorySpace> data, size_t num_nodes,
+  void GetData(Rank1View<T, DeviceMemorySpace> data, size_t num_nodes,
                size_t num_components, int dim) const override
   {
     size_t stride = num_nodes * num_components;
     auto topo = static_cast<MeshField::Mesh_Topology>(dim);
-    Kokkos::View<T*, DefaultExecutionSpace::memory_space> data_d("data_d",
-                                                                 data.size());
     Kokkos::parallel_for(
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
           for (size_t c = 0; c < num_components; ++c) {
-            data_d[ent * stride + n * num_components + c] =
+            data[ent * stride + n * num_components + c] =
               shape_field_(ent, n, c, topo);
           }
         }
       });
-    Kokkos::deep_copy(
-      Kokkos::View<T*, HostMemorySpace>(data.data_handle(), data.size()),
-      data_d);
   }
 
 private:
