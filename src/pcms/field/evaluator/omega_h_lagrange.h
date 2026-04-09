@@ -26,10 +26,10 @@ namespace pcms
 // ---------------------------------------------------------------------------
 struct OmegaHLagrangeLocHint
 {
-  Kokkos::View<LO*, HostMemorySpace> elem_ids;      // containing element (valid pts)
-  Kokkos::View<Real**, HostMemorySpace> bary;        // [n_valid x (dim+1)]
-  Kokkos::View<LO*, HostMemorySpace> orig_indices;   // original query index
-  Kokkos::View<LO*, HostMemorySpace> missing_indices;
+  Kokkos::View<LO*, DeviceMemorySpace> elem_ids;      // containing element (valid pts)
+  Kokkos::View<Real**, DeviceMemorySpace> bary;        // [n_valid x (dim+1)]
+  Kokkos::View<LO*, DeviceMemorySpace> orig_indices;   // original query index
+  Kokkos::View<LO*, DeviceMemorySpace> missing_indices;
   OutOfBoundsMode mode;
 };
 
@@ -37,49 +37,82 @@ namespace detail
 {
 
 template <int Dim>
+struct CopyCoordsFunctor
+{
+  Kokkos::View<Real**, DeviceMemorySpace> coords_d;
+  Rank2View<const Real, DeviceMemorySpace> raw_coords;
+  
+  CopyCoordsFunctor(Kokkos::View<Real**, DeviceMemorySpace> coords_d_,
+                    Rank2View<const Real, DeviceMemorySpace> raw_coords_)
+    : coords_d(coords_d_), raw_coords(raw_coords_) {}
+  
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const LO i) const {
+    for (int d = 0; d < Dim; ++d) {
+      coords_d(i, d) = raw_coords(i, d);
+    }
+  }
+};
+
+template <int Dim>
 OmegaHLagrangeLocHint BuildLagrangeLocHint(
   int mesh_dim,
-  Kokkos::View<typename PointLocalizationSearch<Dim>::Result*,
-               HostMemorySpace> results_h,
+  Kokkos::View<typename PointLocalizationSearch<Dim>::Result*, DeviceMemorySpace> results,
   OutOfBoundsMode mode)
 {
-  LO n = static_cast<LO>(results_h.size());
-  std::vector<LO> valid, missing;
-  for (LO i = 0; i < n; ++i) {
-    bool out = (static_cast<int>(results_h(i).dimensionality) != mesh_dim) ||
-               (results_h(i).element_id < 0);
-    if (out)
-      missing.push_back(i);
-    else
-      valid.push_back(i);
-  }
-
-  if (mode == OutOfBoundsMode::ERROR) {
-    PCMS_ALWAYS_ASSERT(missing.empty() && "Points found outside mesh domain");
-  } else if (mode == OutOfBoundsMode::NEAREST_BOUNDARY) {
-    PCMS_ALWAYS_ASSERT(false && "NEAREST_BOUNDARY mode not yet implemented");
-  }
-
-  LO nv = static_cast<LO>(valid.size());
-  LO nm = static_cast<LO>(missing.size());
-
-  Kokkos::View<LO*, HostMemorySpace> elem_ids("elem_ids", nv);
-  Kokkos::View<Real**, HostMemorySpace> bary("bary", nv, mesh_dim + 1);
-  Kokkos::View<LO*, HostMemorySpace> orig_indices("orig_indices", nv);
-  Kokkos::View<LO*, HostMemorySpace> missing_indices("missing_indices", nm);
-
-  for (LO k = 0; k < nv; ++k) {
-    LO i = valid[k];
-    elem_ids(k) = results_h(i).element_id;
-    orig_indices(k) = i;
-    for (int d = 0; d <= mesh_dim; ++d)
-      bary(k, d) = results_h(i).parametric_coords[d];
-  }
-  for (LO k = 0; k < nm; ++k)
-    missing_indices(k) = missing[k];
-
-  return OmegaHLagrangeLocHint{elem_ids, bary, orig_indices, missing_indices,
-                                mode};
+  LO n = static_cast<LO>(results.size());
+  
+  // First pass: count valid and missing
+  Kokkos::View<int*, DeviceMemorySpace> is_valid("is_valid", n);
+  Kokkos::parallel_for("CheckValidity", Kokkos::RangePolicy<typename DeviceMemorySpace::execution_space>(0, n), 
+                       KOKKOS_LAMBDA(LO i) {
+    bool out = (static_cast<int>(results(i).dimensionality) != mesh_dim) ||
+               (results(i).element_id < 0);
+    is_valid(i) = out ? 0 : 1;
+  });
+  
+  // Exclusive scan to get compaction indices
+  Kokkos::View<LO*, DeviceMemorySpace> valid_offsets("valid_offsets", n);
+  LO nv;
+  Kokkos::parallel_scan("ScanValid", Kokkos::RangePolicy<typename DeviceMemorySpace::execution_space>(0, n), 
+                        KOKKOS_LAMBDA(const LO i, LO& update, const bool final) {
+    const LO val = is_valid(i);
+    if (final && val) valid_offsets(i) = update;
+    update += val;
+  }, nv);
+  
+  LO nm = n - nv;
+  
+  // Allocate output arrays
+  Kokkos::View<LO*, DeviceMemorySpace> elem_ids("elem_ids", nv);
+  Kokkos::View<Real**, DeviceMemorySpace> bary("bary", nv, mesh_dim + 1);
+  Kokkos::View<LO*, DeviceMemorySpace> orig_indices("orig_indices", nv);
+  Kokkos::View<LO*, DeviceMemorySpace> missing_indices("missing_indices", nm);
+  
+  // Compact valid and missing separately
+  Kokkos::View<LO*, DeviceMemorySpace> missing_offsets("missing_offsets", n);
+  Kokkos::parallel_scan("ScanMissing", Kokkos::RangePolicy<typename DeviceMemorySpace::execution_space>(0, n), 
+                        KOKKOS_LAMBDA(const LO i, LO& update, const bool final) {
+    const LO val = 1 - is_valid(i);
+    if (final && val) missing_offsets(i) = update;
+    update += val;
+  });
+  
+  Kokkos::parallel_for("CompactData", Kokkos::RangePolicy<typename DeviceMemorySpace::execution_space>(0, n), 
+                       KOKKOS_LAMBDA(LO i) {
+    if (is_valid(i)) {
+      LO k = valid_offsets(i);
+      elem_ids(k) = results(i).element_id;
+      orig_indices(k) = i;
+      for (int d = 0; d <= mesh_dim; ++d)
+        bary(k, d) = results(i).parametric_coords[d];
+    } else {
+      LO k = missing_offsets(i);
+      missing_indices(k) = i;
+    }
+  });
+  
+  return OmegaHLagrangeLocHint{elem_ids, bary, orig_indices, missing_indices, mode};
 }
 
 inline std::variant<GridPointSearch2D, GridPointSearch3D> MakeSearch(
@@ -121,73 +154,79 @@ public:
   void Evaluate(const Field<T>& field,
                 Rank2View<T, HostMemorySpace> values) const override
   {
-    PCMS_FUNCTION_TIMER;
-    auto dof_data = field.GetDOFHolderDataHost();
-    LO n_valid = static_cast<LO>(hint_.elem_ids.size());
-    int n_comp = layout_->GetNumComponents();
-
-    PCMS_ALWAYS_ASSERT(values.extent(1) == static_cast<size_t>(n_comp));
-
-    if (layout_->GetOrder() == 0) {
-      for (LO k = 0; k < n_valid; ++k) {
-        LO orig = hint_.orig_indices(k);
-        LO elem = hint_.elem_ids(k);
-        for (int c = 0; c < n_comp; ++c) {
-          values(orig, c) = dof_data[elem * n_comp + c];
-        }
-      }
-    } else {
-      // Order-1: barycentric interpolation over element vertices
-      Omega_h::Mesh& mesh = const_cast<Omega_h::Mesh&>(layout_->GetMesh());
-      int mesh_dim = mesh.dim();
-      int nvpe = mesh_dim + 1;
-      auto elem_verts = Omega_h::HostRead<Omega_h::LO>(mesh.ask_elem_verts());
-
-      for (LO k = 0; k < n_valid; ++k) {
-        LO orig = hint_.orig_indices(k);
-        LO elem = hint_.elem_ids(k);
-        for (int c = 0; c < n_comp; ++c) {
-          T val = T{};
-          for (int v = 0; v < nvpe; ++v) {
-            LO vert = elem_verts[elem * nvpe + v];
-            val +=
-              static_cast<T>(hint_.bary(k, v)) * dof_data[vert * n_comp + c];
-          }
-          values(orig, c) = val;
-        }
-      }
-    }
-
-    if (hint_.mode == OutOfBoundsMode::FILL) {
-      T fill_val = static_cast<T>(fill_value_);
-      for (LO k = 0; k < static_cast<LO>(hint_.missing_indices.size()); ++k) {
-        LO orig = hint_.missing_indices(k);
-        for (int c = 0; c < n_comp; ++c) {
-          values(orig, c) = fill_val;
-        }
-      }
-    }
+    auto values_device_view = Kokkos::View<T**, DeviceMemorySpace>("values_device_view", values.extent(0), values.extent(1));
+    auto values_device = Rank2View<T, DeviceMemorySpace>(values_device_view.data(), values_device_view.extent(0), values_device_view.extent(1));
+    Evaluate(field, values_device);
+    auto values_host_view = Kokkos::View<T**, HostMemorySpace>("values_host_view", values.extent(0), values.extent(1));
+    DeepCopyMismatchLayouts(values_host_view, values_device_view);
+    Kokkos::parallel_for("CopyDeviceToHost", Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, values.extent(0)),
+                         KOKKOS_LAMBDA(int i) {
+                           for (int j = 0; j < values.extent(1); ++j) {
+                             values(i, j) = values_host_view(i, j);
+                           }
+                         });
   }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   void Evaluate(const Field<T>& field,
                 Rank2View<T, DeviceMemorySpace> values) const override
   {
-    // TODO: rewrite this after switch backend to device-native evaluation
-    auto values_host_view = Kokkos::View<T**, HostMemorySpace>(values.data_handle(), values.extent(0), values.extent(1));
-    auto values_host = Rank2View<T, HostMemorySpace>(values_host_view.data(), values_host_view.extent(0), values_host_view.extent(1));
-    Evaluate(field, values_host);
-    auto values_device_view = Kokkos::View<T**, DeviceMemorySpace>(values.data_handle(), values.extent(0), values.extent(1));
-    Kokkos::deep_copy(values_device_view, values_host_view);
-    Kokkos::parallel_for("CopyHostToDevice", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, values.extent(0)),
-                         KOKKOS_LAMBDA(int i) {
-                           for (int j = 0; j < values.extent(1); ++j) {
-                             values(i, j) = values_host(i, j);
-                           }
-                         });
+    PCMS_FUNCTION_TIMER;
+    auto dof_data = field.GetDOFHolderData();
+    LO n_valid = static_cast<LO>(hint_.elem_ids.size());
+    int n_comp = layout_->GetNumComponents();
 
+    PCMS_ALWAYS_ASSERT(values.extent(1) == static_cast<size_t>(n_comp));
 
+    if (layout_->GetOrder() == 0) {
+      Kokkos::parallel_for("OmegaHLagrangePointEvaluator::EvaluateOrder0",
+                           Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_valid),
+                           KOKKOS_LAMBDA(LO k) {
+                             LO orig = hint_.orig_indices(k);
+                             LO elem = hint_.elem_ids(k);
+                             for (int c = 0; c < n_comp; ++c) {
+                               values(orig, c) = dof_data[elem * n_comp + c];
+                             }
+                           });
 
+    } else {
+      // Order-1: barycentric interpolation over element vertices
+      Omega_h::Mesh& mesh = const_cast<Omega_h::Mesh&>(layout_->GetMesh());
+      int mesh_dim = mesh.dim();
+      int nvpe = mesh_dim + 1;
+      auto elem_verts = mesh.ask_elem_verts();
+
+      Kokkos::parallel_for("OmegaHLagrangePointEvaluator::EvaluateOrder1",
+                           Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_valid),
+                           KOKKOS_LAMBDA(LO k) {
+                             LO orig = hint_.orig_indices(k);
+                             LO elem = hint_.elem_ids(k);
+                             for (int c = 0; c < n_comp; ++c) {
+                               T val = T{};
+                               for (int v = 0; v < nvpe; ++v) {
+                                 LO vert = elem_verts[elem * nvpe + v];
+                                 val +=
+                                   static_cast<T>(hint_.bary(k, v)) *
+                                   dof_data[vert * n_comp + c];
+                               }
+                               values(orig, c) = val;
+                             }
+                           });
+
+    }
+
+    if (hint_.mode == OutOfBoundsMode::FILL) {
+      T fill_val = static_cast<T>(fill_value_);
+      Kokkos::parallel_for("OmegaHLagrangePointEvaluator::FillOutOfBounds",
+                           Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0,
+                                                                 static_cast<LO>(hint_.missing_indices.size())),
+                           KOKKOS_LAMBDA(LO k) {
+                             LO orig = hint_.missing_indices(k);
+                             for (int c = 0; c < n_comp; ++c) {
+                               values(orig, c) = fill_val;
+                             }
+                           });
+    }
   }
 #endif
 
@@ -261,12 +300,8 @@ public:
         DeepCopyMismatchLayouts(coords_d, coords_h);
 
         auto results_d = search(coords_d);
-        Kokkos::View<typename PointLocalizationSearch<Dim>::Result*,
-                     HostMemorySpace>
-          results_h("results_h", results_d.size());
-        Kokkos::deep_copy(results_h, results_d);
 
-        return detail::BuildLagrangeLocHint<Dim>(mesh_dim, results_h,
+        return detail::BuildLagrangeLocHint<Dim>(mesh_dim, results_d,
                                                  policy.mode);
       },
       search_);
@@ -278,16 +313,44 @@ public:
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
   {
-    throw pcms_error(
-      "OmegaHLagrangeEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+    return layout_->GetDOFHolderCoordinates();
   }
 
   std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
     CoordinateView<DeviceMemorySpace> coords,
     OutOfBoundsPolicy policy = {}) const override
   {
-    throw pcms_error(
-      "OmegaHLagrangeEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+    PCMS_FUNCTION_TIMER;;
+    if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
+      throw pcms_error(
+        "OmegaHLagrangeEvaluatorFactory: coordinate system mismatch");
+    }
+    if (policy.mode == OutOfBoundsMode::NEAREST_BOUNDARY) {
+      throw pcms_error(
+        "OmegaHLagrangeEvaluatorFactory: NearestBoundary is not supported");
+    }
+
+    auto raw_coords = coords.GetCoordinates();
+    LO n_pts = static_cast<LO>(raw_coords.extent(0));
+    int mesh_dim = layout_->GetMesh().dim();
+
+    OmegaHLagrangeLocHint hint = std::visit(
+      [&](auto& search) {
+        using SearchT = std::decay_t<decltype(search)>;
+        constexpr int Dim = SearchT::DIM;
+        Kokkos::View<Real**, DeviceMemorySpace> coords_d("coords_d", raw_coords.extent(0), raw_coords.extent(1));
+        
+        detail::CopyCoordsFunctor<Dim> copy_functor(coords_d, raw_coords);
+        Kokkos::parallel_for("copy_coords", n_pts, copy_functor);
+
+        auto results_d = search(coords_d);
+        return detail::BuildLagrangeLocHint<Dim>(mesh_dim, results_d,
+                                                 policy.mode);
+      },
+      search_);
+
+    return std::make_unique<OmegaHLagrangePointEvaluator<T>>(
+      layout_, std::move(hint), policy.fill_value);
   }
 #endif
 

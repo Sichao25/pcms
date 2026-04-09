@@ -44,14 +44,14 @@ public:
         "supported in this phase");
     }
 
-    auto host_data = field.GetDOFHolderDataHost();
-    const int n_sources = static_cast<int>(host_data.size());
+    auto device_data = field.GetDOFHolderData();
+    const int n_sources = static_cast<int>(device_data.size());
 
-    // Convert flat host view to Omega_h::Reals
-    Omega_h::HostWrite<Omega_h::Real> src_hw(n_sources, "mls_source_values");
-    for (int i = 0; i < n_sources; ++i)
-      src_hw[i] = host_data[i];
-    Omega_h::Reals source_values(src_hw);
+    Omega_h::Write<Omega_h::Real> src_w(n_sources, "mls_source_values");
+    Kokkos::parallel_for(
+      "CopyDeviceDataToOmegaHWrite", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_sources),
+      KOKKOS_LAMBDA(int i) { src_w[i] = device_data(i); });
+    Omega_h::Reals source_values(src_w);
 
     auto result = mls_interpolation(
       source_values, source_coords_, target_coords_, supports_, dim_,

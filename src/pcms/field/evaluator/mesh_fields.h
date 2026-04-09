@@ -33,57 +33,23 @@ public:
   void Evaluate(const Field<T>& field,
                 Rank2View<T, HostMemorySpace> values) const override
   {
-    PCMS_FUNCTION_TIMER;
-    PCMS_ALWAYS_ASSERT(values.extent(0) ==
-                       hint_.coordinates_.extent(0) + hint_.num_missing_);
-    PCMS_ALWAYS_ASSERT(values.extent(1) ==
-                       static_cast<size_t>(layout_->GetNumComponents()));
-    auto const* mesh_field_data =
-      dynamic_cast<const MeshFieldsFieldData<T>*>(&field.GetData());
-    if (!mesh_field_data) {
-      throw pcms_error(
-        "MeshFieldsPointEvaluator::Evaluate: incompatible FieldData type");
-    }
-
-    Kokkos::View<Real**> coordinates_d(
-      "coordinates_d", hint_.coordinates_.extent(0),
-      hint_.coordinates_.extent(1));
-    DeepCopyMismatchLayouts(coordinates_d, hint_.coordinates_);
-
-    Kokkos::View<LO*> offsets_d("offsets_d", hint_.offsets_.extent(0));
-    Kokkos::deep_copy(offsets_d, hint_.offsets_);
-
-    auto eval_results = mesh_field_data->GetMeshFieldBackend()->evaluate(
-      coordinates_d, offsets_d);
-    Kokkos::View<T**, HostMemorySpace> eval_results_h(
-      "eval_results_h", eval_results.extent(0), eval_results.extent(1));
-    DeepCopyMismatchLayouts(eval_results_h, eval_results);
-
-    Kokkos::parallel_for(
-      "CopyEvalResultsToValues",
-      Kokkos::RangePolicy<HostMemorySpace::execution_space>(
-        0, eval_results_h.extent(0)),
-      KOKKOS_LAMBDA(LO i) {
-        values(hint_.indices_(i), 0) = eval_results_h(i, 0);
-      });
-
-    if (hint_.num_missing_ > 0 && hint_.mode_ == OutOfBoundsMode::FILL) {
-      T fill_val = static_cast<T>(fill_value_);
-      Kokkos::parallel_for(
-        "FillMissingValues",
-        Kokkos::RangePolicy<HostMemorySpace::execution_space>(
-          0, hint_.num_missing_),
-        KOKKOS_LAMBDA(LO i) {
-          values(hint_.missing_indices_(i), 0) = fill_val;
-        });
-    }
+    auto values_device_view = Kokkos::View<T**, DeviceMemorySpace>("values_device_view", values.extent(0), values.extent(1));
+    auto values_device = Rank2View<T, DeviceMemorySpace>(values_device_view.data(), values_device_view.extent(0), values_device_view.extent(1));
+    Evaluate(field, values_device);
+    auto values_host_view = Kokkos::View<T**, HostMemorySpace>("values_host_view", values.extent(0), values.extent(1));
+    DeepCopyMismatchLayouts(values_host_view, values_device_view);
+    Kokkos::parallel_for("CopyDeviceToHost", Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, values.extent(0)),
+                         KOKKOS_LAMBDA(int i) {
+                           for (int j = 0; j < values.extent(1); ++j) {
+                             values(i, j) = values_host_view(i, j);
+                           }
+                         });
   }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   void Evaluate(const Field<T>& field,
                 Rank2View<T, DeviceMemorySpace> values) const override
   {
-    // TODO: rewrite this after switch backend to device-native evaluation
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(values.extent(0) ==
                        hint_.coordinates_.extent(0) + hint_.num_missing_);
@@ -96,28 +62,17 @@ public:
         "MeshFieldsPointEvaluator::Evaluate: incompatible FieldData type");
     }
 
-    auto indices_device = Kokkos::View<LO*, DeviceMemorySpace>("indices_device", hint_.indices_.extent(0));
-    Kokkos::deep_copy(indices_device, hint_.indices_);
-    auto missing_indices_device = Kokkos::View<LO*, DeviceMemorySpace>("missing_indices_device", hint_.missing_indices_.extent(0));
-    Kokkos::deep_copy(missing_indices_device, hint_.missing_indices_);
-
-    Kokkos::View<Real**> coordinates_d(
-      "coordinates_d", hint_.coordinates_.extent(0),
-      hint_.coordinates_.extent(1));
-    DeepCopyMismatchLayouts(coordinates_d, hint_.coordinates_);
-
-    Kokkos::View<LO*> offsets_d("offsets_d", hint_.offsets_.extent(0));
-    Kokkos::deep_copy(offsets_d, hint_.offsets_);
-
+    // Use device views directly from hint (no copy needed)
     auto eval_results = mesh_field_data->GetMeshFieldBackend()->evaluate(
-      coordinates_d, offsets_d);
+      hint_.coordinates_d_, hint_.offsets_d_);
 
+    // Scatter results directly on device (no host copy)
     Kokkos::parallel_for(
       "CopyEvalResultsToValues",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
         0, eval_results.extent(0)),
       KOKKOS_LAMBDA(LO i) {
-        values(indices_device(i), 0) = eval_results(i, 0);
+        values(hint_.indices_d_(i), 0) = eval_results(i, 0);
       });
 
     if (hint_.num_missing_ > 0 && hint_.mode_ == OutOfBoundsMode::FILL) {
@@ -127,7 +82,7 @@ public:
         Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
           0, hint_.num_missing_),
         KOKKOS_LAMBDA(LO i) {
-          values(missing_indices_device(i), 0) = fill_val;
+          values(hint_.missing_indices_d_(i), 0) = fill_val;
         });
     }
   }
@@ -201,11 +156,7 @@ public:
     DeepCopyMismatchLayouts(coords_d, coords_h);
 
     auto results = search_(coords_d);
-    Kokkos::View<GridPointSearch2D::Result*, HostMemorySpace> results_h(
-      "results_h", results.size());
-    Kokkos::deep_copy(results_h, results);
-
-    MeshFieldsAdapter2LocalizationHint hint(mesh_, results_h, policy.mode);
+    MeshFieldsAdapter2LocalizationHint hint(mesh_, results, policy.mode);
 
     return std::make_unique<MeshFieldsPointEvaluator<T>>(
       layout_, std::move(hint), policy.fill_value);
@@ -214,16 +165,38 @@ public:
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
   {
-    throw pcms_error(
-      "MeshFieldsEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+    return layout_->GetDOFHolderCoordinates();
   }
 
   std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
     CoordinateView<DeviceMemorySpace> coords,
     OutOfBoundsPolicy policy = {}) const override
   {
-    throw pcms_error(
-      "MeshFieldsEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+    PCMS_FUNCTION_TIMER;
+    if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
+      throw pcms_error(
+        "MeshFieldsEvaluatorFactory: coordinate system mismatch");
+    }
+    if (policy.mode == OutOfBoundsMode::NEAREST_BOUNDARY) {
+      throw pcms_error(
+        "MeshFieldsEvaluatorFactory: NearestBoundary is not supported");
+    }
+
+    auto coordinates = coords.GetCoordinates();
+    Kokkos::View<Real* [2], DeviceMemorySpace> coords_search(
+      "coords_search", coordinates.extent(0));
+    Kokkos::parallel_for(
+      "copy_coords", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, coordinates.extent(0)),
+      KOKKOS_LAMBDA(const int i) {
+        coords_search(i, 0) = coordinates(i, 0);
+        coords_search(i, 1) = coordinates(i, 1);
+      });
+    auto results = search_(coords_search);
+
+    MeshFieldsAdapter2LocalizationHint hint(mesh_, results, policy.mode);
+
+    return std::make_unique<MeshFieldsPointEvaluator<T>>(
+      layout_, std::move(hint), policy.fill_value);
   }
 #endif
 

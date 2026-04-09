@@ -42,84 +42,17 @@ public:
   void Evaluate(const Field<Real>& field,
                 Rank2View<Real, HostMemorySpace> values) const override
   {
-    LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
-    PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
-    PCMS_ALWAYS_ASSERT(values.extent(1) == 1);
-
-    auto dof_data = field.GetDOFHolderDataHost();
-    LO nx = grid_.divisions[0] + 1;
-    LO ny = grid_.divisions[1] + 1;
-    PCMS_ALWAYS_ASSERT(static_cast<LO>(dof_data.size()) == nx * ny);
-
-    Kokkos::View<Real*, HostMemorySpace> spline_values(
-      "uniform_grid_spline_values", static_cast<size_t>(nx * ny));
-    for (LO iy = 0; iy < ny; ++iy) {
-      for (LO ix = 0; ix < nx; ++ix) {
-        spline_values(ix * ny + iy) = dof_data[iy * nx + ix];
-      }
-    }
-
-    if (hint_.num_out_of_bounds_ == static_cast<size_t>(num_points) &&
-        hint_.mode_ == OutOfBoundsMode::FILL) {
-      for (LO i = 0; i < num_points; ++i) {
-        values(i, 0) = fill_value_;
-      }
-      return;
-    }
-
-    LO num_in_bounds = static_cast<LO>(num_points - hint_.num_out_of_bounds_);
-    Kokkos::View<Real*, HostMemorySpace> eval_x("uniform_grid_spline_eval_x",
-                                                num_in_bounds);
-    Kokkos::View<Real*, HostMemorySpace> eval_y("uniform_grid_spline_eval_y",
-                                                num_in_bounds);
-    Kokkos::View<LO*, HostMemorySpace> in_bounds_indices(
-      "uniform_grid_spline_in_bounds_indices", num_in_bounds);
-
-    LO in_bounds_idx = 0;
-    for (LO i = 0; i < num_points; ++i) {
-      if (hint_.is_out_of_bounds_[i]) {
-        continue;
-      }
-      eval_x(in_bounds_idx) = hint_.coordinates_(i, 0);
-      eval_y(in_bounds_idx) = hint_.coordinates_(i, 1);
-      in_bounds_indices(in_bounds_idx) = i;
-      ++in_bounds_idx;
-    }
-    PCMS_ALWAYS_ASSERT(in_bounds_idx == num_in_bounds);
-
-    Kokkos::View<Real**, HostMemorySpace> spline_output(
-      "uniform_grid_spline_output", num_in_bounds, 1);
-    Kokkos::View<Real*, HostMemorySpace> empty_bc(
-      "uniform_grid_spline_empty_bc", 0);
-
-    CompactBiCubicSplineInterpolator<Real, HostMemorySpace> interpolator(
-      Rank1View<Real, HostMemorySpace>(x_coords_.data(), x_coords_.extent(0)),
-      Rank1View<Real, HostMemorySpace>(y_coords_.data(), y_coords_.extent(0)),
-      Rank1View<Real, HostMemorySpace>(spline_values.data(),
-                                       spline_values.extent(0)),
-      BoundaryCondition::NOT_A_KNOT,
-      Rank1View<Real, HostMemorySpace>(empty_bc.data(), empty_bc.extent(0)),
-      BoundaryCondition::NOT_A_KNOT,
-      Rank1View<Real, HostMemorySpace>(empty_bc.data(), empty_bc.extent(0)),
-      BoundaryCondition::NOT_A_KNOT,
-      Rank1View<Real, HostMemorySpace>(empty_bc.data(), empty_bc.extent(0)),
-      BoundaryCondition::NOT_A_KNOT,
-      Rank1View<Real, HostMemorySpace>(empty_bc.data(), empty_bc.extent(0)));
-    interpolator.evaluate(
-      Rank1View<Real, HostMemorySpace>(eval_x.data(), eval_x.extent(0)),
-      Rank1View<Real, HostMemorySpace>(eval_y.data(), eval_y.extent(0)),
-      Rank2View<Real, HostMemorySpace>(spline_output.data(),
-                                       spline_output.extent(0), 1));
-
-    if (hint_.mode_ == OutOfBoundsMode::FILL) {
-      for (LO i = 0; i < num_points; ++i) {
-        values(i, 0) = hint_.is_out_of_bounds_[i] ? fill_value_ : 0.0;
-      }
-    }
-
-    for (LO i = 0; i < num_in_bounds; ++i) {
-      values(in_bounds_indices(i), 0) = spline_output(i, 0);
-    }
+    auto values_device_view = Kokkos::View<Real**, DeviceMemorySpace>("values_device_view", values.extent(0), values.extent(1));
+    auto values_device = Rank2View<Real, DeviceMemorySpace>(values_device_view.data(), values_device_view.extent(0), values_device_view.extent(1));
+    Evaluate(field, values_device);
+    auto values_host_view = Kokkos::View<Real**, HostMemorySpace>("values_host_view", values.extent(0), values.extent(1));
+    DeepCopyMismatchLayouts(values_host_view, values_device_view);
+    Kokkos::parallel_for("CopyDeviceToHost", Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, values.extent(0)),
+                         KOKKOS_LAMBDA(int i) {
+                           for (int j = 0; j < values.extent(1); ++j) {
+                             values(i, j) = values_host_view(i, j);
+                           }
+                         });
   }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
@@ -163,7 +96,7 @@ public:
 
     auto coordinates_device = Kokkos::View<Real**,
       DeviceMemorySpace>("uniform_grid_spline_coordinates_device", num_points, 2);
-    Kokkos::deep_copy(coordinates_device, hint_.coordinates_);
+    DeepCopyMismatchLayouts(coordinates_device, hint_.coordinates_);
 
     auto is_out_of_bounds_device = Kokkos::View<bool*,
       DeviceMemorySpace>("uniform_grid_spline_is_out_of_bounds_device", num_points);

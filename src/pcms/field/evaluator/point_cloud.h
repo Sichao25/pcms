@@ -58,8 +58,7 @@ public:
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
   {
-    throw pcms_error(
-      "PointCloudEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+    return layout_->GetDOFHolderCoordinates();
   }
 #endif
 
@@ -113,8 +112,44 @@ public:
     CoordinateView<DeviceMemorySpace> coords,
     OutOfBoundsPolicy policy = {}) const override
   {
-    throw pcms_error(
-      "PointCloudEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+    // comment out to see if we can utilize Evaluation Request from the device side
+    // if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
+    //   throw pcms_error(
+    //     "PointCloudEvaluatorFactory: coordinate system mismatch");
+    // }
+    // if (GetCoordinateSystem() != CoordinateSystem::Cartesian) {
+    //   throw pcms_error(
+    //     "PointCloudEvaluatorFactory: only Cartesian coordinates are "
+    //     "supported for MLS point-cloud evaluation");
+    // }
+
+    // // Extract source coordinates for the MLS solve.
+    // const auto src_view = layout_->GetDOFHolderCoordinates().GetCoordinates();
+    // const int dim = layout_->GetDimension();
+    // Omega_h::Reals source_coords =
+    //   flatten_to_omega_h_reals(src_view, "src_coords");
+
+    // // Extract target coordinates for the MLS solve.
+    // const auto tgt_view = coords.GetCoordinates();
+    // PCMS_ALWAYS_ASSERT(static_cast<int>(tgt_view.extent(1)) == dim);
+    // Omega_h::Reals target_coords_oh =
+    //   flatten_to_omega_h_reals(tgt_view, "tgt_coords");
+
+    // SupportResults supports;
+    // auto path =
+    //   detail::SelectLocalizationPath(*layout_, request.GetQueryLayout());
+    // if (path == detail::LocalizationPath::CentroidToVertexAdjacencySearch) {
+    //   auto* adjacency =
+    //     dynamic_cast<const AdjacencyLocalizationFactory*>(localization_.get());
+    //   PCMS_ALWAYS_ASSERT(adjacency != nullptr);
+    //   supports = adjacency->BuildSameMeshCentroidToVertex();
+    // } else {
+    //   supports = localization_->Build(coords);
+    // }
+
+    // return std::make_unique<MLSPointEvaluator>(
+    //   std::move(source_coords), std::move(target_coords_oh),
+    //   std::move(supports), dim, options_);
   }
 #endif
 

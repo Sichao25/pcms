@@ -71,96 +71,17 @@ public:
   void Evaluate(const Field<Real>& field,
                 Rank2View<Real, HostMemorySpace> values) const override
   {
-    PCMS_FUNCTION_TIMER;
-    auto dof_data = field.GetDOFHolderDataHost();
-    LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
-    int n_comp = layout_->GetNumComponents();
-
-    PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
-    PCMS_ALWAYS_ASSERT(values.extent(1) == static_cast<size_t>(n_comp));
-    PCMS_ALWAYS_ASSERT(
-      dof_data.size() == static_cast<size_t>(layout_->GetNumOwnedDofHolder() *
-                                             layout_->GetNumComponents()));
-
-    auto cell_indices = hint_.cell_indices_;
-    auto coordinates = hint_.coordinates_;
-
-    if (layout_->GetOrder() == 0) {
-      for (LO i = 0; i < num_points; ++i) {
-        if (hint_.is_out_of_bounds_[i] &&
-            hint_.mode_ == OutOfBoundsMode::FILL) {
-          for (int c = 0; c < n_comp; ++c)
-            values(i, c) = static_cast<Real>(fill_value_);
-        } else {
-          LO dof_idx = cell_indices[i]; // order-0: one dof per cell
-          for (int c = 0; c < n_comp; ++c)
-            values(i, c) = dof_data[dof_idx * n_comp + c];
-        }
-      }
-      return;
-    }
-
-    // Order-1: multilinear interpolation
-    Kokkos::View<LO**, HostMemorySpace> cell_dim_indices("cell_dim_indices",
-                                                         num_points, Dim);
-    for (LO i = 0; i < num_points; ++i) {
-      auto dim_idx = grid_.GetDimensionedIndex(cell_indices[i]);
-      for (unsigned d = 0; d < Dim; ++d)
-        cell_dim_indices(i, d) = dim_idx[d];
-    }
-
-    auto cell_divisions = grid_.divisions;
-    IntVecView dimensions_view("dimensions", Dim);
-    auto dimensions_host = Kokkos::create_mirror_view(dimensions_view);
-    for (unsigned d = 0; d < Dim; ++d)
-      dimensions_host(d) = cell_divisions[d] + 1;
-    Kokkos::deep_copy(dimensions_view, dimensions_host);
-
-    RealMatView parametric_coords("parametric_coords", num_points, Dim);
-    auto param_host = Kokkos::create_mirror_view(parametric_coords);
-    for (LO i = 0; i < num_points; ++i) {
-      auto cell_bbox = grid_.GetCellBBOX(cell_indices[i]);
-      for (unsigned d = 0; d < Dim; ++d) {
-        Real coord = coordinates(i, d);
-        Real cell_min = cell_bbox.center[d] - cell_bbox.half_width[d];
-        Real cell_max = cell_bbox.center[d] + cell_bbox.half_width[d];
-        param_host(i, d) = (coord - cell_min) / (cell_max - cell_min);
-      }
-    }
-    Kokkos::deep_copy(parametric_coords, param_host);
-
-    IntMatView cell_indices_interp("cell_indices_interp", num_points, Dim);
-    auto cell_idx_host = Kokkos::create_mirror_view(cell_indices_interp);
-    for (LO i = 0; i < num_points; ++i)
-      for (unsigned d = 0; d < Dim; ++d)
-        cell_idx_host(i, d) = cell_dim_indices(i, d);
-    Kokkos::deep_copy(cell_indices_interp, cell_idx_host);
-
-    // n_comp == 1 for now (multi-component path would need per-component calls)
-    PCMS_ALWAYS_ASSERT(
-      n_comp == 1 &&
-      "UniformGridPointEvaluator: multi-component order-1 not yet supported");
-
-    RealVecView values_interp("values_interp",
-                              static_cast<size_t>(dof_data.size()));
-    auto values_interp_host = Kokkos::create_mirror_view(values_interp);
-    for (size_t i = 0; i < dof_data.size(); ++i)
-      values_interp_host(i) = dof_data[i];
-    Kokkos::deep_copy(values_interp, values_interp_host);
-
-    auto interpolator = RegularGridInterpolator(
-      parametric_coords, values_interp, cell_indices_interp, dimensions_view);
-    auto interpolated = interpolator.linear_interpolation();
-    auto interp_host = Kokkos::create_mirror_view(interpolated);
-    Kokkos::deep_copy(interp_host, interpolated);
-
-    for (LO i = 0; i < num_points; ++i) {
-      if (hint_.is_out_of_bounds_[i] && hint_.mode_ == OutOfBoundsMode::FILL) {
-        values(i, 0) = static_cast<Real>(fill_value_);
-      } else {
-        values(i, 0) = interp_host[i];
-      }
-    }
+    auto values_device_view = Kokkos::View<Real**, DeviceMemorySpace>("values_device_view", values.extent(0), values.extent(1));
+    auto values_device = Rank2View<Real, DeviceMemorySpace>(values_device_view.data(), values_device_view.extent(0), values_device_view.extent(1));
+    Evaluate(field, values_device);
+    auto values_host_view = Kokkos::View<Real**, HostMemorySpace>("values_host_view", values.extent(0), values.extent(1));
+    DeepCopyMismatchLayouts(values_host_view, values_device_view);
+    Kokkos::parallel_for("CopyDeviceToHost", Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, values.extent(0)),
+                         KOKKOS_LAMBDA(int i) {
+                           for (int j = 0; j < values.extent(1); ++j) {
+                             values(i, j) = values_host_view(i, j);
+                           }
+                         });
   }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
@@ -178,11 +99,11 @@ public:
       dof_data.size() == static_cast<size_t>(layout_->GetNumOwnedDofHolder() *
                                              layout_->GetNumComponents()));
 
-    auto cell_indices = Kokkos::View<LO*, DeviceMemorySpace>("cell_indices", num_points);
-    Kokkos::deep_copy(cell_indices, hint_.cell_indices_);
+    auto cell_indices = hint_.cell_indices_;
+    auto cell_indices_device = Kokkos::View<LO*, DeviceMemorySpace>("cell_indices_device", num_points);
+    Kokkos::deep_copy(cell_indices_device, cell_indices);
 
-    auto coordinates = Kokkos::View<Real**, DeviceMemorySpace>("coordinates", num_points, Dim);
-    Kokkos::deep_copy(coordinates, hint_.coordinates_);
+    auto coordinates = hint_.coordinates_;
     auto is_out_of_bounds = Kokkos::View<bool*, DeviceMemorySpace>("is_out_of_bounds", num_points);
     Kokkos::deep_copy(is_out_of_bounds, hint_.is_out_of_bounds_);
 
@@ -197,7 +118,7 @@ public:
           if (is_out_of_bounds(i) && mode == OutOfBoundsMode::FILL) {
             values(i, c) = fv;
           } else {
-            LO dof_idx = cell_indices(i);
+            LO dof_idx = cell_indices_device(i);
             values(i, c) = dof_data[dof_idx * n_comp + c];
           }
         });
@@ -375,16 +296,72 @@ public:
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
   {
-    throw pcms_error(
-      "UniformGridEvaluatorFactory: GetDOFHolderCoordinatesDevice not yet implemented");
+    return layout_->GetDOFHolderCoordinates();
   }
 
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
     CoordinateView<DeviceMemorySpace> coords,
     OutOfBoundsPolicy policy = {}) const override
   {
-    throw pcms_error(
-      "UniformGridEvaluatorFactory: CreatePointEvaluator with device coordinates not yet implemented");
+    PCMS_FUNCTION_TIMER;
+    if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
+      throw pcms_error(
+        "UniformGridEvaluatorFactory: coordinate system mismatch");
+    }
+    if (policy.mode == OutOfBoundsMode::NEAREST_BOUNDARY &&
+        !SupportsNearestBoundary()) {
+      throw pcms_error(
+        "UniformGridEvaluatorFactory: nearest-boundary evaluation is not "
+        "supported");
+    }
+    if (layout_->GetOrder() == 1 && layout_->GetNumComponents() != 1) {
+      throw pcms_error(
+        "UniformGridEvaluatorFactory: order-1 multi-component evaluation is "
+        "not implemented");
+    }
+
+    auto coordinates = coords.GetCoordinates();
+    LO num_points = static_cast<LO>(coordinates.extent(0));
+
+    Kokkos::View<LO*, HostMemorySpace> cell_indices("cell_indices", num_points);
+    Kokkos::View<Real**, DeviceMemorySpace> coordinates_device("coordinates_device", num_points, Dim);
+    Kokkos::parallel_for("copy_coordinates_to_device", num_points, KOKKOS_LAMBDA(const LO i) {
+      for (unsigned d = 0; d < Dim; ++d) {
+        coordinates_device(i, d) = coordinates(i, d);
+      }
+    });
+     Kokkos::View<Real**, HostMemorySpace> coords_copy("coords_copy", num_points, Dim);
+    DeepCopyMismatchLayouts(coords_copy, coordinates_device);
+    Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds",
+                                                          num_points);
+    size_t num_out_of_bounds = 0;
+
+    for (LO i = 0; i < num_points; ++i) {
+      Omega_h::Vector<Dim> point;
+      for (unsigned d = 0; d < Dim; ++d) {
+        point[d] = coords_copy(i, d);
+      }
+
+      bool out_of_bounds = !grid_.IsPointInBounds(point);
+      is_out_of_bounds[i] = out_of_bounds;
+      if (out_of_bounds) {
+        ++num_out_of_bounds;
+        if (policy.mode == OutOfBoundsMode::ERROR) {
+          throw pcms_error(
+            "UniformGridEvaluatorFactory: point found outside uniform grid "
+            "domain");
+        }
+      }
+
+      cell_indices[i] = grid_.ClosestCellID(point);
+    }
+
+    UniformGridFieldLocalizationHint<Dim> hint(cell_indices, coords_copy,
+                                               policy.mode, is_out_of_bounds,
+                                               num_out_of_bounds);
+
+    return std::make_unique<UniformGridPointEvaluator<Dim>>(
+      layout_, std::move(hint), policy.fill_value);
   }
 #endif
 
