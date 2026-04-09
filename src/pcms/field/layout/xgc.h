@@ -28,6 +28,7 @@ public:
   bool IsDistributed() const override;
   EntOffsetsArray GetEntOffsets() const override;
   CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override;
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const override;
   int GetDimension() const override;
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensions() const override;
@@ -41,7 +42,8 @@ private:
   Kokkos::View<GO*, HostMemorySpace> gids_;
   Kokkos::View<LO*, HostMemorySpace> class_dims_;
   Kokkos::View<LO*, HostMemorySpace> class_ids_;
-  Kokkos::View<Real**, HostMemorySpace> coords_;
+  Kokkos::View<Real**, HostMemorySpace> coords_host_;
+  Kokkos::View<Real**, DeviceMemorySpace> coords_;
   LO num_plane_nodes_;
   std::shared_ptr<const Discretization> discretization_;
 };

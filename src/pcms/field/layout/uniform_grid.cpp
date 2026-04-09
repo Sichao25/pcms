@@ -15,6 +15,7 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
     coordinate_system_(coordinate_system),
     order_(order),
     gids_("gids", GetNumDofHolders()),
+    dof_holder_coords_host_("dof_holder_coords_host", GetNumDofHolders(), Dim),
     dof_holder_coords_("dof_holder_coords", GetNumDofHolders(), Dim),
     owned_("owned", GetNumDofHolders())
 {
@@ -40,16 +41,16 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
     if (order_ == 1) {
       for (LO j = 0; j <= grid_.divisions[1]; ++j) {
         for (LO i = 0; i <= grid_.divisions[0]; ++i) {
-          dof_holder_coords_(dof_idx, 0) = grid_.bot_left[0] + i * vertex_spacing[0];
-          dof_holder_coords_(dof_idx, 1) = grid_.bot_left[1] + j * vertex_spacing[1];
+          dof_holder_coords_host_(dof_idx, 0) = grid_.bot_left[0] + i * vertex_spacing[0];
+          dof_holder_coords_host_(dof_idx, 1) = grid_.bot_left[1] + j * vertex_spacing[1];
           ++dof_idx;
         }
       }
     } else {
       for (LO j = 0; j < grid_.divisions[1]; ++j) {
         for (LO i = 0; i < grid_.divisions[0]; ++i) {
-          dof_holder_coords_(dof_idx, 0) = grid_.bot_left[0] + (i + 0.5) * vertex_spacing[0];
-          dof_holder_coords_(dof_idx, 1) = grid_.bot_left[1] + (j + 0.5) * vertex_spacing[1];
+          dof_holder_coords_host_(dof_idx, 0) = grid_.bot_left[0] + (i + 0.5) * vertex_spacing[0];
+          dof_holder_coords_host_(dof_idx, 1) = grid_.bot_left[1] + (j + 0.5) * vertex_spacing[1];
           ++dof_idx;
         }
       }
@@ -60,9 +61,9 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
       for (LO k = 0; k <= grid_.divisions[2]; ++k) {
         for (LO j = 0; j <= grid_.divisions[1]; ++j) {
           for (LO i = 0; i <= grid_.divisions[0]; ++i) {
-            dof_holder_coords_(dof_idx, 0) = grid_.bot_left[0] + i * vertex_spacing[0];
-            dof_holder_coords_(dof_idx, 1) = grid_.bot_left[1] + j * vertex_spacing[1];
-            dof_holder_coords_(dof_idx, 2) = grid_.bot_left[2] + k * vertex_spacing[2];
+            dof_holder_coords_host_(dof_idx, 0) = grid_.bot_left[0] + i * vertex_spacing[0];
+            dof_holder_coords_host_(dof_idx, 1) = grid_.bot_left[1] + j * vertex_spacing[1];
+            dof_holder_coords_host_(dof_idx, 2) = grid_.bot_left[2] + k * vertex_spacing[2];
             ++dof_idx;
           }
         }
@@ -71,15 +72,18 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
       for (LO k = 0; k < grid_.divisions[2]; ++k) {
         for (LO j = 0; j < grid_.divisions[1]; ++j) {
           for (LO i = 0; i < grid_.divisions[0]; ++i) {
-            dof_holder_coords_(dof_idx, 0) = grid_.bot_left[0] + (i + 0.5) * vertex_spacing[0];
-            dof_holder_coords_(dof_idx, 1) = grid_.bot_left[1] + (j + 0.5) * vertex_spacing[1];
-            dof_holder_coords_(dof_idx, 2) = grid_.bot_left[2] + (k + 0.5) * vertex_spacing[2];
+            dof_holder_coords_host_(dof_idx, 0) = grid_.bot_left[0] + (i + 0.5) * vertex_spacing[0];
+            dof_holder_coords_host_(dof_idx, 1) = grid_.bot_left[1] + (j + 0.5) * vertex_spacing[1];
+            dof_holder_coords_host_(dof_idx, 2) = grid_.bot_left[2] + (k + 0.5) * vertex_spacing[2];
             ++dof_idx;
           }
         }
       }
     }
   }
+
+  // Copy coordinates to device
+  DeepCopyMismatchLayouts(dof_holder_coords_, dof_holder_coords_host_);
 
   int entity_dim = (order_ == 0) ? static_cast<int>(Dim) : 0;
   LO n = GetNumDofHolders();
@@ -135,8 +139,17 @@ CoordinateView<HostMemorySpace>
 UniformGridFieldLayout<Dim>::GetDOFHolderCoordinatesHost() const
 {
   Rank2View<const Real, HostMemorySpace> coords_view(
-    dof_holder_coords_.data(), dof_holder_coords_.extent(0), Dim);
+    dof_holder_coords_host_.data(), dof_holder_coords_host_.extent(0), Dim);
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
+}
+
+template <unsigned Dim>
+CoordinateView<DeviceMemorySpace>
+UniformGridFieldLayout<Dim>::GetDOFHolderCoordinates() const
+{
+  Rank2View<const Real, DeviceMemorySpace> coords_view(
+    dof_holder_coords_.data(), dof_holder_coords_.extent(0), Dim);
+  return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 
 template <unsigned Dim>

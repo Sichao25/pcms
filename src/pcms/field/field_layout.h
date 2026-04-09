@@ -54,6 +54,8 @@ public:
   // is the primary way to map coefficient storage back to physical space.
   virtual CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const = 0;
 
+  virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const = 0;
+
   virtual int GetDimension() const = 0;
 
   virtual Rank1View<const LO, HostMemorySpace>

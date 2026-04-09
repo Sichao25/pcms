@@ -62,6 +62,7 @@ OmegaHEntityLayout::OmegaHEntityLayout(Omega_h::Mesh& mesh, int entity_dim,
     coordinate_system_(coordinate_system),
     gids_host_(BuildGids(mesh, entity_dim, global_id_name)),
     coords_host_(get_entity_centroids(mesh, entity_dim)),
+    coords_(get_entity_centroids(mesh, entity_dim)),
     class_ids_host_(mesh.get_array<Omega_h::ClassId>(entity_dim, "class_id")),
     class_dims_host_(mesh.get_array<Omega_h::I8>(entity_dim, "class_dim")),
     owned_host_(BuildOwned(mesh, entity_dim)),
@@ -113,6 +114,13 @@ CoordinateView<HostMemorySpace> OmegaHEntityLayout::GetDOFHolderCoordinatesHost(
   Rank2View<const Real, HostMemorySpace> coords_view(
     coords_host_.data(), GetNumOwnedDofHolder(), dimension_);
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
+}
+
+CoordinateView<DeviceMemorySpace> OmegaHEntityLayout::GetDOFHolderCoordinates() const
+{
+  Rank2View<const Real, DeviceMemorySpace> coords_view(
+    coords_.data(), GetNumOwnedDofHolder(), dimension_);
+  return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 
 bool OmegaHEntityLayout::IsDistributed() const

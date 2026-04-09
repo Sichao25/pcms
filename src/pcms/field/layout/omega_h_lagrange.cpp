@@ -87,8 +87,8 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   int entity_dim = EntityDimForOrder(order_, mesh_.dim());
 
   gids_host_ = BuildGids(mesh_, entity_dim, global_id_name_);
-  coords_host_ =
-    Omega_h::HostRead<Real>(get_entity_centroids(mesh_, entity_dim));
+  coords_ = get_entity_centroids(mesh_, entity_dim);
+  coords_host_ = Omega_h::HostRead<Real>(coords_);
   owned_host_ = BuildOwned(mesh_, entity_dim);
 
   class_ids_host_ = Omega_h::HostRead<Omega_h::ClassId>(
@@ -123,8 +123,8 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   int entity_dim = EntityDimForOrder(order_, mesh_.dim());
 
   gids_host_ = BuildGids(mesh_, entity_dim, global_id_name_);
-  coords_host_ =
-    Omega_h::HostRead<Real>(get_entity_centroids(mesh_, entity_dim));
+  coords_ = get_entity_centroids(mesh_, entity_dim);
+  coords_host_ = Omega_h::HostRead<Real>(coords_);
   owned_host_ = BuildOwned(mesh_, entity_dim, owned_mask);
 
   class_ids_host_ = Omega_h::HostRead<Omega_h::ClassId>(
@@ -183,6 +183,15 @@ OmegaHLagrangeLayout::GetDOFHolderCoordinatesHost() const
   Rank2View<const Real, HostMemorySpace> coords_view(coords_host_.data(), n,
                                                      dim);
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
+}
+
+CoordinateView<DeviceMemorySpace>
+OmegaHLagrangeLayout::GetDOFHolderCoordinates() const
+{
+  int n = mesh_.nents(EntityDimForOrder(order_, mesh_.dim()));
+  int dim = mesh_.dim();
+  Rank2View<const Real, DeviceMemorySpace> coords_view(coords_.data(), n, dim);
+  return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 
 bool OmegaHLagrangeLayout::IsDistributed() const {

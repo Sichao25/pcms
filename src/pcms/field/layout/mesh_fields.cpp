@@ -264,6 +264,14 @@ MeshFieldsAdapterLayout::GetDOFHolderCoordinatesHost() const
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
 }
 
+CoordinateView<DeviceMemorySpace>
+MeshFieldsAdapterLayout::GetDOFHolderCoordinates() const
+{
+  Rank2View<const Real, DeviceMemorySpace> coords_view(
+    dof_holder_coords_.data(), dof_holder_coords_.extent(0), 2);
+  return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
+}
+
 bool MeshFieldsAdapterLayout::IsDistributed() const {
   return true;
 }

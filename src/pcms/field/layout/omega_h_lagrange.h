@@ -36,6 +36,7 @@ public:
   Rank1View<const bool, HostMemorySpace> GetOwned() const override;
   GlobalIDView<HostMemorySpace> GetGids() const override;
   CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override;
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const override;
 
   [[nodiscard]] bool IsDistributed() const override;
 
@@ -61,6 +62,7 @@ private:
 
   Omega_h::HostWrite<Omega_h::GO> gids_host_;
   Omega_h::HostRead<Real> coords_host_; // flat row-major: [n_dofs * mesh_dim]
+  Omega_h::Read<Real> coords_; // device coordinates
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Omega_h::HostRead<Omega_h::ClassId> class_ids_host_;
   Omega_h::HostRead<Omega_h::I8> class_dims_host_;

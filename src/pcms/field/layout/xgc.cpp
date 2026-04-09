@@ -11,6 +11,7 @@ XGCFieldLayout::XGCFieldLayout(
     gids_("xgc_gids", num_plane_nodes),
     class_dims_("xgc_class_dims", num_plane_nodes),
     class_ids_("xgc_class_ids", num_plane_nodes),
+    coords_host_("xgc_coords_host", num_plane_nodes, 2),
     coords_("xgc_coords", num_plane_nodes, 2),
     num_plane_nodes_(num_plane_nodes)
 {
@@ -20,8 +21,8 @@ XGCFieldLayout::XGCFieldLayout(
     gids_(i) = static_cast<GO>(i + 1);
     class_dims_(i) = -1;
     class_ids_(i) = -1;
-    coords_(i, 0) = 0.0;
-    coords_(i, 1) = 0.0;
+    coords_host_(i, 0) = 0.0;
+    coords_host_(i, 1) = 0.0;
   }
 
   for (const auto& [geom, verts] : reverse_classification) {
@@ -34,6 +35,8 @@ XGCFieldLayout::XGCFieldLayout(
       class_ids_(vert) = geom.id;
     }
   }
+  // Copy coordinates to device
+  DeepCopyMismatchLayouts(coords_, coords_host_);
   discretization_ =
     std::make_shared<XGCDiscretization>(reverse_classification, num_plane_nodes_);
 }
@@ -86,7 +89,14 @@ CoordinateView<HostMemorySpace> XGCFieldLayout::GetDOFHolderCoordinatesHost() co
 {
   return CoordinateView<HostMemorySpace>{
     CoordinateSystem::XGC,
-    Rank2View<const Real, HostMemorySpace>(coords_.data(), num_plane_nodes_, 2)};
+    Rank2View<const Real, HostMemorySpace>(coords_host_.data(), num_plane_nodes_, 2)};
+}
+
+CoordinateView<DeviceMemorySpace> XGCFieldLayout::GetDOFHolderCoordinates() const
+{
+  return CoordinateView<DeviceMemorySpace>{
+    CoordinateSystem::XGC,
+    Rank2View<const Real, DeviceMemorySpace>(coords_.data(), num_plane_nodes_, 2)};
 }
 
 int XGCFieldLayout::GetDimension() const

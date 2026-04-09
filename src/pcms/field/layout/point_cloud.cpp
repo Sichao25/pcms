@@ -115,6 +115,14 @@ CoordinateView<HostMemorySpace> PointCloudLayout::GetDOFHolderCoordinatesHost()
   return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
 }
 
+CoordinateView<DeviceMemorySpace> PointCloudLayout::GetDOFHolderCoordinates()
+  const
+{
+  Rank2View<const Real, DeviceMemorySpace> coords_view(
+    coords_.data(), coords_.extent(0), dim_);
+  return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
+}
+
 bool PointCloudLayout::IsDistributed() const {
   return false;
 }
