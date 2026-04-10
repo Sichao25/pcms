@@ -17,6 +17,7 @@
 
 using pcms::CoordinateSystem;
 using pcms::CoordinateView;
+using pcms::DeviceMemorySpace;
 using pcms::HostMemorySpace;
 using pcms::Rank1View;
 using pcms::Rank2View;
@@ -137,9 +138,21 @@ void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basi
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
-
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cart(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cartesian, coords_view_cart};
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
   pcms::test::CheckEvaluation(*evaluator, field, pts, func, abs_tol);
@@ -191,9 +204,21 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
-
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cart(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cartesian, coords_view_cart};
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
 
@@ -226,9 +251,21 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for num_co
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
-
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cart(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cartesian, coords_view_cart};
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
 
@@ -256,9 +293,21 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: default MLSOptions — smo
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
-
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cart(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cartesian, coords_view_cart};
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
 
@@ -281,9 +330,21 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejec
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
-
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cart(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cartesian, coords_view_cart};
   REQUIRE_THROWS(
     fs.CreatePointEvaluator<Real>(pcms::EvaluationRequest::FromCoordinates(cv)));
 }
@@ -299,9 +360,21 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejec
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cylindrical, qv};
-
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cyl(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cylindrical, coords_view_cyl};
   REQUIRE_THROWS(
     fs.CreatePointEvaluator<Real>(pcms::EvaluationRequest::FromCoordinates(cv)));
 }
@@ -327,9 +400,22 @@ TEST_CASE(
     dof_values.data(), dof_values.size()));
 
   std::vector<Real> pts{0.0, 0.0};
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), 1, 2);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
-
+  int n = 1;
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cart(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cartesian, coords_view_cart};
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
   std::vector<Real> out(1);
@@ -368,9 +454,23 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z
     dof_values.data(), dof_values.size()));
 
   std::vector<Real> pts{0.5, 0.5, 0.25, 0.5, 0.5, 0.75};
-  Rank2View<const Real, HostMemorySpace> qv(pts.data(), 2, 3);
-  CoordinateView<HostMemorySpace> cv{CoordinateSystem::Cartesian, qv};
-
+  int n = 2;
+  
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 3);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[3*i];
+    coords_host(i, 1) = pts[3*i+1];
+    coords_host(i, 2) = pts[3*i+2];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 3);
+  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 3);
+  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view_cart(coords_device_right.data(), n, 3);
+  CoordinateView<DeviceMemorySpace> cv{CoordinateSystem::Cartesian, coords_view_cart};
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(cv));
   std::vector<Real> out(2);

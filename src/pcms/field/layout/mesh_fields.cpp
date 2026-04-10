@@ -208,6 +208,11 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
     classification_ids_host_(i) = static_cast<LO>(class_ids_h[i]);
   }
   discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
+  
+  // Create LayoutRight version for device coordinates
+  dof_holder_coords_device_right_ = Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>(
+    "dof_holder_coords_device_right", GetNumOwnedDofHolder(), mesh_.dim());
+  ConvertMismatchLayoutView2D(dof_holder_coords_device_right_, dof_holder_coords_);
 }
 
 std::shared_ptr<const Discretization>
@@ -268,7 +273,7 @@ CoordinateView<DeviceMemorySpace>
 MeshFieldsAdapterLayout::GetDOFHolderCoordinates() const
 {
   Rank2View<const Real, DeviceMemorySpace> coords_view(
-    dof_holder_coords_.data(), dof_holder_coords_.extent(0), 2);
+    dof_holder_coords_device_right_.data(), dof_holder_coords_device_right_.extent(0), 2);
   return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 

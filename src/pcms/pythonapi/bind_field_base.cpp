@@ -15,6 +15,7 @@
 #include "pcms/field/function_space/polynomial_reconstruction.hpp"
 #include "pcms/field/evaluator/mls_options.h"
 #include "pcms/utility/uniform_grid.h"
+#include "pcms/utility/arrays.h"
 #include "numpy_array_transform.h"
 
 namespace py = pybind11;
@@ -158,9 +159,22 @@ void bind_create_field_module(py::module& m)
       [](py::array_t<Real> coords, CoordinateSystem coordinate_system,
          OutOfBoundsPolicy policy) {
         auto coords_view = numpy_to_view_2d<const Real>(coords);
+        // Create a Kokkos::View from the host data and deep copy to device
+        auto coords_host = Kokkos::View<Real**, HostMemorySpace>(
+          "coords_host", coords_view.extent(0), coords_view.extent(1));
+        for (size_t i = 0; i < coords_view.extent(0); ++i) {
+          for (size_t j = 0; j < coords_view.extent(1); ++j) {
+            coords_host(i, j) = coords_view(i, j);
+          }
+        }
+        auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>(
+          "coords_device", coords_view.extent(0), coords_view.extent(1));
+        DeepCopyMismatchLayouts(coords_device, coords_host);
+        Rank2View<const Real, DeviceMemorySpace> coords_device_view(
+          coords_device.data(), coords_device.extent(0), coords_device.extent(1));
         return PythonEvaluationRequest{
           EvaluationRequest::FromCoordinates(
-            CoordinateView<HostMemorySpace>(coordinate_system, coords_view),
+            CoordinateView<DeviceMemorySpace>(coordinate_system, coords_device_view),
             policy),
           py::reinterpret_borrow<py::object>(coords)};
       },

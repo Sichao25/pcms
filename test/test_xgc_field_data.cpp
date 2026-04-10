@@ -119,12 +119,12 @@ TEST_CASE("XGCFunctionSpace creates fields and rejects evaluator access")
   REQUIRE(&field.GetLayout() == function_space.GetLayout().get());
   REQUIRE(function_space.GetCoordinateSystem() == pcms::CoordinateSystem::XGC);
   // XGC does not support point evaluation; CreatePointEvaluator throws.
-  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> empty_coords{
+  pcms::Rank2View<const pcms::Real, pcms::DeviceMemorySpace> empty_coords{
     nullptr, 0, 2};
   REQUIRE_THROWS_AS(
     function_space.CreatePointEvaluator<pcms::Real>(
       pcms::EvaluationRequest::FromCoordinates(
-        pcms::CoordinateView<pcms::HostMemorySpace>{
+        pcms::CoordinateView<pcms::DeviceMemorySpace>{
           pcms::CoordinateSystem::XGC, empty_coords})),
     pcms::pcms_error);
 }

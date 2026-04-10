@@ -67,8 +67,8 @@ public:
   std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
     const EvaluationRequest& request) const override
   {
-    const auto target_coords = request.coords;
-    if (target_coords.GetCoordinateSystem() != GetCoordinateSystem()) {
+    const auto coords = request.coords;
+    if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
       throw pcms_error(
         "PointCloudEvaluatorFactory: coordinate system mismatch");
     }
@@ -79,16 +79,27 @@ public:
     }
 
     // Extract source coordinates for the MLS solve.
-    const auto src_view = layout_->GetDOFHolderCoordinatesHost().GetCoordinates();
+    const auto src_view = layout_->GetDOFHolderCoordinates().GetCoordinates();
     const int dim = layout_->GetDimension();
     Omega_h::Reals source_coords =
       flatten_to_omega_h_reals(src_view, "src_coords");
 
     // Extract target coordinates for the MLS solve.
-    const auto tgt_view = target_coords.GetCoordinates();
+    const auto tgt_view = coords.GetCoordinates();
     PCMS_ALWAYS_ASSERT(static_cast<int>(tgt_view.extent(1)) == dim);
     Omega_h::Reals target_coords_oh =
       flatten_to_omega_h_reals(tgt_view, "tgt_coords");
+
+    // TODO: remove this after updating localization to accept target coordinates on the device side
+    auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>("target_coords_device", tgt_view.extent(0), tgt_view.extent(1));
+    Kokkos::parallel_for("CopyTargetCoordsToDevice", Kokkos::RangePolicy<>(0, tgt_view.extent(0)), KOKKOS_LAMBDA(int i) {
+      for (int d = 0; d < dim; ++d) {
+        coords_device(i, d) = tgt_view(i, d);
+      }
+    });
+    auto coords_host = Kokkos::View<Real**, HostMemorySpace>("target_coords_host", tgt_view.extent(0), tgt_view.extent(1));
+    DeepCopyMismatchLayouts(coords_host, coords_device);
+    CoordinateView<HostMemorySpace> target_coords_host(coords.GetCoordinateSystem(), Rank2View<const Real, HostMemorySpace>(coords_host.data(), coords_host.extent(0), coords_host.extent(1)));
 
     SupportResults supports;
     auto path =
@@ -99,59 +110,13 @@ public:
       PCMS_ALWAYS_ASSERT(adjacency != nullptr);
       supports = adjacency->BuildSameMeshCentroidToVertex();
     } else {
-      supports = localization_->Build(target_coords);
+      supports = localization_->Build(target_coords_host);
     }
 
     return std::make_unique<MLSPointEvaluator>(
       std::move(source_coords), std::move(target_coords_oh),
       std::move(supports), dim, options_);
   }
-
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
-    CoordinateView<DeviceMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
-  {
-    // comment out to see if we can utilize Evaluation Request from the device side
-    // if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
-    //   throw pcms_error(
-    //     "PointCloudEvaluatorFactory: coordinate system mismatch");
-    // }
-    // if (GetCoordinateSystem() != CoordinateSystem::Cartesian) {
-    //   throw pcms_error(
-    //     "PointCloudEvaluatorFactory: only Cartesian coordinates are "
-    //     "supported for MLS point-cloud evaluation");
-    // }
-
-    // // Extract source coordinates for the MLS solve.
-    // const auto src_view = layout_->GetDOFHolderCoordinates().GetCoordinates();
-    // const int dim = layout_->GetDimension();
-    // Omega_h::Reals source_coords =
-    //   flatten_to_omega_h_reals(src_view, "src_coords");
-
-    // // Extract target coordinates for the MLS solve.
-    // const auto tgt_view = coords.GetCoordinates();
-    // PCMS_ALWAYS_ASSERT(static_cast<int>(tgt_view.extent(1)) == dim);
-    // Omega_h::Reals target_coords_oh =
-    //   flatten_to_omega_h_reals(tgt_view, "tgt_coords");
-
-    // SupportResults supports;
-    // auto path =
-    //   detail::SelectLocalizationPath(*layout_, request.GetQueryLayout());
-    // if (path == detail::LocalizationPath::CentroidToVertexAdjacencySearch) {
-    //   auto* adjacency =
-    //     dynamic_cast<const AdjacencyLocalizationFactory*>(localization_.get());
-    //   PCMS_ALWAYS_ASSERT(adjacency != nullptr);
-    //   supports = adjacency->BuildSameMeshCentroidToVertex();
-    // } else {
-    //   supports = localization_->Build(coords);
-    // }
-
-    // return std::make_unique<MLSPointEvaluator>(
-    //   std::move(source_coords), std::move(target_coords_oh),
-    //   std::move(supports), dim, options_);
-  }
-#endif
 
 private:
   std::shared_ptr<const FieldLayout> layout_;

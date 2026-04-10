@@ -293,51 +293,6 @@ public:
       [&](auto& search) {
         using SearchT = std::decay_t<decltype(search)>;
         constexpr int Dim = SearchT::DIM;
-
-        Kokkos::View<Real**> coords_d("coords_d", n_pts, Dim);
-        auto coords_h = Kokkos::View<const Real**, HostMemorySpace>(
-          raw_coords.data_handle(), n_pts, Dim);
-        DeepCopyMismatchLayouts(coords_d, coords_h);
-
-        auto results_d = search(coords_d);
-
-        return detail::BuildLagrangeLocHint<Dim>(mesh_dim, results_d,
-                                                 policy.mode);
-      },
-      search_);
-
-    return std::make_unique<OmegaHLagrangePointEvaluator<T>>(
-      layout_, std::move(hint), policy.fill_value);
-  }
-
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
-  {
-    return layout_->GetDOFHolderCoordinates();
-  }
-
-  std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
-    CoordinateView<DeviceMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
-  {
-    PCMS_FUNCTION_TIMER;;
-    if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
-      throw pcms_error(
-        "OmegaHLagrangeEvaluatorFactory: coordinate system mismatch");
-    }
-    if (policy.mode == OutOfBoundsMode::NEAREST_BOUNDARY) {
-      throw pcms_error(
-        "OmegaHLagrangeEvaluatorFactory: NearestBoundary is not supported");
-    }
-
-    auto raw_coords = coords.GetCoordinates();
-    LO n_pts = static_cast<LO>(raw_coords.extent(0));
-    int mesh_dim = layout_->GetMesh().dim();
-
-    OmegaHLagrangeLocHint hint = std::visit(
-      [&](auto& search) {
-        using SearchT = std::decay_t<decltype(search)>;
-        constexpr int Dim = SearchT::DIM;
         Kokkos::View<Real**, DeviceMemorySpace> coords_d("coords_d", raw_coords.extent(0), raw_coords.extent(1));
         
         detail::CopyCoordsFunctor<Dim> copy_functor(coords_d, raw_coords);
@@ -351,6 +306,12 @@ public:
 
     return std::make_unique<OmegaHLagrangePointEvaluator<T>>(
       layout_, std::move(hint), policy.fill_value);
+  }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    return layout_->GetDOFHolderCoordinates();
   }
 #endif
 

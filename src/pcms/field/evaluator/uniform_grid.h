@@ -238,71 +238,6 @@ public:
     PCMS_FUNCTION_TIMER;
     const auto coords = request.coords;
     const auto policy = request.policy;
-    if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
-      throw pcms_error(
-        "UniformGridEvaluatorFactory: coordinate system mismatch");
-    }
-    if (policy.mode == OutOfBoundsMode::NEAREST_BOUNDARY &&
-        !SupportsNearestBoundary()) {
-      throw pcms_error(
-        "UniformGridEvaluatorFactory: nearest-boundary evaluation is not "
-        "supported");
-    }
-    if (layout_->GetOrder() == 1 && layout_->GetNumComponents() != 1) {
-      throw pcms_error(
-        "UniformGridEvaluatorFactory: order-1 multi-component evaluation is "
-        "not implemented");
-    }
-
-    auto coordinates = coords.GetCoordinates();
-    LO num_points = static_cast<LO>(coordinates.extent(0));
-
-    Kokkos::View<LO*, HostMemorySpace> cell_indices("cell_indices", num_points);
-    Kokkos::View<Real**, HostMemorySpace> coords_copy("coords_copy", num_points,
-                                                      Dim);
-    Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds",
-                                                          num_points);
-    size_t num_out_of_bounds = 0;
-
-    for (LO i = 0; i < num_points; ++i) {
-      Omega_h::Vector<Dim> point;
-      for (unsigned d = 0; d < Dim; ++d) {
-        point[d] = coordinates(i, d);
-        coords_copy(i, d) = coordinates(i, d);
-      }
-
-      bool out_of_bounds = !grid_.IsPointInBounds(point);
-      is_out_of_bounds[i] = out_of_bounds;
-      if (out_of_bounds) {
-        ++num_out_of_bounds;
-        if (policy.mode == OutOfBoundsMode::ERROR) {
-          throw pcms_error(
-            "UniformGridEvaluatorFactory: point found outside uniform grid "
-            "domain");
-        }
-      }
-
-      cell_indices[i] = grid_.ClosestCellID(point);
-    }
-
-    UniformGridFieldLocalizationHint<Dim> hint(cell_indices, coords_copy,
-                                               policy.mode, is_out_of_bounds,
-                                               num_out_of_bounds);
-
-    return std::make_unique<UniformGridPointEvaluator<Dim>>(
-      layout_, std::move(hint), policy.fill_value);
-  }
-
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
-  {
-    return layout_->GetDOFHolderCoordinates();
-  }
-
-  std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
-    CoordinateView<DeviceMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
-  {
     PCMS_FUNCTION_TIMER;
     if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
       throw pcms_error(
@@ -362,6 +297,12 @@ public:
 
     return std::make_unique<UniformGridPointEvaluator<Dim>>(
       layout_, std::move(hint), policy.fill_value);
+  }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    return layout_->GetDOFHolderCoordinates();
   }
 #endif
 

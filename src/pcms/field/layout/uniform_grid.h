@@ -58,6 +58,7 @@ private:
   Kokkos::View<GO*, HostMemorySpace> gids_;
   Kokkos::View<Real**, HostMemorySpace> dof_holder_coords_host_;
   Kokkos::View<Real**, DeviceMemorySpace> dof_holder_coords_;
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> dof_holder_coords_device_right_;
   Kokkos::View<bool*, HostMemorySpace> owned_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;

@@ -18,7 +18,7 @@ struct EvaluationRequest
 {
   // Query coordinates to evaluate at. These are always consumed at evaluator
   // construction time.
-  CoordinateView<HostMemorySpace> coords;
+  CoordinateView<DeviceMemorySpace> coords;
   // Optional provenance for the query sites. When present, construction-time
   // logic may use the layout and its discretization to select optimized
   // localization paths. Concrete PointEvaluator implementations are not
@@ -28,7 +28,7 @@ struct EvaluationRequest
   OutOfBoundsPolicy policy = {};
 
   static EvaluationRequest FromCoordinates(
-    CoordinateView<HostMemorySpace> coords,
+    CoordinateView<DeviceMemorySpace> coords,
     OutOfBoundsPolicy policy = {});
 
   static EvaluationRequest FromLayout(
@@ -56,7 +56,7 @@ struct EvaluationRequest
 
 private:
   explicit EvaluationRequest(
-    CoordinateView<HostMemorySpace> coords_in,
+    CoordinateView<DeviceMemorySpace> coords_in,
     std::shared_ptr<const FieldLayout> query_layout_in,
     OutOfBoundsPolicy policy_in = {}) noexcept
     : coords(coords_in),

@@ -165,6 +165,17 @@ auto DeepCopyMismatchLayouts(DestView& dest, const SrcView& src)
     Kokkos::deep_copy(dest, src);
   }
 }
+template <typename DestView, typename SrcView>
+void ConvertMismatchLayoutView2D(DestView& dest, const SrcView& src)
+{
+  Kokkos::parallel_for(
+    "ConvertMismatchLayoutView2D", Kokkos::RangePolicy<typename DestView::execution_space>(0, src.extent(0)),
+    KOKKOS_LAMBDA(int i) {
+      for (int j = 0; j < src.extent(1); ++j) {
+        dest(i, j) = src(i, j);
+      }
+    });
+}
 
 // utility function to fill a view with sequentially increasing values
 template <typename T>

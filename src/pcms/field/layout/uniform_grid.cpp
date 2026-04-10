@@ -84,6 +84,11 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
 
   // Copy coordinates to device
   DeepCopyMismatchLayouts(dof_holder_coords_, dof_holder_coords_host_);
+  
+  // Create LayoutRight version for device coordinates
+  dof_holder_coords_device_right_ = Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>(
+    "dof_holder_coords_device_right", GetNumDofHolders(), Dim);
+  ConvertMismatchLayoutView2D(dof_holder_coords_device_right_, dof_holder_coords_);
 
   int entity_dim = (order_ == 0) ? static_cast<int>(Dim) : 0;
   LO n = GetNumDofHolders();
@@ -148,7 +153,7 @@ CoordinateView<DeviceMemorySpace>
 UniformGridFieldLayout<Dim>::GetDOFHolderCoordinates() const
 {
   Rank2View<const Real, DeviceMemorySpace> coords_view(
-    dof_holder_coords_.data(), dof_holder_coords_.extent(0), Dim);
+    dof_holder_coords_device_right_.data(), dof_holder_coords_device_right_.extent(0), Dim);
   return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 

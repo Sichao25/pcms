@@ -65,6 +65,7 @@ private:
   std::array<int, 4> nodes_per_dim_;
   Kokkos::View<Real**> dof_holder_coords_;
   Kokkos::View<Real**, HostMemorySpace> dof_holder_coords_host_;
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> dof_holder_coords_device_right_;
   Omega_h::Write<Omega_h::ClassId> class_ids_;
   Omega_h::Write<Omega_h::I8> class_dims_;
   Kokkos::View<bool*> owned_;

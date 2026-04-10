@@ -223,11 +223,22 @@ public:
     }
 
     auto coordinates = coords.GetCoordinates();
+    Kokkos::View<Real**, DeviceMemorySpace> coordinates_d("coordinates_d", coordinates.extent(0), coordinates.extent(1));
+    Kokkos::parallel_for(
+      "copy_coordinates",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, coordinates.extent(0)),
+      KOKKOS_LAMBDA(LO i) {
+        for (LO j = 0; j < coordinates.extent(1); ++j) {
+          coordinates_d(i, j) = coordinates(i, j);
+        }
+      });
+
     LO num_points = static_cast<LO>(coordinates.extent(0));
 
     Kokkos::View<LO*, HostMemorySpace> cell_indices("cell_indices", num_points);
     Kokkos::View<Real**, HostMemorySpace> coords_copy("coords_copy", num_points,
                                                       2);
+    DeepCopyMismatchLayouts(coords_copy, coordinates_d);
     Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds",
                                                           num_points);
     size_t num_out_of_bounds = 0;
@@ -235,8 +246,7 @@ public:
     for (LO i = 0; i < num_points; ++i) {
       Omega_h::Vector<2> point;
       for (unsigned d = 0; d < 2; ++d) {
-        point[d] = coordinates(i, d);
-        coords_copy(i, d) = coordinates(i, d);
+        point[d] = coords_copy(i, d);
       }
 
       bool out_of_bounds = !grid_.IsPointInBounds(point);
@@ -265,14 +275,6 @@ public:
   {
     throw pcms_error(
       "UniformGridSplineEvaluatorFactory2D: GetDOFHolderCoordinatesDevice not yet implemented");
-  }
-
-  std::unique_ptr<PointEvaluator<Real>> CreatePointEvaluator(
-    CoordinateView<DeviceMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
-  {
-    throw pcms_error(
-      "UniformGridSplineEvaluatorFactory2D: CreatePointEvaluator with device coordinates not yet implemented");
   }
 #endif
 

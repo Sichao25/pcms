@@ -149,40 +149,6 @@ public:
     }
 
     auto coordinates = coords.GetCoordinates();
-    Kokkos::View<Real* [2]> coords_d("coords_d", coordinates.extent(0));
-    auto coords_h = Kokkos::View<const Real**, HostMemorySpace>(
-      coordinates.data_handle(), coordinates.extent(0),
-      coordinates.extent(1));
-    DeepCopyMismatchLayouts(coords_d, coords_h);
-
-    auto results = search_(coords_d);
-    MeshFieldsAdapter2LocalizationHint hint(mesh_, results, policy.mode);
-
-    return std::make_unique<MeshFieldsPointEvaluator<T>>(
-      layout_, std::move(hint), policy.fill_value);
-  }
-
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
-  {
-    return layout_->GetDOFHolderCoordinates();
-  }
-
-  std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
-    CoordinateView<DeviceMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const override
-  {
-    PCMS_FUNCTION_TIMER;
-    if (coords.GetCoordinateSystem() != GetCoordinateSystem()) {
-      throw pcms_error(
-        "MeshFieldsEvaluatorFactory: coordinate system mismatch");
-    }
-    if (policy.mode == OutOfBoundsMode::NEAREST_BOUNDARY) {
-      throw pcms_error(
-        "MeshFieldsEvaluatorFactory: NearestBoundary is not supported");
-    }
-
-    auto coordinates = coords.GetCoordinates();
     Kokkos::View<Real* [2], DeviceMemorySpace> coords_search(
       "coords_search", coordinates.extent(0));
     Kokkos::parallel_for(
@@ -197,6 +163,12 @@ public:
 
     return std::make_unique<MeshFieldsPointEvaluator<T>>(
       layout_, std::move(hint), policy.fill_value);
+  }
+
+#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  {
+    return layout_->GetDOFHolderCoordinates();
   }
 #endif
 

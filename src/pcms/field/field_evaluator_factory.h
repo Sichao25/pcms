@@ -103,12 +103,6 @@ public:
   virtual std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
     const EvaluationRequest& request) const = 0;
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  virtual std::unique_ptr<PointEvaluator<T>> CreatePointEvaluator(
-    CoordinateView<DeviceMemorySpace> coords,
-    OutOfBoundsPolicy policy = {}) const = 0;
-#endif
-
   virtual ~FieldEvaluatorFactory() noexcept = default;
 };
 

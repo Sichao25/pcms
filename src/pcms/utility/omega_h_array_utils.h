@@ -7,8 +7,8 @@ namespace pcms
 {
 
 template <typename View2D>
-Omega_h::Reals flatten_to_omega_h_reals(const View2D& coords,
-                                        const char* label = "flat_coords")
+Omega_h::Reals flatten_to_omega_h_reals_host(const View2D& coords,
+                                              const char* label = "flat_coords")
 {
   const int n = static_cast<int>(coords.extent(0));
   const int dim = static_cast<int>(coords.extent(1));
@@ -17,6 +17,23 @@ Omega_h::Reals flatten_to_omega_h_reals(const View2D& coords,
   for (int i = 0; i < n; ++i)
     for (int d = 0; d < dim; ++d)
       flat[i * dim + d] = coords(i, d);
+
+  return Omega_h::Reals(flat);
+}
+
+template <typename View2D>
+Omega_h::Reals flatten_to_omega_h_reals(const View2D& coords,
+                                              const char* label = "flat_coords")
+{
+  const int n = static_cast<int>(coords.extent(0));
+  const int dim = static_cast<int>(coords.extent(1));
+
+  Omega_h::Write<Omega_h::Real> flat(n * dim, label);
+  Kokkos::parallel_for("flatten_to_omega_h_reals", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) {
+    for (int d = 0; d < dim; ++d) {
+      flat[i * dim + d] = coords(i, d);
+    }
+  });
 
   return Omega_h::Reals(flat);
 }

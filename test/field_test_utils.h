@@ -217,8 +217,21 @@ void CheckEvaluation(const Factory& factory,
                      double abs_tol = 1e-10)
 {
   int n = static_cast<int>(pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
+
   auto evaluator = factory.template CreatePointEvaluator<Real>(
     EvaluationRequest::FromCoordinates(cv));
   CheckEvaluation<ExecutionSpace>(*evaluator, field, pts, func, abs_tol);
@@ -246,8 +259,21 @@ void CheckFillMode(const Factory& factory,
                    const std::vector<Real>& outside_pts)
 {
   int n = static_cast<int>(outside_pts.size()) / 2;
-  Rank2View<const Real, HostMemorySpace> coords_view(outside_pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = outside_pts[2*i];
+    coords_host(i, 1) = outside_pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
+
   OutOfBoundsPolicy policy{OutOfBoundsMode::FILL, fill_value};
   auto evaluator = factory.template CreatePointEvaluator<Real>(
     EvaluationRequest::FromCoordinates(cv, policy));
@@ -267,8 +293,21 @@ void CheckEvaluationWithFill(const Factory& factory,
   int n = static_cast<int>(pts.size()) / 2;
   REQUIRE(static_cast<int>(is_inside.size()) == n);
 
-  Rank2View<const Real, HostMemorySpace> coords_view(pts.data(), n, 2);
-  CoordinateView<HostMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
+  // Create host view from input data
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", n, 2);
+  for (int i = 0; i < n; ++i) {
+    coords_host(i, 0) = pts[2*i];
+    coords_host(i, 1) = pts[2*i+1];
+  }
+  // Copy to device
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, 2);
+  DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
+  ConvertMismatchLayoutView2D(coords_device_right, coords_device);
+  // Create device coordinate view
+  Rank2View<const Real, DeviceMemorySpace> coords_view(coords_device_right.data(), n, 2);
+  CoordinateView<DeviceMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
+
   OutOfBoundsPolicy policy{OutOfBoundsMode::FILL, fill_value};
   auto evaluator = factory.template CreatePointEvaluator<Real>(
     EvaluationRequest::FromCoordinates(cv, policy));
