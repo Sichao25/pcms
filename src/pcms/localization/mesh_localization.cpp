@@ -13,7 +13,7 @@ namespace pcms
 {
 
 SupportResults AdjacencyLocalizationFactory::Build(
-  CoordinateView<HostMemorySpace> target_coords) const
+  CoordinateView<DeviceMemorySpace> target_coords) const
 {
   if (target_coords.GetCoordinateSystem() != CoordinateSystem::Cartesian) {
     throw pcms_error(
@@ -31,7 +31,7 @@ SupportResults AdjacencyLocalizationFactory::Build(
 
   if (source_entity_dim_ == Vertex) {
     Omega_h::Reals target_coords_oh =
-      flatten_to_omega_h_reals_host(tgt_view, "tgt_coords");
+      flatten_to_omega_h_reals(tgt_view, "tgt_coords");
 
     return searchNeighbors(source_mesh_, target_coords_oh, n_tgt, radius_sq,
                            static_cast<Omega_h::LO>(options_.min_req_supports),
@@ -42,7 +42,7 @@ SupportResults AdjacencyLocalizationFactory::Build(
     get_entity_centroids(source_mesh_, source_entity_dim_);
 
   Omega_h::Reals target_coords_oh =
-    flatten_to_omega_h_reals_host(tgt_view, "tgt_coords");
+    flatten_to_omega_h_reals(tgt_view, "tgt_coords");
 
   return BuildPointCloudSupports(src_oh, target_coords_oh, dim,
                                  options_.radius, options_.min_req_supports,

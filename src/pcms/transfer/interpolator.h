@@ -55,21 +55,21 @@ public:
     PCMS_FUNCTION_TIMER;
     const LO num_points = num_points_;
     const int n_comp    = n_comp_;
-    Kokkos::View<T**, HostMemorySpace> output("interp_output", num_points,
+    Kokkos::View<T**, DeviceMemorySpace> output("interp_output", num_points,
                                                n_comp);
-    Rank2View<T, HostMemorySpace> output_view(output.data(), num_points,
+    Rank2View<T, DeviceMemorySpace> output_view(output.data(), num_points,
                                                n_comp);
     evaluator_->Evaluate(source, output_view);
-    Kokkos::View<T*, HostMemorySpace> flat(
+    Kokkos::View<T*, DeviceMemorySpace> flat(
       "interp_flat", static_cast<size_t>(num_points) * n_comp);
     Kokkos::parallel_for(
-      Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, num_points),
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
       KOKKOS_LAMBDA(LO i) {
         for (int c = 0; c < n_comp; ++c) {
           flat(i * n_comp + c) = output(i, c);
         }
       });
-    target.GetData().SetDOFHolderDataHost(make_const_array_view(flat));
+    target.GetData().SetDOFHolderData(make_const_array_view(flat));
   }
 
 private:

@@ -20,7 +20,7 @@ public:
   virtual ~LocalizationFactory() = default;
 
   virtual SupportResults Build(
-    CoordinateView<HostMemorySpace> target_coords) const = 0;
+    CoordinateView<DeviceMemorySpace> target_coords) const = 0;
 };
 
 } // namespace pcms

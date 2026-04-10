@@ -161,6 +161,12 @@ PointCloudLayout::GetCoordinatesHost() const
   return coords_host_;
 }
 
+Kokkos::View<const Real**, DeviceMemorySpace>
+PointCloudLayout::GetCoordinates() const
+{
+  return coords_;
+}
+
 int PointCloudLayout::GetDimension() const
 {
   return dim_;

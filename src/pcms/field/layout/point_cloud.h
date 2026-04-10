@@ -46,6 +46,8 @@ public:
 
   Kokkos::View<const Real**, HostMemorySpace> GetCoordinatesHost() const;
 
+  Kokkos::View<const Real**, DeviceMemorySpace> GetCoordinates() const;
+
 private:
   int dim_;
   int components_;

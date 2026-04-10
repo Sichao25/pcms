@@ -30,7 +30,7 @@ public:
   {
   }
 
-  SupportResults Build(CoordinateView<HostMemorySpace> target_coords) const override;
+  SupportResults Build(CoordinateView<DeviceMemorySpace> target_coords) const override;
   SupportResults BuildSameMeshCentroidToVertex() const;
 
 private:

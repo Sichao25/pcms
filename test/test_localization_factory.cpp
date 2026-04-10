@@ -43,10 +43,8 @@ TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupport
   const int dim = mesh.dim();
   auto source_coords = mesh.coords();
   auto target_coords = pcms::test::CopyOmegaHRealsToVector(source_coords);
-  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> target_view(
-    target_coords.data(), mesh.nverts(), dim);
-  pcms::CoordinateView<pcms::HostMemorySpace> target_cv{
-    pcms::CoordinateSystem::Cartesian, target_view};
+  auto target_device = pcms::test::CreateDeviceCoordinateView(
+    target_coords, pcms::CoordinateSystem::Cartesian, dim);
 
   auto coords_read = Omega_h::HostRead<Omega_h::Real>(source_coords);
   Kokkos::View<pcms::Real**, Kokkos::HostSpace> coords_host(
@@ -63,7 +61,7 @@ TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupport
     dim, coords_dev, pcms::CoordinateSystem::Cartesian);
   pcms::PointCloudLocalizationFactory factory(layout, options);
 
-  auto actual = factory.Build(target_cv);
+  auto actual = factory.Build(target_device.coordinate_view);
   auto expected = pcms::BuildPointCloudSupports(
     source_coords, source_coords, dim, options.radius, options.min_req_supports,
     options.adapt_radius);
@@ -88,12 +86,10 @@ TEST_CASE("LocalizationFactory: vertex adjacency Build matches two-mesh searchNe
   pcms::AdjacencyLocalizationFactory factory(source_mesh, Omega_h::VERT,
                                              options);
   auto target_coords = pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
-  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> target_view(
-    target_coords.data(), target_mesh.nverts(), target_mesh.dim());
-  pcms::CoordinateView<pcms::HostMemorySpace> target_cv{
-    pcms::CoordinateSystem::Cartesian, target_view};
+  auto target_device = pcms::test::CreateDeviceCoordinateView(
+    target_coords, pcms::CoordinateSystem::Cartesian, target_mesh.dim());
 
-  auto actual = factory.Build(target_cv);
+  auto actual = factory.Build(target_device.coordinate_view);
 
   Omega_h::Real radius_sq = options.radius * options.radius;
   auto expected = pcms::searchNeighbors(
@@ -188,13 +184,11 @@ TEST_CASE("LocalizationFactory: correct with different meshes")
                                              options);
 
   auto target_coords = pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
-  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> target_view(
-    target_coords.data(), target_mesh.nverts(), target_mesh.dim());
-  pcms::CoordinateView<pcms::HostMemorySpace> target_cv{
-    pcms::CoordinateSystem::Cartesian, target_view};
+  auto target_device = pcms::test::CreateDeviceCoordinateView(
+    target_coords, pcms::CoordinateSystem::Cartesian, target_mesh.dim());
 
   // Should not throw — falls back to point-cloud N^2 path.
-  auto result = factory.Build(target_cv);
+  auto result = factory.Build(target_device.coordinate_view);
   auto ptr_host = Omega_h::HostRead<Omega_h::LO>(result.supports_ptr);
   REQUIRE(ptr_host.size() == target_mesh.nverts() + 1);
 }
