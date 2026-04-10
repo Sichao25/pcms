@@ -235,22 +235,9 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
-  // Create host view from input data
-  Kokkos::View<Real**, pcms::HostMemorySpace> coords_host("coords_host", n, 2);
-  for (int i = 0; i < n; ++i) {
-    coords_host(i, 0) = pts[2*i];
-    coords_host(i, 1) = pts[2*i+1];
-  }
-  // Copy to device
-  Kokkos::View<Real**, pcms::DeviceMemorySpace> coords_device("coords_device", n, 2);
-  pcms::DeepCopyMismatchLayouts(coords_device, coords_host);
-  Kokkos::View<Real**, Kokkos::LayoutRight, pcms::DeviceMemorySpace> coords_device_right("coords_device_right", n, 2);
-  pcms::ConvertMismatchLayoutView2D(coords_device_right, coords_device);
-  // Create device coordinate view
-  pcms::Rank2View<const Real, pcms::DeviceMemorySpace> coords_view(coords_device_right.data(), n, 2);
-  pcms::CoordinateView<pcms::DeviceMemorySpace> cv{factory.GetCoordinateSystem(), coords_view};
+  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, factory.GetCoordinateSystem());
   auto evaluator = factory.CreatePointEvaluator<Real>(
-    pcms::EvaluationRequest::FromCoordinates(cv));
+    pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   std::vector<Real> eval(n);
   pcms::Rank2View<Real, pcms::HostMemorySpace> out(eval.data(), n, 1);
