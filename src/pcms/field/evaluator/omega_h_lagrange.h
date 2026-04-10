@@ -285,12 +285,10 @@ public:
       layout_, std::move(hint), policy.fill_value);
   }
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
+  CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const override
   {
     return layout_->GetDOFHolderCoordinates();
   }
-#endif
 
 private:
   std::shared_ptr<const OmegaHLagrangeLayout> layout_;

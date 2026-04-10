@@ -76,10 +76,8 @@ public:
   // on the target factory.
   virtual bool HasDOFHolderCoordinates() const = 0;
 
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice()
+  virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates()
     const = 0;
-#endif
 
   // Whether this factory supports OutOfBoundsMode::NearestBoundary.
   // Backends that return false will throw a descriptive error if
