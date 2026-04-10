@@ -23,8 +23,15 @@ void bind_transfer_field_module(py::module& m)
       "evaluate",
       [](const PointEvaluator<Real>& self, const Field<Real>& field,
          py::array_t<Real> output) {
-        auto output_view = numpy_to_view_2d<Real>(output);
-        self.Evaluate(field, output_view);
+        auto output_view = numpy_to_kokkos_view_2d<Real>(output);
+        Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>  output_device(
+          "output_device", output_view.extent(0), output_view.extent(1));
+        DeepCopyMismatchLayouts(output_device, output_view);
+        Rank2View<Real, DeviceMemorySpace> output_rank2(output_device.data(),
+                                                        output_device.extent(0),
+                                                        output_device.extent(1));
+        
+        self.Evaluate(field, output_rank2);
       },
       py::arg("field"), py::arg("output"),
       "Evaluate the given field at the cached query coordinates into a "

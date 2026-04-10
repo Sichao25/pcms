@@ -140,15 +140,6 @@ GlobalIDView<HostMemorySpace> UniformGridFieldLayout<Dim>::GetGids() const
 }
 
 template <unsigned Dim>
-CoordinateView<HostMemorySpace>
-UniformGridFieldLayout<Dim>::GetDOFHolderCoordinatesHost() const
-{
-  Rank2View<const Real, HostMemorySpace> coords_view(
-    dof_holder_coords_host_.data(), dof_holder_coords_host_.extent(0), Dim);
-  return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
-}
-
-template <unsigned Dim>
 CoordinateView<DeviceMemorySpace>
 UniformGridFieldLayout<Dim>::GetDOFHolderCoordinates() const
 {

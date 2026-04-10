@@ -175,16 +175,6 @@ GlobalIDView<HostMemorySpace> OmegaHLagrangeLayout::GetGids() const
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
-CoordinateView<HostMemorySpace>
-OmegaHLagrangeLayout::GetDOFHolderCoordinatesHost() const
-{
-  int n = mesh_.nents(EntityDimForOrder(order_, mesh_.dim()));
-  int dim = mesh_.dim();
-  Rank2View<const Real, HostMemorySpace> coords_view(coords_host_.data(), n,
-                                                     dim);
-  return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
-}
-
 CoordinateView<DeviceMemorySpace>
 OmegaHLagrangeLayout::GetDOFHolderCoordinates() const
 {

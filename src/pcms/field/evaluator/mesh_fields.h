@@ -31,23 +31,6 @@ public:
   }
 
   void Evaluate(const Field<T>& field,
-                Rank2View<T, HostMemorySpace> values) const override
-  {
-    auto values_device_view = Kokkos::View<T**, DeviceMemorySpace>("values_device_view", values.extent(0), values.extent(1));
-    auto values_device = Rank2View<T, DeviceMemorySpace>(values_device_view.data(), values_device_view.extent(0), values_device_view.extent(1));
-    Evaluate(field, values_device);
-    auto values_host_view = Kokkos::View<T**, HostMemorySpace>("values_host_view", values.extent(0), values.extent(1));
-    DeepCopyMismatchLayouts(values_host_view, values_device_view);
-    Kokkos::parallel_for("CopyDeviceToHost", Kokkos::RangePolicy<HostMemorySpace::execution_space>(0, values.extent(0)),
-                         KOKKOS_LAMBDA(int i) {
-                           for (int j = 0; j < values.extent(1); ++j) {
-                             values(i, j) = values_host_view(i, j);
-                           }
-                         });
-  }
-
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  void Evaluate(const Field<T>& field,
                 Rank2View<T, DeviceMemorySpace> values) const override
   {
     PCMS_FUNCTION_TIMER;
@@ -86,7 +69,6 @@ public:
         });
     }
   }
-#endif
 
 private:
   std::shared_ptr<const MeshFieldsAdapterLayout> layout_;
@@ -121,15 +103,10 @@ public:
 
   CoordinateSystem GetCoordinateSystem() const override
   {
-    return layout_->GetDOFHolderCoordinatesHost().GetCoordinateSystem();
+    return layout_->GetDOFHolderCoordinates().GetCoordinateSystem();
   }
 
   bool HasDOFHolderCoordinates() const override { return true; }
-
-  CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override
-  {
-    return layout_->GetDOFHolderCoordinatesHost();
-  }
 
   bool SupportsNearestBoundary() const override { return false; }
 

@@ -39,7 +39,7 @@ public:
                OutOfBoundsPolicy policy = {})
     : num_points_(static_cast<LO>(
         target_space.GetLayout()
-            ->GetDOFHolderCoordinatesHost()
+            ->GetDOFHolderCoordinates()
             .GetCoordinates()
             .extent(0))),
       n_comp_(target_space.GetLayout()->GetNumComponents()),

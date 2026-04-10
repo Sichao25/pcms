@@ -40,14 +40,15 @@ TEST_CASE("OmegaHLagrangeLayout order-1 properties")
   REQUIRE(layout.IsDistributed()); // always true for Omega_h mesh layouts
 
   // DOF holder coordinates should match vertex coordinates
-  auto coords = layout.GetDOFHolderCoordinatesHost().GetCoordinates();
-  auto mesh_coords = Omega_h::HostRead<Real>(mesh.coords());
+  auto coords_device = layout.GetDOFHolderCoordinates().GetCoordinates();
   int nverts = mesh.nents(0);
-  REQUIRE(static_cast<int>(coords.extent(0)) == nverts);
-  REQUIRE(static_cast<int>(coords.extent(1)) == mesh.dim());
+  auto coords_view = pcms::test::CopyCoordinatesToHost(coords_device, nverts, mesh.dim());
+  auto mesh_coords = Omega_h::HostRead<Real>(mesh.coords());
+  REQUIRE(static_cast<int>(coords_view.extent(0)) == nverts);
+  REQUIRE(static_cast<int>(coords_view.extent(1)) == mesh.dim());
   for (int v = 0; v < nverts; ++v) {
     for (int d = 0; d < mesh.dim(); ++d) {
-      REQUIRE(coords(v, d) ==
+      REQUIRE(coords_view(v, d) ==
               Catch::Approx(mesh_coords[v * mesh.dim() + d]));
     }
   }
@@ -72,14 +73,15 @@ TEST_CASE("OmegaHLagrangeLayout order-0 properties")
   REQUIRE(layout.GetNumGlobalDofHolder() == mesh.nglobal_ents(mesh.dim()));
 
   // DOF holder coordinates should match element centroids
-  auto coords = layout.GetDOFHolderCoordinatesHost().GetCoordinates();
+  auto coords_device = layout.GetDOFHolderCoordinates().GetCoordinates();
+  int nelems = mesh.nelems();
+  auto coords_view = pcms::test::CopyCoordinatesToHost(coords_device, nelems, mesh.dim());
   auto centroids =
     Omega_h::HostRead<Real>(pcms::get_entity_centroids(mesh, mesh.dim()));
-  int nelems = mesh.nelems();
-  REQUIRE(static_cast<int>(coords.extent(0)) == nelems);
+  REQUIRE(static_cast<int>(coords_view.extent(0)) == nelems);
   for (int e = 0; e < nelems; ++e) {
     for (int d = 0; d < mesh.dim(); ++d) {
-      REQUIRE(coords(e, d) ==
+      REQUIRE(coords_view(e, d) ==
               Catch::Approx(centroids[e * mesh.dim() + d]));
     }
   }
@@ -239,12 +241,13 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
   auto evaluator = factory.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  std::vector<Real> eval(n);
-  pcms::Rank2View<Real, pcms::HostMemorySpace> out(eval.data(), n, 1);
+  Kokkos::View<Real*, pcms::DeviceMemorySpace> eval_device("eval", n);
+  pcms::Rank2View<Real, pcms::DeviceMemorySpace> out(eval_device.data(), n, 1);
   evaluator->Evaluate(field, out);
+  auto eval_host = Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), eval_device);
 
   for (int i = 0; i < n; ++i)
-    REQUIRE(eval[i] == Catch::Approx(kValue));
+    REQUIRE(eval_host(i) == Catch::Approx(kValue));
 }
 
 TEST_CASE("OmegaHLagrangeField order-0: out-of-bounds FILL mode")

@@ -74,18 +74,22 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
   auto evaluator = factory.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  std::vector<Real> out_a(n), out_b(n);
-  pcms::Rank2View<Real, pcms::HostMemorySpace> view_a(out_a.data(), n, 1);
-  pcms::Rank2View<Real, pcms::HostMemorySpace> view_b(out_b.data(), n, 1);
+  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_a_device("out_a", n);
+  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_b_device("out_b", n);
+  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_a(out_a_device.data(), n, 1);
+  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_b(out_b_device.data(), n, 1);
 
   // Evaluate field_a then field_b with the same evaluator
   evaluator->Evaluate(field_a, view_a);
   evaluator->Evaluate(field_b, view_b);
 
+  auto out_a_host = Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_a_device);
+  auto out_b_host = Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_b_device);
+
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];
-    REQUIRE(out_a[i] == Catch::Approx(pcms::test::linear_f(x, y)).margin(1e-10));
-    REQUIRE(out_b[i] == Catch::Approx(42.0).margin(1e-10));
+    REQUIRE(out_a_host(i) == Catch::Approx(pcms::test::linear_f(x, y)).margin(1e-10));
+    REQUIRE(out_b_host(i) == Catch::Approx(42.0).margin(1e-10));
   }
 }
 
@@ -180,7 +184,7 @@ TEST_CASE("FieldLayout: metadata queries")
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
   auto layout = factory.GetLayout();
 
-  auto coords = layout->GetDOFHolderCoordinatesHost();
+  auto coords = layout->GetDOFHolderCoordinates();
   REQUIRE(coords.GetCoordinateSystem() == CoordinateSystem::Cartesian);
   REQUIRE(coords.GetCoordinates().extent(0) > 0);
   REQUIRE(coords.GetCoordinates().extent(1) == 2);
@@ -201,7 +205,7 @@ TEST_CASE("FieldData: layout metadata queries")
                                          "global", pcms::LagrangeFunctionSpace::Backend::OmegaH);
   auto field_data = factory.CreateField<Real>();
 
-  auto coords = factory.GetLayout()->GetDOFHolderCoordinatesHost();
+  auto coords = factory.GetLayout()->GetDOFHolderCoordinates();
   REQUIRE(coords.GetCoordinateSystem() == CoordinateSystem::Cartesian);
   REQUIRE(coords.GetCoordinates().extent(0) > 0);
   REQUIRE(coords.GetCoordinates().extent(1) == 2);
@@ -257,7 +261,7 @@ TEST_CASE("FieldLayout: MeshFields metadata queries")
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
   auto layout = factory.GetLayout();
-  auto coords = layout->GetDOFHolderCoordinatesHost();
+  auto coords = layout->GetDOFHolderCoordinates();
   REQUIRE(coords.GetCoordinateSystem() == CoordinateSystem::Cartesian);
   REQUIRE(coords.GetCoordinates().extent(0) > 0);
   REQUIRE(coords.GetCoordinates().extent(1) == 2);
@@ -331,18 +335,22 @@ TEST_CASE(
   auto evaluator = factory.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  std::vector<Real> out_a(n), out_b(n);
-  pcms::Rank2View<Real, pcms::HostMemorySpace> view_a(out_a.data(), n, 1);
-  pcms::Rank2View<Real, pcms::HostMemorySpace> view_b(out_b.data(), n, 1);
+  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_a_device("out_a", n);
+  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_b_device("out_b", n);
+  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_a(out_a_device.data(), n, 1);
+  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_b(out_b_device.data(), n, 1);
 
   evaluator->Evaluate(field_a, view_a);
   evaluator->Evaluate(field_b, view_b);
 
+  auto out_a_host = Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_a_device);
+  auto out_b_host = Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_b_device);
+
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];
-    REQUIRE(out_a[i] ==
+    REQUIRE(out_a_host(i) ==
             Catch::Approx(pcms::test::linear_f(x, y)).margin(1e-10));
-    REQUIRE(out_b[i] == Catch::Approx(42.0).margin(1e-10));
+    REQUIRE(out_b_host(i) == Catch::Approx(42.0).margin(1e-10));
   }
 }
 

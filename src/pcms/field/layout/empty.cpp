@@ -55,13 +55,6 @@ EntOffsetsArray EmptyFieldLayout::GetEntOffsets() const
   return {0, 0, 0, 0, 0};
 }
 
-CoordinateView<HostMemorySpace> EmptyFieldLayout::GetDOFHolderCoordinatesHost()
-  const
-{
-  return {CoordinateSystem::XGC,
-          Rank2View<const Real, HostMemorySpace>(coords_host_.data(), 0, 2)};
-}
-
 CoordinateView<DeviceMemorySpace> EmptyFieldLayout::GetDOFHolderCoordinates()
   const
 {

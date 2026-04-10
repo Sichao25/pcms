@@ -240,15 +240,26 @@ void bind_create_field_module(py::module& m)
     .def(
       "get_dof_holder_coordinates",
       [](const Field<Real>& self) {
-        auto cv    = self.GetLayout().GetDOFHolderCoordinatesHost();
+        auto cv    = self.GetLayout().GetDOFHolderCoordinates();
         auto coords = cv.GetCoordinates();
-        py::array_t<Real> result({static_cast<py::ssize_t>(coords.extent(0)),
-                                   static_cast<py::ssize_t>(coords.extent(1))});
+        Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", coords.extent(0),
+                                               coords.extent(1));
+        Kokkos::parallel_for(
+          Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, coords.extent(0)),
+          KOKKOS_LAMBDA(size_t i) {
+            for (size_t j = 0; j < coords.extent(1); ++j) {
+              coords_device(i, j) = coords(i, j);
+            }
+          });
+        Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", coords.extent(0), coords.extent(1));
+        DeepCopyMismatchLayouts(coords_host, coords_device);
+        py::array_t<Real> result({static_cast<py::ssize_t>(coords_host.extent(0)),
+                                   static_cast<py::ssize_t>(coords_host.extent(1))});
         auto buf = result.request();
         Real* ptr = static_cast<Real*>(buf.ptr);
-        for (size_t i = 0; i < coords.extent(0); ++i)
-          for (size_t j = 0; j < coords.extent(1); ++j)
-            ptr[i * coords.extent(1) + j] = coords(i, j);
+        for (size_t i = 0; i < coords_host.extent(0); ++i)
+          for (size_t j = 0; j < coords_host.extent(1); ++j)
+            ptr[i * coords_host.extent(1) + j] = coords_host(i, j);
         return result;
       },
       "DOF holder coordinates as a 2D numpy array (num_dof_holders × dim)");

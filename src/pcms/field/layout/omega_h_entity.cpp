@@ -109,13 +109,6 @@ GlobalIDView<HostMemorySpace> OmegaHEntityLayout::GetGids() const
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
-CoordinateView<HostMemorySpace> OmegaHEntityLayout::GetDOFHolderCoordinatesHost() const
-{
-  Rank2View<const Real, HostMemorySpace> coords_view(
-    coords_host_.data(), GetNumOwnedDofHolder(), dimension_);
-  return CoordinateView<HostMemorySpace>{coordinate_system_, coords_view};
-}
-
 CoordinateView<DeviceMemorySpace> OmegaHEntityLayout::GetDOFHolderCoordinates() const
 {
   Rank2View<const Real, DeviceMemorySpace> coords_view(

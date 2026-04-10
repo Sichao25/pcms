@@ -75,6 +75,27 @@ inline std::vector<Real> CopyOmegaHRealsToVector(const Omega_h::Reals& coords)
   return std::vector<Real>(coords_read.data(), coords_read.data() + coords_read.size());
 }
 
+// Copy coordinates from device memory to a host view.
+// This handles potential layout mismatches between host and device memory spaces.
+template <typename CoordView>
+inline Kokkos::View<const Real**, HostMemorySpace> CopyCoordinatesToHost(
+  const CoordView& coords_device, int nents, int dim)
+{
+  auto coords_view = Kokkos::View<Real**, HostMemorySpace>(
+    "coords_view", nents, dim);
+  auto coords_view_device = Kokkos::View<Real**, pcms::DeviceMemorySpace>(
+    "coords_view_device", nents, dim);
+  Kokkos::parallel_for(
+    "copy_coords_to_host_view", Kokkos::RangePolicy<>(0, nents),
+    KOKKOS_LAMBDA(int i) {
+      for (int d = 0; d < dim; ++d) {
+        coords_view_device(i, d) = coords_device(i, d);
+      }
+    });
+  DeepCopyMismatchLayouts(coords_view, coords_view_device);
+  return coords_view;
+}
+
 template <typename ExecutionSpace, typename Func>
 inline std::vector<Real> EvaluateReferenceFunction(
   const std::vector<Real>& pts, Func func)
@@ -123,12 +144,15 @@ inline void SetField(const FieldLayout& layout, FieldData<Real>& field, Func fun
 {
   using MemorySpace = typename ExecutionSpace::memory_space;
 
-  auto dof_coords = layout.GetDOFHolderCoordinatesHost().GetCoordinates();
+  auto dof_coords = layout.GetDOFHolderCoordinates().GetCoordinates();
   int n = static_cast<int>(dof_coords.extent(0));
   Kokkos::View<Real *[2], MemorySpace> coords_device("coords_device", n);
-  auto coords_host = Kokkos::View<const Real **, HostMemorySpace>(
-    dof_coords.data_handle(), n, 2);
-  DeepCopyMismatchLayouts(coords_device, coords_host);
+  Kokkos::parallel_for(
+    "field_test_utils_copy_coords", Kokkos::RangePolicy<ExecutionSpace>(0, n),
+    KOKKOS_LAMBDA(int i) {
+      coords_device(i, 0) = dof_coords(i, 0);
+      coords_device(i, 1) = dof_coords(i, 1);
+    });
 
   Kokkos::View<Real *, MemorySpace> data_device("data_device", n);
   Kokkos::parallel_for(
@@ -224,16 +248,20 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
                      double abs_tol = 1e-10)
 {
   int n = static_cast<int>(pts.size()) / 2;
-  std::vector<Real> eval(n);
-  Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
+
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
+  Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
+  // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
   evaluator.Evaluate(field, out);
+  Kokkos::View<Real*, HostMemorySpace> out_host("out_host", n);
+  DeepCopyMismatchLayouts(out_host, out_device);
 
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 
   for (int i = 0; i < n; ++i) {
     INFO("Point " << i << " (" << pts[2*i] << ", " << pts[2*i+1] << ")"
-         << " got=" << eval[i] << " expected=" << expected[i]);
-    REQUIRE(eval[i] == Catch::Approx(expected[i]).margin(abs_tol));
+         << " got=" << out_host(i) << " expected=" << expected[i]);
+    REQUIRE(out_host(i) == Catch::Approx(expected[i]).margin(abs_tol));
   }
 }
 
@@ -258,12 +286,16 @@ inline void CheckFillMode(const PointEvaluator<Real>& evaluator,
                           const std::vector<Real>& outside_pts)
 {
   int n = static_cast<int>(outside_pts.size()) / 2;
-  std::vector<Real> eval(n);
-  Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
+
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
+  Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
+  // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
   evaluator.Evaluate(field, out);
+  Kokkos::View<Real*, HostMemorySpace> out_host("out_host", n);
+  DeepCopyMismatchLayouts(out_host, out_device);
 
   for (int i = 0; i < n; ++i) {
-    REQUIRE(eval[i] == fill_value);
+    REQUIRE(out_host(i) == fill_value);
   }
 }
 
@@ -298,20 +330,23 @@ void CheckEvaluationWithFill(const Factory& factory,
   auto evaluator = factory.template CreatePointEvaluator<Real>(
     EvaluationRequest::FromCoordinates(device_coords.coordinate_view, policy));
 
-  std::vector<Real> eval(n);
-  Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
+  Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
+  // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
   evaluator->Evaluate(field, out);
+  Kokkos::View<Real*, HostMemorySpace> out_host("out_host", n);
+  DeepCopyMismatchLayouts(out_host, out_device);
 
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 
   for (int i = 0; i < n; ++i) {
     INFO("Point " << i << " (" << pts[2*i] << ", " << pts[2*i+1] << ")"
-         << " got=" << eval[i]);
+         << " got=" << out_host(i));
     if (is_inside[i]) {
       INFO(" expected=" << expected[i]);
-      REQUIRE(eval[i] == Catch::Approx(expected[i]).margin(abs_tol));
+      REQUIRE(out_host(i) == Catch::Approx(expected[i]).margin(abs_tol));
     } else {
-      REQUIRE(eval[i] == fill_value);
+      REQUIRE(out_host(i) == fill_value);
     }
   }
 }

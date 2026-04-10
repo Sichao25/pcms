@@ -76,13 +76,6 @@ public:
   // on the target factory.
   virtual bool HasDOFHolderCoordinates() const = 0;
 
-  // Coordinates of each DOF holder in the layout ordering, shape
-  // [num_dof_holders][spatial_dim]. Defined only when HasDOFHolderCoordinates()
-  // is true; implementations should assert or throw otherwise. The returned
-  // view remains valid until the factory is destroyed.
-  virtual CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost()
-    const = 0;
-
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice()
     const = 0;

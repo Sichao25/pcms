@@ -45,15 +45,10 @@ public:
 
   CoordinateSystem GetCoordinateSystem() const override
   {
-    return layout_->GetDOFHolderCoordinatesHost().GetCoordinateSystem();
+    return layout_->GetDOFHolderCoordinates().GetCoordinateSystem();
   }
 
   bool HasDOFHolderCoordinates() const override { return true; }
-
-  CoordinateView<HostMemorySpace> GetDOFHolderCoordinatesHost() const override
-  {
-    return layout_->GetDOFHolderCoordinatesHost();
-  }
 
 #if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinatesDevice() const override
@@ -89,17 +84,6 @@ public:
     PCMS_ALWAYS_ASSERT(static_cast<int>(tgt_view.extent(1)) == dim);
     Omega_h::Reals target_coords_oh =
       flatten_to_omega_h_reals(tgt_view, "tgt_coords");
-
-    // TODO: remove this after updating localization to accept target coordinates on the device side
-    // auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>("target_coords_device", tgt_view.extent(0), tgt_view.extent(1));
-    // Kokkos::parallel_for("CopyTargetCoordsToDevice", Kokkos::RangePolicy<>(0, tgt_view.extent(0)), KOKKOS_LAMBDA(int i) {
-    //   for (int d = 0; d < dim; ++d) {
-    //     coords_device(i, d) = tgt_view(i, d);
-    //   }
-    // });
-    // auto coords_host = Kokkos::View<Real**, HostMemorySpace>("target_coords_host", tgt_view.extent(0), tgt_view.extent(1));
-    // DeepCopyMismatchLayouts(coords_host, coords_device);
-    // CoordinateView<HostMemorySpace> target_coords_host(coords.GetCoordinateSystem(), Rank2View<const Real, HostMemorySpace>(coords_host.data(), coords_host.extent(0), coords_host.extent(1)));
 
     SupportResults supports;
     auto path =

@@ -44,17 +44,16 @@ CreateUniformGridBinaryField(Omega_h::Mesh& mesh, const UniformGrid<Dim>& grid)
   PCMS_ALWAYS_ASSERT(layout != nullptr);
   auto field = function_space.template CreateField<Real>(FieldMetadata{});
 
-  auto coord_view = layout->GetDOFHolderCoordinatesHost();
+  auto coord_view = layout->GetDOFHolderCoordinates();
   auto coords     = coord_view.GetCoordinates();
   LO n            = layout->GetNumOwnedDofHolder();
 
-  // Copy DOF coordinates from host mdspan to a Kokkos device view for search
   Kokkos::View<Real* [Dim]> coords_d("coords_d", n);
-  auto coords_h = Kokkos::create_mirror_view(coords_d);
-  for (LO i = 0; i < n; ++i)
-    for (unsigned d = 0; d < Dim; ++d)
-      coords_h(i, d) = coords(i, d);
-  Kokkos::deep_copy(coords_d, coords_h);
+  Kokkos::parallel_for("CopyCoords", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) {
+    for (int d = 0; d < Dim; ++d) {
+      coords_d(i, d) = coords(i, d);
+    }
+  });
 
   // Run point-in-mesh search
   Kokkos::View<typename PointLocalizationSearch<Dim>::Result*> results_d;

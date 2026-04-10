@@ -35,12 +35,7 @@ class PointEvaluator
 {
 public:
   virtual void Evaluate(const Field<T>& field,
-                        Rank2View<T, HostMemorySpace> values) const = 0;
-
-#if defined(PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE)
-  virtual void Evaluate(const Field<T>& field,
                         Rank2View<T, DeviceMemorySpace> values) const = 0;
-#endif
 
   virtual ~PointEvaluator() noexcept = default;
 };

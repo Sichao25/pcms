@@ -193,17 +193,21 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  std::vector<Real> out_a(n), out_b(n);
-  Rank2View<Real, HostMemorySpace> view_a(out_a.data(), n, 1);
-  Rank2View<Real, HostMemorySpace> view_b(out_b.data(), n, 1);
+  Kokkos::View<Real*, DeviceMemorySpace> out_a_device("out_a", n);
+  Kokkos::View<Real*, DeviceMemorySpace> out_b_device("out_b", n);
+  Rank2View<Real, DeviceMemorySpace> view_a(out_a_device.data(), n, 1);
+  Rank2View<Real, DeviceMemorySpace> view_b(out_b_device.data(), n, 1);
 
   evaluator->Evaluate(field_a, view_a);
   evaluator->Evaluate(field_b, view_b);
 
+  auto out_a_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_a_device);
+  auto out_b_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_b_device);
+
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];
-    REQUIRE(out_a[i] == Catch::Approx(pcms::test::linear_f(x, y)).margin(5e-3));
-    REQUIRE(out_b[i] == Catch::Approx(cval).margin(5e-3));
+    REQUIRE(out_a_host(i) == Catch::Approx(pcms::test::linear_f(x, y)).margin(5e-3));
+    REQUIRE(out_b_host(i) == Catch::Approx(cval).margin(5e-3));
   }
 }
 
@@ -227,8 +231,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for num_co
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   // Two-component output — must throw
-  std::vector<Real> out(n * 2);
-  Rank2View<Real, HostMemorySpace> out_view(out.data(), n, 2);
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out", n * 2);
+  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), n, 2);
   REQUIRE_THROWS(evaluator->Evaluate(field, out_view));
 }
 
@@ -254,12 +258,13 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: default MLSOptions — smo
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  std::vector<Real> out(n);
-  Rank2View<Real, HostMemorySpace> out_view(out.data(), n, 1);
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out", n);
+  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), n, 1);
   // Just verify it runs without error and returns finite values
   REQUIRE_NOTHROW(evaluator->Evaluate(field, out_view));
+  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
   for (int i = 0; i < n; ++i)
-    REQUIRE(std::isfinite(out[i]));
+    REQUIRE(std::isfinite(out_host(i)));
 }
 
 TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejects coordinate "
@@ -316,11 +321,12 @@ TEST_CASE(
   auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
-  std::vector<Real> out(1);
-  Rank2View<Real, HostMemorySpace> out_view(out.data(), 1, 1);
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out", 1);
+  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), 1, 1);
   evaluator->Evaluate(field, out_view);
+  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
-  REQUIRE(out[0] == Catch::Approx(1.0).margin(1e-8));
+  REQUIRE(out_host(0) == Catch::Approx(1.0).margin(1e-8));
 }
 
 TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z coordinates in "
@@ -331,8 +337,9 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z
 
   auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
     coords_view, CoordinateSystem::Cartesian, DefaultTestOptions3D());
-  auto layout_coords =
-    fs.GetLayout()->GetDOFHolderCoordinatesHost().GetCoordinates();
+  auto layout_coords_device =
+    fs.GetLayout()->GetDOFHolderCoordinates().GetCoordinates();
+  auto layout_coords = pcms::test::CopyCoordinatesToHost(layout_coords_device, 27, 3);
   REQUIRE(static_cast<int>(layout_coords.extent(1)) == 3);
   for (int i = 0; i < 27; ++i) {
     REQUIRE(layout_coords(i, 0) == Catch::Approx(src[3 * i + 0]));
@@ -355,14 +362,15 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z
   auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian, 3);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
-  std::vector<Real> out(2);
-  Rank2View<Real, HostMemorySpace> out_view(out.data(), 2, 1);
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out", 2);
+  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), 2, 1);
   evaluator->Evaluate(field, out_view);
+  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
   // This 3D case is a small, low-resolution support cloud with MLS weights
   // built from a finite-radius neighborhood rather than exact nodal lookup, so
   // it is checked with a slightly looser tolerance than the denser 2D tests.
-  REQUIRE(out[0] == Catch::Approx(2.25).margin(1e-2));
-  REQUIRE(out[1] == Catch::Approx(3.75).margin(1e-2));
-  REQUIRE(out[1] - out[0] == Catch::Approx(1.5).margin(1e-2));
+  REQUIRE(out_host(0) == Catch::Approx(2.25).margin(1e-2));
+  REQUIRE(out_host(1) == Catch::Approx(3.75).margin(1e-2));
+  REQUIRE(out_host(1) - out_host(0) == Catch::Approx(1.5).margin(1e-2));
 }

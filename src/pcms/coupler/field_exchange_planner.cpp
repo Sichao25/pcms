@@ -179,9 +179,19 @@ static ReversePartitionMap2 BuildReversePartitionMap(
   auto owned = layout.GetOwned();
   auto class_dims = layout.GetDOFHolderClassificationDimensions();
   auto class_ids = layout.GetDOFHolderClassificationIds();
-  auto coords = layout.GetDOFHolderCoordinatesHost().GetCoordinates();
+  auto coords = layout.GetDOFHolderCoordinates().GetCoordinates();
   auto ent_offsets = layout.GetEntOffsets();
   int mesh_dim = static_cast<int>(coords.extent(1));
+
+  // move coords to host
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", coords.extent(0), coords.extent(1));
+  Kokkos::parallel_for("copy_coords", Kokkos::RangePolicy<>(0, coords.extent(0)), KOKKOS_LAMBDA(int i) {
+    for (unsigned d = 0; d < coords.extent(1); ++d) {
+      coords_device(i, d) = coords(i, d);
+    }
+  });
+  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", coords.extent(0), coords.extent(1));
+  pcms::DeepCopyMismatchLayouts(coords_host, coords_device);
 
   ReversePartitionMap2 reverse_partition;
   LO n = static_cast<LO>(owned.extent(0));
@@ -192,7 +202,7 @@ static ReversePartitionMap2 BuildReversePartitionMap(
       continue;
 
     for (int d = 0; d < mesh_dim; ++d)
-      coord[d] = coords(local_index, d);
+      coord[d] = coords_host(local_index, d);
     for (int d = mesh_dim; d < 3; ++d)
       coord[d] = 0.0;
 
