@@ -25,10 +25,10 @@ template <unsigned Dim>
 struct UniformGridFieldLocalizationHint
 {
   UniformGridFieldLocalizationHint(
-    Kokkos::View<LO*, HostMemorySpace> cell_indices,
-    Kokkos::View<Real**, HostMemorySpace> coordinates,
+    Kokkos::View<LO*, DeviceMemorySpace> cell_indices,
+    Kokkos::View<Real**, DeviceMemorySpace> coordinates,
     OutOfBoundsMode mode,
-    Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds,
+    Kokkos::View<bool*, DeviceMemorySpace> is_out_of_bounds,
     size_t num_out_of_bounds)
     : cell_indices_(cell_indices),
       coordinates_(coordinates),
@@ -38,10 +38,10 @@ struct UniformGridFieldLocalizationHint
   {
   }
 
-  Kokkos::View<LO*, HostMemorySpace>   cell_indices_;
-  Kokkos::View<Real**, HostMemorySpace> coordinates_;
+  Kokkos::View<LO*, DeviceMemorySpace>   cell_indices_;
+  Kokkos::View<Real**, DeviceMemorySpace> coordinates_;
   OutOfBoundsMode                       mode_;
-  Kokkos::View<bool*, HostMemorySpace>  is_out_of_bounds_;
+  Kokkos::View<bool*, DeviceMemorySpace>  is_out_of_bounds_;
   size_t                                num_out_of_bounds_;
 };
 
@@ -83,13 +83,8 @@ public:
                                              layout_->GetNumComponents()));
 
     auto cell_indices = hint_.cell_indices_;
-    auto cell_indices_device = Kokkos::View<LO*, DeviceMemorySpace>("cell_indices_device", num_points);
-    Kokkos::deep_copy(cell_indices_device, cell_indices);
-
     auto coordinates = hint_.coordinates_;
-    auto is_out_of_bounds = Kokkos::View<bool*, DeviceMemorySpace>("is_out_of_bounds", num_points);
-    Kokkos::deep_copy(is_out_of_bounds, hint_.is_out_of_bounds_);
-
+    auto is_out_of_bounds = hint_.is_out_of_bounds_;
 
     if (layout_->GetOrder() == 0) {
       OutOfBoundsMode mode = hint_.mode_;
@@ -101,7 +96,7 @@ public:
           if (is_out_of_bounds(i) && mode == OutOfBoundsMode::FILL) {
             values(i, c) = fv;
           } else {
-            LO dof_idx = cell_indices_device(i);
+            LO dof_idx = cell_indices(i);
             values(i, c) = dof_data[dof_idx * n_comp + c];
           }
         });
@@ -109,40 +104,49 @@ public:
     }
 
     // Order-1: multilinear interpolation
-    Kokkos::View<LO**, HostMemorySpace> cell_dim_indices("cell_dim_indices",
+    Kokkos::View<LO**, DeviceMemorySpace> cell_dim_indices("cell_dim_indices",
                                                          num_points, Dim);
-    for (LO i = 0; i < num_points; ++i) {
-      auto dim_idx = grid_.GetDimensionedIndex(cell_indices[i]);
-      for (unsigned d = 0; d < Dim; ++d)
-        cell_dim_indices(i, d) = dim_idx[d];
-    }
+    Kokkos::parallel_for(
+      "compute_cell_dim_indices",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+      KOKKOS_CLASS_LAMBDA(const LO i) {
+        auto dim_idx = grid_.GetDimensionedIndex(cell_indices(i));
+        for (unsigned d = 0; d < Dim; ++d) {
+          cell_dim_indices(i, d) = dim_idx[d];}
+        }
+      );
 
     auto cell_divisions = grid_.divisions;
     IntVecView dimensions_view("dimensions", Dim);
-    auto dimensions_host = Kokkos::create_mirror_view(dimensions_view);
-    for (unsigned d = 0; d < Dim; ++d)
-      dimensions_host(d) = cell_divisions[d] + 1;
-    Kokkos::deep_copy(dimensions_view, dimensions_host);
+    Kokkos::parallel_for(
+      "set_dimensions_view",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, Dim),
+      KOKKOS_LAMBDA(const unsigned d) {
+        dimensions_view(d) = cell_divisions[d] + 1;
+      });
 
     RealMatView parametric_coords("parametric_coords", num_points, Dim);
-    auto param_host = Kokkos::create_mirror_view(parametric_coords);
-    for (LO i = 0; i < num_points; ++i) {
-      auto cell_bbox = grid_.GetCellBBOX(cell_indices[i]);
-      for (unsigned d = 0; d < Dim; ++d) {
-        Real coord = coordinates(i, d);
-        Real cell_min = cell_bbox.center[d] - cell_bbox.half_width[d];
-        Real cell_max = cell_bbox.center[d] + cell_bbox.half_width[d];
-        param_host(i, d) = (coord - cell_min) / (cell_max - cell_min);
-      }
-    }
-    Kokkos::deep_copy(parametric_coords, param_host);
+    Kokkos::parallel_for(
+      "compute_parametric_coords",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+      KOKKOS_CLASS_LAMBDA(const LO i) {
+        auto cell_bbox = grid_.GetCellBBOX(cell_indices(i));
+        for (unsigned d = 0; d < Dim; ++d) {
+          Real coord = coordinates(i, d);
+          Real cell_min = cell_bbox.center[d] - cell_bbox.half_width[d];
+          Real cell_max = cell_bbox.center[d] + cell_bbox.half_width[d];
+          parametric_coords(i, d) = (coord - cell_min) / (cell_max - cell_min);
+        }
+      });
 
     IntMatView cell_indices_interp("cell_indices_interp", num_points, Dim);
-    auto cell_idx_host = Kokkos::create_mirror_view(cell_indices_interp);
-    for (LO i = 0; i < num_points; ++i)
-      for (unsigned d = 0; d < Dim; ++d)
-        cell_idx_host(i, d) = cell_dim_indices(i, d);
-    Kokkos::deep_copy(cell_indices_interp, cell_idx_host);
+    Kokkos::parallel_for(
+      "copy_cell_dim_indices_to_interp",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+      KOKKOS_LAMBDA(const LO i) {
+        for (unsigned d = 0; d < Dim; ++d)
+          cell_indices_interp(i, d) = cell_dim_indices(i, d);
+      });
 
     // n_comp == 1 for now (multi-component path would need per-component calls)
     PCMS_ALWAYS_ASSERT(
@@ -235,41 +239,46 @@ public:
     auto coordinates = coords.GetCoordinates();
     LO num_points = static_cast<LO>(coordinates.extent(0));
 
-    Kokkos::View<LO*, HostMemorySpace> cell_indices("cell_indices", num_points);
+    Kokkos::View<LO*, DeviceMemorySpace> cell_indices_device("cell_indices", num_points);
     Kokkos::View<Real**, DeviceMemorySpace> coordinates_device("coordinates_device", num_points, Dim);
     Kokkos::parallel_for("copy_coordinates_to_device", num_points, KOKKOS_LAMBDA(const LO i) {
       for (unsigned d = 0; d < Dim; ++d) {
         coordinates_device(i, d) = coordinates(i, d);
       }
     });
-     Kokkos::View<Real**, HostMemorySpace> coords_copy("coords_copy", num_points, Dim);
-    DeepCopyMismatchLayouts(coords_copy, coordinates_device);
-    Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds",
-                                                          num_points);
+    
+    Kokkos::View<bool*, DeviceMemorySpace> is_out_of_bounds_device("is_out_of_bounds", num_points);
+    
+    // Parallel reduction to compute cell indices and count out-of-bounds points
     size_t num_out_of_bounds = 0;
-
-    for (LO i = 0; i < num_points; ++i) {
-      Omega_h::Vector<Dim> point;
-      for (unsigned d = 0; d < Dim; ++d) {
-        point[d] = coords_copy(i, d);
-      }
-
-      bool out_of_bounds = !grid_.IsPointInBounds(point);
-      is_out_of_bounds[i] = out_of_bounds;
-      if (out_of_bounds) {
-        ++num_out_of_bounds;
-        if (policy.mode == OutOfBoundsMode::ERROR) {
-          throw pcms_error(
-            "UniformGridEvaluatorFactory: point found outside uniform grid "
-            "domain");
+    Kokkos::parallel_reduce(
+      "localize_points_on_device",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+      KOKKOS_CLASS_LAMBDA(const LO i, size_t& local_count) {
+        Omega_h::Vector<Dim> point;
+        for (unsigned d = 0; d < Dim; ++d) {
+          point[d] = coordinates_device(i, d);
         }
-      }
 
-      cell_indices[i] = grid_.ClosestCellID(point);
+        bool out_of_bounds = !grid_.IsPointInBounds(point);
+        is_out_of_bounds_device(i) = out_of_bounds;
+        if (out_of_bounds) {
+          local_count += 1;
+        }
+
+        cell_indices_device(i) = grid_.ClosestCellID(point);
+      },
+      num_out_of_bounds);
+    
+    // Check for errors after kernel execution
+    if (num_out_of_bounds > 0 && policy.mode == OutOfBoundsMode::ERROR) {
+      throw pcms_error(
+        "UniformGridEvaluatorFactory: " + std::to_string(num_out_of_bounds) +
+        " point(s) found outside uniform grid domain");
     }
 
-    UniformGridFieldLocalizationHint<Dim> hint(cell_indices, coords_copy,
-                                               policy.mode, is_out_of_bounds,
+    UniformGridFieldLocalizationHint<Dim> hint(cell_indices_device, coordinates_device,
+                                               policy.mode, is_out_of_bounds_device,
                                                num_out_of_bounds);
 
     return std::make_unique<UniformGridPointEvaluator<Dim>>(

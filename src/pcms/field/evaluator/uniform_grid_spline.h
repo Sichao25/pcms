@@ -77,13 +77,9 @@ public:
     Kokkos::View<LO*, DeviceMemorySpace> in_bounds_indices(
       "uniform_grid_spline_in_bounds_indices", num_in_bounds);
 
-    auto coordinates_device = Kokkos::View<Real**,
-      DeviceMemorySpace>("uniform_grid_spline_coordinates_device", num_points, 2);
-    DeepCopyMismatchLayouts(coordinates_device, hint_.coordinates_);
+    auto coordinates_device = hint_.coordinates_;
 
-    auto is_out_of_bounds_device = Kokkos::View<bool*,
-      DeviceMemorySpace>("uniform_grid_spline_is_out_of_bounds_device", num_points);
-    Kokkos::deep_copy(is_out_of_bounds_device, hint_.is_out_of_bounds_);
+    auto is_out_of_bounds_device = hint_.is_out_of_bounds_;
 
     // Stream compaction: filter in-bounds points using parallel_scan
     Kokkos::parallel_scan(
@@ -200,48 +196,51 @@ public:
     }
 
     auto coordinates = coords.GetCoordinates();
-    Kokkos::View<Real**, DeviceMemorySpace> coordinates_d("coordinates_d", coordinates.extent(0), coordinates.extent(1));
+    LO num_points = static_cast<LO>(coordinates.extent(0));
+    
+    Kokkos::View<Real**, DeviceMemorySpace> coordinates_d("coordinates_d", num_points, 2);
     Kokkos::parallel_for(
       "copy_coordinates",
-      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, coordinates.extent(0)),
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
       KOKKOS_LAMBDA(LO i) {
-        for (LO j = 0; j < coordinates.extent(1); ++j) {
+        for (LO j = 0; j < 2; ++j) {
           coordinates_d(i, j) = coordinates(i, j);
         }
       });
 
-    LO num_points = static_cast<LO>(coordinates.extent(0));
-
-    Kokkos::View<LO*, HostMemorySpace> cell_indices("cell_indices", num_points);
-    Kokkos::View<Real**, HostMemorySpace> coords_copy("coords_copy", num_points,
-                                                      2);
-    DeepCopyMismatchLayouts(coords_copy, coordinates_d);
-    Kokkos::View<bool*, HostMemorySpace> is_out_of_bounds("is_out_of_bounds",
-                                                          num_points);
+    Kokkos::View<LO*, DeviceMemorySpace> cell_indices_device("cell_indices", num_points);
+    Kokkos::View<bool*, DeviceMemorySpace> is_out_of_bounds_device("is_out_of_bounds", num_points);
+    
+    // Parallel reduction to compute cell indices and count out-of-bounds points
     size_t num_out_of_bounds = 0;
-
-    for (LO i = 0; i < num_points; ++i) {
-      Omega_h::Vector<2> point;
-      for (unsigned d = 0; d < 2; ++d) {
-        point[d] = coords_copy(i, d);
-      }
-
-      bool out_of_bounds = !grid_.IsPointInBounds(point);
-      is_out_of_bounds(i) = out_of_bounds;
-      if (out_of_bounds) {
-        ++num_out_of_bounds;
-        if (policy.mode == OutOfBoundsMode::ERROR) {
-          throw pcms_error(
-            "UniformGridSplineEvaluatorFactory2D: point found outside "
-            "uniform grid domain");
+    Kokkos::parallel_reduce(
+      "localize_points_on_device_spline",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
+      KOKKOS_CLASS_LAMBDA(const LO i, size_t& local_count) {
+        Omega_h::Vector<2> point;
+        for (unsigned d = 0; d < 2; ++d) {
+          point[d] = coordinates_d(i, d);
         }
-      }
 
-      cell_indices(i) = grid_.ClosestCellID(point);
+        bool out_of_bounds = !grid_.IsPointInBounds(point);
+        is_out_of_bounds_device(i) = out_of_bounds;
+        if (out_of_bounds) {
+          local_count += 1;
+        }
+
+        cell_indices_device(i) = grid_.ClosestCellID(point);
+      },
+      num_out_of_bounds);
+    
+    // Check for errors after kernel execution
+    if (num_out_of_bounds > 0 && policy.mode == OutOfBoundsMode::ERROR) {
+      throw pcms_error(
+        "UniformGridSplineEvaluatorFactory2D: " + std::to_string(num_out_of_bounds) +
+        " point(s) found outside uniform grid domain");
     }
 
-    UniformGridFieldLocalizationHint<2> hint(cell_indices, coords_copy,
-                                             policy.mode, is_out_of_bounds,
+    UniformGridFieldLocalizationHint<2> hint(cell_indices_device, coordinates_d,
+                                             policy.mode, is_out_of_bounds_device,
                                              num_out_of_bounds);
     return std::make_unique<UniformGridSplinePointEvaluator2D>(
       layout_, std::move(hint), policy.fill_value);
