@@ -54,7 +54,7 @@ public:
       "CopyEvalResultsToValues",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
         0, eval_results.extent(0)),
-      KOKKOS_LAMBDA(LO i) {
+      KOKKOS_CLASS_LAMBDA(LO i) {
         values(hint_.indices_d_(i), 0) = eval_results(i, 0);
       });
 
@@ -64,7 +64,7 @@ public:
         "FillMissingValues",
         Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
           0, hint_.num_missing_),
-        KOKKOS_LAMBDA(LO i) {
+        KOKKOS_CLASS_LAMBDA(LO i) {
           values(hint_.missing_indices_d_(i), 0) = fill_val;
         });
     }

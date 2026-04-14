@@ -71,17 +71,6 @@ Omega_h::Vector<3> load_point(const Omega_h::Reals& coords, int id, int dim)
   return p;
 }
 
-double distance_squared_host(const Omega_h::Real* a, const Omega_h::Real* b,
-                             int dim)
-{
-  double sum = 0;
-  for (int d = 0; d < dim; ++d) {
-    double diff = a[d] - b[d];
-    sum += diff * diff;
-  }
-  return sum;
-}
-
 struct NSquareCountFunctor
 {
   const int dim;

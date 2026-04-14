@@ -11,11 +11,6 @@
 
 using pcms::Real;
 
-KOKKOS_INLINE_FUNCTION static Real fill_mode_f(Real x, Real y)
-{
-  return x + y;
-}
-
 TEST_CASE("omega_h_field2 out of bounds FILL mode")
 {
   auto lib = Omega_h::Library{};

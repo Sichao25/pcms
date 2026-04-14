@@ -65,7 +65,7 @@ public:
       Kokkos::parallel_for(
         "fill_out_of_bounds_values",
         Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
-        KOKKOS_LAMBDA(LO i) { values(i, 0) = fill_value_; });
+        KOKKOS_CLASS_LAMBDA(LO i) { values(i, 0) = fill_value_; });
       return;
     }
 
@@ -125,7 +125,7 @@ public:
       Kokkos::parallel_for(
         "fill_out_of_bounds",
         Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
-        KOKKOS_LAMBDA(LO i) {
+        KOKKOS_CLASS_LAMBDA(LO i) {
           if (hint_.is_out_of_bounds_(i)) {
             values(i, 0) = fill_value_;
           }

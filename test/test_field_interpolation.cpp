@@ -19,11 +19,6 @@ KOKKOS_INLINE_FUNCTION static Real interpolation_linear_f(Real x, Real y)
   return -0.3 * x + 0.5 * y;
 }
 
-KOKKOS_INLINE_FUNCTION static Real interpolation_constant_f(Real /*x*/, Real /*y*/)
-{
-  return 7.0;
-}
-
 TEST_CASE("interpolate linear 2d omega_h_field")
 {
   auto lib = Omega_h::Library{};

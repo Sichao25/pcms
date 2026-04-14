@@ -95,16 +95,6 @@ pcms::MLSOptions SweepTestOptions(unsigned degree,
   return opts;
 }
 
-KOKKOS_INLINE_FUNCTION Real constant_f(Real, Real)
-{
-  return 3.14;
-}
-
-KOKKOS_INLINE_FUNCTION Real quadratic_f(Real x, Real y)
-{
-  return x * x + x * y + 2.0 * y * y;
-}
-
 const char* BasisName(pcms::RadialBasisFunction basis)
 {
   switch (basis) {

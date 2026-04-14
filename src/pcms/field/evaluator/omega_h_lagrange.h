@@ -164,7 +164,7 @@ public:
     if (layout_->GetOrder() == 0) {
       Kokkos::parallel_for("OmegaHLagrangePointEvaluator::EvaluateOrder0",
                            Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_valid),
-                           KOKKOS_LAMBDA(LO k) {
+                           KOKKOS_CLASS_LAMBDA(LO k) {
                              LO orig = hint_.orig_indices(k);
                              LO elem = hint_.elem_ids(k);
                              for (int c = 0; c < n_comp; ++c) {
@@ -181,7 +181,7 @@ public:
 
       Kokkos::parallel_for("OmegaHLagrangePointEvaluator::EvaluateOrder1",
                            Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_valid),
-                           KOKKOS_LAMBDA(LO k) {
+                           KOKKOS_CLASS_LAMBDA(LO k) {
                              LO orig = hint_.orig_indices(k);
                              LO elem = hint_.elem_ids(k);
                              for (int c = 0; c < n_comp; ++c) {
@@ -203,7 +203,7 @@ public:
       Kokkos::parallel_for("OmegaHLagrangePointEvaluator::FillOutOfBounds",
                            Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0,
                                                                  static_cast<LO>(hint_.missing_indices.size())),
-                           KOKKOS_LAMBDA(LO k) {
+                           KOKKOS_CLASS_LAMBDA(LO k) {
                              LO orig = hint_.missing_indices(k);
                              for (int c = 0; c < n_comp; ++c) {
                                values(orig, c) = fill_val;
