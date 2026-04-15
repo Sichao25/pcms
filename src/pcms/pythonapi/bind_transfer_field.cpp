@@ -24,9 +24,7 @@ void bind_transfer_field_module(py::module& m)
       [](const PointEvaluator<Real>& self, const Field<Real>& field,
          py::array_t<Real> output) {
         auto output_view = numpy_to_kokkos_view_2d<Real>(output);
-        Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>  output_device(
-          "output_device", output_view.extent(0), output_view.extent(1));
-        DeepCopyMismatchLayouts(output_device, output_view);
+        auto output_device = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), output_view);
         Rank2View<Real, DeviceMemorySpace> output_rank2(output_device.data(),
                                                         output_device.extent(0),
                                                         output_device.extent(1));

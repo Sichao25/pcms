@@ -190,8 +190,7 @@ static ReversePartitionMap2 BuildReversePartitionMap(
       coords_device(i, d) = coords(i, d);
     }
   });
-  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", coords.extent(0), coords.extent(1));
-  pcms::DeepCopyMismatchLayouts(coords_host, coords_device);
+  auto coords_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords_device);
 
   ReversePartitionMap2 reverse_partition;
   LO n = static_cast<LO>(owned.extent(0));

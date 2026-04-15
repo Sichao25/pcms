@@ -43,8 +43,6 @@ public:
 
   std::array<int, 4> GetNodesPerDim() const;
 
-  Kokkos::View<const Real**, HostMemorySpace> GetCoordinatesHost() const;
-
   Kokkos::View<const Real**, DeviceMemorySpace> GetCoordinates() const;
 
 private:
@@ -53,7 +51,6 @@ private:
   CoordinateSystem coordinate_system_;
   Kokkos::View<Real**> coords_;
   Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right_;
-  Kokkos::View<Real**, HostMemorySpace> coords_host_;
   Kokkos::View<bool*> owned_;
   Kokkos::View<GO*> gids_;
   Kokkos::View<bool*, HostMemorySpace> owned_host_;

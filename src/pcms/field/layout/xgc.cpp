@@ -11,7 +11,6 @@ XGCFieldLayout::XGCFieldLayout(
     gids_("xgc_gids", num_plane_nodes),
     class_dims_("xgc_class_dims", num_plane_nodes),
     class_ids_("xgc_class_ids", num_plane_nodes),
-    coords_host_("xgc_coords_host", num_plane_nodes, 2),
     coords_("xgc_coords", num_plane_nodes, 2),
     num_plane_nodes_(num_plane_nodes)
 {
@@ -21,8 +20,6 @@ XGCFieldLayout::XGCFieldLayout(
     gids_(i) = static_cast<GO>(i + 1);
     class_dims_(i) = -1;
     class_ids_(i) = -1;
-    coords_host_(i, 0) = 0.0;
-    coords_host_(i, 1) = 0.0;
   }
 
   for (const auto& [geom, verts] : reverse_classification) {
@@ -36,7 +33,7 @@ XGCFieldLayout::XGCFieldLayout(
     }
   }
   // Copy coordinates to device
-  DeepCopyMismatchLayouts(coords_, coords_host_);
+  Kokkos::deep_copy(coords_, 0.0);
   discretization_ =
     std::make_shared<XGCDiscretization>(reverse_classification, num_plane_nodes_);
 }

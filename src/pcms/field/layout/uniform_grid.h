@@ -55,7 +55,6 @@ private:
   CoordinateSystem coordinate_system_;
   int order_;
   Kokkos::View<GO*, HostMemorySpace> gids_;
-  Kokkos::View<Real**, HostMemorySpace> dof_holder_coords_host_;
   Kokkos::View<Real**, DeviceMemorySpace> dof_holder_coords_;
   Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> dof_holder_coords_device_right_;
   Kokkos::View<bool*, HostMemorySpace> owned_;

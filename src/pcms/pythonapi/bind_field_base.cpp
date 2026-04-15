@@ -167,9 +167,7 @@ void bind_create_field_module(py::module& m)
             coords_host(i, j) = coords_view(i, j);
           }
         }
-        auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>(
-          "coords_device", coords_view.extent(0), coords_view.extent(1));
-        DeepCopyMismatchLayouts(coords_device, coords_host);
+        auto coords_device = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), coords_host);
         Rank2View<const Real, DeviceMemorySpace> coords_device_view(
           coords_device.data(), coords_device.extent(0), coords_device.extent(1));
         return PythonEvaluationRequest{

@@ -83,8 +83,7 @@ inline Kokkos::View<const Real**, HostMemorySpace> CopyCoordinatesToHost(
 {
   auto coords_view = Kokkos::View<Real**, HostMemorySpace>(
     "coords_view", nents, dim);
-  auto coords_view_device = Kokkos::View<Real**, pcms::DeviceMemorySpace>(
-    "coords_view_device", nents, dim);
+  auto coords_view_device = Kokkos::create_mirror(DeviceMemorySpace(), coords_view);
   Kokkos::parallel_for(
     "copy_coords_to_host_view", Kokkos::RangePolicy<>(0, nents),
     KOKKOS_LAMBDA(int i) {
@@ -92,7 +91,7 @@ inline Kokkos::View<const Real**, HostMemorySpace> CopyCoordinatesToHost(
         coords_view_device(i, d) = coords_device(i, d);
       }
     });
-  DeepCopyMismatchLayouts(coords_view, coords_view_device);
+  Kokkos::deep_copy(coords_view, coords_view_device);
   return coords_view;
 }
 
@@ -103,10 +102,9 @@ inline std::vector<Real> EvaluateReferenceFunction(
   using MemorySpace = typename ExecutionSpace::memory_space;
 
   int n = static_cast<int>(pts.size()) / 2;
-  Kokkos::View<Real *[2], MemorySpace> pts_device("pts_device", n);
   auto pts_host =
     Kokkos::View<const Real **, HostMemorySpace>(pts.data(), n, 2);
-  DeepCopyMismatchLayouts(pts_device, pts_host);
+  auto pts_device = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), pts_host);
 
   Kokkos::View<Real *, MemorySpace> expected_device("expected_device", n);
   Kokkos::parallel_for(
@@ -232,10 +230,7 @@ inline DeviceCoordinates CreateDeviceCoordinateView(
   }
   // Copy to device
   Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, dim);
-  DeepCopyMismatchLayouts(coords_device, coords_host);
-  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right("coords_device_right", n, dim);
-  ConvertMismatchLayoutView2D(coords_device_right, coords_device);
-  // Create device coordinate view
+  auto coords_device_right = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), coords_host);
   Rank2View<const Real, DeviceMemorySpace> coords_view(coords_device_right.data(), n, dim);
   return DeviceCoordinates{coords_device_right, CoordinateView<DeviceMemorySpace>{coord_system, coords_view}};
 }
@@ -253,8 +248,7 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
   Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
   // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
   evaluator.Evaluate(field, out);
-  Kokkos::View<Real*, HostMemorySpace> out_host("out_host", n);
-  DeepCopyMismatchLayouts(out_host, out_device);
+  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 
@@ -291,8 +285,7 @@ inline void CheckFillMode(const PointEvaluator<Real>& evaluator,
   Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
   // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
   evaluator.Evaluate(field, out);
-  Kokkos::View<Real*, HostMemorySpace> out_host("out_host", n);
-  DeepCopyMismatchLayouts(out_host, out_device);
+  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
   for (int i = 0; i < n; ++i) {
     REQUIRE(out_host(i) == fill_value);
@@ -334,8 +327,7 @@ void CheckEvaluationWithFill(const Factory& factory,
   Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
   // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
   evaluator->Evaluate(field, out);
-  Kokkos::View<Real*, HostMemorySpace> out_host("out_host", n);
-  DeepCopyMismatchLayouts(out_host, out_device);
+  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 

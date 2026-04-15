@@ -47,15 +47,15 @@ TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupport
     target_coords, pcms::CoordinateSystem::Cartesian, dim);
 
   auto coords_read = Omega_h::HostRead<Omega_h::Real>(source_coords);
-  Kokkos::View<pcms::Real**, Kokkos::HostSpace> coords_host(
-    "point_cloud_coords", mesh.nverts(), dim);
-  for (int i = 0; i < mesh.nverts(); ++i)
-    for (int d = 0; d < dim; ++d)
-      coords_host(i, d) = coords_read[i * dim + d];
+
   // auto coords_dev = Kokkos::create_mirror_view_and_copy(
   //   Kokkos::DefaultExecutionSpace{}, coords_host);
   auto coords_dev = Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace>("point_cloud_coords", mesh.nverts(), dim);
-  pcms::DeepCopyMismatchLayouts(coords_dev, coords_host);
+  auto coords_host = Kokkos::create_mirror(pcms::HostMemorySpace(), coords_dev);
+  for (int i = 0; i < mesh.nverts(); ++i)
+    for (int d = 0; d < dim; ++d)
+      coords_host(i, d) = coords_read[i * dim + d];
+  Kokkos::deep_copy(coords_dev, coords_host);
 
   auto layout = std::make_shared<pcms::PointCloudLayout>(
     dim, coords_dev, pcms::CoordinateSystem::Cartesian);

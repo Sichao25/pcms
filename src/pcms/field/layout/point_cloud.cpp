@@ -48,16 +48,12 @@ PointCloudLayout::PointCloudLayout(
   : dim_(dim),
     coordinate_system_(coordinate_system),
     coords_(coords),
-    coords_host_("coords_host", coords.extent(0), coords.extent(1)),
     owned_("", coords.extent(0)),
     gids_("", coords.extent(0)),
     owned_host_("", coords.extent(0)),
     gids_host_("", coords.extent(0))
 {
   components_ = 1;
-
-  // Copy coords to coords_host_ with proper layout
-  DeepCopyMismatchLayouts(coords_host_, coords_);
   
   // Create LayoutRight version for device coordinates
   coords_device_right_ = Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>(
@@ -145,12 +141,6 @@ std::array<int, 4> PointCloudLayout::GetNodesPerDim() const
     nodes[i] = 0;
   nodes[0] = 1;
   return nodes;
-}
-
-Kokkos::View<const Real**, HostMemorySpace>
-PointCloudLayout::GetCoordinatesHost() const
-{
-  return coords_host_;
 }
 
 Kokkos::View<const Real**, DeviceMemorySpace>
