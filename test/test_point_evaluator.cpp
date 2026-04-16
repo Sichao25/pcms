@@ -76,8 +76,9 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
 
   Kokkos::View<Real*, pcms::DeviceMemorySpace> out_a_device("out_a", n);
   Kokkos::View<Real*, pcms::DeviceMemorySpace> out_b_device("out_b", n);
-  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_a(out_a_device.data(), n, 1);
-  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_b(out_b_device.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
+  auto view_a = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(out_a_device.data(), n, 1);
+  auto view_b = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(out_b_device.data(), n, 1);
 
   // Evaluate field_a then field_b with the same evaluator
   evaluator->Evaluate(field_a, view_a);
@@ -337,8 +338,9 @@ TEST_CASE(
 
   Kokkos::View<Real*, pcms::DeviceMemorySpace> out_a_device("out_a", n);
   Kokkos::View<Real*, pcms::DeviceMemorySpace> out_b_device("out_b", n);
-  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_a(out_a_device.data(), n, 1);
-  pcms::Rank2View<Real, pcms::DeviceMemorySpace> view_b(out_b_device.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
+  auto view_a = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(out_a_device.data(), n, 1);
+  auto view_b = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(out_b_device.data(), n, 1);
 
   evaluator->Evaluate(field_a, view_a);
   evaluator->Evaluate(field_b, view_b);

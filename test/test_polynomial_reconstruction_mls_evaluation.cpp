@@ -185,8 +185,9 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused
 
   Kokkos::View<Real*, DeviceMemorySpace> out_a_device("out_a", n);
   Kokkos::View<Real*, DeviceMemorySpace> out_b_device("out_b", n);
-  Rank2View<Real, DeviceMemorySpace> view_a(out_a_device.data(), n, 1);
-  Rank2View<Real, DeviceMemorySpace> view_b(out_b_device.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> view_a(out_a_device.data(), n, 1);
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> view_b(out_b_device.data(), n, 1);
 
   evaluator->Evaluate(field_a, view_a);
   evaluator->Evaluate(field_b, view_b);
@@ -222,7 +223,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for num_co
 
   // Two-component output — must throw
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", n * 2);
-  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), n, 2);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  auto out_view = Rank2View<Real, DeviceMemorySpace, LayoutPolicy>(out_device.data(), n, 2);
   REQUIRE_THROWS(evaluator->Evaluate(field, out_view));
 }
 
@@ -249,7 +251,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: default MLSOptions — smo
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", n);
-  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  auto out_view = Rank2View<Real, DeviceMemorySpace, LayoutPolicy>(out_device.data(), n, 1);
   // Just verify it runs without error and returns finite values
   REQUIRE_NOTHROW(evaluator->Evaluate(field, out_view));
   auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
@@ -312,7 +315,8 @@ TEST_CASE(
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", 1);
-  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), 1, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out_view(out_device.data(), 1, 1);
   evaluator->Evaluate(field, out_view);
   auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
@@ -353,7 +357,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", 2);
-  Rank2View<Real, DeviceMemorySpace> out_view(out_device.data(), 2, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out_view(out_device.data(), 2, 1);
   evaluator->Evaluate(field, out_view);
   auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 

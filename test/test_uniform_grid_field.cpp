@@ -148,11 +148,10 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
   auto evaluator = eval_factory.CreatePointEvaluator(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  // std::vector<pcms::Real> results(4);
-  // pcms::Rank2View<pcms::Real, pcms::HostMemorySpace> out(results.data(), 4, 1);
   Kokkos::View<pcms::Real*, pcms::HostMemorySpace> results_host("results_host", 4);
   Kokkos::View<pcms::Real*, pcms::DeviceMemorySpace> results_device("results_device", 4);
-  pcms::Rank2View<pcms::Real, pcms::DeviceMemorySpace> out(results_device.data(), 4, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
+  pcms::Rank2View<pcms::Real, pcms::DeviceMemorySpace, LayoutPolicy> out(results_device.data(), 4, 1);
   evaluator->Evaluate(field, out);
   Kokkos::deep_copy(results_host, results_device);
 
@@ -231,7 +230,8 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
 
    Kokkos::View<pcms::Real*, pcms::HostMemorySpace> results_host("results_host", 4);
   Kokkos::View<pcms::Real*, pcms::DeviceMemorySpace> results_device("results_device", 4);
-  pcms::Rank2View<pcms::Real, pcms::DeviceMemorySpace> out(results_device.data(), 4, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
+  pcms::Rank2View<pcms::Real, pcms::DeviceMemorySpace, LayoutPolicy> out(results_device.data(), 4, 1);
   evaluator->Evaluate(field, out);
   Kokkos::deep_copy(results_host, results_device);
 

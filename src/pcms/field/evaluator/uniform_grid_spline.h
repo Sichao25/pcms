@@ -16,7 +16,8 @@
 namespace pcms
 {
 
-class UniformGridSplinePointEvaluator2D : public PointEvaluator<Real>
+template <typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+class UniformGridSplinePointEvaluator2D : public PointEvaluator<Real, LayoutPolicy>
 {
 public:
   UniformGridSplinePointEvaluator2D(
@@ -40,7 +41,7 @@ public:
   }
 
   void Evaluate(const Field<Real>& field,
-                Rank2View<Real, DeviceMemorySpace> values) const override
+                Rank2View<Real, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
     PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
@@ -242,7 +243,7 @@ public:
     UniformGridFieldLocalizationHint<2> hint(cell_indices_device, coordinates_d,
                                              policy.mode, is_out_of_bounds_device,
                                              num_out_of_bounds);
-    return std::make_unique<UniformGridSplinePointEvaluator2D>(
+    return std::make_unique<UniformGridSplinePointEvaluator2D<>>(
       layout_, std::move(hint), policy.fill_value);
   }
 

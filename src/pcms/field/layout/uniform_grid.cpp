@@ -132,12 +132,6 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_dofs),
       functor);
   }
-  
-  
-  // Create LayoutRight version for device coordinates
-  dof_holder_coords_device_right_ = Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>(
-    "dof_holder_coords_device_right", GetNumDofHolders(), Dim);
-  ConvertMismatchLayoutView2D(dof_holder_coords_device_right_, dof_holder_coords_);
 
   int entity_dim = (order_ == 0) ? static_cast<int>(Dim) : 0;
   LO n = GetNumDofHolders();
@@ -192,8 +186,7 @@ template <unsigned Dim>
 CoordinateView<DeviceMemorySpace>
 UniformGridFieldLayout<Dim>::GetDOFHolderCoordinates() const
 {
-  Rank2View<const Real, DeviceMemorySpace> coords_view(
-    dof_holder_coords_device_right_.data(), dof_holder_coords_device_right_.extent(0), Dim);
+  auto coords_view = MakeConstRank2View(dof_holder_coords_);
   return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 

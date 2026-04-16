@@ -52,7 +52,6 @@ private:
   CoordinateSystem coordinate_system_;
 
   Omega_h::HostWrite<Omega_h::GO> gids_host_;
-  Omega_h::HostRead<Real> coords_host_;
   Omega_h::Read<Real> coords_; // device coordinates
   Omega_h::HostRead<Omega_h::ClassId> class_ids_host_;
   Omega_h::HostRead<Omega_h::I8> class_dims_host_;

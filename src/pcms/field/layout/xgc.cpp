@@ -84,9 +84,10 @@ EntOffsetsArray XGCFieldLayout::GetEntOffsets() const
 
 CoordinateView<DeviceMemorySpace> XGCFieldLayout::GetDOFHolderCoordinates() const
 {
+  using LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
   return CoordinateView<DeviceMemorySpace>{
     CoordinateSystem::XGC,
-    Rank2View<const Real, DeviceMemorySpace>(coords_.data(), num_plane_nodes_, 2)};
+    Rank2View<const Real, DeviceMemorySpace, LayoutPolicy>(coords_.data(), num_plane_nodes_, 2)};
 }
 
 int XGCFieldLayout::GetDimension() const

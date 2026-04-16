@@ -54,8 +54,8 @@ struct UniformGridFieldLocalizationHint
 // Preconditions:
 //   - field is compatible with layout_.
 //   - values has extents [num_query_points][num_components].
-template <unsigned Dim = 2>
-class UniformGridPointEvaluator : public PointEvaluator<Real>
+template <unsigned Dim = 2, typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+class UniformGridPointEvaluator : public PointEvaluator<Real, LayoutPolicy>
 {
 public:
   UniformGridPointEvaluator(
@@ -69,7 +69,7 @@ public:
   }
 
   void Evaluate(const Field<Real>& field,
-                Rank2View<Real, DeviceMemorySpace> values) const override
+                Rank2View<Real, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     PCMS_FUNCTION_TIMER;
     auto dof_data = field.GetDOFHolderData();

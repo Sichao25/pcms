@@ -242,7 +242,8 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   Kokkos::View<Real*, pcms::DeviceMemorySpace> eval_device("eval", n);
-  pcms::Rank2View<Real, pcms::DeviceMemorySpace> out(eval_device.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
+  auto out = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(eval_device.data(), n, 1);
   evaluator->Evaluate(field, out);
   auto eval_host = Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), eval_device);
 

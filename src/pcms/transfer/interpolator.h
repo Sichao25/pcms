@@ -57,8 +57,7 @@ public:
     const int n_comp    = n_comp_;
     Kokkos::View<T**, DeviceMemorySpace> output("interp_output", num_points,
                                                n_comp);
-    Rank2View<T, DeviceMemorySpace> output_view(output.data(), num_points,
-                                               n_comp);
+    auto output_view = MakeRank2View(output);
     evaluator_->Evaluate(source, output_view);
     Kokkos::View<T*, DeviceMemorySpace> flat(
       "interp_flat", static_cast<size_t>(num_points) * n_comp);

@@ -38,26 +38,31 @@ auto make_mdspan(const ContainerType& /* unused */)
 // TODO make_mdspan
 
 template <int Rank, typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = Kokkos::layout_right,
           typename IndexType = LO>
 using View = Kokkos::mdspan<
-  ElementType, Kokkos::dextents<IndexType, Rank>, Kokkos::layout_right,
+  ElementType, Kokkos::dextents<IndexType, Rank>, LayoutPolicy,
   detail::memory_space_accessor<std::remove_reference_t<ElementType>,
                                 MemorySpace>>;
 
-template <typename ElementType, typename MemorySpace>
-using Rank1View = View<1, ElementType, MemorySpace>;
+template <typename ElementType, typename MemorySpace, 
+          typename LayoutPolicy = Kokkos::layout_right>
+using Rank1View = View<1, ElementType, MemorySpace, LayoutPolicy>;
 
-template <typename ElementType, typename MemorySpace>
-using Rank2View = View<2, ElementType, MemorySpace>;
+template <typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = Kokkos::layout_right>
+using Rank2View = View<2, ElementType, MemorySpace, LayoutPolicy>;
 
-template <typename ElementType, typename MemorySpace>
-using Rank3View = View<3, ElementType, MemorySpace>;
+template <typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = Kokkos::layout_right>
+using Rank3View = View<3, ElementType, MemorySpace, LayoutPolicy>;
 
-template <typename ElementType, typename MemorySpace>
-using Rank4View = View<4, ElementType, MemorySpace>;
+template <typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = Kokkos::layout_right>
+using Rank4View = View<4, ElementType, MemorySpace, LayoutPolicy>;
 
 template <typename MemorySpace>
-using GlobalIDView = View<1, const GO, MemorySpace, GO>;
+using GlobalIDView = View<1, const GO, MemorySpace, Kokkos::layout_right, GO>;
 
 namespace detail
 {
@@ -105,6 +110,47 @@ struct arr_trait<std::array<T, N>>
 template <typename T>
 using element_type_t = typename arr_trait<T, HasValueType<T>::value>::type;
 
+// Layout selector: detects layout from source type
+template <typename T, typename = std::void_t<>>
+struct layout_selector
+{
+  using type = Kokkos::layout_right; // Default for host arrays and std::array
+};
+
+// Specialization for types with array_layout (Kokkos Views)
+template <typename T>
+struct layout_selector<T, std::void_t<typename T::array_layout>>
+{
+  using type = std::conditional_t<
+    std::is_same_v<typename T::array_layout, Kokkos::LayoutLeft>,
+    Kokkos::layout_left,
+    Kokkos::layout_right>;
+};
+
+template <typename T>
+using layout_selector_t = typename layout_selector<T>::type;
+
+// Default layout selector for memory spaces
+// GPU memory spaces typically use LayoutLeft for better coalescing
+template <typename MemorySpace, typename = std::void_t<>>
+struct default_layout_for_memory_space
+{
+  using type = Kokkos::layout_right; // Default for host
+};
+
+#ifdef PCMS_HAS_DISTINCT_DEVICE_MEMORY_SPACE
+// Specialization for device memory space - use LayoutLeft for GPU
+template <>
+struct default_layout_for_memory_space<DeviceMemorySpace>
+{
+  using type = Kokkos::layout_left;
+};
+#endif
+
+template <typename MemorySpace>
+using default_layout_for_memory_space_t = 
+  typename default_layout_for_memory_space<MemorySpace>::type;
+
 } // namespace detail
   // default implementation of make_array_view
 template <typename T, typename MemorySpace = detail::memory_space_selector_t<T>,
@@ -133,6 +179,52 @@ auto make_const_array_view(T& array)
   using std::data;
   using std::size;
   return Rank1View<const ElementType, MemorySpace>{data(array), size(array)};
+}
+
+// Helper functions to create mdspan views from Kokkos Views with layout detection
+template <typename T, typename... Properties>
+auto MakeRank1View(Kokkos::View<T*, Properties...>& view)
+{
+  using KokkosView = Kokkos::View<T*, Properties...>;
+  using MemorySpace = typename KokkosView::memory_space;
+  using LayoutPolicy = detail::layout_selector_t<KokkosView>;
+  return Rank1View<T, MemorySpace, LayoutPolicy>(view.data(), view.extent(0));
+}
+
+template <typename T, typename... Properties>
+auto MakeRank1View(const Kokkos::View<T*, Properties...>& view)
+{
+  using KokkosView = Kokkos::View<T*, Properties...>;
+  using MemorySpace = typename KokkosView::memory_space;
+  using LayoutPolicy = detail::layout_selector_t<KokkosView>;
+  return Rank1View<const T, MemorySpace, LayoutPolicy>(view.data(), view.extent(0));
+}
+
+template <typename T, typename... Properties>
+auto MakeRank2View(Kokkos::View<T**, Properties...>& view)
+{
+  using KokkosView = Kokkos::View<T**, Properties...>;
+  using MemorySpace = typename KokkosView::memory_space;
+  using LayoutPolicy = detail::layout_selector_t<KokkosView>;
+  return Rank2View<T, MemorySpace, LayoutPolicy>(view.data(), view.extent(0), view.extent(1));
+}
+
+template <typename T, typename... Properties>
+auto MakeRank2View(const Kokkos::View<T**, Properties...>& view)
+{
+  using KokkosView = Kokkos::View<T**, Properties...>;
+  using MemorySpace = typename KokkosView::memory_space;
+  using LayoutPolicy = detail::layout_selector_t<KokkosView>;
+  return Rank2View<const T, MemorySpace, LayoutPolicy>(view.data(), view.extent(0), view.extent(1));
+}
+
+template <typename T, typename... Properties>
+auto MakeConstRank2View(const Kokkos::View<T**, Properties...>& view)
+{
+  using KokkosView = Kokkos::View<T**, Properties...>;
+  using MemorySpace = typename KokkosView::memory_space;
+  using LayoutPolicy = detail::layout_selector_t<KokkosView>;
+  return Rank2View<const T, MemorySpace, LayoutPolicy>(view.data(), view.extent(0), view.extent(1));
 }
 
 // utility function to deep copy between layout incompatible views

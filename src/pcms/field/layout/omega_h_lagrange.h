@@ -60,7 +60,7 @@ private:
   std::string global_id_name_;
 
   Omega_h::HostWrite<Omega_h::GO> gids_host_;
-  Omega_h::HostRead<Real> coords_host_; // flat row-major: [n_dofs * mesh_dim]
+  Kokkos::View<Real**, DeviceMemorySpace> coords_2d_;
   Omega_h::Read<Real> coords_; // device coordinates
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Omega_h::HostRead<Omega_h::ClassId> class_ids_host_;

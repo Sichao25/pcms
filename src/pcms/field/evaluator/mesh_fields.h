@@ -17,8 +17,8 @@ namespace pcms
 // MeshFieldsPointEvaluator<T> implements PointEvaluator<T> for MeshFields-backed
 // simplex meshes. Each Evaluate call loads DOF data from the FieldData argument
 // into the MeshFieldBackend's shape_field_ via SetData, then calls evaluate().
-template <typename T>
-class MeshFieldsPointEvaluator : public PointEvaluator<T>
+template <typename T, typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+class MeshFieldsPointEvaluator : public PointEvaluator<T, LayoutPolicy>
 {
 public:
   MeshFieldsPointEvaluator(
@@ -31,7 +31,7 @@ public:
   }
 
   void Evaluate(const Field<T>& field,
-                Rank2View<T, DeviceMemorySpace> values) const override
+                Rank2View<T, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(values.extent(0) ==

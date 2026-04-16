@@ -54,7 +54,8 @@ void bind_coordinate_system_module(py::module& m)
              throw std::runtime_error("Coordinates must be a 2D array");
            }
            // Create a view from the numpy array
-           Rank2View<const Real, HostMemorySpace> coords_view(
+           using LayoutPolicy = detail::default_layout_for_memory_space_t<HostMemorySpace>;
+           Rank2View<const Real, HostMemorySpace, LayoutPolicy> coords_view(
              static_cast<Real*>(buf.ptr), buf.shape[0], buf.shape[1]);
            return CoordinateView<HostMemorySpace>(cs, coords_view);
          }),
@@ -168,7 +169,8 @@ void bind_create_field_module(py::module& m)
           }
         }
         auto coords_device = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), coords_host);
-        Rank2View<const Real, DeviceMemorySpace> coords_device_view(
+        using LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+        Rank2View<const Real, DeviceMemorySpace, LayoutPolicy> coords_device_view(
           coords_device.data(), coords_device.extent(0), coords_device.extent(1));
         return PythonEvaluationRequest{
           EvaluationRequest::FromCoordinates(

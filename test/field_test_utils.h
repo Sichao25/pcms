@@ -210,7 +210,7 @@ inline void CheckSerializeDeserialize(Field<Real>& field)
 
 // Helper structure to hold device coordinates with proper lifetime management
 struct DeviceCoordinates {
-  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> view;
+  Kokkos::View<Real**, DeviceMemorySpace> view;
   CoordinateView<DeviceMemorySpace> coordinate_view;
 };
 
@@ -228,11 +228,11 @@ inline DeviceCoordinates CreateDeviceCoordinateView(
       coords_host(i, d) = pts[dim*i + d];
     }
   }
-  // Copy to device
-  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", n, dim);
-  auto coords_device_right = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), coords_host);
-  Rank2View<const Real, DeviceMemorySpace> coords_view(coords_device_right.data(), n, dim);
-  return DeviceCoordinates{coords_device_right, CoordinateView<DeviceMemorySpace>{coord_system, coords_view}};
+  // Copy to device - using default layout for device
+  auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>("coords_device", n, dim);
+  DeepCopyMismatchLayouts(coords_device, coords_host);
+  auto coords_view = pcms::MakeRank2View(coords_device);
+  return DeviceCoordinates{coords_device, CoordinateView<DeviceMemorySpace>{coord_system, coords_view}};
 }
 
 // Evaluate field at explicit test points using a PointEvaluator and check results.
@@ -245,7 +245,8 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
   int n = static_cast<int>(pts.size()) / 2;
 
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
-  Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out(out_device.data(), n, 1);
   // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
   evaluator.Evaluate(field, out);
   auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
@@ -282,8 +283,8 @@ inline void CheckFillMode(const PointEvaluator<Real>& evaluator,
   int n = static_cast<int>(outside_pts.size()) / 2;
 
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
-  Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
-  // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out(out_device.data(), n, 1);
   evaluator.Evaluate(field, out);
   auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
@@ -324,8 +325,8 @@ void CheckEvaluationWithFill(const Factory& factory,
     EvaluationRequest::FromCoordinates(device_coords.coordinate_view, policy));
 
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
-  Rank2View<Real, DeviceMemorySpace> out(out_device.data(), n, 1);
-  // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
+  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out(out_device.data(), n, 1);
   evaluator->Evaluate(field, out);
   auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 

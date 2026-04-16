@@ -39,11 +39,13 @@ namespace detail
 template <int Dim>
 struct CopyCoordsFunctor
 {
+  using DefaultLayout = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  
   Kokkos::View<Real**, DeviceMemorySpace> coords_d;
-  Rank2View<const Real, DeviceMemorySpace> raw_coords;
+  Rank2View<const Real, DeviceMemorySpace, DefaultLayout> raw_coords;
   
   CopyCoordsFunctor(Kokkos::View<Real**, DeviceMemorySpace> coords_d_,
-                    Rank2View<const Real, DeviceMemorySpace> raw_coords_)
+                    Rank2View<const Real, DeviceMemorySpace, DefaultLayout> raw_coords_)
     : coords_d(coords_d_), raw_coords(raw_coords_) {}
   
   KOKKOS_INLINE_FUNCTION
@@ -138,8 +140,8 @@ inline std::variant<GridPointSearch2D, GridPointSearch3D> MakeSearch(
 // Evaluate calls.
 //
 // Output shape: [num_query_points][num_components].
-template <typename T>
-class OmegaHLagrangePointEvaluator : public PointEvaluator<T>
+template <typename T, typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+class OmegaHLagrangePointEvaluator : public PointEvaluator<T, LayoutPolicy>
 {
 public:
   OmegaHLagrangePointEvaluator(
@@ -152,7 +154,7 @@ public:
   }
 
   void Evaluate(const Field<T>& field,
-                Rank2View<T, DeviceMemorySpace> values) const override
+                Rank2View<T, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     PCMS_FUNCTION_TIMER;
     auto dof_data = field.GetDOFHolderData();

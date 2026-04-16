@@ -8,7 +8,6 @@ EmptyFieldLayout::EmptyFieldLayout()
     gids_("null_gids", 0),
     class_dims_("null_class_dims", 0),
     class_ids_("null_class_ids", 0),
-    coords_host_("null_coords_host", 0, 2),
     coords_("null_coords", 0, 2)
 {
   discretization_ = std::make_shared<EmptyDiscretization>();
@@ -58,8 +57,8 @@ EntOffsetsArray EmptyFieldLayout::GetEntOffsets() const
 CoordinateView<DeviceMemorySpace> EmptyFieldLayout::GetDOFHolderCoordinates()
   const
 {
-  return {CoordinateSystem::XGC,
-          Rank2View<const Real, DeviceMemorySpace>(coords_.data(), 0, 2)};
+  auto coords_view = MakeConstRank2View(coords_);
+  return CoordinateView<DeviceMemorySpace>{CoordinateSystem::XGC, coords_view};
 }
 
 int EmptyFieldLayout::GetDimension() const

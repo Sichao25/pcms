@@ -54,11 +54,6 @@ PointCloudLayout::PointCloudLayout(
     gids_host_("", coords.extent(0))
 {
   components_ = 1;
-  
-  // Create LayoutRight version for device coordinates
-  coords_device_right_ = Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>(
-    "coords_device_right", coords.extent(0), coords.extent(1));
-  ConvertMismatchLayoutView2D(coords_device_right_, coords_);
 
   namespace KE = Kokkos::Experimental;
   KE::fill(Kokkos::DefaultExecutionSpace(), owned_, true);
@@ -111,8 +106,7 @@ GlobalIDView<HostMemorySpace> PointCloudLayout::GetGids() const
 CoordinateView<DeviceMemorySpace> PointCloudLayout::GetDOFHolderCoordinates()
   const
 {
-  Rank2View<const Real, DeviceMemorySpace> coords_view(
-    coords_device_right_.data(), coords_device_right_.extent(0), dim_);
+  auto coords_view = MakeConstRank2View(coords_);
   return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 

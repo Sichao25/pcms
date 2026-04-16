@@ -50,7 +50,6 @@ private:
   int components_;
   CoordinateSystem coordinate_system_;
   Kokkos::View<Real**> coords_;
-  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> coords_device_right_;
   Kokkos::View<bool*> owned_;
   Kokkos::View<GO*> gids_;
   Kokkos::View<bool*, HostMemorySpace> owned_host_;

@@ -22,7 +22,8 @@ namespace pcms
 //
 // The support structure is built once at construction and reused across
 // repeated Evaluate calls at zero additional localization cost.
-class MLSPointEvaluator : public PointEvaluator<Real>
+template <typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+class MLSPointEvaluator : public PointEvaluator<Real, LayoutPolicy>
 {
 public:
   MLSPointEvaluator(Omega_h::Reals source_coords, Omega_h::Reals target_coords,
@@ -36,7 +37,7 @@ public:
   }
 
   void Evaluate(const Field<Real>& field,
-                Rank2View<Real, DeviceMemorySpace> values) const override
+                Rank2View<Real, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     if (values.extent(1) != 1) {
       throw pcms_error(

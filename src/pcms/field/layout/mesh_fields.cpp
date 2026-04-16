@@ -134,8 +134,6 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
     coordinate_system_(coordinate_system),
     nodes_per_dim_(nodes_per_dim),
     dof_holder_coords_("", GetNumOwnedDofHolder(), mesh_.dim()),
-    dof_holder_coords_host_("dof_holder_coords_host", GetNumOwnedDofHolder(),
-                            mesh_.dim()),
     class_ids_(GetNumEnts()),
     class_dims_(class_ids_.size()),
     owned_("", class_dims_.size()),
@@ -208,11 +206,6 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
     classification_ids_host_(i) = static_cast<LO>(class_ids_h[i]);
   }
   discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
-  
-  // Create LayoutRight version for device coordinates
-  dof_holder_coords_device_right_ = Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>(
-    "dof_holder_coords_device_right", GetNumOwnedDofHolder(), mesh_.dim());
-  ConvertMismatchLayoutView2D(dof_holder_coords_device_right_, dof_holder_coords_);
 }
 
 std::shared_ptr<const Discretization>
@@ -263,8 +256,7 @@ GlobalIDView<HostMemorySpace> MeshFieldsAdapterLayout::GetGids() const
 CoordinateView<DeviceMemorySpace>
 MeshFieldsAdapterLayout::GetDOFHolderCoordinates() const
 {
-  Rank2View<const Real, DeviceMemorySpace> coords_view(
-    dof_holder_coords_device_right_.data(), dof_holder_coords_device_right_.extent(0), 2);
+  auto coords_view = MakeConstRank2View(dof_holder_coords_);
   return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 

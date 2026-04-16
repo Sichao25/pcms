@@ -95,7 +95,7 @@ public:
       supports = localization_->Build(coords);
     }
 
-    return std::make_unique<MLSPointEvaluator>(
+    return std::make_unique<MLSPointEvaluator<>>(
       std::move(source_coords), std::move(target_coords_oh),
       std::move(supports), dim, options_);
   }
