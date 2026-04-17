@@ -52,7 +52,8 @@ private:
   CoordinateSystem coordinate_system_;
 
   Omega_h::HostWrite<Omega_h::GO> gids_host_;
-  Omega_h::Read<Real> coords_; // device coordinates
+  Omega_h::Read<Real> coords_; // device coordinates (1D flattened)
+  Kokkos::View<Real**, DeviceMemorySpace> coords_2d_; // device coordinates (2D)
   Omega_h::HostRead<Omega_h::ClassId> class_ids_host_;
   Omega_h::HostRead<Omega_h::I8> class_dims_host_;
   Kokkos::View<bool*, HostMemorySpace> owned_host_;

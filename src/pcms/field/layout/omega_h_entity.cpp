@@ -2,6 +2,7 @@
 
 #include "pcms/utility/assert.h"
 #include "pcms/utility/mesh_geometry.h"
+#include "pcms/utility/omega_h_array_utils.h"
 
 namespace pcms
 {
@@ -62,6 +63,7 @@ OmegaHEntityLayout::OmegaHEntityLayout(Omega_h::Mesh& mesh, int entity_dim,
     coordinate_system_(coordinate_system),
     gids_host_(BuildGids(mesh, entity_dim, global_id_name)),
     coords_(get_entity_centroids(mesh, entity_dim)),
+    coords_2d_(ConvertCoordsTo2D(coords_, mesh.nents(entity_dim), mesh.dim())),
     class_ids_host_(mesh.get_array<Omega_h::ClassId>(entity_dim, "class_id")),
     class_dims_host_(mesh.get_array<Omega_h::I8>(entity_dim, "class_dim")),
     owned_host_(BuildOwned(mesh, entity_dim)),
@@ -112,8 +114,8 @@ CoordinateView<DeviceMemorySpace> OmegaHEntityLayout::GetDOFHolderCoordinates() 
 {
   using LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
   Rank2View<const Real, DeviceMemorySpace, LayoutPolicy> coords_view(
-    coords_.data(), GetNumOwnedDofHolder(), dimension_);
-  return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
+    coords_2d_.data(), GetNumOwnedDofHolder(), dimension_);
+  return CoordinateView<DeviceMemorySpace, LayoutPolicy>{coordinate_system_, coords_view};
 }
 
 bool OmegaHEntityLayout::IsDistributed() const

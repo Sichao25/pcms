@@ -1,6 +1,7 @@
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/mesh_geometry.h"
+#include "pcms/utility/omega_h_array_utils.h"
 #include "pcms/utility/profile.h"
 #include <stdexcept>
 
@@ -72,26 +73,6 @@ Kokkos::View<bool*, HostMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
   return owned;
 }
 
-struct ConvertTo2DFunctor
-{
-  Kokkos::View<Real**, DeviceMemorySpace> coords_2d;
-  Omega_h::Read<Real> coords;
-  int dim;
-
-  ConvertTo2DFunctor(Kokkos::View<Real**, DeviceMemorySpace> coords_2d_in,
-                     Omega_h::Read<Real> coords_in, int dim_in)
-    : coords_2d(coords_2d_in), coords(coords_in), dim(dim_in)
-  {
-  }
-
-  KOKKOS_INLINE_FUNCTION void operator()(int i) const
-  {
-    int e = i / dim;
-    int d = i % dim;
-    coords_2d(e, d) = coords[i];
-  }
-};
-
 } // namespace
 
 OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
@@ -109,11 +90,7 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
 
   gids_host_ = BuildGids(mesh_, entity_dim, global_id_name_);
   coords_ = get_entity_centroids(mesh_, entity_dim);
-  coords_2d_ = Kokkos::View<Real**, DeviceMemorySpace>("coords_2d", mesh_.nents(entity_dim), mesh_.dim());
-  int nents = mesh_.nents(entity_dim);
-  int dim = mesh_.dim();
-  ConvertTo2DFunctor functor(coords_2d_, coords_, dim);
-  Kokkos::parallel_for("copy_coords_to_2d", nents * dim, functor);
+  coords_2d_ = ConvertCoordsTo2D(coords_, mesh_.nents(entity_dim), mesh_.dim());
   owned_host_ = BuildOwned(mesh_, entity_dim);
 
   class_ids_host_ = Omega_h::HostRead<Omega_h::ClassId>(
@@ -149,11 +126,7 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
 
   gids_host_ = BuildGids(mesh_, entity_dim, global_id_name_);
   coords_ = get_entity_centroids(mesh_, entity_dim);
-  coords_2d_ = Kokkos::View<Real**, DeviceMemorySpace>("coords_2d", mesh_.nents(entity_dim), mesh_.dim());
-  int nents = mesh_.nents(entity_dim);
-  int dim = mesh_.dim();
-  ConvertTo2DFunctor functor(coords_2d_, coords_, dim);
-  Kokkos::parallel_for("copy_coords_to_2d", nents * dim, functor);
+  coords_2d_ = ConvertCoordsTo2D(coords_, mesh_.nents(entity_dim), mesh_.dim());
   owned_host_ = BuildOwned(mesh_, entity_dim, owned_mask);
 
   class_ids_host_ = Omega_h::HostRead<Omega_h::ClassId>(

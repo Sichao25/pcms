@@ -4,6 +4,8 @@
 #include "pcms/utility/types.h"
 #include "pcms/utility/memory_spaces.h"
 
+#include <Omega_h_array.hpp>
+
 namespace pcms
 {
 
@@ -225,6 +227,12 @@ auto MakeConstRank2View(const Kokkos::View<T**, Properties...>& view)
   using MemorySpace = typename KokkosView::memory_space;
   using LayoutPolicy = detail::layout_selector_t<KokkosView>;
   return Rank2View<const T, MemorySpace, LayoutPolicy>(view.data(), view.extent(0), view.extent(1));
+}
+
+template <typename T>
+auto MakeConstRank2View(Omega_h::Read<T> array, int dim)
+{
+  return Rank2View<const T, DeviceMemorySpace, Kokkos::layout_right>(array.data(), array.size() / dim, dim);
 }
 
 // utility function to deep copy between layout incompatible views
