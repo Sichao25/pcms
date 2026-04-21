@@ -123,7 +123,7 @@ void client1(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, order, 1, pcms::CoordinateSystem::Cartesian);
   auto layout = factory.GetLayout();
-  auto gids = layout->GetGids();
+  auto gids = layout->GetGidsHost();
   const auto n = layout->GetNumOwnedDofHolder();
   Omega_h::HostWrite<Real> ids(n);
   PCMS_ALWAYS_ASSERT(n == gids.size());
@@ -154,7 +154,7 @@ void client2(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, order, 1, pcms::CoordinateSystem::Cartesian);
   auto layout = factory.GetLayout();
-  auto gids = layout->GetGids();
+  auto gids = layout->GetGidsHost();
   const auto n = layout->GetNumOwnedDofHolder();
 
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
@@ -168,7 +168,7 @@ void client2(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
   channel.EndReceiveCommunicationPhase();
 
   auto copied_array = field.GetDOFHolderDataHost();
-  auto owned = layout->GetOwned();
+  auto owned = layout->GetOwnedHost();
 
   PCMS_ALWAYS_ASSERT(copied_array.size() == gids.size());
   PCMS_ALWAYS_ASSERT(owned.size() == gids.size());

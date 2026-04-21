@@ -176,9 +176,9 @@ static ReversePartitionMap2 BuildReversePartitionMap(
   const FieldLayout& layout, const redev::Partition& partition)
 {
   PCMS_FUNCTION_TIMER;
-  auto owned = layout.GetOwned();
-  auto class_dims = layout.GetDOFHolderClassificationDimensions();
-  auto class_ids = layout.GetDOFHolderClassificationIds();
+  auto owned = layout.GetOwnedHost();
+  auto class_dims = layout.GetDOFHolderClassificationDimensionsHost();
+  auto class_ids = layout.GetDOFHolderClassificationIdsHost();
   auto coords = layout.GetDOFHolderCoordinates().GetCoordinates();
   auto ent_offsets = layout.GetEntOffsets();
   int mesh_dim = static_cast<int>(coords.extent(1));
@@ -226,7 +226,7 @@ ExchangePlan GenericFieldExchangePlanner::BuildExchangePlan(
   const FieldLayout& layout, const redev::Partition& partition) const
 {
   PCMS_FUNCTION_TIMER;
-  auto gids = layout.GetGids();
+  auto gids = layout.GetGidsHost();
 
   const ReversePartitionMap2 reverse_partition =
     BuildReversePartitionMap(layout, partition);
@@ -249,7 +249,7 @@ ExchangePlan GenericFieldExchangePlanner::BuildReceivePlan(
   int rank, int nproc, const redev::InMessageLayout& in_message_layout) const
 {
   PCMS_FUNCTION_TIMER;
-  auto gids = layout.GetGids();
+  auto gids = layout.GetGidsHost();
   auto ent_offsets = layout.GetEntOffsets();
 
   ExchangePlan plan;
@@ -268,8 +268,8 @@ void GenericFieldExchangePlanner::FillGidMessage(
   PCMS_FUNCTION_TIMER;
   PCMS_ALWAYS_ASSERT(static_cast<size_t>(gid_message.size()) == plan.msg_size);
 
-  auto gids = layout.GetGids();
-  auto owned = layout.GetOwned();
+  auto gids = layout.GetGidsHost();
+  auto owned = layout.GetOwnedHost();
   auto ent_offsets = layout.GetEntOffsets();
   auto offsets = Rank1View<const redev::LO, HostMemorySpace>(
     plan.offsets.data(), plan.offsets.size());

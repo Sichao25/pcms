@@ -30,8 +30,8 @@ public:
   LO GetNumOwnedDofHolder() const override;
   GO GetNumGlobalDofHolder() const override;
 
-  Rank1View<const bool, HostMemorySpace> GetOwned() const override;
-  GlobalIDView<HostMemorySpace> GetGids() const override;
+  Rank1View<const bool, HostMemorySpace> GetOwnedHost() const override;
+  GlobalIDView<HostMemorySpace> GetGidsHost() const override;
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const override;
 
   [[nodiscard]] bool IsDistributed() const override;
@@ -39,10 +39,10 @@ public:
   int GetDimension() const override;
 
   Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationDimensions() const override;
+  GetDOFHolderClassificationDimensionsHost() const override;
 
   Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIds() const override;
+  GetDOFHolderClassificationIdsHost() const override;
 
 private:
   int dimension_;
@@ -51,11 +51,13 @@ private:
   GO num_global_dof_holder_;
   CoordinateSystem coordinate_system_;
 
+  Omega_h::Write<Omega_h::GO> gids_;
   Omega_h::HostWrite<Omega_h::GO> gids_host_;
   Omega_h::Read<Real> coords_; // device coordinates (1D flattened)
   Kokkos::View<Real**, DeviceMemorySpace> coords_2d_; // device coordinates (2D)
-  Omega_h::HostRead<Omega_h::ClassId> class_ids_host_;
-  Omega_h::HostRead<Omega_h::I8> class_dims_host_;
+  Omega_h::Read<Omega_h::ClassId> class_ids_;
+  Omega_h::Read<Omega_h::I8> class_dims_;
+  Kokkos::View<bool*, DeviceMemorySpace> owned_;
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;

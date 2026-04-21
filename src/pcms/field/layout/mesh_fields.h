@@ -29,8 +29,8 @@ public:
   LO GetNumOwnedDofHolder() const override;
   GO GetNumGlobalDofHolder() const override;
 
-  Rank1View<const bool, HostMemorySpace> GetOwned() const override;
-  GlobalIDView<HostMemorySpace> GetGids() const override;
+  Rank1View<const bool, HostMemorySpace> GetOwnedHost() const override;
+  GlobalIDView<HostMemorySpace> GetGidsHost() const override;
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const override;
 
   // returns true if the field layout is distributed
@@ -42,10 +42,10 @@ public:
   int GetDimension() const override;
 
   Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationDimensions() const override;
+  GetDOFHolderClassificationDimensionsHost() const override;
 
   Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIds() const override;
+  GetDOFHolderClassificationIdsHost() const override;
 
   std::array<int, 4> GetNodesPerDim() const;
   size_t GetNumEnts() const;
@@ -66,6 +66,8 @@ private:
   Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> dof_holder_coords_device_right_;
   Omega_h::Write<Omega_h::ClassId> class_ids_;
   Omega_h::Write<Omega_h::I8> class_dims_;
+  Omega_h::HostWrite<Omega_h::ClassId> class_ids_host_;
+  Omega_h::HostWrite<Omega_h::I8> class_dims_host_;
   Kokkos::View<bool*> owned_;
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;

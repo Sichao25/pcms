@@ -20,7 +20,7 @@ public:
                         Rank1View<const LO, HostMemorySpace> permutation) const
   {
     auto data = field.GetDOFHolderDataHost();
-    auto owned = layout.GetOwned();
+    auto owned = layout.GetOwnedHost();
     if (buffer.size() > 0) {
       for (LO i = 0; i < static_cast<LO>(data.size()); ++i) {
         if (owned[i])
@@ -36,7 +36,7 @@ public:
     Rank1View<const LO, HostMemorySpace> permutation) const
   {
     Kokkos::View<T*, HostMemorySpace> sorted("sorted", permutation.size());
-    auto owned = layout.GetOwned();
+    auto owned = layout.GetOwnedHost();
     for (LO i = 0; i < static_cast<LO>(sorted.size()); ++i) {
       if (owned[i])
         sorted[i] = buffer[permutation[i]];

@@ -35,10 +35,10 @@ TEST_CASE("XGC FieldLayout marks overlap entries and gids")
   auto rc = create_dummy_rc(data_size);
   pcms::XGCFieldLayout layout(rc, in_overlap, data_size);
 
-  auto owned = layout.GetOwned();
-  auto gids = layout.GetGids();
-  auto class_dims = layout.GetDOFHolderClassificationDimensions();
-  auto class_ids = layout.GetDOFHolderClassificationIds();
+  auto owned = layout.GetOwnedHost();
+  auto gids = layout.GetGidsHost();
+  auto class_dims = layout.GetDOFHolderClassificationDimensionsHost();
+  auto class_ids = layout.GetDOFHolderClassificationIdsHost();
 
   for (int i = 0; i < data_size; ++i) {
     REQUIRE(gids[i] == i + 1);
@@ -71,7 +71,7 @@ TEST_CASE("XGC FieldData serializer preserves inactive entries")
   std::iota(permutation.begin(), permutation.end(), 0);
   std::vector<pcms::Real> buffer(data_size, -1.0);
 
-  auto owned = layout->GetOwned();
+  auto owned = layout->GetOwnedHost();
   const int num_owned =
     std::count_if(owned.data_handle(), owned.data_handle() + data_size,
                   [](bool is_owned) { return is_owned; });

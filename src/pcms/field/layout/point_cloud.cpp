@@ -21,14 +21,15 @@ std::shared_ptr<const Discretization> MakePointCloudDiscretization(
 }
 
 void InitializePointCloudClassification(
-  Kokkos::View<LO*, HostMemorySpace> classification_dims_host,
-  Kokkos::View<LO*, HostMemorySpace> classification_ids_host,
+  Kokkos::View<LO*, DeviceMemorySpace> classification_dims,
+  Kokkos::View<LO*, DeviceMemorySpace> classification_ids,
   LO n, LO classification_entity_dim)
 {
-  Kokkos::deep_copy(classification_dims_host, classification_entity_dim);
-  for (LO i = 0; i < n; ++i) {
-    classification_ids_host(i) = i;
-  }
+  Kokkos::deep_copy(classification_dims, classification_entity_dim);
+  // for (LO i = 0; i < n; ++i) {
+  //   classification_ids_host(i) = i;
+  // }
+  Kokkos::parallel_for(n, OMEGA_H_LAMBDA(LO i) { classification_ids(i) = i; });
 }
 
 } // namespace
@@ -60,14 +61,19 @@ PointCloudLayout::PointCloudLayout(
   iota_view(gids_);
 
   LO n = static_cast<LO>(coords.extent(0));
+  classification_dims_ = Kokkos::View<LO*, DeviceMemorySpace>("classification_dims", n);
+  classification_ids_ = Kokkos::View<LO*, DeviceMemorySpace>("classification_ids", n);
+  InitializePointCloudClassification(classification_dims_, classification_ids_, n, classification_entity_dim);
   classification_dims_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
   classification_ids_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
-  InitializePointCloudClassification(classification_dims_host_,
-                                     classification_ids_host_, n,
-                                     classification_entity_dim);
   discretization_ = std::move(discretization);
+
+  Kokkos::deep_copy(owned_host_, owned_);
+  Kokkos::deep_copy(gids_host_, gids_);
+  Kokkos::deep_copy(classification_dims_host_, classification_dims_);
+  Kokkos::deep_copy(classification_ids_host_, classification_ids_);
 }
 
 std::shared_ptr<const Discretization>
@@ -91,15 +97,13 @@ GO PointCloudLayout::GetNumGlobalDofHolder() const
   return coords_.extent(0);
 }
 
-Rank1View<const bool, HostMemorySpace> PointCloudLayout::GetOwned() const
+Rank1View<const bool, HostMemorySpace> PointCloudLayout::GetOwnedHost() const
 {
-  Kokkos::deep_copy(owned_host_, owned_);
   return make_const_array_view(owned_host_);
 }
 
-GlobalIDView<HostMemorySpace> PointCloudLayout::GetGids() const
+GlobalIDView<HostMemorySpace> PointCloudLayout::GetGidsHost() const
 {
-  Kokkos::deep_copy(gids_host_, gids_);
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
@@ -149,13 +153,13 @@ int PointCloudLayout::GetDimension() const
 }
 
 Rank1View<const LO, HostMemorySpace>
-PointCloudLayout::GetDOFHolderClassificationDimensions() const
+PointCloudLayout::GetDOFHolderClassificationDimensionsHost() const
 {
   return make_const_array_view(classification_dims_host_);
 }
 
 Rank1View<const LO, HostMemorySpace>
-PointCloudLayout::GetDOFHolderClassificationIds() const
+PointCloudLayout::GetDOFHolderClassificationIdsHost() const
 {
   return make_const_array_view(classification_ids_host_);
 }

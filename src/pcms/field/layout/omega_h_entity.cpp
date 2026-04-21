@@ -23,7 +23,7 @@ Omega_h::Write<Omega_h::GO> GetGidsHelper(Omega_h::Mesh& mesh,
   return gids;
 }
 
-Omega_h::HostWrite<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh,
+Omega_h::Write<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh,
                                           int entity_dim,
                                           const std::string& global_id_name)
 {
@@ -37,16 +37,18 @@ Omega_h::HostWrite<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh,
     std::cerr << "Weird tag type for global arrays.\n";
     std::abort();
   }
-  return Omega_h::HostWrite<Omega_h::GO>(gids);
+  return gids;
 }
 
-Kokkos::View<bool*, HostMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
+Kokkos::View<bool*, DeviceMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
                                                 int entity_dim)
 {
-  Kokkos::View<bool*, HostMemorySpace> owned("owned", mesh.nents(entity_dim));
-  auto owned_h = Omega_h::HostRead<Omega_h::I8>(mesh.owned(entity_dim));
-  for (int i = 0; i < mesh.nents(entity_dim); ++i)
-    owned(i) = static_cast<bool>(owned_h[i]);
+  Kokkos::View<bool*, DeviceMemorySpace> owned("owned", mesh.nents(entity_dim));
+  auto owned_h = Omega_h::Read<Omega_h::I8>(mesh.owned(entity_dim));
+  // for (int i = 0; i < mesh.nents(entity_dim); ++i)
+  //   owned(i) = static_cast<bool>(owned_h[i]);
+  Kokkos::parallel_for(mesh.nents(entity_dim),
+                       OMEGA_H_LAMBDA(int i) { owned(i) = static_cast<bool>(owned_h[i]); });
   return owned;
 }
 
@@ -61,21 +63,29 @@ OmegaHEntityLayout::OmegaHEntityLayout(Omega_h::Mesh& mesh, int entity_dim,
     num_components_(num_components),
     num_global_dof_holder_(mesh.nglobal_ents(entity_dim)),
     coordinate_system_(coordinate_system),
-    gids_host_(BuildGids(mesh, entity_dim, global_id_name)),
+    gids_(BuildGids(mesh, entity_dim, global_id_name)),
     coords_(get_entity_centroids(mesh, entity_dim)),
     coords_2d_(ConvertCoordsTo2D(coords_, mesh.nents(entity_dim), mesh.dim())),
-    class_ids_host_(mesh.get_array<Omega_h::ClassId>(entity_dim, "class_id")),
-    class_dims_host_(mesh.get_array<Omega_h::I8>(entity_dim, "class_dim")),
-    owned_host_(BuildOwned(mesh, entity_dim)),
+    class_ids_(mesh.get_array<Omega_h::ClassId>(entity_dim, "class_id")),
+    class_dims_(mesh.get_array<Omega_h::I8>(entity_dim, "class_dim")),
+    owned_(BuildOwned(mesh, entity_dim)),
+    owned_host_("owned_host", owned_.size()),
     classification_dims_host_("classification_dims", mesh.nents(entity_dim)),
     classification_ids_host_("classification_ids", mesh.nents(entity_dim)),
     discretization_(std::make_shared<OmegaHDiscretization>(mesh))
 {
   PCMS_ALWAYS_ASSERT(entity_dim_ >= 0 && entity_dim_ <= dimension_);
 
+  gids_host_ = Omega_h::HostWrite<Omega_h::GO>(gids_);
+  Kokkos::deep_copy(owned_host_, owned_);
+
+  class_dims_ = Omega_h::Read<Omega_h::I8>(class_dims_);
+  class_ids_ = Omega_h::Read<Omega_h::ClassId>(class_ids_);
+  auto class_dims_host = Omega_h::HostRead<Omega_h::I8>(class_dims_);
+  auto class_ids_host = Omega_h::HostRead<Omega_h::ClassId>(class_ids_);
   for (int i = 0; i < mesh.nents(entity_dim_); ++i) {
-    classification_dims_host_(i) = static_cast<LO>(class_dims_host_[i]);
-    classification_ids_host_(i) = static_cast<LO>(class_ids_host_[i]);
+    classification_dims_host_(i) = static_cast<LO>(class_dims_host[i]);
+    classification_ids_host_(i) = static_cast<LO>(class_ids_host[i]);
   }
 }
 
@@ -100,12 +110,12 @@ GO OmegaHEntityLayout::GetNumGlobalDofHolder() const
   return num_global_dof_holder_;
 }
 
-Rank1View<const bool, HostMemorySpace> OmegaHEntityLayout::GetOwned() const
+Rank1View<const bool, HostMemorySpace> OmegaHEntityLayout::GetOwnedHost() const
 {
   return make_const_array_view(owned_host_);
 }
 
-GlobalIDView<HostMemorySpace> OmegaHEntityLayout::GetGids() const
+GlobalIDView<HostMemorySpace> OmegaHEntityLayout::GetGidsHost() const
 {
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
@@ -139,13 +149,13 @@ int OmegaHEntityLayout::GetDimension() const
 }
 
 Rank1View<const LO, HostMemorySpace>
-OmegaHEntityLayout::GetDOFHolderClassificationDimensions() const
+OmegaHEntityLayout::GetDOFHolderClassificationDimensionsHost() const
 {
   return make_const_array_view(classification_dims_host_);
 }
 
 Rank1View<const LO, HostMemorySpace>
-OmegaHEntityLayout::GetDOFHolderClassificationIds() const
+OmegaHEntityLayout::GetDOFHolderClassificationIdsHost() const
 {
   return make_const_array_view(classification_ids_host_);
 }

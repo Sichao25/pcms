@@ -8,6 +8,10 @@ EmptyFieldLayout::EmptyFieldLayout()
     gids_("null_gids", 0),
     class_dims_("null_class_dims", 0),
     class_ids_("null_class_ids", 0),
+    owned_host_("null_owned_host", 0),
+    gids_host_("null_gids_host", 0),
+    classification_dims_host_("null_classification_dims_host", 0),
+    classification_ids_host_("null_classification_ids_host", 0),
     coords_("null_coords", 0, 2)
 {
   discretization_ = std::make_shared<EmptyDiscretization>();
@@ -34,14 +38,14 @@ GO EmptyFieldLayout::GetNumGlobalDofHolder() const
   return 0;
 }
 
-Rank1View<const bool, HostMemorySpace> EmptyFieldLayout::GetOwned() const
+Rank1View<const bool, HostMemorySpace> EmptyFieldLayout::GetOwnedHost() const
 {
-  return make_const_array_view(owned_);
+  return make_const_array_view(owned_host_);
 }
 
-GlobalIDView<HostMemorySpace> EmptyFieldLayout::GetGids() const
+GlobalIDView<HostMemorySpace> EmptyFieldLayout::GetGidsHost() const
 {
-  return make_const_array_view(gids_);
+  return make_const_array_view(gids_host_);
 }
 
 bool EmptyFieldLayout::IsDistributed() const
@@ -67,15 +71,15 @@ int EmptyFieldLayout::GetDimension() const
 }
 
 Rank1View<const LO, HostMemorySpace>
-EmptyFieldLayout::GetDOFHolderClassificationDimensions() const
+EmptyFieldLayout::GetDOFHolderClassificationDimensionsHost() const
 {
-  return make_const_array_view(class_dims_);
+  return make_const_array_view(classification_dims_host_);
 }
 
 Rank1View<const LO, HostMemorySpace>
-EmptyFieldLayout::GetDOFHolderClassificationIds() const
+EmptyFieldLayout::GetDOFHolderClassificationIdsHost() const
 {
-  return make_const_array_view(class_ids_);
+  return make_const_array_view(classification_ids_host_);
 }
 
 } // namespace pcms

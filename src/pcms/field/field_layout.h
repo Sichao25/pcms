@@ -37,8 +37,8 @@ public:
     return GetNumComponents() * GetNumGlobalDofHolder();
   };
 
-  virtual Rank1View<const bool, HostMemorySpace> GetOwned() const = 0;
-  virtual GlobalIDView<HostMemorySpace> GetGids() const = 0;
+  virtual Rank1View<const bool, HostMemorySpace> GetOwnedHost() const = 0;
+  virtual GlobalIDView<HostMemorySpace> GetGidsHost() const = 0;
 
   // returns true if the field layout is distributed
   // if the field layout is distributed, the owned and global dofs are the same
@@ -55,10 +55,10 @@ public:
   virtual int GetDimension() const = 0;
 
   virtual Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationDimensions() const = 0;
+  GetDOFHolderClassificationDimensionsHost() const = 0;
 
   virtual Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIds() const = 0;
+  GetDOFHolderClassificationIdsHost() const = 0;
 
   virtual ~FieldLayout() noexcept = default;
 };

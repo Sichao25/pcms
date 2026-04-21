@@ -41,11 +41,12 @@ XGCDiscretization::XGCDiscretization(
     auto verts_host = Kokkos::View<LO*, HostMemorySpace>("verts_host", verts.size());
     int idx = 0;
     for (LO vert : verts) verts_host(idx++) = vert;
-    auto verts_device = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), verts_host);
+    auto verts_device = Kokkos::View<LO*, DeviceMemorySpace>("verts_device", verts.size());
+    Kokkos::deep_copy(verts_device, verts_host);
     Kokkos::parallel_for(
       "ClassifyVerts", Kokkos::RangePolicy<>(0, verts.size()),
       ClassifyVertsFunctor(geom, verts_device, class_dims_, class_ids_));
-
+    Kokkos::fence();  // Wait for kernel to complete before verts_device is destroyed, better would be to optimize the reverse_classification data structure to avoid this copy and synchronization, but this is simpler for now
   }
 }
 

@@ -242,13 +242,13 @@ std::array<int, 4> MeshFieldsAdapterLayout::GetNodesPerDim() const
   return nodes_per_dim_;
 }
 
-Rank1View<const bool, HostMemorySpace> MeshFieldsAdapterLayout::GetOwned() const
+Rank1View<const bool, HostMemorySpace> MeshFieldsAdapterLayout::GetOwnedHost() const
 {
   Kokkos::deep_copy(owned_host_, owned_);
   return make_const_array_view(owned_host_);
 }
 
-GlobalIDView<HostMemorySpace> MeshFieldsAdapterLayout::GetGids() const
+GlobalIDView<HostMemorySpace> MeshFieldsAdapterLayout::GetGidsHost() const
 {
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
@@ -310,13 +310,13 @@ int MeshFieldsAdapterLayout::GetDimension() const
 }
 
 Rank1View<const LO, HostMemorySpace>
-MeshFieldsAdapterLayout::GetDOFHolderClassificationDimensions() const
+MeshFieldsAdapterLayout::GetDOFHolderClassificationDimensionsHost() const
 {
   return make_const_array_view(classification_dims_host_);
 }
 
 Rank1View<const LO, HostMemorySpace>
-MeshFieldsAdapterLayout::GetDOFHolderClassificationIds() const
+MeshFieldsAdapterLayout::GetDOFHolderClassificationIdsHost() const
 {
   return make_const_array_view(classification_ids_host_);
 }

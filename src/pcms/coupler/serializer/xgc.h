@@ -35,7 +35,7 @@ public:
     }
 
     auto data = xgc_field->GetDOFHolderDataHost();
-    auto owned = layout.GetOwned();
+    auto owned = layout.GetOwnedHost();
     if (buffer.size() > 0) {
       for (LO i = 0; i < static_cast<LO>(data.size()); ++i) {
         if (owned[i]) {
@@ -57,7 +57,7 @@ public:
     }
 
     auto current = xgc_field->GetDOFHolderDataHost();
-    auto owned = layout.GetOwned();
+    auto owned = layout.GetOwnedHost();
     std::vector<T> full_data(current.size());
     for (size_t i = 0; i < current.size(); ++i) {
       full_data[i] = current[i];

@@ -81,6 +81,24 @@ struct InitGridCoordsFunctor3D {
   }
 };
 
+struct InitilizeGidsAndOwnedFunctor
+{
+  Kokkos::View<GO*> gids_;
+  Kokkos::View<bool*> owned_;
+
+  InitilizeGidsAndOwnedFunctor(Kokkos::View<GO*> gids, Kokkos::View<bool*> owned)
+    : gids_(gids), owned_(owned)
+  {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(LO i) const
+  {
+    gids_[i] = static_cast<GO>(i);
+    owned_[i] = true;
+  }
+};
+
 } // anonymous namespace
 
 template <unsigned Dim>
@@ -92,19 +110,23 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
     coordinate_system_(coordinate_system),
     order_(order),
     gids_("gids", GetNumDofHolders()),
+    gids_host_("gids_host", GetNumDofHolders()),
     dof_holder_coords_("dof_holder_coords", GetNumDofHolders(), Dim),
-    owned_("owned", GetNumDofHolders())
+    owned_("owned", GetNumDofHolders()),
+    owned_host_("owned_host", GetNumDofHolders())
 {
   PCMS_FUNCTION_TIMER;
   PCMS_ALWAYS_ASSERT(order_ == 0 || order_ == 1);
 
   LO num_dofs = GetNumDofHolders();
 
-  // Initialize global IDs and ownership
-  for (LO i = 0; i < num_dofs; ++i) {
-    gids_[i] = static_cast<GO>(i);
-    owned_[i] = true;
-  }
+  Kokkos::parallel_for(
+    "InitUniformGridGidsAndOwned",
+    Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_dofs),
+    InitilizeGidsAndOwnedFunctor(gids_, owned_));
+  
+  Kokkos::deep_copy(gids_host_, gids_);
+  Kokkos::deep_copy(owned_host_, owned_);
 
   // Initialize DOF holder coordinates directly on device using parallel dispatch
   Real vertex_spacing[Dim];
@@ -135,12 +157,17 @@ UniformGridFieldLayout<Dim>::UniformGridFieldLayout(
 
   int entity_dim = (order_ == 0) ? static_cast<int>(Dim) : 0;
   LO n = GetNumDofHolders();
+  classification_dims_ = Kokkos::View<LO*, DeviceMemorySpace>("classification_dims", n);
+  classification_ids_ = Kokkos::View<LO*, DeviceMemorySpace>("classification_ids", n);
+  Kokkos::deep_copy(classification_dims_host_, static_cast<LO>(entity_dim));
+  Kokkos::deep_copy(classification_ids_host_, LO{0});
+
   classification_dims_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
   classification_ids_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
-  Kokkos::deep_copy(classification_dims_host_, static_cast<LO>(entity_dim));
-  Kokkos::deep_copy(classification_ids_host_, LO{0});
+  Kokkos::deep_copy(classification_dims_host_, classification_dims_);
+  Kokkos::deep_copy(classification_ids_host_, classification_ids_);
   discretization_ = std::make_shared<UniformGridDiscretization<Dim>>(grid_);
 }
 
@@ -170,16 +197,16 @@ GO UniformGridFieldLayout<Dim>::GetNumGlobalDofHolder() const
 }
 
 template <unsigned Dim>
-Rank1View<const bool, HostMemorySpace> UniformGridFieldLayout<Dim>::GetOwned()
+Rank1View<const bool, HostMemorySpace> UniformGridFieldLayout<Dim>::GetOwnedHost()
   const
 {
-  return make_const_array_view(owned_);
+  return make_const_array_view(owned_host_);
 }
 
 template <unsigned Dim>
-GlobalIDView<HostMemorySpace> UniformGridFieldLayout<Dim>::GetGids() const
+GlobalIDView<HostMemorySpace> UniformGridFieldLayout<Dim>::GetGidsHost() const
 {
-  return GlobalIDView<HostMemorySpace>(gids_.data(), gids_.size());
+  return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
 template <unsigned Dim>
@@ -231,14 +258,14 @@ int UniformGridFieldLayout<Dim>::GetDimension() const
 
 template <unsigned Dim>
 Rank1View<const LO, HostMemorySpace>
-UniformGridFieldLayout<Dim>::GetDOFHolderClassificationDimensions() const
+UniformGridFieldLayout<Dim>::GetDOFHolderClassificationDimensionsHost() const
 {
   return make_const_array_view(classification_dims_host_);
 }
 
 template <unsigned Dim>
 Rank1View<const LO, HostMemorySpace>
-UniformGridFieldLayout<Dim>::GetDOFHolderClassificationIds() const
+UniformGridFieldLayout<Dim>::GetDOFHolderClassificationIdsHost() const
 {
   return make_const_array_view(classification_ids_host_);
 }

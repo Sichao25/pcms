@@ -25,8 +25,8 @@ public:
   LO GetNumOwnedDofHolder() const override;
   GO GetNumGlobalDofHolder() const override;
 
-  Rank1View<const bool, HostMemorySpace> GetOwned() const override;
-  GlobalIDView<HostMemorySpace> GetGids() const override;
+  Rank1View<const bool, HostMemorySpace> GetOwnedHost() const override;
+  GlobalIDView<HostMemorySpace> GetGidsHost() const override;
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const override;
 
   [[nodiscard]] bool IsDistributed() const override;
@@ -36,10 +36,10 @@ public:
   int GetDimension() const override;
 
   Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationDimensions() const override;
+  GetDOFHolderClassificationDimensionsHost() const override;
 
   Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIds() const override;
+  GetDOFHolderClassificationIdsHost() const override;
 
   std::array<int, 4> GetNodesPerDim() const;
 
@@ -54,6 +54,8 @@ private:
   Kokkos::View<GO*> gids_;
   Kokkos::View<bool*, HostMemorySpace> owned_host_;
   Kokkos::View<GO*, HostMemorySpace> gids_host_;
+  Kokkos::View<LO*, DeviceMemorySpace> classification_dims_;
+  Kokkos::View<LO*, DeviceMemorySpace> classification_ids_;
   Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
   Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
   std::shared_ptr<const Discretization> discretization_;
