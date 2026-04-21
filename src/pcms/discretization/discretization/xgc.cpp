@@ -3,6 +3,29 @@
 namespace pcms
 {
 
+struct ClassifyVertsFunctor {
+  pcms::DimID geom;
+  Kokkos::View<LO*, DeviceMemorySpace> verts;
+  Kokkos::View<ClassificationDimension*, DeviceMemorySpace> class_dims_;
+  Kokkos::View<ClassificationId*, DeviceMemorySpace> class_ids_;
+
+  ClassifyVertsFunctor(
+    DimID geom, Kokkos::View<LO*, DeviceMemorySpace> verts,
+    Kokkos::View<ClassificationDimension*, DeviceMemorySpace> class_dims,
+    Kokkos::View<ClassificationId*, DeviceMemorySpace> class_ids)
+    : geom(geom), verts(verts), class_dims_(class_dims), class_ids_(class_ids)
+  {}
+
+  KOKKOS_INLINE_FUNCTION  void operator()(const int i) const {
+    LO vert = verts(i);
+    if (vert >= 0 && vert < class_dims_.extent(0)) {
+      class_dims_(vert) = geom.dim;
+      class_ids_(vert) = geom.id;
+    }
+  };
+};
+  
+
 XGCDiscretization::XGCDiscretization(
   const ReverseClassificationVertex& reverse_classification,
   LO num_plane_nodes)
@@ -15,12 +38,14 @@ XGCDiscretization::XGCDiscretization(
   Kokkos::deep_copy(class_ids_, static_cast<ClassificationId>(-1));
 
   for (const auto& [geom, verts] : reverse_classification) {
-    for (LO vert : verts) {
-      if (vert >= 0 && vert < num_plane_nodes_) {
-        class_dims_(vert) = geom.dim;
-        class_ids_(vert) = geom.id;
-      }
-    }
+    auto verts_host = Kokkos::View<LO*, HostMemorySpace>("verts_host", verts.size());
+    int idx = 0;
+    for (LO vert : verts) verts_host(idx++) = vert;
+    auto verts_device = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), verts_host);
+    Kokkos::parallel_for(
+      "ClassifyVerts", Kokkos::RangePolicy<>(0, verts.size()),
+      ClassifyVertsFunctor(geom, verts_device, class_dims_, class_ids_));
+
   }
 }
 
@@ -41,21 +66,21 @@ LO XGCDiscretization::GetNumEntities(int entity_dim) const
   return entity_dim == Vertex ? num_plane_nodes_ : 0;
 }
 
-Rank1View<const ClassificationDimension, HostMemorySpace>
+Rank1View<const ClassificationDimension, DeviceMemorySpace>
 XGCDiscretization::GetEntityClassificationDimensions(int entity_dim) const
 {
   return entity_dim == Vertex
            ? make_const_array_view(class_dims_)
-           : Rank1View<const ClassificationDimension, HostMemorySpace>(nullptr,
+           : Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr,
                                                                        0);
 }
 
-Rank1View<const ClassificationId, HostMemorySpace>
+Rank1View<const ClassificationId, DeviceMemorySpace>
 XGCDiscretization::GetEntityClassificationIds(int entity_dim) const
 {
   return entity_dim == Vertex
            ? make_const_array_view(class_ids_)
-           : Rank1View<const ClassificationId, HostMemorySpace>(nullptr, 0);
+           : Rank1View<const ClassificationId, DeviceMemorySpace>(nullptr, 0);
 }
 
 } // namespace pcms

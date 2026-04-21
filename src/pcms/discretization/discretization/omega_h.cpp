@@ -14,14 +14,14 @@ OmegaHDiscretization::OmegaHDiscretization(Omega_h::Mesh& mesh)
   : mesh_(mesh)
 {
   for (int entity_dim = 0; entity_dim <= max_entity_dim_; ++entity_dim) {
-    class_dims_by_dim_[entity_dim] = Omega_h::HostRead<Omega_h::I8>();
-    class_ids_by_dim_[entity_dim] = Omega_h::HostRead<Omega_h::ClassId>();
+    class_dims_by_dim_[entity_dim] = Omega_h::Read<Omega_h::I8>();
+    class_ids_by_dim_[entity_dim] = Omega_h::Read<Omega_h::ClassId>();
   }
 
   for (int entity_dim = 0; entity_dim <= mesh_.dim(); ++entity_dim) {
-    class_dims_by_dim_[entity_dim] = Omega_h::HostRead<Omega_h::I8>(
+    class_dims_by_dim_[entity_dim] = Omega_h::Read<Omega_h::I8>(
       mesh_.get_array<Omega_h::I8>(entity_dim, "class_dim"));
-    class_ids_by_dim_[entity_dim] = Omega_h::HostRead<Omega_h::ClassId>(
+    class_ids_by_dim_[entity_dim] = Omega_h::Read<Omega_h::ClassId>(
       mesh_.get_array<Omega_h::ClassId>(entity_dim, "class_id"));
   }
 }
@@ -45,23 +45,23 @@ LO OmegaHDiscretization::GetNumEntities(int entity_dim) const
   return mesh_.nents(entity_dim);
 }
 
-Rank1View<const ClassificationDimension, HostMemorySpace>
+Rank1View<const ClassificationDimension, DeviceMemorySpace>
 OmegaHDiscretization::GetEntityClassificationDimensions(int entity_dim) const
 {
   if (entity_dim < 0 || entity_dim > max_entity_dim_)
-    return Rank1View<const ClassificationDimension, HostMemorySpace>(nullptr, 0);
+    return Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr, 0);
   const auto& dims = class_dims_by_dim_[entity_dim];
-  return Rank1View<const ClassificationDimension, HostMemorySpace>(
+  return Rank1View<const ClassificationDimension, DeviceMemorySpace>(
     dims.data(), dims.size());
 }
 
-Rank1View<const ClassificationId, HostMemorySpace>
+Rank1View<const ClassificationId, DeviceMemorySpace>
 OmegaHDiscretization::GetEntityClassificationIds(int entity_dim) const
 {
   if (entity_dim < 0 || entity_dim > max_entity_dim_)
-    return Rank1View<const ClassificationId, HostMemorySpace>(nullptr, 0);
+    return Rank1View<const ClassificationId, DeviceMemorySpace>(nullptr, 0);
   const auto& ids = class_ids_by_dim_[entity_dim];
-  return Rank1View<const ClassificationId, HostMemorySpace>(
+  return Rank1View<const ClassificationId, DeviceMemorySpace>(
     ids.data(), ids.size());
 }
 

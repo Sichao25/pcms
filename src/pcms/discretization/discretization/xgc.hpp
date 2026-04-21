@@ -21,17 +21,17 @@ public:
 
   LO GetNumEntities(int entity_dim) const override;
 
-  Rank1View<const ClassificationDimension, HostMemorySpace>
+  Rank1View<const ClassificationDimension, DeviceMemorySpace>
   GetEntityClassificationDimensions(int entity_dim) const override;
 
-  Rank1View<const ClassificationId, HostMemorySpace>
+  Rank1View<const ClassificationId, DeviceMemorySpace>
   GetEntityClassificationIds(int entity_dim) const override;
 
 private:
   const ReverseClassificationVertex* reverse_classification_;
   LO num_plane_nodes_;
-  Kokkos::View<ClassificationDimension*, HostMemorySpace> class_dims_;
-  Kokkos::View<ClassificationId*, HostMemorySpace> class_ids_;
+  Kokkos::View<ClassificationDimension*, DeviceMemorySpace> class_dims_;
+  Kokkos::View<ClassificationId*, DeviceMemorySpace> class_ids_;
 };
 
 } // namespace pcms

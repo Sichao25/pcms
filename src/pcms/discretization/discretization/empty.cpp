@@ -21,13 +21,13 @@ LO EmptyDiscretization::GetNumEntities(int) const
   return 0;
 }
 
-Rank1View<const ClassificationDimension, HostMemorySpace>
+Rank1View<const ClassificationDimension, DeviceMemorySpace>
 EmptyDiscretization::GetEntityClassificationDimensions(int) const
 {
   return {};
 }
 
-Rank1View<const ClassificationId, HostMemorySpace>
+Rank1View<const ClassificationId, DeviceMemorySpace>
 EmptyDiscretization::GetEntityClassificationIds(int) const
 {
   return {};

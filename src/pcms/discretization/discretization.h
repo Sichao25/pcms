@@ -19,10 +19,10 @@ public:
 
   virtual LO GetNumEntities(int entity_dim) const = 0;
 
-  virtual Rank1View<const ClassificationDimension, HostMemorySpace>
+  virtual Rank1View<const ClassificationDimension, DeviceMemorySpace>
   GetEntityClassificationDimensions(int entity_dim) const = 0;
 
-  virtual Rank1View<const ClassificationId, HostMemorySpace>
+  virtual Rank1View<const ClassificationId, DeviceMemorySpace>
   GetEntityClassificationIds(int entity_dim) const = 0;
 
   virtual ~Discretization() noexcept = default;

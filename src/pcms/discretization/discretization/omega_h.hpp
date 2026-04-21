@@ -22,19 +22,19 @@ public:
 
   LO GetNumEntities(int entity_dim) const override;
 
-  Rank1View<const ClassificationDimension, HostMemorySpace>
+  Rank1View<const ClassificationDimension, DeviceMemorySpace>
   GetEntityClassificationDimensions(int entity_dim) const override;
 
-  Rank1View<const ClassificationId, HostMemorySpace>
+  Rank1View<const ClassificationId, DeviceMemorySpace>
   GetEntityClassificationIds(int entity_dim) const override;
 
 private:
   static constexpr int max_entity_dim_ = Region;
 
   Omega_h::Mesh& mesh_;
-  std::array<Omega_h::HostRead<Omega_h::I8>, max_entity_dim_ + 1>
+  std::array<Omega_h::Read<Omega_h::I8>, max_entity_dim_ + 1>
     class_dims_by_dim_;
-  std::array<Omega_h::HostRead<Omega_h::ClassId>, max_entity_dim_ + 1>
+  std::array<Omega_h::Read<Omega_h::ClassId>, max_entity_dim_ + 1>
     class_ids_by_dim_;
 };
 

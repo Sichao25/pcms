@@ -19,10 +19,10 @@ public:
 
   LO GetNumEntities(int entity_dim) const override;
 
-  Rank1View<const ClassificationDimension, HostMemorySpace>
+  Rank1View<const ClassificationDimension, DeviceMemorySpace>
   GetEntityClassificationDimensions(int entity_dim) const override;
 
-  Rank1View<const ClassificationId, HostMemorySpace>
+  Rank1View<const ClassificationId, DeviceMemorySpace>
   GetEntityClassificationIds(int entity_dim) const override;
 
 };

@@ -21,20 +21,20 @@ public:
 
   LO GetNumEntities(int entity_dim) const override;
 
-  Rank1View<const ClassificationDimension, HostMemorySpace>
+  Rank1View<const ClassificationDimension, DeviceMemorySpace>
   GetEntityClassificationDimensions(int entity_dim) const override;
 
-  Rank1View<const ClassificationId, HostMemorySpace>
+  Rank1View<const ClassificationId, DeviceMemorySpace>
   GetEntityClassificationIds(int entity_dim) const override;
 
 private:
   static constexpr int CellEntityDim = static_cast<int>(Dim);
 
   UniformGrid<Dim> grid_;
-  Kokkos::View<ClassificationDimension*, HostMemorySpace> vertex_class_dims_;
-  Kokkos::View<ClassificationId*, HostMemorySpace> vertex_class_ids_;
-  Kokkos::View<ClassificationDimension*, HostMemorySpace> cell_class_dims_;
-  Kokkos::View<ClassificationId*, HostMemorySpace> cell_class_ids_;
+  Kokkos::View<ClassificationDimension*, DeviceMemorySpace> vertex_class_dims_;
+  Kokkos::View<ClassificationId*, DeviceMemorySpace> vertex_class_ids_;
+  Kokkos::View<ClassificationDimension*, DeviceMemorySpace> cell_class_dims_;
+  Kokkos::View<ClassificationId*, DeviceMemorySpace> cell_class_ids_;
 };
 
 template <unsigned Dim>
@@ -93,7 +93,7 @@ LO UniformGridDiscretization<Dim>::GetNumEntities(int entity_dim) const
 }
 
 template <unsigned Dim>
-Rank1View<const ClassificationDimension, HostMemorySpace>
+Rank1View<const ClassificationDimension, DeviceMemorySpace>
 UniformGridDiscretization<Dim>::GetEntityClassificationDimensions(
   int entity_dim) const
 {
@@ -101,18 +101,18 @@ UniformGridDiscretization<Dim>::GetEntityClassificationDimensions(
     return make_const_array_view(vertex_class_dims_);
   if (entity_dim == CellEntityDim)
     return make_const_array_view(cell_class_dims_);
-  return Rank1View<const ClassificationDimension, HostMemorySpace>(nullptr, 0);
+  return Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr, 0);
 }
 
 template <unsigned Dim>
-Rank1View<const ClassificationId, HostMemorySpace>
+Rank1View<const ClassificationId, DeviceMemorySpace>
 UniformGridDiscretization<Dim>::GetEntityClassificationIds(int entity_dim) const
 {
   if (entity_dim == Vertex)
     return make_const_array_view(vertex_class_ids_);
   if (entity_dim == CellEntityDim)
     return make_const_array_view(cell_class_ids_);
-  return Rank1View<const ClassificationId, HostMemorySpace>(nullptr, 0);
+  return Rank1View<const ClassificationId, DeviceMemorySpace>(nullptr, 0);
 }
 
 } // namespace pcms

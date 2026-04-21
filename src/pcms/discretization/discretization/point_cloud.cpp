@@ -35,21 +35,21 @@ LO PointCloudDiscretization::GetNumEntities(int entity_dim) const
   return entity_dim == Vertex ? static_cast<LO>(class_dims_.extent(0)) : 0;
 }
 
-Rank1View<const ClassificationDimension, HostMemorySpace>
+Rank1View<const ClassificationDimension, DeviceMemorySpace>
 PointCloudDiscretization::GetEntityClassificationDimensions(int entity_dim) const
 {
   return entity_dim == Vertex
            ? make_const_array_view(class_dims_)
-           : Rank1View<const ClassificationDimension, HostMemorySpace>(nullptr,
+           : Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr,
                                                                        0);
 }
 
-Rank1View<const ClassificationId, HostMemorySpace>
+Rank1View<const ClassificationId, DeviceMemorySpace>
 PointCloudDiscretization::GetEntityClassificationIds(int entity_dim) const
 {
   return entity_dim == Vertex
            ? make_const_array_view(class_ids_)
-           : Rank1View<const ClassificationId, HostMemorySpace>(nullptr, 0);
+           : Rank1View<const ClassificationId, DeviceMemorySpace>(nullptr, 0);
 }
 
 } // namespace pcms
