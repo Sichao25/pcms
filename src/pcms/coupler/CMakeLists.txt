@@ -6,6 +6,7 @@ set(PCMS_COUPLER_HEADERS
         field_layout_communicator.h
         field_exchange_planner.h
         partition.h
+        overlap_mask.h
 )
 
 

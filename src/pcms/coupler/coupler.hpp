@@ -7,6 +7,7 @@
 #include "pcms/coupler/field_layout_communicator.h"
 #include "pcms/coupler/field_communicator.hpp"
 #include "pcms/coupler/field_exchange_planner.h"
+#include "pcms/coupler/overlap_mask.h"
 #include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/profile.h"
@@ -56,6 +57,11 @@ public:
                                std::shared_ptr<const FieldLayout> layout,
                                std::unique_ptr<FieldExchangePlanner> planner,
                                bool participates = true);
+
+  // Set the overlap mask for a specific layout by name
+  void SetLayoutOverlapMask(const std::string& layout_name,
+                           std::unique_ptr<OverlapMask> overlap_mask);
+
 
   template <typename T>
   FieldHandle<T> AddField(std::string name, Field<T>&& field,
@@ -154,6 +160,7 @@ private:
   std::map<std::string, FieldCommunicator2Ptr> field_communicators_;
   std::map<const FieldLayout*, std::unique_ptr<FieldLayoutCommunicator>>
     field_layout_communicators_;
+  std::map<std::string, std::unique_ptr<OverlapMask>> layout_overlap_masks_;
 };
 
 class Coupler

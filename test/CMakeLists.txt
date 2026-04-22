@@ -464,6 +464,11 @@ if(PCMS_ENABLE_C)
                      test_proxy_coupling_xgc_server.cpp)
       target_link_libraries(test_proxy_couple_xgc_cpp_interface
                             PUBLIC pcms::core MPI::MPI_C test_support)
+      # New test with proper overlap mask feature (no hacky ownership modification)
+      add_executable(test_proxy_couple_xgc_overlap_interface
+                     test_proxy_coupling_xgc_server_overlap.cpp)
+      target_link_libraries(test_proxy_couple_xgc_overlap_interface
+                            PUBLIC pcms::core MPI::MPI_C test_support)
       if(HOST_NPROC GREATER_EQUAL 3)
         dual_mpi_test(
           TESTNAME
@@ -482,6 +487,30 @@ if(PCMS_ENABLE_C)
           cppinterface
           EXE2
           $<TARGET_FILE:test_proxy_couple_xgc_cpp_interface>
+          PROCS2
+          1
+          ARGS2
+          ${d3d1p}
+          ${d3d1p_cpn}
+          0)
+        # Test with proper overlap mask feature (XGC adapter)
+        dual_mpi_test(
+          TESTNAME
+          xgc_proxy_to_xgc_overlap
+          TIMEOUT
+          30
+          NAME1
+          cinterface
+          EXE1
+          $<TARGET_FILE:test_proxy_couple_xgc_c_interface>
+          PROCS1
+          2
+          ARGS1
+          ${PCMS_TEST_DATA_DIR}/d3d/meshRclassification.txt
+          NAME2
+          cppinterface_overlap
+          EXE2
+          $<TARGET_FILE:test_proxy_couple_xgc_overlap_interface>
           PROCS2
           1
           ARGS2
@@ -507,6 +536,30 @@ if(PCMS_ENABLE_C)
           cppinterface
           EXE2
           $<TARGET_FILE:test_proxy_couple_xgc_cpp_interface>
+          PROCS2
+          2
+          ARGS2
+          ${d3d1p}
+          ${d3d2p_cpn}
+          1)
+        # Test with proper overlap mask feature (Omega-h adapter)
+        dual_mpi_test(
+          TESTNAME
+          xgc_proxy_to_omega_overlap
+          TIMEOUT
+          30
+          NAME1
+          cinterface
+          EXE1
+          $<TARGET_FILE:test_proxy_couple_xgc_c_interface>
+          PROCS1
+          4
+          ARGS1
+          ${PCMS_TEST_DATA_DIR}/d3d/meshRclassification.txt
+          NAME2
+          cppinterface_overlap
+          EXE2
+          $<TARGET_FILE:test_proxy_couple_xgc_overlap_interface>
           PROCS2
           2
           ARGS2

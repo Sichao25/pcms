@@ -173,7 +173,7 @@ static OutMsg ConstructOutMessage(int rank, int nproc,
 }
 
 static ReversePartitionMap2 BuildReversePartitionMap(
-  const FieldLayout& layout, const redev::Partition& partition)
+  const FieldLayout& layout, const redev::Partition& partition, const OverlapMask& overlap_mask)
 {
   PCMS_FUNCTION_TIMER;
   auto owned = layout.GetOwnedHost();
@@ -195,9 +195,13 @@ static ReversePartitionMap2 BuildReversePartitionMap(
   ReversePartitionMap2 reverse_partition;
   LO n = static_cast<LO>(owned.extent(0));
   std::array<Real, 3> coord{};
+  Kokkos::View<bool*, HostMemorySpace> overlap_mask_view = overlap_mask.GetMask(layout);
 
   for (LO local_index = 0; local_index < n; ++local_index) {
     if (!owned[local_index])
+      continue;
+
+    if (!overlap_mask_view[local_index])
       continue;
 
     for (int d = 0; d < mesh_dim; ++d)
@@ -223,13 +227,15 @@ static ReversePartitionMap2 BuildReversePartitionMap(
 } // namespace
 
 ExchangePlan GenericFieldExchangePlanner::BuildExchangePlan(
-  const FieldLayout& layout, const redev::Partition& partition) const
+  const FieldLayout& layout, const redev::Partition& partition,
+  const OverlapMask* overlap_mask) const
 {
   PCMS_FUNCTION_TIMER;
+  PCMS_ALWAYS_ASSERT(overlap_mask != nullptr);
   auto gids = layout.GetGidsHost();
 
   const ReversePartitionMap2 reverse_partition =
-    BuildReversePartitionMap(layout, partition);
+    BuildReversePartitionMap(layout, partition, *overlap_mask);
 
   ExchangePlan plan;
 

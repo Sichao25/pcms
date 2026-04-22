@@ -41,11 +41,25 @@ const FieldLayout& Application::AddLayout(
   }
   layouts_.push_back(std::move(layout));
   const FieldLayout& layout_ref = *layouts_.back();
+  
+  // Check if there's an overlap mask for this layout
+  const OverlapMask* overlap_mask = nullptr;
+  auto mask_it = layout_overlap_masks_.find(name);
+  if (mask_it != layout_overlap_masks_.end()) {
+    overlap_mask = mask_it->second.get();
+  }
+  
   field_layout_communicators_.emplace(
     &layout_ref, std::make_unique<FieldLayoutCommunicator>(
                    name, mpi_comm_subset, redev_, channel_, layout_ref,
-                   std::move(planner), own_mpi_comm));
+                   std::move(planner), own_mpi_comm, overlap_mask));
   return layout_ref;
+}
+
+void Application::SetLayoutOverlapMask(const std::string& layout_name,
+                                       std::unique_ptr<OverlapMask> overlap_mask)
+{
+  layout_overlap_masks_[layout_name] = std::move(overlap_mask);
 }
 
 } // namespace pcms

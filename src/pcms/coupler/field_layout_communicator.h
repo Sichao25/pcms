@@ -3,6 +3,7 @@
 
 #include "pcms/field/field_layout.h"
 #include "field_exchange_planner.h"
+#include "overlap_mask.h"
 #include "pcms/utility/profile.h"
 #include "pcms/utility/arrays.h"
 #include <redev.h>
@@ -23,7 +24,8 @@ public:
                           redev::Redev& redev, redev::Channel& channel,
                           const FieldLayout& layout,
                           std::unique_ptr<FieldExchangePlanner> planner,
-                          bool own_mpi_comm = false);
+                          bool own_mpi_comm = false,
+                          const OverlapMask* overlap_mask = nullptr);
 
   Rank1View<const pcms::LO, pcms::HostMemorySpace> GetPermutationArray() const;
 
@@ -47,6 +49,8 @@ public:
 
   void UpdateLayoutNull();
 
+  void SetOverlapMask(std::unique_ptr<OverlapMask> mask);
+
   ~FieldLayoutCommunicator();
 
 private:
@@ -58,6 +62,7 @@ private:
   std::string name_;
   redev::Redev& redev_;
   std::unique_ptr<FieldExchangePlanner> planner_;
+  std::unique_ptr<OverlapMask> overlap_mask_;
   bool own_mpi_comm_ = false;
 };
 } // namespace pcms

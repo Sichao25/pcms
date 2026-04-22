@@ -3,6 +3,7 @@
 
 #include "pcms/field/field_layout.h"
 #include "pcms/utility/arrays.h"
+#include "overlap_mask.h"
 #include <redev.h>
 #include <vector>
 
@@ -22,7 +23,8 @@ class FieldExchangePlanner
 public:
   virtual ExchangePlan BuildExchangePlan(
     const FieldLayout& layout,
-    const redev::Partition& partition) const = 0;
+    const redev::Partition& partition,
+    const OverlapMask* overlap_mask = nullptr) const = 0;
 
   virtual ExchangePlan BuildReceivePlan(
     const FieldLayout& layout,
@@ -44,7 +46,8 @@ class GenericFieldExchangePlanner : public FieldExchangePlanner
 public:
   ExchangePlan BuildExchangePlan(
     const FieldLayout& layout,
-    const redev::Partition& partition) const override;
+    const redev::Partition& partition,
+    const OverlapMask* overlap_mask = nullptr) const override;
 
   ExchangePlan BuildReceivePlan(
     const FieldLayout& layout,
