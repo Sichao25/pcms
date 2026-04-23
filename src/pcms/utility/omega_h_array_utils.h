@@ -2,6 +2,7 @@
 #define PCMS_UTILITY_OMEGA_H_ARRAY_UTILS_H
 
 #include <Omega_h_array.hpp>
+#include "pcms/utility/memory_spaces.h"
 
 namespace pcms
 {
