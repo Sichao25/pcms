@@ -72,30 +72,6 @@ Kokkos::View<bool*, DeviceMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
   return owned;
 }
 
-struct CopyClassInfoFunctor
-{
-  Omega_h::Read<Omega_h::ClassId> ids_;
-  Omega_h::Read<Omega_h::I8> dims_;
-  Kokkos::View<LO*, HostMemorySpace> classification_dims_host_;
-  Kokkos::View<LO*, HostMemorySpace> classification_ids_host_;
-
-  CopyClassInfoFunctor(Omega_h::Read<Omega_h::ClassId> ids,
-                       Omega_h::Read<Omega_h::I8> dims,
-                       Kokkos::View<LO*, HostMemorySpace> classification_dims_host,
-                       Kokkos::View<LO*, HostMemorySpace> classification_ids_host)
-    : ids_(ids),
-      dims_(dims),
-      classification_dims_host_(classification_dims_host),
-      classification_ids_host_(classification_ids_host)
-  {
-  }
-
-  OMEGA_H_DEVICE  void operator()(LO i) const
-  {    classification_ids_host_(i) = static_cast<LO>(ids_[i]);
-    classification_dims_host_(i) = static_cast<LO>(dims_[i]);
-  }
-};
-
 } // namespace
 
 OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,

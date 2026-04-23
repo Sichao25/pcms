@@ -7,6 +7,8 @@ import pcms
 import numpy as np
 import os
 import shutil
+import gc
+import tempfile
 
 def test_binary_io(lib, world):
     """Test binary file format I/O"""
@@ -28,9 +30,9 @@ def test_binary_io(lib, world):
     dim_orig = mesh.dim()
     print(f"Original mesh: dim={dim_orig}, nverts={nverts_orig}, nelems={nelems_orig}")
     
-    # Create temporary directory for test files
-    test_dir = "test_data"
-    os.makedirs(test_dir)
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_binary_")
+    print(f"Using temporary directory: {test_dir}")
     try:
         # Test binary write/read
         binary_file = os.path.join(test_dir, "test_mesh.osh")
@@ -47,17 +49,15 @@ def test_binary_io(lib, world):
         
         print("✓ Binary I/O test passed")
         
+        # Explicitly delete mesh objects before cleanup
+        del mesh_read
+        del mesh
+        gc.collect()  # Force garbage collection
+        
     finally:
         # Clean up temporary files
-        if os.path.exists(test_dir):
-            for item in os.listdir(test_dir):
-                item_path = os.path.join(test_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            os.rmdir(test_dir)
-            print(f"Cleaned up test directory: {test_dir}")
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
 
 
 def test_gmsh_io(lib, world):
@@ -80,9 +80,9 @@ def test_gmsh_io(lib, world):
     dim_orig = mesh.dim()
     print(f"Original mesh: dim={dim_orig}, nverts={nverts_orig}, nelems={nelems_orig}")
     
-    # Create temporary directory for test files
-    test_dir = "test_data"
-    os.makedirs(test_dir)
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_gmsh_")
+    print(f"Using temporary directory: {test_dir}")
     try:
         # Test Gmsh write/read
         gmsh_file = os.path.join(test_dir, "test_mesh.msh")
@@ -99,17 +99,15 @@ def test_gmsh_io(lib, world):
         
         print("✓ Gmsh I/O test passed")
         
+        # Explicitly delete mesh objects before cleanup
+        del mesh_read
+        del mesh
+        gc.collect()  # Force garbage collection
+        
     finally:
         # Clean up temporary files
-        if os.path.exists(test_dir):
-            for item in os.listdir(test_dir):
-                item_path = os.path.join(test_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            os.rmdir(test_dir)
-            print(f"Cleaned up test directory: {test_dir}")
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
 
 
 def test_vtk_io(lib, world):
@@ -134,9 +132,9 @@ def test_vtk_io(lib, world):
     print(f"Original mesh: dim={dim_orig}, nverts={nverts_orig}, nelems={nelems_orig}")
     print(f"Coordinates shape: {coords_orig.shape}")
     
-    # Create temporary directory for test files
-    test_dir = "test_data"
-    os.makedirs(test_dir)
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_vtk_")
+    print(f"Using temporary directory: {test_dir}")
     try:
         # Test VTU write (VTU is write-only in the API, typically for visualization)
         vtu_file = os.path.join(test_dir, "test_mesh.vtu")
@@ -159,17 +157,14 @@ def test_vtk_io(lib, world):
         
         print("✓ VTK I/O test passed")
         
+        # Explicitly delete mesh objects before cleanup
+        del mesh
+        gc.collect()  # Force garbage collection
+        
     finally:
         # Clean up temporary files
-        if os.path.exists(test_dir):
-            for item in os.listdir(test_dir):
-                item_path = os.path.join(test_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            os.rmdir(test_dir)
-            print(f"Cleaned up test directory: {test_dir}")
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
 
 
 def test_meshb_io(lib, world):
@@ -197,9 +192,9 @@ def test_meshb_io(lib, world):
     dim_orig = mesh.dim()
     print(f"Original mesh: dim={dim_orig}, nverts={nverts_orig}, nelems={nelems_orig}")
     
-    # Create temporary directory for test files
-    test_dir = "test_data"
-    os.makedirs(test_dir)
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_meshb_")
+    print(f"Using temporary directory: {test_dir}")
     try:
         # Test MESHB write/read
         meshb_file = os.path.join(test_dir, "test_mesh.mesh")
@@ -219,17 +214,15 @@ def test_meshb_io(lib, world):
         
         print("✓ MESHB I/O test passed")
         
+        # Explicitly delete mesh objects before cleanup
+        del mesh_read
+        del mesh
+        gc.collect()  # Force garbage collection
+        
     finally:
         # Clean up temporary files
-        if os.path.exists(test_dir):
-            for item in os.listdir(test_dir):
-                item_path = os.path.join(test_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            os.rmdir(test_dir)
-            print(f"Cleaned up test directory: {test_dir}")
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
 
 
 def test_exodus_io(lib, world):
@@ -257,9 +250,9 @@ def test_exodus_io(lib, world):
     dim_orig = mesh.dim()
     print(f"Original mesh: dim={dim_orig}, nverts={nverts_orig}, nelems={nelems_orig}")
     
-    # Create temporary directory for test files
-    test_dir = "test_data"
-    os.makedirs(test_dir)
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_exodus_")
+    print(f"Using temporary directory: {test_dir}")
     try:
         # Test Exodus write
         exodus_file = os.path.join(test_dir, "test_mesh.exo")
@@ -290,20 +283,19 @@ def test_exodus_io(lib, world):
             
             # Close the file
             pcms.exodus_close(exo_handle)
+            # Explicitly delete mesh object from handle
+            del mesh_from_handle
         
         print("✓ Exodus I/O test passed")
         
+        # Explicitly delete mesh objects before cleanup
+        del mesh
+        gc.collect()  # Force garbage collection
+        
     finally:
         # Clean up temporary files
-        if os.path.exists(test_dir):
-            for item in os.listdir(test_dir):
-                item_path = os.path.join(test_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            os.rmdir(test_dir)
-            print(f"Cleaned up test directory: {test_dir}")
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
 
 
 def test_adios2_io(lib, world):
@@ -331,9 +323,9 @@ def test_adios2_io(lib, world):
     dim_orig = mesh.dim()
     print(f"Original mesh: dim={dim_orig}, nverts={nverts_orig}, nelems={nelems_orig}")
     
-    # Create temporary directory for test files
-    test_dir = "test_data"
-    os.makedirs(test_dir)
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_adios2_")
+    print(f"Using temporary directory: {test_dir}")
     try:
         # Test ADIOS2 write/read
         adios2_file = os.path.join(test_dir, "test_mesh.bp")
@@ -350,17 +342,15 @@ def test_adios2_io(lib, world):
         
         print("✓ ADIOS2 I/O test passed")
         
+        # Explicitly delete mesh objects before cleanup
+        del mesh_read
+        del mesh
+        gc.collect()  # Force garbage collection
+        
     finally:
         # Clean up temporary files
-        if os.path.exists(test_dir):
-            for item in os.listdir(test_dir):
-                item_path = os.path.join(test_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            os.rmdir(test_dir)
-            print(f"Cleaned up test directory: {test_dir}")
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
 
 
 def test_read_mesh_file_auto_detect(lib, world):
@@ -380,9 +370,9 @@ def test_read_mesh_file_auto_detect(lib, world):
     nverts_orig = mesh.nverts()
     nelems_orig = mesh.nelems()
     
-    # Create temporary directory for test files
-    test_dir = "test_data"
-    os.makedirs(test_dir)
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_autodetect_")
+    print(f"Using temporary directory: {test_dir}")
     try:
         # Write in different formats
         binary_file = os.path.join(test_dir, "mesh.osh")
@@ -405,17 +395,16 @@ def test_read_mesh_file_auto_detect(lib, world):
         assert mesh_gmsh.nelems() == nelems_orig
         print("✓ Gmsh auto-detection passed")
         
+        # Explicitly delete mesh objects before cleanup
+        del mesh_binary
+        del mesh_gmsh
+        del mesh
+        gc.collect()  # Force garbage collection
+        
     finally:
         # Clean up temporary files
-        if os.path.exists(test_dir):
-            for item in os.listdir(test_dir):
-                item_path = os.path.join(test_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            os.rmdir(test_dir)
-            print(f"Cleaned up test directory: {test_dir}")
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
 
 if __name__ == "__main__":
     print("=" * 60)

@@ -45,8 +45,6 @@ Kokkos::View<bool*, DeviceMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
 {
   Kokkos::View<bool*, DeviceMemorySpace> owned("owned", mesh.nents(entity_dim));
   auto owned_h = Omega_h::Read<Omega_h::I8>(mesh.owned(entity_dim));
-  // for (int i = 0; i < mesh.nents(entity_dim); ++i)
-  //   owned(i) = static_cast<bool>(owned_h[i]);
   Kokkos::parallel_for(mesh.nents(entity_dim),
                        OMEGA_H_LAMBDA(int i) { owned(i) = static_cast<bool>(owned_h[i]); });
   return owned;

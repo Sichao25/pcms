@@ -30,6 +30,8 @@ struct PythonEvaluationRequest
 {
   EvaluationRequest request;
   py::object owner;
+  // Keep the device view alive to prevent dangling pointer in mdspan
+  Kokkos::View<Real**, DeviceMemorySpace> device_coords;
 };
 
 } // namespace
@@ -168,15 +170,15 @@ void bind_create_field_module(py::module& m)
             coords_host(i, j) = coords_view(i, j);
           }
         }
-        auto coords_device = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), coords_host);
-        using LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-        Rank2View<const Real, DeviceMemorySpace, LayoutPolicy> coords_device_view(
-          coords_device.data(), coords_device.extent(0), coords_device.extent(1));
+        auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>("coords_device", coords_view.extent(0), coords_view.extent(1));
+        DeepCopyMismatchLayouts(coords_device, coords_host);
+        auto coords_device_view = MakeRank2View(coords_device);
         return PythonEvaluationRequest{
           EvaluationRequest::FromCoordinates(
             CoordinateView<DeviceMemorySpace>(coordinate_system, coords_device_view),
             policy),
-          py::reinterpret_borrow<py::object>(coords)};
+          py::reinterpret_borrow<py::object>(coords),
+          coords_device}; // Keep the View alive!
       },
       py::arg("coordinates"),
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
@@ -187,7 +189,8 @@ void bind_create_field_module(py::module& m)
       [](const FunctionSpace& function_space, OutOfBoundsPolicy policy) {
         return PythonEvaluationRequest{
           EvaluationRequest::FromFunctionSpace(function_space, policy),
-          py::none()};
+          py::none(),
+          Kokkos::View<Real**, DeviceMemorySpace>()}; // Empty view for function_space case
       },
       py::arg("function_space"), py::arg("policy") = OutOfBoundsPolicy{},
       "Create an EvaluationRequest from a FunctionSpace's DOF-holder sites.");
