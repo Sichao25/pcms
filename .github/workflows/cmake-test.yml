@@ -153,6 +153,11 @@ jobs:
                   -DADIOS2_DIR=${{ runner.temp }}/build-ADIOS2/install/lib/cmake/adios2
                   -Dperfstubs_DIR=${{ runner.temp }}/build-perfstubs/install/lib/cmake'
 
+    - name: Set LD_LIBRARY_PATH for shared libraries
+      if: matrix.python_api == 'ON'
+      run: |
+        echo "LD_LIBRARY_PATH=${{ runner.temp }}/build-kokkos/install/lib:${{ runner.temp }}/build-omega_h/install/lib:${{ runner.temp }}/build-meshFields/install/lib:${{ runner.temp }}/build-redev/install/lib:${{ runner.temp }}/build-ADIOS2/install/lib:${{ runner.temp }}/build-perfstubs/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
     - name: clone petsc
       id: clone-petsc
       run: |
@@ -166,7 +171,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ${{ runner.temp }}/petsc
-        key: build-petsc-${{ steps.clone-petsc.outputs.petsc-commit-hash }}
+        key: build-petsc-${{ steps.clone-petsc.outputs.petsc-commit-hash }}-${{ matrix.python_api }}
     
     - name: build petsc
       if: steps.cache-petsc.outputs.cache-hit != 'true'
@@ -177,7 +182,7 @@ jobs:
           --with-kokkos-dir="${{ runner.temp }}/build-kokkos/install/" \
           --with-kokkos-kernels-dir="${{ runner.temp }}/build-kokkos-kernels/install/" \
           --with-cuda=0 \
-          --with-shared-libraries=0 \
+          --with-shared-libraries=${{ matrix.python_api == 'ON' && '1' || '0' }} \
           --download-fblaslapack
         make all check
 
@@ -189,11 +194,6 @@ jobs:
 
     - name: Install fftw3
       run: sudo apt-get install -yq libfftw3-dev pkg-config
-
-    - name: Set LD_LIBRARY_PATH for shared libraries
-      if: matrix.python_api == 'ON'
-      run: |
-        echo "LD_LIBRARY_PATH=${{ runner.temp }}/build-kokkos/install/lib:${{ runner.temp }}/build-omega_h/install/lib:${{ runner.temp }}/build-meshFields/install/lib:${{ runner.temp }}/build-redev/install/lib:${{ runner.temp }}/build-ADIOS2/install/lib:${{ runner.temp }}/build-perfstubs/install/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: build pcms
       uses: ./.github/actions/install-repo
