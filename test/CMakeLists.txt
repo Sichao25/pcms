@@ -406,7 +406,7 @@ if(Catch2_FOUND)
       test_load_vector.cpp)
   endif()
 
-  if(PCMS_ENABLE_PETSC)
+  if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
     list(APPEND PCMS_UNIT_TEST_SOURCES
       test_mesh_intersection_field_transfer.cpp)
   endif()
