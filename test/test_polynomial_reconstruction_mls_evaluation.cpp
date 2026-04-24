@@ -98,22 +98,18 @@ pcms::MLSOptions SweepTestOptions(unsigned degree,
 const char* BasisName(pcms::RadialBasisFunction basis)
 {
   switch (basis) {
-    case pcms::RadialBasisFunction::RBF_GAUSSIAN:
-      return "RBF_GAUSSIAN";
-    case pcms::RadialBasisFunction::RBF_C4:
-      return "RBF_C4";
-    case pcms::RadialBasisFunction::RBF_CONST:
-      return "RBF_CONST";
-    case pcms::RadialBasisFunction::RBF_MULTIQUADRIC:
-      return "RBF_MULTIQUADRIC";
-    default:
-      return "UNEXPECTED_BASIS";
+    case pcms::RadialBasisFunction::RBF_GAUSSIAN: return "RBF_GAUSSIAN";
+    case pcms::RadialBasisFunction::RBF_C4: return "RBF_C4";
+    case pcms::RadialBasisFunction::RBF_CONST: return "RBF_CONST";
+    case pcms::RadialBasisFunction::RBF_MULTIQUADRIC: return "RBF_MULTIQUADRIC";
+    default: return "UNEXPECTED_BASIS";
   }
 }
 
 template <typename Func>
-void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basis,
-                                 Func func, double abs_tol)
+void CheckPolynomialReproduction(unsigned degree,
+                                 pcms::RadialBasisFunction basis, Func func,
+                                 double abs_tol)
 {
   CAPTURE(BasisName(basis));
   CAPTURE(degree);
@@ -127,7 +123,8 @@ void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basi
   pcms::test::SetField(field.GetData(), *fs.GetLayout(), func);
 
   auto pts = QueryPoints();
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   pcms::test::CheckEvaluation(*evaluator, field, pts, func, abs_tol);
@@ -139,20 +136,24 @@ void CheckPolynomialReproduction(unsigned degree, pcms::RadialBasisFunction basi
 // Polynomial reproduction sweep
 // ============================================================================
 
-TEST_CASE("PolynomialReconstructionFunctionSpace MLS: reproduces representative polynomials "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: reproduces "
+          "representative polynomials "
           "across degree and basis options")
 {
-  auto bases = std::array{
-    pcms::RadialBasisFunction::RBF_GAUSSIAN,
-    pcms::RadialBasisFunction::RBF_C4,
-    pcms::RadialBasisFunction::RBF_CONST,
-    pcms::RadialBasisFunction::RBF_MULTIQUADRIC
-  };
+  auto bases = std::array{pcms::RadialBasisFunction::RBF_GAUSSIAN,
+                          pcms::RadialBasisFunction::RBF_C4,
+                          pcms::RadialBasisFunction::RBF_CONST,
+                          pcms::RadialBasisFunction::RBF_MULTIQUADRIC};
 
   for (auto basis : bases) {
-    CheckPolynomialReproduction(0, basis, OMEGA_H_LAMBDA(Real, Real) { return 3.14; }, 5e-3);
-    CheckPolynomialReproduction(1, basis, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; }, 5e-3);
-    CheckPolynomialReproduction(2, basis, OMEGA_H_LAMBDA(Real x, Real y) { return x * x + x * y + 2.0 * y * y; }, 5e-3);
+    CheckPolynomialReproduction(
+      0, basis, OMEGA_H_LAMBDA(Real, Real) { return 3.14; }, 5e-3);
+    CheckPolynomialReproduction(
+      1, basis, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; }, 5e-3);
+    CheckPolynomialReproduction(
+      2, basis,
+      OMEGA_H_LAMBDA(Real x, Real y) { return x * x + x * y + 2.0 * y * y; },
+      5e-3);
   }
 }
 
@@ -160,7 +161,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: reproduces representative 
 // PointEvaluator reused across two FieldData objects
 // ============================================================================
 
-TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused for two "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator "
+          "reused for two "
           "FieldData objects")
 {
   auto src = MakeGrid2D(7);
@@ -171,33 +173,42 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused
   auto field_a = fs.CreateField<Real>(pcms::FieldMetadata{});
   auto field_b = fs.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field_a.GetData(), *fs.GetLayout(),
-                       OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  pcms::test::SetField(
+    field_a.GetData(), *fs.GetLayout(),
+    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   const Real cval = 7.0;
-  pcms::test::SetField(field_b.GetData(), *fs.GetLayout(),
-                       OMEGA_H_LAMBDA(Real, Real) { return cval; });
+  pcms::test::SetField(
+    field_b.GetData(), *fs.GetLayout(),
+    OMEGA_H_LAMBDA(Real, Real) { return cval; });
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   Kokkos::View<Real*, DeviceMemorySpace> out_a_device("out_a", n);
   Kokkos::View<Real*, DeviceMemorySpace> out_b_device("out_b", n);
-  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> view_a(out_a_device.data(), n, 1);
-  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> view_b(out_b_device.data(), n, 1);
+  using LayoutPolicy =
+    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> view_a(out_a_device.data(),
+                                                          n, 1);
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> view_b(out_b_device.data(),
+                                                          n, 1);
 
   evaluator->Evaluate(field_a, view_a);
   evaluator->Evaluate(field_b, view_b);
 
-  auto out_a_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_a_device);
-  auto out_b_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_b_device);
+  auto out_a_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_a_device);
+  auto out_b_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_b_device);
 
   for (int i = 0; i < n; ++i) {
     Real x = pts[2 * i], y = pts[2 * i + 1];
-    REQUIRE(out_a_host(i) == Catch::Approx(pcms::test::linear_f(x, y)).margin(5e-3));
+    REQUIRE(out_a_host(i) ==
+            Catch::Approx(pcms::test::linear_f(x, y)).margin(5e-3));
     REQUIRE(out_b_host(i) == Catch::Approx(cval).margin(5e-3));
   }
 }
@@ -206,25 +217,29 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator reused
 // Non-scalar output view must throw
 // ============================================================================
 
-TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for num_components != 1")
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for "
+          "num_components != 1")
 {
   auto src = MakeGrid2D(5);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 25, 2);
 
-  auto fs =
-    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
+    coords_view, CoordinateSystem::Cartesian);
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   // Two-component output — must throw
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", n * 2);
-  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  auto out_view = Rank2View<Real, DeviceMemorySpace, LayoutPolicy>(out_device.data(), n, 2);
+  using LayoutPolicy =
+    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  auto out_view =
+    Rank2View<Real, DeviceMemorySpace, LayoutPolicy>(out_device.data(), n, 2);
   REQUIRE_THROWS(evaluator->Evaluate(field, out_view));
 }
 
@@ -232,35 +247,42 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for num_co
 // Default MLSOptions (no explicit options) — smoke test
 // ============================================================================
 
-TEST_CASE("PolynomialReconstructionFunctionSpace MLS: default MLSOptions — smoke evaluation")
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: default MLSOptions — "
+          "smoke evaluation")
 {
   auto src = MakeGrid2D(7);
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 49, 2);
 
   // Use default options — no third argument
-  auto fs =
-    pcms::PolynomialReconstructionFunctionSpace::Create(coords_view, CoordinateSystem::Cartesian);
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
+    coords_view, CoordinateSystem::Cartesian);
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
-  pcms::test::SetField(field.GetData(), *fs.GetLayout(),
-                       OMEGA_H_LAMBDA(Real, Real) { return Real(1.0); });
+  pcms::test::SetField(
+    field.GetData(), *fs.GetLayout(),
+    OMEGA_H_LAMBDA(Real, Real) { return Real(1.0); });
 
   auto pts = QueryPoints();
   int n = static_cast<int>(pts.size()) / 2;
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", n);
-  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  auto out_view = Rank2View<Real, DeviceMemorySpace, LayoutPolicy>(out_device.data(), n, 1);
+  using LayoutPolicy =
+    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  auto out_view =
+    Rank2View<Real, DeviceMemorySpace, LayoutPolicy>(out_device.data(), n, 1);
   // Just verify it runs without error and returns finite values
   REQUIRE_NOTHROW(evaluator->Evaluate(field, out_view));
-  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
+  auto out_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
   for (int i = 0; i < n; ++i)
     REQUIRE(std::isfinite(out_host(i)));
 }
 
-TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejects coordinate "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator "
+          "rejects coordinate "
           "system mismatch")
 {
   auto src = MakeGrid2D(5);
@@ -270,12 +292,14 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejec
     coords_view, CoordinateSystem::Cylindrical, DefaultTestOptions());
 
   auto pts = QueryPoints();
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
-  REQUIRE_THROWS(
-    fs.CreatePointEvaluator<Real>(pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view)));
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
+  REQUIRE_THROWS(fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view)));
 }
 
-TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejects non-Cartesian "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator "
+          "rejects non-Cartesian "
           "point-cloud coordinates")
 {
   auto src = MakeGrid2D(5);
@@ -285,13 +309,14 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: CreatePointEvaluator rejec
     coords_view, CoordinateSystem::Cylindrical, DefaultTestOptions());
 
   auto pts = QueryPoints();
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cylindrical);
-  REQUIRE_THROWS(
-    fs.CreatePointEvaluator<Real>(pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view)));
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cylindrical);
+  REQUIRE_THROWS(fs.CreatePointEvaluator<Real>(
+    pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view)));
 }
 
-TEST_CASE(
-  "PolynomialReconstructionFunctionSpace MLS: radius option is interpreted as a physical cutoff")
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: radius option is "
+          "interpreted as a physical cutoff")
 {
   std::vector<Real> src{0.0, 0.0, 0.6, 0.0};
   Rank2View<Real, HostMemorySpace> coords_view(src.data(), 2, 2);
@@ -303,27 +328,32 @@ TEST_CASE(
   opts.adapt_radius = false;
   opts.basis = pcms::RadialBasisFunction::RBF_CONST;
 
-  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(coords_view,
-                                             CoordinateSystem::Cartesian, opts);
+  auto fs = pcms::PolynomialReconstructionFunctionSpace::Create(
+    coords_view, CoordinateSystem::Cartesian, opts);
   auto field = fs.CreateField<Real>(pcms::FieldMetadata{});
   std::vector<Real> dof_values{1.0, 5.0};
   field.GetData().SetDOFHolderDataHost(Rank1View<const Real, HostMemorySpace>(
     dof_values.data(), dof_values.size()));
 
   std::vector<Real> pts{0.0, 0.0};
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", 1);
-  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out_view(out_device.data(), 1, 1);
+  using LayoutPolicy =
+    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out_view(out_device.data(),
+                                                            1, 1);
   evaluator->Evaluate(field, out_view);
-  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
+  auto out_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
   REQUIRE(out_host(0) == Catch::Approx(1.0).margin(1e-8));
 }
 
-TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z coordinates in "
+TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve "
+          "z coordinates in "
           "layout and evaluation")
 {
   auto src = MakeGrid3D(3);
@@ -333,7 +363,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z
     coords_view, CoordinateSystem::Cartesian, DefaultTestOptions3D());
   auto layout_coords_device =
     fs.GetLayout()->GetDOFHolderCoordinates().GetCoordinates();
-  auto layout_coords = pcms::test::CopyCoordinatesToHost(layout_coords_device, 27, 3);
+  auto layout_coords =
+    pcms::test::CopyCoordinatesToHost(layout_coords_device, 27, 3);
   REQUIRE(static_cast<int>(layout_coords.extent(1)) == 3);
   for (int i = 0; i < 27; ++i) {
     REQUIRE(layout_coords(i, 0) == Catch::Approx(src[3 * i + 0]));
@@ -353,14 +384,18 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: 3D point clouds preserve z
     dof_values.data(), dof_values.size()));
 
   std::vector<Real> pts{0.5, 0.5, 0.25, 0.5, 0.5, 0.75};
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian, 3);
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian, 3);
   auto evaluator = fs.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   Kokkos::View<Real*, DeviceMemorySpace> out_device("out", 2);
-  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out_view(out_device.data(), 2, 1);
+  using LayoutPolicy =
+    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out_view(out_device.data(),
+                                                            2, 1);
   evaluator->Evaluate(field, out_view);
-  auto out_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
+  auto out_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
   // This 3D case is a small, low-resolution support cloud with MLS weights
   // built from a finite-radius neighborhood rather than exact nodal lookup, so

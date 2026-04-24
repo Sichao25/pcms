@@ -12,9 +12,12 @@ namespace
 std::shared_ptr<const Discretization> MakePointCloudDiscretization(
   int dim, Kokkos::View<Real**> coords)
 {
-  auto coords_mirror = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords);
-  // Create a view with the default layout for HostMemorySpace to avoid layout incompatibility
-  Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", coords_mirror.extent(0), coords_mirror.extent(1));
+  auto coords_mirror =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords);
+  // Create a view with the default layout for HostMemorySpace to avoid layout
+  // incompatibility
+  Kokkos::View<Real**, HostMemorySpace> coords_host(
+    "coords_host", coords_mirror.extent(0), coords_mirror.extent(1));
   Kokkos::deep_copy(coords_host, coords_mirror);
   return std::make_shared<PointCloudDiscretization>(
     dim, coords_host, static_cast<const void*>(coords.data()));
@@ -22,8 +25,8 @@ std::shared_ptr<const Discretization> MakePointCloudDiscretization(
 
 void InitializePointCloudClassification(
   Kokkos::View<LO*, DeviceMemorySpace> classification_dims,
-  Kokkos::View<LO*, DeviceMemorySpace> classification_ids,
-  LO n, LO classification_entity_dim)
+  Kokkos::View<LO*, DeviceMemorySpace> classification_ids, LO n,
+  LO classification_entity_dim)
 {
   Kokkos::deep_copy(classification_dims, classification_entity_dim);
   // for (LO i = 0; i < n; ++i) {
@@ -34,11 +37,10 @@ void InitializePointCloudClassification(
 
 } // namespace
 
-PointCloudLayout::PointCloudLayout(
-  int dim, Kokkos::View<Real**> coords, CoordinateSystem coordinate_system)
-  : PointCloudLayout(
-      dim, coords, coordinate_system, MakePointCloudDiscretization(dim, coords),
-      Vertex)
+PointCloudLayout::PointCloudLayout(int dim, Kokkos::View<Real**> coords,
+                                   CoordinateSystem coordinate_system)
+  : PointCloudLayout(dim, coords, coordinate_system,
+                     MakePointCloudDiscretization(dim, coords), Vertex)
 {
 }
 
@@ -61,9 +63,12 @@ PointCloudLayout::PointCloudLayout(
   iota_view(gids_);
 
   LO n = static_cast<LO>(coords.extent(0));
-  classification_dims_ = Kokkos::View<LO*, DeviceMemorySpace>("classification_dims", n);
-  classification_ids_ = Kokkos::View<LO*, DeviceMemorySpace>("classification_ids", n);
-  InitializePointCloudClassification(classification_dims_, classification_ids_, n, classification_entity_dim);
+  classification_dims_ =
+    Kokkos::View<LO*, DeviceMemorySpace>("classification_dims", n);
+  classification_ids_ =
+    Kokkos::View<LO*, DeviceMemorySpace>("classification_ids", n);
+  InitializePointCloudClassification(classification_dims_, classification_ids_,
+                                     n, classification_entity_dim);
   classification_dims_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_dims", n);
   classification_ids_host_ =
@@ -76,8 +81,8 @@ PointCloudLayout::PointCloudLayout(
   Kokkos::deep_copy(classification_ids_host_, classification_ids_);
 }
 
-std::shared_ptr<const Discretization>
-PointCloudLayout::GetDiscretization() const noexcept
+std::shared_ptr<const Discretization> PointCloudLayout::GetDiscretization()
+  const noexcept
 {
   return discretization_;
 }
@@ -114,7 +119,8 @@ CoordinateView<DeviceMemorySpace> PointCloudLayout::GetDOFHolderCoordinates()
   return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 
-bool PointCloudLayout::IsDistributed() const {
+bool PointCloudLayout::IsDistributed() const
+{
   return false;
 }
 
@@ -141,8 +147,8 @@ std::array<int, 4> PointCloudLayout::GetNodesPerDim() const
   return nodes;
 }
 
-Kokkos::View<const Real**, DeviceMemorySpace>
-PointCloudLayout::GetCoordinates() const
+Kokkos::View<const Real**, DeviceMemorySpace> PointCloudLayout::GetCoordinates()
+  const
 {
   return coords_;
 }

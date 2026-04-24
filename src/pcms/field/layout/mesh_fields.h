@@ -21,8 +21,8 @@ public:
                           CoordinateSystem coordinate_system,
                           std::string global_id_name = "global");
 
-  std::shared_ptr<const Discretization>
-  GetDiscretization() const noexcept override;
+  std::shared_ptr<const Discretization> GetDiscretization()
+    const noexcept override;
 
   int GetNumComponents() const override;
   // nodes for standard lagrange FEM
@@ -44,8 +44,8 @@ public:
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensionsHost() const override;
 
-  Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIdsHost() const override;
+  Rank1View<const LO, HostMemorySpace> GetDOFHolderClassificationIdsHost()
+    const override;
 
   std::array<int, 4> GetNodesPerDim() const;
   size_t GetNumEnts() const;
@@ -63,7 +63,8 @@ private:
   CoordinateSystem coordinate_system_;
   std::array<int, 4> nodes_per_dim_;
   Kokkos::View<Real**> dof_holder_coords_;
-  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace> dof_holder_coords_device_right_;
+  Kokkos::View<Real**, Kokkos::LayoutRight, DeviceMemorySpace>
+    dof_holder_coords_device_right_;
   Omega_h::Write<Omega_h::ClassId> class_ids_;
   Omega_h::Write<Omega_h::I8> class_dims_;
   Omega_h::HostWrite<Omega_h::ClassId> class_ids_host_;

@@ -44,17 +44,16 @@ inline std::optional<int> GetUniformDofHolderEntityDim(
     return std::nullopt;
   }
 
-  if (static_cast<LO>(layout.GetDOFHolderCoordinates().GetCoordinates().extent(0)) !=
-      disc->GetNumEntities(*entity_dim)) {
-      return std::nullopt;
+  if (static_cast<LO>(layout.GetDOFHolderCoordinates().GetCoordinates().extent(
+        0)) != disc->GetNumEntities(*entity_dim)) {
+    return std::nullopt;
   }
 
   return entity_dim;
 }
 
 inline LocalizationPath SelectLocalizationPath(
-  const FieldLayout& source_layout,
-  const FieldLayout* target_layout = nullptr)
+  const FieldLayout& source_layout, const FieldLayout* target_layout = nullptr)
 {
   auto source_disc = source_layout.GetDiscretization();
   if (source_disc == nullptr) {
@@ -72,12 +71,9 @@ inline LocalizationPath SelectLocalizationPath(
 
   auto target_disc = target_layout->GetDiscretization();
   auto target_entity_dim = GetUniformDofHolderEntityDim(*target_layout);
-  if (source_entity_dim.has_value() &&
-      *source_entity_dim == Face &&
-      target_entity_dim.has_value() &&
-      *target_entity_dim == Vertex &&
-      target_disc != nullptr &&
-      source_disc->GetDimension() == 2 &&
+  if (source_entity_dim.has_value() && *source_entity_dim == Face &&
+      target_entity_dim.has_value() && *target_entity_dim == Vertex &&
+      target_disc != nullptr && source_disc->GetDimension() == 2 &&
       source_disc->SameEntities(*target_disc)) {
     return LocalizationPath::CentroidToVertexAdjacencySearch;
   }

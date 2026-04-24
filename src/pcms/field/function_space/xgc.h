@@ -18,13 +18,13 @@ public:
   XGCFunctionSpace(const ReverseClassificationVertex& reverse_classification,
                    std::function<int8_t(int, int)> in_overlap,
                    LO num_plane_nodes)
-    : layout_(std::make_shared<XGCFieldLayout>(reverse_classification,
-                                               std::move(in_overlap),
-                                               num_plane_nodes))
+    : layout_(std::make_shared<XGCFieldLayout>(
+        reverse_classification, std::move(in_overlap), num_plane_nodes))
   {
   }
 
-  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept override
+  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout()
+    const noexcept override
   {
     return layout_;
   }
@@ -45,12 +45,13 @@ protected:
     });
   }
 
-  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    FieldDataVariant data) const override
   {
     return std::visit(
       [this](auto&& fd) -> FieldVariant {
         using FD = std::decay_t<decltype(fd)>;
-        using T  = typename FD::element_type::value_type;
+        using T = typename FD::element_type::value_type;
         PCMS_ALWAYS_ASSERT(fd != nullptr);
         if (dynamic_cast<const XGCFieldData<T>*>(fd.get()) == nullptr) {
           throw pcms_error(
@@ -68,14 +69,14 @@ protected:
   }
 
   [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
-    Type /*value_type*/,
-    const EvaluationRequest& /*request*/) const override
+    Type /*value_type*/, const EvaluationRequest& /*request*/) const override
   {
     throw pcms_error("XGCFunctionSpace does not support point evaluation");
   }
 
 public:
-  [[nodiscard]] std::shared_ptr<const XGCFieldLayout> GetXGCLayout() const noexcept
+  [[nodiscard]] std::shared_ptr<const XGCFieldLayout> GetXGCLayout()
+    const noexcept
   {
     return layout_;
   }

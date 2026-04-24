@@ -31,13 +31,15 @@ PolynomialReconstructionFunctionSpace::Create(
   int dim = static_cast<int>(coords.extent(1));
   Kokkos::View<Real**, Kokkos::HostSpace> host_view(
     coords.data_handle(), coords.extent(0), coords.extent(1));
-  auto device_view = Kokkos::View<Real**>("device_view", host_view.extent(0), host_view.extent(1));
+  auto device_view = Kokkos::View<Real**>("device_view", host_view.extent(0),
+                                          host_view.extent(1));
   DeepCopyMismatchLayouts(device_view, host_view);
   auto pc_layout =
     std::make_shared<PointCloudLayout>(dim, device_view, coordinate_system);
-  auto localization = std::make_shared<PointCloudLocalizationFactory>(pc_layout, options);
-  auto eval_factory =
-    std::make_shared<PointCloudEvaluatorFactory>(pc_layout, localization, options);
+  auto localization =
+    std::make_shared<PointCloudLocalizationFactory>(pc_layout, options);
+  auto eval_factory = std::make_shared<PointCloudEvaluatorFactory>(
+    pc_layout, localization, options);
   return PolynomialReconstructionFunctionSpace(pc_layout,
                                                std::move(eval_factory));
 }
@@ -60,8 +62,8 @@ PolynomialReconstructionFunctionSpace::FromMesh(
 
   auto mesh_layout = std::make_shared<OmegaHEntityLayout>(
     mesh, source_entity_dim, 1, coordinate_system);
-  auto localization =
-    std::make_shared<AdjacencyLocalizationFactory>(mesh, source_entity_dim, options);
+  auto localization = std::make_shared<AdjacencyLocalizationFactory>(
+    mesh, source_entity_dim, options);
   auto eval_factory = std::make_shared<PointCloudEvaluatorFactory>(
     mesh_layout, localization, options);
   return PolynomialReconstructionFunctionSpace(mesh_layout,
@@ -89,8 +91,7 @@ FieldVariant PolynomialReconstructionFunctionSpace::CreateFieldImpl(
       throw pcms_error(
         "PolynomialReconstructionFunctionSpace: only double (Real) is "
         "supported");
-    }
-    else {
+    } else {
       return WrapField<double>(
         layout_, std::make_unique<SimpleFieldData<double>>(layout_, metadata),
         evaluator_factory_);

@@ -59,20 +59,17 @@ public:
 
   // The returned view remains valid until the FieldData is mutated or
   // destroyed.
-  virtual Rank1View<const T, DeviceMemorySpace>
-  GetDOFHolderData() const = 0;
+  virtual Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const = 0;
   virtual void SetDOFHolderData(
     Rank1View<const T, DeviceMemorySpace> values) = 0;
 
   virtual ~FieldData() noexcept = default;
 };
 
-using FieldDataVariant =
-  std::variant<std::unique_ptr<FieldData<int8_t>>,
-               std::unique_ptr<FieldData<int32_t>>,
-               std::unique_ptr<FieldData<int64_t>>,
-               std::unique_ptr<FieldData<float>>,
-               std::unique_ptr<FieldData<double>>>;
+using FieldDataVariant = std::variant<
+  std::unique_ptr<FieldData<int8_t>>, std::unique_ptr<FieldData<int32_t>>,
+  std::unique_ptr<FieldData<int64_t>>, std::unique_ptr<FieldData<float>>,
+  std::unique_ptr<FieldData<double>>>;
 
 } // namespace pcms
 

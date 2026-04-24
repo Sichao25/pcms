@@ -4,21 +4,24 @@
 namespace pcms
 {
 
-struct InitilizeXGCMembersFunctor {
+struct InitilizeXGCMembersFunctor
+{
   Kokkos::View<bool*, DeviceMemorySpace> owned_;
   Kokkos::View<GO*, DeviceMemorySpace> gids_;
   Kokkos::View<LO*, DeviceMemorySpace> class_dims_;
   Kokkos::View<LO*, DeviceMemorySpace> class_ids_;
-  
-  InitilizeXGCMembersFunctor(
-    Kokkos::View<bool*, DeviceMemorySpace> owned,
-    Kokkos::View<GO*, DeviceMemorySpace> gids,
-    Kokkos::View<LO*, DeviceMemorySpace> class_dims,
-    Kokkos::View<LO*, DeviceMemorySpace> class_ids)
-    : owned_(owned), gids_(gids), class_dims_(class_dims), class_ids_(class_ids) {}
+
+  InitilizeXGCMembersFunctor(Kokkos::View<bool*, DeviceMemorySpace> owned,
+                             Kokkos::View<GO*, DeviceMemorySpace> gids,
+                             Kokkos::View<LO*, DeviceMemorySpace> class_dims,
+                             Kokkos::View<LO*, DeviceMemorySpace> class_ids)
+    : owned_(owned), gids_(gids), class_dims_(class_dims), class_ids_(class_ids)
+  {
+  }
 
   KOKKOS_INLINE_FUNCTION
-  void operator()(LO i) const {
+  void operator()(LO i) const
+  {
     owned_(i) = false;
     gids_(i) = static_cast<GO>(i + 1);
     class_dims_(i) = -1;
@@ -26,20 +29,29 @@ struct InitilizeXGCMembersFunctor {
   }
 };
 
-struct ClassifyVertsAndOwnedFunctor {
+struct ClassifyVertsAndOwnedFunctor
+{
   pcms::DimID geom;
   Kokkos::View<LO*, DeviceMemorySpace> verts;
   Kokkos::View<bool*, DeviceMemorySpace> owned_;
   Kokkos::View<LO*, DeviceMemorySpace> class_dims_;
   Kokkos::View<LO*, DeviceMemorySpace> class_ids_;
 
-  ClassifyVertsAndOwnedFunctor(pcms::DimID geom, Kokkos::View<LO*, DeviceMemorySpace> verts,
-                       Kokkos::View<bool*, DeviceMemorySpace> owned,
-                       Kokkos::View<LO*, DeviceMemorySpace> class_dims,
-                       Kokkos::View<LO*, DeviceMemorySpace> class_ids)
-    : geom(geom), verts(verts), owned_(owned), class_dims_(class_dims), class_ids_(class_ids) {}
+  ClassifyVertsAndOwnedFunctor(pcms::DimID geom,
+                               Kokkos::View<LO*, DeviceMemorySpace> verts,
+                               Kokkos::View<bool*, DeviceMemorySpace> owned,
+                               Kokkos::View<LO*, DeviceMemorySpace> class_dims,
+                               Kokkos::View<LO*, DeviceMemorySpace> class_ids)
+    : geom(geom),
+      verts(verts),
+      owned_(owned),
+      class_dims_(class_dims),
+      class_ids_(class_ids)
+  {
+  }
 
-  KOKKOS_INLINE_FUNCTION  void operator()(const int i) const {
+  KOKKOS_INLINE_FUNCTION void operator()(const int i) const
+  {
     LO vert = verts(i);
     if (vert >= 0 && vert < owned_.extent(0)) {
       owned_(vert) = true;
@@ -66,21 +78,29 @@ XGCFieldLayout::XGCFieldLayout(
   PCMS_ALWAYS_ASSERT(static_cast<bool>(in_overlap));
   Kokkos::parallel_for(
     "InitXGCMembers",
-    Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_plane_nodes_),
+    Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0,
+                                                            num_plane_nodes_),
     InitilizeXGCMembersFunctor(owned_, gids_, class_dims_, class_ids_));
 
   for (const auto& [geom, verts] : reverse_classification) {
     if (!in_overlap(geom.dim, geom.id))
       continue;
-    auto verts_host = Kokkos::View<LO*, HostMemorySpace>("verts_host", verts.size());
+    auto verts_host =
+      Kokkos::View<LO*, HostMemorySpace>("verts_host", verts.size());
     int idx = 0;
-    for (LO vert : verts) verts_host(idx++) = vert;
-    auto verts_device = Kokkos::View<LO*, DeviceMemorySpace>("verts_device", verts.size());
+    for (LO vert : verts)
+      verts_host(idx++) = vert;
+    auto verts_device =
+      Kokkos::View<LO*, DeviceMemorySpace>("verts_device", verts.size());
     Kokkos::deep_copy(verts_device, verts_host);
     Kokkos::parallel_for(
       "ClassifyVerts", Kokkos::RangePolicy<>(0, verts.size()),
-      ClassifyVertsAndOwnedFunctor(geom, verts_device, owned_, class_dims_, class_ids_));
-    Kokkos::fence();  // Wait for kernel to complete before verts_device is destroyed, better would be to optimize the reverse_classification data structure to avoid this copy and synchronization, but this is simpler for now
+      ClassifyVertsAndOwnedFunctor(geom, verts_device, owned_, class_dims_,
+                                   class_ids_));
+    Kokkos::fence(); // Wait for kernel to complete before verts_device is
+                     // destroyed, better would be to optimize the
+                     // reverse_classification data structure to avoid this copy
+                     // and synchronization, but this is simpler for now
   }
 
   Kokkos::deep_copy(owned_host_, owned_);
@@ -89,12 +109,12 @@ XGCFieldLayout::XGCFieldLayout(
   Kokkos::deep_copy(classification_ids_host_, class_ids_);
   // Copy coordinates to device
   Kokkos::deep_copy(coords_, 0.0);
-  discretization_ =
-    std::make_shared<XGCDiscretization>(reverse_classification, num_plane_nodes_);
+  discretization_ = std::make_shared<XGCDiscretization>(reverse_classification,
+                                                        num_plane_nodes_);
 }
 
-std::shared_ptr<const Discretization>
-XGCFieldLayout::GetDiscretization() const noexcept
+std::shared_ptr<const Discretization> XGCFieldLayout::GetDiscretization()
+  const noexcept
 {
   return discretization_;
 }
@@ -137,12 +157,15 @@ EntOffsetsArray XGCFieldLayout::GetEntOffsets() const
           static_cast<size_t>(num_plane_nodes_)};
 }
 
-CoordinateView<DeviceMemorySpace> XGCFieldLayout::GetDOFHolderCoordinates() const
+CoordinateView<DeviceMemorySpace> XGCFieldLayout::GetDOFHolderCoordinates()
+  const
 {
-  using LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  using LayoutPolicy =
+    detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
   return CoordinateView<DeviceMemorySpace>{
     CoordinateSystem::XGC,
-    Rank2View<const Real, DeviceMemorySpace, LayoutPolicy>(coords_.data(), num_plane_nodes_, 2)};
+    Rank2View<const Real, DeviceMemorySpace, LayoutPolicy>(
+      coords_.data(), num_plane_nodes_, 2)};
 }
 
 int XGCFieldLayout::GetDimension() const

@@ -21,8 +21,7 @@ public:
     Rank1View<const Real, HostMemorySpace> data) override;
 
   Rank1View<const Real, DeviceMemorySpace> GetDOFHolderData() const override;
-  void SetDOFHolderData(
-    Rank1View<const Real, DeviceMemorySpace> data) override;
+  void SetDOFHolderData(Rank1View<const Real, DeviceMemorySpace> data) override;
 
 private:
   std::shared_ptr<const PointCloudLayout> layout_;

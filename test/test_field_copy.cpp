@@ -53,12 +53,10 @@ TEST_CASE("copy omega_h_field2 data")
   auto lib = Omega_h::Library{};
   test_copy(lib.world(), 2, 0, 1);
   test_copy(lib.world(), 2, 1, 1);
-  auto mesh =
-    Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 100, 100, 0, false);
-  REQUIRE_THROWS_AS(
-    pcms::LagrangeFunctionSpace::FromMesh(
-      mesh,
-      2, 1, pcms::CoordinateSystem::Cartesian, "global",
-      pcms::LagrangeFunctionSpace::Backend::OmegaH),
-    pcms::pcms_error);
+  auto mesh = Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1, 1, 1, 100,
+                                 100, 0, false);
+  REQUIRE_THROWS_AS(pcms::LagrangeFunctionSpace::FromMesh(
+                      mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
+                      pcms::LagrangeFunctionSpace::Backend::OmegaH),
+                    pcms::pcms_error);
 }

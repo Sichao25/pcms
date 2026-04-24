@@ -15,8 +15,8 @@
 #include <optional>
 #include <stdexcept>
 
-using pcms::Real;
 using pcms::LO;
+using pcms::Real;
 
 static Omega_h::Mesh MakeBox2D(Omega_h::CommPtr world, int nx = 10, int ny = 10)
 {
@@ -42,7 +42,8 @@ TEST_CASE("OmegaHLagrangeLayout order-1 properties")
   // DOF holder coordinates should match vertex coordinates
   auto coords_device = layout.GetDOFHolderCoordinates().GetCoordinates();
   int nverts = mesh.nents(0);
-  auto coords_view = pcms::test::CopyCoordinatesToHost(coords_device, nverts, mesh.dim());
+  auto coords_view =
+    pcms::test::CopyCoordinatesToHost(coords_device, nverts, mesh.dim());
   auto mesh_coords = Omega_h::HostRead<Real>(mesh.coords());
   REQUIRE(static_cast<int>(coords_view.extent(0)) == nverts);
   REQUIRE(static_cast<int>(coords_view.extent(1)) == mesh.dim());
@@ -75,7 +76,8 @@ TEST_CASE("OmegaHLagrangeLayout order-0 properties")
   // DOF holder coordinates should match element centroids
   auto coords_device = layout.GetDOFHolderCoordinates().GetCoordinates();
   int nelems = mesh.nelems();
-  auto coords_view = pcms::test::CopyCoordinatesToHost(coords_device, nelems, mesh.dim());
+  auto coords_view =
+    pcms::test::CopyCoordinatesToHost(coords_device, nelems, mesh.dim());
   auto centroids =
     Omega_h::HostRead<Real>(pcms::get_entity_centroids(mesh, mesh.dim()));
   REQUIRE(static_cast<int>(coords_view.extent(0)) == nelems);
@@ -151,10 +153,12 @@ TEST_CASE("OmegaHLagrangeField order-1: linear function evaluation")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
-  pcms::test::CheckEvaluation(factory, field,
-                              pcms::test::StandardEvalCoords2D(),
-                              OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  pcms::test::SetField(
+    field.GetData(), *factory.GetLayout(),
+    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  pcms::test::CheckEvaluation(
+    factory, field, pcms::test::StandardEvalCoords2D(),
+    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 }
 
 // The same linear evaluation test run on the MeshFields-backed order-1 field
@@ -167,10 +171,12 @@ TEST_CASE("MeshFieldsAdapter order-1: linear function evaluation (shared util)")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
-  pcms::test::CheckEvaluation(factory, field,
-                              pcms::test::StandardEvalCoords2D(),
-                              OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  pcms::test::SetField(
+    field.GetData(), *factory.GetLayout(),
+    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  pcms::test::CheckEvaluation(
+    factory, field, pcms::test::StandardEvalCoords2D(),
+    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 }
 
 TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
@@ -181,7 +187,9 @@ TEST_CASE("OmegaHLagrangeField order-1: out-of-bounds FILL mode")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  pcms::test::SetField(
+    field.GetData(), *factory.GetLayout(),
+    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
 
   Real fill_value = -999.0;
   std::vector<Real> outside{-0.5, 0.5, 1.5, 0.5, 0.5, -0.5, 0.5, 1.5};
@@ -196,7 +204,9 @@ TEST_CASE("OmegaHLagrangeField order-1: serialize / deserialize round-trip")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
 
-  pcms::test::SetField(field.GetData(), *factory.GetLayout(), OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  pcms::test::SetField(
+    field.GetData(), *factory.GetLayout(),
+    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
   pcms::test::CheckSerializeDeserialize(*factory.GetLayout(), field.GetData());
 }
 
@@ -237,15 +247,19 @@ TEST_CASE("OmegaHLagrangeField order-0: constant field evaluation")
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
-  auto device_coords = pcms::test::CreateDeviceCoordinateView(pts, factory.GetCoordinateSystem());
+  auto device_coords =
+    pcms::test::CreateDeviceCoordinateView(pts, factory.GetCoordinateSystem());
   auto evaluator = factory.CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   Kokkos::View<Real*, pcms::DeviceMemorySpace> eval_device("eval", n);
-  using LayoutPolicy = pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
-  auto out = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(eval_device.data(), n, 1);
+  using LayoutPolicy =
+    pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
+  auto out = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(
+    eval_device.data(), n, 1);
   evaluator->Evaluate(field, out);
-  auto eval_host = Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), eval_device);
+  auto eval_host =
+    Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), eval_device);
 
   for (int i = 0; i < n; ++i)
     REQUIRE(eval_host(i) == Catch::Approx(kValue));
@@ -289,13 +303,13 @@ TEST_CASE("OmegaHLagrangeField order-0: serialize / deserialize round-trip")
 
 // ---- Layout sharing communicator contract -----------------------------------
 //
-// BEHAVIORAL CONTRACT (requires MPI/redev — exercised by test_field_communication
-// with clientId=2/3 via test_shared_layout):
+// BEHAVIORAL CONTRACT (requires MPI/redev — exercised by
+// test_field_communication with clientId=2/3 via test_shared_layout):
 //
 // When two fields are added to an Application2 that share the same FieldLayout
-// (e.g. both created from the same LagrangeFunctionSpace), the Application2 must
-// reuse a single FieldLayoutCommunicator for both fields rather than creating
-// separate communicators. This is verified by:
+// (e.g. both created from the same LagrangeFunctionSpace), the Application2
+// must reuse a single FieldLayoutCommunicator for both fields rather than
+// creating separate communicators. This is verified by:
 //   - Calling AddLayout() registers exactly one FieldLayoutCommunicator
 //   - Calling AddField() for additional fields with the same layout leaves the
 //     count at one (Application2::GetLayoutCommunicatorCount() == 1)
@@ -315,8 +329,10 @@ TEST_CASE("OmegaHLagrangeField: field valid after layout destruction")
     field.emplace(factory.CreateField<Real>(pcms::FieldMetadata{}));
   } // factory goes out of scope; field keeps layout alive
 
-  pcms::test::SetField(*field, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
-  // Just verify data was set correctly (no evaluator needed for this lifetime test)
+  pcms::test::SetField(
+    *field, OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+  // Just verify data was set correctly (no evaluator needed for this lifetime
+  // test)
   auto data = field->GetDOFHolderDataHost();
   REQUIRE(data.size() > 0);
 }

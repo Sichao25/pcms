@@ -28,13 +28,12 @@ Omega_h::Write<Omega_h::GO> GetGidsHelper(Omega_h::Mesh& mesh, int entity_dim,
   auto dim_gids = mesh.get_array<T>(entity_dim, global_id_name);
   Omega_h::Write<Omega_h::GO> gids(dim_gids.size());
   Omega_h::parallel_for(
-    dim_gids.size(),
-    OMEGA_H_LAMBDA(int i) { gids[i] = dim_gids[i]; });
+    dim_gids.size(), OMEGA_H_LAMBDA(int i) { gids[i] = dim_gids[i]; });
   return gids;
 }
 
 Omega_h::Write<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh, int entity_dim,
-                                          const std::string& global_id_name)
+                                      const std::string& global_id_name)
 {
   auto tag = mesh.get_tagbase(entity_dim, global_id_name);
   Omega_h::Write<Omega_h::GO> gids;
@@ -50,25 +49,26 @@ Omega_h::Write<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh, int entity_dim,
 }
 
 Kokkos::View<bool*, DeviceMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
-                                                int entity_dim)
+                                                  int entity_dim)
 {
   int n = mesh.nents(entity_dim);
   Kokkos::View<bool*, DeviceMemorySpace> owned("owned", n);
   auto src = Omega_h::Read<Omega_h::I8>(mesh.owned(entity_dim));
-  Kokkos::parallel_for(n, OMEGA_H_LAMBDA(int i) { owned(i) = static_cast<bool>(src[i]); });
+  Kokkos::parallel_for(
+    n, OMEGA_H_LAMBDA(int i) { owned(i) = static_cast<bool>(src[i]); });
   return owned;
 }
 
-Kokkos::View<bool*, DeviceMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
-                                                int entity_dim,
-                                                Omega_h::Read<Omega_h::I8> mask)
+Kokkos::View<bool*, DeviceMemorySpace> BuildOwned(
+  Omega_h::Mesh& mesh, int entity_dim, Omega_h::Read<Omega_h::I8> mask)
 {
   auto owned = BuildOwned(mesh, entity_dim);
   auto mask_h = Omega_h::Read<Omega_h::I8>(mask);
   PCMS_ALWAYS_ASSERT(static_cast<int>(mask_h.size()) == mesh.nents(entity_dim));
-  Kokkos::parallel_for(mesh.nents(entity_dim), OMEGA_H_LAMBDA(int i) {
-    owned(i) = owned(i) && static_cast<bool>(mask_h[i]);
-  });
+  Kokkos::parallel_for(
+    mesh.nents(entity_dim), OMEGA_H_LAMBDA(int i) {
+      owned(i) = owned(i) && static_cast<bool>(mask_h[i]);
+    });
   return owned;
 }
 
@@ -92,7 +92,8 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   coords_ = get_entity_centroids(mesh_, entity_dim);
   coords_2d_ = ConvertCoordsTo2D(coords_, mesh_.nents(entity_dim), mesh_.dim());
   owned_ = BuildOwned(mesh_, entity_dim);
-  owned_host_ = Kokkos::View<bool*, HostMemorySpace>("owned_host", owned_.size());
+  owned_host_ =
+    Kokkos::View<bool*, HostMemorySpace>("owned_host", owned_.size());
   Kokkos::deep_copy(owned_host_, owned_);
 
   class_ids_ = Omega_h::Read<Omega_h::ClassId>(
@@ -115,11 +116,10 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
 }
 
-OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
-                                           int num_components,
-                                           CoordinateSystem coordinate_system,
-                                           Omega_h::Read<Omega_h::I8> owned_mask,
-                                           std::string global_id_name)
+OmegaHLagrangeLayout::OmegaHLagrangeLayout(
+  Omega_h::Mesh& mesh, int order, int num_components,
+  CoordinateSystem coordinate_system, Omega_h::Read<Omega_h::I8> owned_mask,
+  std::string global_id_name)
   : mesh_(mesh),
     order_(order),
     num_components_(num_components),
@@ -134,7 +134,8 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   coords_ = get_entity_centroids(mesh_, entity_dim);
   coords_2d_ = ConvertCoordsTo2D(coords_, mesh_.nents(entity_dim), mesh_.dim());
   owned_ = BuildOwned(mesh_, entity_dim, owned_mask);
-  owned_host_ = Kokkos::View<bool*, HostMemorySpace>("owned_host", owned_.size());
+  owned_host_ =
+    Kokkos::View<bool*, HostMemorySpace>("owned_host", owned_.size());
 
   class_ids_ = Omega_h::Read<Omega_h::ClassId>(
     mesh_.get_array<Omega_h::ClassId>(entity_dim, "class_id"));
@@ -156,8 +157,8 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
 }
 
-std::shared_ptr<const Discretization>
-OmegaHLagrangeLayout::GetDiscretization() const noexcept
+std::shared_ptr<const Discretization> OmegaHLagrangeLayout::GetDiscretization()
+  const noexcept
 {
   return discretization_;
 }
@@ -177,7 +178,8 @@ GO OmegaHLagrangeLayout::GetNumGlobalDofHolder() const
   return mesh_.nglobal_ents(EntityDimForOrder(order_, mesh_.dim()));
 }
 
-Rank1View<const bool, HostMemorySpace> OmegaHLagrangeLayout::GetOwnedHost() const
+Rank1View<const bool, HostMemorySpace> OmegaHLagrangeLayout::GetOwnedHost()
+  const
 {
   return make_const_array_view(owned_host_);
 }
@@ -192,12 +194,16 @@ OmegaHLagrangeLayout::GetDOFHolderCoordinates() const
 {
   int n = mesh_.nents(EntityDimForOrder(order_, mesh_.dim()));
   int dim = mesh_.dim();
-  using LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  Rank2View<const Real, DeviceMemorySpace, LayoutPolicy> coords_view(coords_2d_.data(), n, dim);
-  return CoordinateView<DeviceMemorySpace, LayoutPolicy>{coordinate_system_, coords_view};
+  using LayoutPolicy =
+    detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  Rank2View<const Real, DeviceMemorySpace, LayoutPolicy> coords_view(
+    coords_2d_.data(), n, dim);
+  return CoordinateView<DeviceMemorySpace, LayoutPolicy>{coordinate_system_,
+                                                         coords_view};
 }
 
-bool OmegaHLagrangeLayout::IsDistributed() const {
+bool OmegaHLagrangeLayout::IsDistributed() const
+{
   return true;
 }
 
@@ -215,7 +221,6 @@ EntOffsetsArray OmegaHLagrangeLayout::GetEntOffsets() const
     offsets[i] = n;
   return offsets;
 }
-
 
 int OmegaHLagrangeLayout::GetDimension() const
 {

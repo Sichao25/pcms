@@ -27,7 +27,8 @@ public:
   {
   }
 
-  SupportResults Build(CoordinateView<DeviceMemorySpace> target_coords) const override
+  SupportResults Build(
+    CoordinateView<DeviceMemorySpace> target_coords) const override
   {
     if (target_coords.GetCoordinateSystem() != CoordinateSystem::Cartesian) {
       throw pcms_error(

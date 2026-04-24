@@ -7,11 +7,11 @@ namespace pcms
 
 static_assert(std::is_same_v<ClassificationId, Omega_h::ClassId>,
               "ClassificationId must match Omega_h::ClassId for direct views");
-static_assert(std::is_same_v<ClassificationDimension, Omega_h::I8>,
-              "ClassificationDimension must match Omega_h::I8 for direct views");
+static_assert(
+  std::is_same_v<ClassificationDimension, Omega_h::I8>,
+  "ClassificationDimension must match Omega_h::I8 for direct views");
 
-OmegaHDiscretization::OmegaHDiscretization(Omega_h::Mesh& mesh)
-  : mesh_(mesh)
+OmegaHDiscretization::OmegaHDiscretization(Omega_h::Mesh& mesh) : mesh_(mesh)
 {
   for (int entity_dim = 0; entity_dim <= max_entity_dim_; ++entity_dim) {
     class_dims_by_dim_[entity_dim] = Omega_h::Read<Omega_h::I8>();
@@ -49,7 +49,8 @@ Rank1View<const ClassificationDimension, DeviceMemorySpace>
 OmegaHDiscretization::GetEntityClassificationDimensions(int entity_dim) const
 {
   if (entity_dim < 0 || entity_dim > max_entity_dim_)
-    return Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr, 0);
+    return Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr,
+                                                                       0);
   const auto& dims = class_dims_by_dim_[entity_dim];
   return Rank1View<const ClassificationDimension, DeviceMemorySpace>(
     dims.data(), dims.size());
@@ -61,8 +62,8 @@ OmegaHDiscretization::GetEntityClassificationIds(int entity_dim) const
   if (entity_dim < 0 || entity_dim > max_entity_dim_)
     return Rank1View<const ClassificationId, DeviceMemorySpace>(nullptr, 0);
   const auto& ids = class_ids_by_dim_[entity_dim];
-  return Rank1View<const ClassificationId, DeviceMemorySpace>(
-    ids.data(), ids.size());
+  return Rank1View<const ClassificationId, DeviceMemorySpace>(ids.data(),
+                                                              ids.size());
 }
 
 } // namespace pcms

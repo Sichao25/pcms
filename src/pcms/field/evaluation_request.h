@@ -28,16 +28,13 @@ struct EvaluationRequest
   OutOfBoundsPolicy policy = {};
 
   static EvaluationRequest FromCoordinates(
-    CoordinateView<DeviceMemorySpace> coords,
-    OutOfBoundsPolicy policy = {});
+    CoordinateView<DeviceMemorySpace> coords, OutOfBoundsPolicy policy = {});
 
-  static EvaluationRequest FromLayout(
-    std::shared_ptr<const FieldLayout> layout,
-    OutOfBoundsPolicy policy = {});
+  static EvaluationRequest FromLayout(std::shared_ptr<const FieldLayout> layout,
+                                      OutOfBoundsPolicy policy = {});
 
   static EvaluationRequest FromFunctionSpace(
-    const FunctionSpace& function_space,
-    OutOfBoundsPolicy policy = {});
+    const FunctionSpace& function_space, OutOfBoundsPolicy policy = {});
 
   [[nodiscard]] const FieldLayout* GetQueryLayout() const noexcept
   {
@@ -55,10 +52,9 @@ struct EvaluationRequest
   }
 
 private:
-  explicit EvaluationRequest(
-    CoordinateView<DeviceMemorySpace> coords_in,
-    std::shared_ptr<const FieldLayout> query_layout_in,
-    OutOfBoundsPolicy policy_in = {}) noexcept
+  explicit EvaluationRequest(CoordinateView<DeviceMemorySpace> coords_in,
+                             std::shared_ptr<const FieldLayout> query_layout_in,
+                             OutOfBoundsPolicy policy_in = {}) noexcept
     : coords(coords_in),
       query_layout(std::move(query_layout_in)),
       policy(policy_in)

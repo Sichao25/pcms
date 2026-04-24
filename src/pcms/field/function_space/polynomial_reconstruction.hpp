@@ -25,17 +25,15 @@ class PolynomialReconstructionFunctionSpace : public FunctionSpace
 {
 public:
   [[nodiscard]] static PolynomialReconstructionFunctionSpace Create(
-    Rank2View<Real, HostMemorySpace> coords,
-    CoordinateSystem coordinate_system,
+    Rank2View<Real, HostMemorySpace> coords, CoordinateSystem coordinate_system,
     MLSOptions options = {});
 
   [[nodiscard]] static PolynomialReconstructionFunctionSpace FromMesh(
-    Omega_h::Mesh& mesh,
-    int source_entity_dim,
-    CoordinateSystem coordinate_system,
-    MLSOptions options = {});
+    Omega_h::Mesh& mesh, int source_entity_dim,
+    CoordinateSystem coordinate_system, MLSOptions options = {});
 
-  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept override;
+  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout()
+    const noexcept override;
 
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
@@ -43,11 +41,11 @@ protected:
   [[nodiscard]] FieldVariant CreateFieldImpl(
     Type value_type, FieldMetadata metadata) const override;
 
-  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override;
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    FieldDataVariant data) const override;
 
   [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
-    Type value_type,
-    const EvaluationRequest& request) const override;
+    Type value_type, const EvaluationRequest& request) const override;
 
 private:
   explicit PolynomialReconstructionFunctionSpace(

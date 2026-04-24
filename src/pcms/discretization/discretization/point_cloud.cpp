@@ -4,8 +4,7 @@ namespace pcms
 {
 
 PointCloudDiscretization::PointCloudDiscretization(
-  int dim,
-  Kokkos::View<const Real**, HostMemorySpace> coords,
+  int dim, Kokkos::View<const Real**, HostMemorySpace> coords,
   const void* entity_identity)
   : dim_(dim),
     entity_identity_(entity_identity != nullptr
@@ -36,12 +35,13 @@ LO PointCloudDiscretization::GetNumEntities(int entity_dim) const
 }
 
 Rank1View<const ClassificationDimension, DeviceMemorySpace>
-PointCloudDiscretization::GetEntityClassificationDimensions(int entity_dim) const
+PointCloudDiscretization::GetEntityClassificationDimensions(
+  int entity_dim) const
 {
   return entity_dim == Vertex
            ? make_const_array_view(class_dims_)
-           : Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr,
-                                                                       0);
+           : Rank1View<const ClassificationDimension, DeviceMemorySpace>(
+               nullptr, 0);
 }
 
 Rank1View<const ClassificationId, DeviceMemorySpace>

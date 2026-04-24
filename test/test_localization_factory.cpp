@@ -20,8 +20,7 @@ namespace
 {
 
 std::shared_ptr<pcms::OmegaHEntityLayout> MakeMeshEntityLayout(
-  Omega_h::Mesh& mesh,
-  int entity_dim)
+  Omega_h::Mesh& mesh, int entity_dim)
 {
   return std::make_shared<pcms::OmegaHEntityLayout>(
     mesh, entity_dim, 1, pcms::CoordinateSystem::Cartesian);
@@ -29,7 +28,8 @@ std::shared_ptr<pcms::OmegaHEntityLayout> MakeMeshEntityLayout(
 
 } // namespace
 
-TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupports")
+TEST_CASE(
+  "LocalizationFactory: point-cloud Build matches BuildPointCloudSupports")
 {
   auto lib = Omega_h::Library{};
   auto mesh =
@@ -50,7 +50,8 @@ TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupport
 
   // auto coords_dev = Kokkos::create_mirror_view_and_copy(
   //   Kokkos::DefaultExecutionSpace{}, coords_host);
-  auto coords_dev = Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace>("point_cloud_coords", mesh.nverts(), dim);
+  auto coords_dev = Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace>(
+    "point_cloud_coords", mesh.nverts(), dim);
   auto coords_host = Kokkos::create_mirror(pcms::HostMemorySpace(), coords_dev);
   for (int i = 0; i < mesh.nverts(); ++i)
     for (int d = 0; d < dim; ++d)
@@ -69,7 +70,8 @@ TEST_CASE("LocalizationFactory: point-cloud Build matches BuildPointCloudSupport
   pcms::test::CheckSupportResultsEquivalent(actual, expected);
 }
 
-TEST_CASE("LocalizationFactory: vertex adjacency Build matches two-mesh searchNeighbors")
+TEST_CASE("LocalizationFactory: vertex adjacency Build matches two-mesh "
+          "searchNeighbors")
 {
   auto lib = Omega_h::Library{};
   auto world = lib.world();
@@ -85,7 +87,8 @@ TEST_CASE("LocalizationFactory: vertex adjacency Build matches two-mesh searchNe
 
   pcms::AdjacencyLocalizationFactory factory(source_mesh, Omega_h::VERT,
                                              options);
-  auto target_coords = pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
+  auto target_coords =
+    pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
   auto target_device = pcms::test::CreateDeviceCoordinateView(
     target_coords, pcms::CoordinateSystem::Cartesian, target_mesh.dim());
 
@@ -101,7 +104,8 @@ TEST_CASE("LocalizationFactory: vertex adjacency Build matches two-mesh searchNe
   pcms::test::CheckSupportResultsEquivalent(actual, expected);
 }
 
-TEST_CASE("Localization path selection: vertex source uses adjacency for pointwise requests")
+TEST_CASE("Localization path selection: vertex source uses adjacency for "
+          "pointwise requests")
 {
   auto lib = Omega_h::Library{};
   auto mesh =
@@ -114,7 +118,8 @@ TEST_CASE("Localization path selection: vertex source uses adjacency for pointwi
           pcms::detail::LocalizationPath::VertexAdjacencySearch);
 }
 
-TEST_CASE("Localization path selection: centroid-to-vertex uses same-mesh adjacency")
+TEST_CASE(
+  "Localization path selection: centroid-to-vertex uses same-mesh adjacency")
 {
   auto lib = Omega_h::Library{};
   auto mesh =
@@ -124,12 +129,13 @@ TEST_CASE("Localization path selection: centroid-to-vertex uses same-mesh adjace
   auto target_layout = std::make_shared<pcms::OmegaHLagrangeLayout>(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
 
-  REQUIRE(pcms::detail::SelectLocalizationPath(
-            *source_layout, target_layout.get()) ==
-          pcms::detail::LocalizationPath::CentroidToVertexAdjacencySearch);
+  REQUIRE(
+    pcms::detail::SelectLocalizationPath(*source_layout, target_layout.get()) ==
+    pcms::detail::LocalizationPath::CentroidToVertexAdjacencySearch);
 }
 
-TEST_CASE("Localization path selection: centroid source uses point-cloud supports for arbitrary points")
+TEST_CASE("Localization path selection: centroid source uses point-cloud "
+          "supports for arbitrary points")
 {
   auto lib = Omega_h::Library{};
   auto mesh =
@@ -141,7 +147,8 @@ TEST_CASE("Localization path selection: centroid source uses point-cloud support
           pcms::detail::LocalizationPath::PointCloudSupports);
 }
 
-TEST_CASE("LocalizationFactory: centroid-to-vertex Build correct on same-mesh fast path")
+TEST_CASE("LocalizationFactory: centroid-to-vertex Build correct on same-mesh "
+          "fast path")
 {
   auto lib = Omega_h::Library{};
   auto mesh =
@@ -158,10 +165,9 @@ TEST_CASE("LocalizationFactory: centroid-to-vertex Build correct on same-mesh fa
 
   // Reference: direct call to the single-mesh centroid-to-vertex overload.
   Omega_h::Real radius_sq = options.radius * options.radius;
-  auto expected =
-    pcms::searchNeighbors(mesh, radius_sq,
-                          static_cast<Omega_h::LO>(options.min_req_supports),
-                          options.adapt_radius);
+  auto expected = pcms::searchNeighbors(
+    mesh, radius_sq, static_cast<Omega_h::LO>(options.min_req_supports),
+    options.adapt_radius);
 
   pcms::test::CheckSupportResultsEquivalent(actual, expected);
 }
@@ -183,7 +189,8 @@ TEST_CASE("LocalizationFactory: correct with different meshes")
   pcms::AdjacencyLocalizationFactory factory(source_mesh, Omega_h::FACE,
                                              options);
 
-  auto target_coords = pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
+  auto target_coords =
+    pcms::test::CopyOmegaHRealsToVector(target_mesh.coords());
   auto target_device = pcms::test::CreateDeviceCoordinateView(
     target_coords, pcms::CoordinateSystem::Cartesian, target_mesh.dim());
 

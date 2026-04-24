@@ -173,7 +173,8 @@ static OutMsg ConstructOutMessage(int rank, int nproc,
 }
 
 static ReversePartitionMap2 BuildReversePartitionMap(
-  const FieldLayout& layout, const redev::Partition& partition, const OverlapMask& overlap_mask)
+  const FieldLayout& layout, const redev::Partition& partition,
+  const OverlapMask& overlap_mask)
 {
   PCMS_FUNCTION_TIMER;
   auto owned = layout.GetOwnedHost();
@@ -184,13 +185,17 @@ static ReversePartitionMap2 BuildReversePartitionMap(
   int mesh_dim = static_cast<int>(coords.extent(1));
 
   // move coords to host
-  Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", coords.extent(0), coords.extent(1));
-  Kokkos::parallel_for("copy_coords", Kokkos::RangePolicy<>(0, coords.extent(0)), KOKKOS_LAMBDA(int i) {
-    for (unsigned d = 0; d < coords.extent(1); ++d) {
-      coords_device(i, d) = coords(i, d);
-    }
-  });
-  auto coords_host = Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords_device);
+  Kokkos::View<Real**, DeviceMemorySpace> coords_device(
+    "coords_device", coords.extent(0), coords.extent(1));
+  Kokkos::parallel_for(
+    "copy_coords", Kokkos::RangePolicy<>(0, coords.extent(0)),
+    KOKKOS_LAMBDA(int i) {
+      for (unsigned d = 0; d < coords.extent(1); ++d) {
+        coords_device(i, d) = coords(i, d);
+      }
+    });
+  auto coords_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords_device);
 
   ReversePartitionMap2 reverse_partition;
   LO n = static_cast<LO>(owned.extent(0));
@@ -216,8 +221,8 @@ static ReversePartitionMap2 BuildReversePartitionMap(
     auto dr = std::visit(GetRank{class_id, class_dim, coord}, partition);
     reverse_partition[dr].indices.emplace_back(local_index);
 
-    for (size_t e = static_cast<size_t>(mesh_ent_dim) + 1;
-         e < ent_offsets_len; ++e) {
+    for (size_t e = static_cast<size_t>(mesh_ent_dim) + 1; e < ent_offsets_len;
+         ++e) {
       reverse_partition[dr].ent_offsets[e] += 1;
     }
   }
@@ -244,7 +249,8 @@ ExchangePlan GenericFieldExchangePlanner::BuildExchangePlan(
   plan.offsets = std::move(out_msg.offset);
 
   int length = 0;
-  plan.permutation = ConstructPermutation(reverse_partition, gids.size(), &length);
+  plan.permutation =
+    ConstructPermutation(reverse_partition, gids.size(), &length);
   plan.msg_size = static_cast<size_t>(length);
 
   return plan;

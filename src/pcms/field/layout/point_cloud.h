@@ -17,8 +17,8 @@ public:
                    std::shared_ptr<const Discretization> discretization,
                    int classification_entity_dim);
 
-  std::shared_ptr<const Discretization>
-  GetDiscretization() const noexcept override;
+  std::shared_ptr<const Discretization> GetDiscretization()
+    const noexcept override;
 
   int GetNumComponents() const override;
   // nodes for standard lagrange FEM
@@ -38,8 +38,8 @@ public:
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensionsHost() const override;
 
-  Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIdsHost() const override;
+  Rank1View<const LO, HostMemorySpace> GetDOFHolderClassificationIdsHost()
+    const override;
 
   std::array<int, 4> GetNodesPerDim() const;
 

@@ -29,7 +29,8 @@ TEST_CASE("interpolate linear 2d omega_h_field")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
   auto interpolated = factory.CreateField<Real>(pcms::FieldMetadata{});
-  pcms::test::SetField(field, OMEGA_H_LAMBDA(Real x, Real y) { return -0.3 * x + 0.5 * y; });
+  pcms::test::SetField(
+    field, OMEGA_H_LAMBDA(Real x, Real y) { return -0.3 * x + 0.5 * y; });
 
   pcms::Interpolator<Real> interp(factory, factory);
   interp.Apply(field, interpolated);
@@ -103,11 +104,10 @@ TEST_CASE("interpolate quadratic 2d omega_h_field throws")
   auto mesh =
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
 
-  REQUIRE_THROWS_AS(
-    pcms::LagrangeFunctionSpace::FromMesh(
-      mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
-      pcms::LagrangeFunctionSpace::Backend::OmegaH),
-    pcms::pcms_error);
+  REQUIRE_THROWS_AS(pcms::LagrangeFunctionSpace::FromMesh(
+                      mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
+                      pcms::LagrangeFunctionSpace::Backend::OmegaH),
+                    pcms::pcms_error);
 }
 
 // Interpolator<T> test: construct once (localize), apply twice with different
@@ -132,7 +132,8 @@ TEST_CASE("Interpolator: construct once, apply twice with different data")
   pcms::Interpolator<pcms::Real> interp(factory, factory);
 
   // First application: linear function f(x,y) = -0.3*x + 0.5*y
-  pcms::test::SetField(source, OMEGA_H_LAMBDA(Real x, Real y) { return -0.3 * x + 0.5 * y; });
+  pcms::test::SetField(
+    source, OMEGA_H_LAMBDA(Real x, Real y) { return -0.3 * x + 0.5 * y; });
   interp.Apply(source, target);
 
   {
@@ -140,22 +141,21 @@ TEST_CASE("Interpolator: construct once, apply twice with different data")
     auto tgt_dof = target.GetDOFHolderDataHost();
     REQUIRE(tgt_dof.size() == src_dof.size());
     for (int i = 0; i < static_cast<int>(tgt_dof.size()); ++i) {
-      REQUIRE_THAT(tgt_dof[i],
-                   Catch::Matchers::WithinRel(src_dof[i], 0.001) ||
-                     Catch::Matchers::WithinAbs(src_dof[i], 1E-10));
+      REQUIRE_THAT(tgt_dof[i], Catch::Matchers::WithinRel(src_dof[i], 0.001) ||
+                                 Catch::Matchers::WithinAbs(src_dof[i], 1E-10));
     }
   }
 
   // Second application: constant function f(x,y) = 7.0
-  // Apply is called without re-constructing the interpolator (no re-localization).
+  // Apply is called without re-constructing the interpolator (no
+  // re-localization).
   pcms::test::SetField(source, OMEGA_H_LAMBDA(Real, Real) { return 7.0; });
   interp.Apply(source, target);
 
   {
     auto tgt_dof = target.GetDOFHolderDataHost();
     for (int i = 0; i < static_cast<int>(tgt_dof.size()); ++i) {
-      REQUIRE_THAT(tgt_dof[i],
-                   Catch::Matchers::WithinAbs(7.0, 1E-10));
+      REQUIRE_THAT(tgt_dof[i], Catch::Matchers::WithinAbs(7.0, 1E-10));
     }
   }
 }

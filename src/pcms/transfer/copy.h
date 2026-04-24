@@ -56,7 +56,6 @@ public:
   }
 };
 
-
 } // namespace pcms
 
 #endif // PCMS_TRANSFER_FIELD2_H_

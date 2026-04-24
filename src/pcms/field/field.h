@@ -27,7 +27,7 @@ class Field
 public:
   Field(Field&&) = default;
   Field& operator=(Field&&) = default;
-  Field(const Field&)            = delete;
+  Field(const Field&) = delete;
   Field& operator=(const Field&) = delete;
 
   FieldData<T>& GetData() noexcept { return *data_; }
@@ -62,8 +62,7 @@ private:
     friend class FunctionSpace;
   };
 
-  Field(CtorKey,
-        std::shared_ptr<const FieldLayout> layout,
+  Field(CtorKey, std::shared_ptr<const FieldLayout> layout,
         std::shared_ptr<const FieldEvaluatorFactory<Real>> evaluator_factory,
         std::unique_ptr<FieldData<T>> data)
     : layout_(std::move(layout)),
@@ -79,9 +78,8 @@ private:
   std::unique_ptr<FieldData<T>> data_;
 };
 
-using FieldVariant =
-  std::variant<Field<int8_t>, Field<int32_t>, Field<int64_t>, Field<float>,
-               Field<double>>;
+using FieldVariant = std::variant<Field<int8_t>, Field<int32_t>, Field<int64_t>,
+                                  Field<float>, Field<double>>;
 
 } // namespace pcms
 

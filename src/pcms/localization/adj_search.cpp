@@ -119,9 +119,9 @@ static Omega_h::Write<Omega_h::LO> locate_target_cells(
         auto source_cell_id = results(i).element_id;
         if (source_cell_id < 0)
           source_cell_id = Kokkos::abs(source_cell_id);
-        OMEGA_H_CHECK_PRINTF(
-          source_cell_id >= 0,
-          "ERROR: Source cell id not found for target %d\n", i);
+        OMEGA_H_CHECK_PRINTF(source_cell_id >= 0,
+                             "ERROR: Source cell id not found for target %d\n",
+                             i);
         source_cell_ids[i] = source_cell_id;
       });
   } else {
@@ -205,9 +205,9 @@ static void adjBasedSearchFromPoints(
       Omega_h::Real cutoffDistance = radii2[id];
       Omega_h::LO source_cell_id = source_cell_ids[id];
 
-      OMEGA_H_CHECK_PRINTF(
-        source_cell_id >= 0,
-        "ERROR: Source cell id not found for target %d\n", id);
+      OMEGA_H_CHECK_PRINTF(source_cell_id >= 0,
+                           "ERROR: Source cell id not found for target %d\n",
+                           id);
 
       const Omega_h::LO num_verts_in_dim = dim + 1;
       Omega_h::LO start_ptr = source_cell_id * num_verts_in_dim;
@@ -402,7 +402,8 @@ SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
         r_adjust_loop, min_supports_found, max_supports_found, max_radius);
 
       if (within_number_of_support_range(min_supports_found, max_supports_found,
-                                         min_req_support, 3 * min_req_support)) {
+                                         min_req_support,
+                                         3 * min_req_support)) {
         break;
       }
 
@@ -438,9 +439,9 @@ SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
                                bool adapt_radius)
 {
   auto target_coords = target_mesh.coords();
-  auto result = searchNeighbors(source_mesh, target_coords, target_mesh.nverts(),
-                                cutoffDistance, min_req_support,
-                                max_allowed_support, adapt_radius);
+  auto result = searchNeighbors(
+    source_mesh, target_coords, target_mesh.nverts(), cutoffDistance,
+    min_req_support, max_allowed_support, adapt_radius);
   target_mesh.add_tag<Omega_h::Real>(Omega_h::VERT, "radii2", 1, result.radii2);
   return result;
 }

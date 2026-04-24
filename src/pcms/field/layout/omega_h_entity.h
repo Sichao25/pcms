@@ -17,14 +17,12 @@ namespace pcms
 class OmegaHEntityLayout : public FieldLayout
 {
 public:
-  OmegaHEntityLayout(Omega_h::Mesh& mesh,
-                     int entity_dim,
-                     int num_components,
+  OmegaHEntityLayout(Omega_h::Mesh& mesh, int entity_dim, int num_components,
                      CoordinateSystem coordinate_system,
                      std::string global_id_name = "global");
 
-  std::shared_ptr<const Discretization>
-  GetDiscretization() const noexcept override;
+  std::shared_ptr<const Discretization> GetDiscretization()
+    const noexcept override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;
@@ -41,8 +39,8 @@ public:
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensionsHost() const override;
 
-  Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIdsHost() const override;
+  Rank1View<const LO, HostMemorySpace> GetDOFHolderClassificationIdsHost()
+    const override;
 
 private:
   int dimension_;

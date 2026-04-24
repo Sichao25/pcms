@@ -17,8 +17,8 @@ public:
                  std::function<int8_t(int, int)> in_overlap,
                  LO num_plane_nodes);
 
-  std::shared_ptr<const Discretization>
-  GetDiscretization() const noexcept override;
+  std::shared_ptr<const Discretization> GetDiscretization()
+    const noexcept override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;
@@ -31,8 +31,8 @@ public:
   int GetDimension() const override;
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensionsHost() const override;
-  Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIdsHost() const override;
+  Rank1View<const LO, HostMemorySpace> GetDOFHolderClassificationIdsHost()
+    const override;
 
   LO GetFullDataSize() const noexcept;
 

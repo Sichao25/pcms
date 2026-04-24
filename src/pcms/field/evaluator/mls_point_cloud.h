@@ -22,7 +22,8 @@ namespace pcms
 //
 // The support structure is built once at construction and reused across
 // repeated Evaluate calls at zero additional localization cost.
-template <typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+template <typename LayoutPolicy =
+            detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
 class MLSPointEvaluator : public PointEvaluator<Real, LayoutPolicy>
 {
 public:
@@ -36,8 +37,9 @@ public:
   {
   }
 
-  void Evaluate(const Field<Real>& field,
-                Rank2View<Real, DeviceMemorySpace, LayoutPolicy> values) const override
+  void Evaluate(
+    const Field<Real>& field,
+    Rank2View<Real, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     if (values.extent(1) != 1) {
       throw pcms_error(
@@ -50,7 +52,8 @@ public:
 
     Omega_h::Write<Omega_h::Real> src_w(n_sources, "mls_source_values");
     Kokkos::parallel_for(
-      "CopyDeviceDataToOmegaHWrite", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_sources),
+      "CopyDeviceDataToOmegaHWrite",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_sources),
       KOKKOS_LAMBDA(int i) { src_w[i] = device_data(i); });
     Omega_h::Reals source_values(src_w);
 
@@ -62,9 +65,9 @@ public:
     const int n_targets = result.size();
     PCMS_ALWAYS_ASSERT(static_cast<size_t>(n_targets) == values.extent(0));
     Kokkos::parallel_for(
-      "CopyMLSResultToValues", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_targets),
+      "CopyMLSResultToValues",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_targets),
       KOKKOS_LAMBDA(int i) { values(i, 0) = result[i]; });
-
   }
 
 private:

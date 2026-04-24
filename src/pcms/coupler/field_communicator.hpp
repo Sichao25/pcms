@@ -19,16 +19,16 @@ template <typename T>
 class FieldCommunicator
 {
 public:
-  FieldCommunicator(const std::string& name, FieldLayoutCommunicator& layout_comm,
-                     Field<T>& field)
+  FieldCommunicator(const std::string& name,
+                    FieldLayoutCommunicator& layout_comm, Field<T>& field)
     : FieldCommunicator(name, layout_comm, field,
-                         std::make_unique<FieldSerializer<T>>())
+                        std::make_unique<FieldSerializer<T>>())
   {
   }
 
-  FieldCommunicator(const std::string& name, FieldLayoutCommunicator& layout_comm,
-                     Field<T>& field,
-                     std::unique_ptr<FieldSerializer<T>> serializer)
+  FieldCommunicator(const std::string& name,
+                    FieldLayoutCommunicator& layout_comm, Field<T>& field,
+                    std::unique_ptr<FieldSerializer<T>> serializer)
     : comm_buffer_{},
       layout_comm_(layout_comm),
       field_(field),
@@ -36,8 +36,8 @@ public:
   {
     PCMS_ALWAYS_ASSERT(&layout_comm.GetLayout() == &field.GetLayout());
     comm_buffer_.resize(layout_comm.GetMsgSize());
-    comm_ = layout_comm_.GetChannel().CreateComm<T>(name,
-                                                    layout_comm.GetMPIComm());
+    comm_ =
+      layout_comm_.GetChannel().CreateComm<T>(name, layout_comm.GetMPIComm());
     layout_comm_.SetOutMessageLayout<T>(comm_);
   }
 

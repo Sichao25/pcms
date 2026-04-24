@@ -19,8 +19,8 @@ using ReversePartitionMap = std::map<pcms::LO, std::vector<pcms::LO>>;
 class FieldLayout
 {
 public:
-  virtual std::shared_ptr<const Discretization>
-  GetDiscretization() const noexcept = 0;
+  virtual std::shared_ptr<const Discretization> GetDiscretization()
+    const noexcept = 0;
 
   // number of components
   int virtual GetNumComponents() const = 0;

@@ -16,8 +16,7 @@ class XGCFieldSerializer : public FieldSerializer<T>
 public:
   explicit XGCFieldSerializer(MPI_Comm plane_comm,
                               bool rank_participates = true)
-    : plane_comm_(plane_comm),
-      rank_participates_(rank_participates)
+    : plane_comm_(plane_comm), rank_participates_(rank_participates)
   {
   }
 
@@ -46,9 +45,10 @@ public:
     return static_cast<int>(buffer.size());
   }
 
-  void Deserialize(FieldData<T>& field, const FieldLayout& layout,
-                   Rank1View<const T, HostMemorySpace> buffer,
-                   Rank1View<const LO, HostMemorySpace> permutation) const override
+  void Deserialize(
+    FieldData<T>& field, const FieldLayout& layout,
+    Rank1View<const T, HostMemorySpace> buffer,
+    Rank1View<const LO, HostMemorySpace> permutation) const override
   {
     auto* xgc_field = dynamic_cast<XGCFieldData<T>*>(&field);
     if (!xgc_field) {

@@ -30,7 +30,8 @@ void adapt_radii(unsigned min_req_supports, unsigned max_allowed_supports,
 
 // Build SupportResults for a point-cloud source/target pair using a
 // distance-based N² search with optional adaptive radius adjustment.
-// source_coords and target_coords are flat arrays in [x0,y0,..., x1,y1,...] order.
+// source_coords and target_coords are flat arrays in [x0,y0,..., x1,y1,...]
+// order.
 SupportResults BuildPointCloudSupports(const Omega_h::Reals& source_coords,
                                        const Omega_h::Reals& target_coords,
                                        int dim, double radius,

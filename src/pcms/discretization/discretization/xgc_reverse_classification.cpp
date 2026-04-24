@@ -120,8 +120,8 @@ ReverseClassificationVertex ReadReverseClassificationVertex(
   return ReadReverseClassificationVertex(infile, comm, root);
 }
 
-void ReverseClassificationVertex::Insert(
-  const DimID& key, Rank1View<LO, HostMemorySpace> data)
+void ReverseClassificationVertex::Insert(const DimID& key,
+                                         Rank1View<LO, HostMemorySpace> data)
 {
   // mdspan doesn't have begin currently. This should be switched
   // to range based for-loop

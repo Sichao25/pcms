@@ -29,7 +29,7 @@ public:
     : layout_(std::move(layout)),
       metadata_(metadata),
       host_data_("simple_field_data",
-            static_cast<size_t>(layout_->OwnedSize())),
+                 static_cast<size_t>(layout_->OwnedSize())),
       device_data_("simple_field_data_device",
                    static_cast<size_t>(layout_->OwnedSize()))
   {
@@ -43,8 +43,7 @@ public:
     return make_const_array_view(host_data_);
   }
 
-  void SetDOFHolderDataHost(
-    Rank1View<const T, HostMemorySpace> values) override
+  void SetDOFHolderDataHost(Rank1View<const T, HostMemorySpace> values) override
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
@@ -56,8 +55,7 @@ public:
     return make_const_array_view(device_data_);
   }
 
-  void SetDOFHolderData(
-    Rank1View<const T, DeviceMemorySpace> values) override
+  void SetDOFHolderData(Rank1View<const T, DeviceMemorySpace> values) override
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));

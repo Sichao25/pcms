@@ -166,9 +166,8 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
   // coupling server using same mesh as application
   // note the xgc_coupler stores a reference to the internal mesh and it is the
   // user responsibility to keep it alive!
-  pcms::Coupler cpl(
-    "proxy_couple", comm, true,
-    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
+  pcms::Coupler cpl("proxy_couple", comm, true,
+                    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
   auto* total_f = cpl.AddApplication("proxy_couple_xgc_total_f");
   auto* delta_f = cpl.AddApplication("proxy_couple_xgc_delta_f");
@@ -180,9 +179,12 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   delta_f->AddLayout("gids", factory_delta.GetLayout());
   // TODO, fields should have a transfer policy rather than parameters
-  auto total_gids_field = factory_total.CreateField<pcms::Real>(pcms::FieldMetadata{});
-  auto delta_gids_field = factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
-  auto delta_gids2_field = factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto total_gids_field =
+    factory_total.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto delta_gids_field =
+    factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto delta_gids2_field =
+    factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
 
   auto* total_gids_ptr = &total_gids_field.GetData();
   auto* delta_gids_ptr = &delta_gids_field.GetData();

@@ -22,13 +22,13 @@ using pcms::ReverseClassificationVertex;
 static constexpr bool done = true;
 namespace ts = test_support;
 
-void xgc_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh, 
-                               std::string_view cpn_file)
+void xgc_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh,
+                              std::string_view cpn_file)
 {
   pcms::Coupler cpl("proxy_couple_server", comm, true,
-                     redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
+                    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
-  
+
   ReverseClassificationVertex rc;
   if (mesh.has_tag(0, "simNumbering")) {
     rc = ConstructRCFromOmegaHMesh(mesh, "simNumbering");
@@ -41,35 +41,34 @@ void xgc_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh,
   constexpr int nplanes = 2;
   std::array<std::vector<GO>, nplanes> data;
   std::vector<pcms::FieldHandle<GO>> fields;
-  
+
   for (int i = 0; i < nplanes; ++i) {
     data[i].resize(mesh.nverts());
     std::stringstream ss;
     ss << "xgc_gids_plane_" << i;
-    
+
     auto overlap_mask = std::make_unique<pcms::OverlapMask>(
-      mesh.nverts(), 
-      [](int dim, int id) -> int8_t { 
-        return ts::IsModelEntInOverlap{}(dim, id); 
+      mesh.nverts(), [](int dim, int id) -> int8_t {
+        return ts::IsModelEntInOverlap{}(dim, id);
       });
-    
+
     application->SetLayoutOverlapMask(ss.str(), std::move(overlap_mask));
-    
+
     auto function_space = pcms::XGCFunctionSpace(
       rc, ts::IsModelEntInOverlap{}, static_cast<pcms::LO>(mesh.nverts()));
-    
+
     application->AddLayout(ss.str(), function_space.GetLayout());
-    
+
     auto field = function_space.CreateField<pcms::GO>(
       std::make_unique<pcms::XGCFieldData<pcms::GO>>(
         function_space.GetXGCLayout(), pcms::FieldMetadata{},
         make_array_view(data[i])));
-    
+
     std::unique_ptr<pcms::FieldSerializer<GO>> serializer =
       std::make_unique<pcms::XGCFieldSerializer<GO>>(comm);
-    
-    fields.push_back(application->AddField(
-      ss.str(), std::move(field), std::move(serializer)));
+
+    fields.push_back(
+      application->AddField(ss.str(), std::move(field), std::move(serializer)));
   }
 
   do {
@@ -94,9 +93,10 @@ void xgc_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh,
   int rank;
   MPI_Comm_rank(comm, &rank);
   if (rank == 0) {
-    std::cout << "\n=== Field Communication Verification (NEW approach) ===" << std::endl;
+    std::cout << "\n=== Field Communication Verification (NEW approach) ==="
+              << std::endl;
     std::cout << "Total DOFs in field: " << data[0].size() << std::endl;
-    
+
     int received_count = 0;
     int zero_count = 0;
     for (size_t i = 0; i < data[0].size(); ++i) {
@@ -106,43 +106,47 @@ void xgc_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh,
         zero_count++;
       }
     }
-    
-    std::cout << "Field values received (non-zero): " << received_count << std::endl;
-    std::cout << "Field values not received (zero): " << zero_count << std::endl;
-    
+
+    std::cout << "Field values received (non-zero): " << received_count
+              << std::endl;
+    std::cout << "Field values not received (zero): " << zero_count
+              << std::endl;
+
     std::cout << "\nSample field data (plane 0, first 20 values):" << std::endl;
     for (int i = 0; i < std::min(20, static_cast<int>(data[0].size())); ++i) {
       std::cout << "  DOF[" << i << "] = " << data[0][i] << std::endl;
     }
-    
+
     int overlap_count = 0;
     auto class_dims = mesh.get_array<Omega_h::I8>(0, "class_dim");
     auto class_ids = mesh.get_array<Omega_h::ClassId>(0, "class_id");
     auto class_dims_h = Omega_h::HostRead(class_dims);
     auto class_ids_h = Omega_h::HostRead(class_ids);
-    
+
     for (int i = 0; i < mesh.nverts(); ++i) {
       if (ts::IsModelEntInOverlap{}(class_dims_h[i], class_ids_h[i])) {
         overlap_count++;
       }
     }
-    
+
     std::cout << "\nExpected overlap DOFs: " << overlap_count << std::endl;
-    std::cout << "Layout communicator count: " << application->GetLayoutCommunicatorCount() << std::endl;
-    std::cout << "======================================================\n" << std::endl;
+    std::cout << "Layout communicator count: "
+              << application->GetLayoutCommunicatorCount() << std::endl;
+    std::cout << "======================================================\n"
+              << std::endl;
   }
 
   Omega_h::vtk::write_parallel("proxy_couple_overlap", &mesh, mesh.dim());
 }
 
 void omegah_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh,
-                                  std::string_view cpn_file)
+                                 std::string_view cpn_file)
 {
   pcms::Coupler cpl("proxy_couple_server", comm, true,
-                     redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
+                    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
   auto* application = cpl.AddApplication("proxy_couple");
-  
+
   std::string numbering;
   if (mesh.has_tag(0, "simNumbering")) {
     numbering = "simNumbering";
@@ -157,36 +161,35 @@ void omegah_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh,
 
   constexpr int nplanes = 2;
   std::vector<pcms::FieldHandle<GO>> fields;
-  
+
   for (int i = 0; i < nplanes; ++i) {
     std::stringstream ss;
     ss << "xgc_gids_plane_" << i;
-    
+
     auto overlap_mask = std::make_unique<pcms::OverlapMask>(
-      mesh.nverts(), 
-      [](int dim, int id) -> int8_t { 
-        return ts::IsModelEntInOverlap{}(dim, id); 
+      mesh.nverts(), [](int dim, int id) -> int8_t {
+        return ts::IsModelEntInOverlap{}(dim, id);
       });
-    
+
     application->SetLayoutOverlapMask(ss.str(), std::move(overlap_mask));
-    
+
     auto factory = pcms::LagrangeFunctionSpace::FromMesh(
       mesh, 1, 1, pcms::CoordinateSystem::Cartesian, numbering,
       pcms::LagrangeFunctionSpace::Backend::OmegaH);
-    
+
     application->AddLayout(ss.str(), factory.GetLayout());
-    
-    auto field = factory.CreateField<GO>(
-      std::make_unique<pcms::SimpleFieldData<GO>>(
+
+    auto field =
+      factory.CreateField<GO>(std::make_unique<pcms::SimpleFieldData<GO>>(
         factory.GetLayout(), pcms::FieldMetadata{}));
-    
+
     std::unique_ptr<pcms::FieldSerializer<GO>> serializer =
       std::make_unique<pcms::FieldSerializer<GO>>();
-    
-    fields.push_back(application->AddField(
-      ss.str(), std::move(field), std::move(serializer)));
+
+    fields.push_back(
+      application->AddField(ss.str(), std::move(field), std::move(serializer)));
   }
-  
+
   do {
     application->ReceivePhase([&]() {
       std::for_each(fields.begin(), fields.end(),
@@ -205,7 +208,7 @@ void omegah_coupler_with_overlap(MPI_Comm comm, Omega_h::Mesh& mesh,
                     [](const pcms::FieldHandle<GO>& f) { f.Send(); });
     });
   } while (!done);
-  
+
   Omega_h::vtk::write_parallel("proxy_couple_overlap", &mesh, mesh.dim());
 }
 
@@ -215,7 +218,7 @@ int main(int argc, char** argv)
   auto world = lib.world();
   const int rank = world->rank();
   int size = world->size();
-  
+
   if (argc != 4) {
     if (!rank) {
       std::cerr << "Usage: " << argv[0]
@@ -233,7 +236,7 @@ int main(int argc, char** argv)
   Omega_h::Mesh mesh(&lib);
   Omega_h::binary::read(meshFile, lib.world(), &mesh);
   MPI_Comm mpi_comm = lib.world()->get_impl();
-  
+
   if (coupler_type == 0) {
     if (size != 1) {
       if (!rank) {
@@ -249,6 +252,6 @@ int main(int argc, char** argv)
     std::cerr << "Invalid coupler type. Choose 0 for XGC, 1 for Omega-h\n";
     std::abort();
   }
-  
+
   return 0;
 }

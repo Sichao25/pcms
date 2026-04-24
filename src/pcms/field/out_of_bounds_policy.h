@@ -25,8 +25,8 @@ enum class OutOfBoundsMode
 
 struct OutOfBoundsPolicy
 {
-  OutOfBoundsMode mode       = OutOfBoundsMode::ERROR;
-  Real            fill_value = 0.0;  // used only when mode == FILL
+  OutOfBoundsMode mode = OutOfBoundsMode::ERROR;
+  Real fill_value = 0.0; // used only when mode == FILL
 };
 
 } // namespace pcms

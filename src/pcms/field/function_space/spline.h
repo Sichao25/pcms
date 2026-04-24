@@ -22,10 +22,10 @@ class SplineFunctionSpace : public FunctionSpace
 {
 public:
   [[nodiscard]] static SplineFunctionSpace FromUniformGrid(
-    const UniformGrid<2>& grid,
-    CoordinateSystem coordinate_system);
+    const UniformGrid<2>& grid, CoordinateSystem coordinate_system);
 
-  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept override;
+  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout()
+    const noexcept override;
 
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
@@ -33,11 +33,11 @@ protected:
   [[nodiscard]] FieldVariant CreateFieldImpl(
     Type value_type, FieldMetadata metadata) const override;
 
-  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override;
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    FieldDataVariant data) const override;
 
   [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
-    Type value_type,
-    const EvaluationRequest& request) const override;
+    Type value_type, const EvaluationRequest& request) const override;
 
 private:
   explicit SplineFunctionSpace(

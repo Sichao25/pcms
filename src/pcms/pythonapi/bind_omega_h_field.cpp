@@ -24,13 +24,14 @@ void bind_omega_h_field(py::module& m)
     .def(py::init<>(), "Default constructor (mode=ERROR, fill_value=0)")
     .def(py::init([](OutOfBoundsMode mode, Real fill_value) {
            OutOfBoundsPolicy p;
-           p.mode       = mode;
+           p.mode = mode;
            p.fill_value = fill_value;
            return p;
          }),
          py::arg("mode"), py::arg("fill_value") = Real(0),
          "Construct with explicit mode and optional fill value")
-    .def_readwrite("mode", &OutOfBoundsPolicy::mode, "Out-of-bounds handling mode")
+    .def_readwrite("mode", &OutOfBoundsPolicy::mode,
+                   "Out-of-bounds handling mode")
     .def_readwrite("fill_value", &OutOfBoundsPolicy::fill_value,
                    "Fill value (used only when mode == FILL)");
 

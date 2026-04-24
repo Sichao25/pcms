@@ -11,21 +11,18 @@ namespace
 {
 
 template <typename T>
-Omega_h::Write<Omega_h::GO> GetGidsHelper(Omega_h::Mesh& mesh,
-                                          int entity_dim,
+Omega_h::Write<Omega_h::GO> GetGidsHelper(Omega_h::Mesh& mesh, int entity_dim,
                                           const std::string& global_id_name)
 {
   auto dim_gids = mesh.get_array<T>(entity_dim, global_id_name);
   Omega_h::Write<Omega_h::GO> gids(dim_gids.size());
   Omega_h::parallel_for(
-    dim_gids.size(),
-    OMEGA_H_LAMBDA(int i) { gids[i] = dim_gids[i]; });
+    dim_gids.size(), OMEGA_H_LAMBDA(int i) { gids[i] = dim_gids[i]; });
   return gids;
 }
 
-Omega_h::Write<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh,
-                                          int entity_dim,
-                                          const std::string& global_id_name)
+Omega_h::Write<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh, int entity_dim,
+                                      const std::string& global_id_name)
 {
   auto tag = mesh.get_tagbase(entity_dim, global_id_name);
   Omega_h::Write<Omega_h::GO> gids;
@@ -41,12 +38,13 @@ Omega_h::Write<Omega_h::GO> BuildGids(Omega_h::Mesh& mesh,
 }
 
 Kokkos::View<bool*, DeviceMemorySpace> BuildOwned(Omega_h::Mesh& mesh,
-                                                int entity_dim)
+                                                  int entity_dim)
 {
   Kokkos::View<bool*, DeviceMemorySpace> owned("owned", mesh.nents(entity_dim));
   auto owned_h = Omega_h::Read<Omega_h::I8>(mesh.owned(entity_dim));
-  Kokkos::parallel_for(mesh.nents(entity_dim),
-                       OMEGA_H_LAMBDA(int i) { owned(i) = static_cast<bool>(owned_h[i]); });
+  Kokkos::parallel_for(
+    mesh.nents(entity_dim),
+    OMEGA_H_LAMBDA(int i) { owned(i) = static_cast<bool>(owned_h[i]); });
   return owned;
 }
 
@@ -87,8 +85,8 @@ OmegaHEntityLayout::OmegaHEntityLayout(Omega_h::Mesh& mesh, int entity_dim,
   }
 }
 
-std::shared_ptr<const Discretization>
-OmegaHEntityLayout::GetDiscretization() const noexcept
+std::shared_ptr<const Discretization> OmegaHEntityLayout::GetDiscretization()
+  const noexcept
 {
   return discretization_;
 }
@@ -118,12 +116,15 @@ GlobalIDView<HostMemorySpace> OmegaHEntityLayout::GetGidsHost() const
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
-CoordinateView<DeviceMemorySpace> OmegaHEntityLayout::GetDOFHolderCoordinates() const
+CoordinateView<DeviceMemorySpace> OmegaHEntityLayout::GetDOFHolderCoordinates()
+  const
 {
-  using LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
+  using LayoutPolicy =
+    detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
   Rank2View<const Real, DeviceMemorySpace, LayoutPolicy> coords_view(
     coords_2d_.data(), GetNumOwnedDofHolder(), dimension_);
-  return CoordinateView<DeviceMemorySpace, LayoutPolicy>{coordinate_system_, coords_view};
+  return CoordinateView<DeviceMemorySpace, LayoutPolicy>{coordinate_system_,
+                                                         coords_view};
 }
 
 bool OmegaHEntityLayout::IsDistributed() const

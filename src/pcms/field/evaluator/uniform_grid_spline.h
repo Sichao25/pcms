@@ -16,8 +16,10 @@
 namespace pcms
 {
 
-template <typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
-class UniformGridSplinePointEvaluator2D : public PointEvaluator<Real, LayoutPolicy>
+template <typename LayoutPolicy =
+            detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+class UniformGridSplinePointEvaluator2D
+  : public PointEvaluator<Real, LayoutPolicy>
 {
 public:
   UniformGridSplinePointEvaluator2D(
@@ -40,8 +42,9 @@ public:
     }
   }
 
-  void Evaluate(const Field<Real>& field,
-                Rank2View<Real, DeviceMemorySpace, LayoutPolicy> values) const override
+  void Evaluate(
+    const Field<Real>& field,
+    Rank2View<Real, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     LO num_points = static_cast<LO>(hint_.coordinates_.extent(0));
     PCMS_ALWAYS_ASSERT(values.extent(0) == static_cast<size_t>(num_points));
@@ -72,9 +75,9 @@ public:
 
     LO num_in_bounds = static_cast<LO>(num_points - hint_.num_out_of_bounds_);
     Kokkos::View<Real*, DeviceMemorySpace> eval_x("uniform_grid_spline_eval_x",
-                                                num_in_bounds);
+                                                  num_in_bounds);
     Kokkos::View<Real*, DeviceMemorySpace> eval_y("uniform_grid_spline_eval_y",
-                                                num_in_bounds);
+                                                  num_in_bounds);
     Kokkos::View<LO*, DeviceMemorySpace> in_bounds_indices(
       "uniform_grid_spline_in_bounds_indices", num_in_bounds);
 
@@ -107,7 +110,7 @@ public:
       Rank1View<Real, DeviceMemorySpace>(x_coords_.data(), x_coords_.extent(0)),
       Rank1View<Real, DeviceMemorySpace>(y_coords_.data(), y_coords_.extent(0)),
       Rank1View<Real, DeviceMemorySpace>(spline_values.data(),
-                                       spline_values.extent(0)),
+                                         spline_values.extent(0)),
       BoundaryCondition::NOT_A_KNOT,
       Rank1View<Real, DeviceMemorySpace>(empty_bc.data(), empty_bc.extent(0)),
       BoundaryCondition::NOT_A_KNOT,
@@ -120,7 +123,7 @@ public:
       Rank1View<Real, DeviceMemorySpace>(eval_x.data(), eval_x.extent(0)),
       Rank1View<Real, DeviceMemorySpace>(eval_y.data(), eval_y.extent(0)),
       Rank2View<Real, DeviceMemorySpace>(spline_output.data(),
-                                       spline_output.extent(0), 1));
+                                         spline_output.extent(0), 1));
 
     if (hint_.mode_ == OutOfBoundsMode::FILL) {
       Kokkos::parallel_for(
@@ -131,7 +134,6 @@ public:
             values(i, 0) = fill_value_;
           }
         });
-
     }
 
     Kokkos::parallel_for(
@@ -198,8 +200,9 @@ public:
 
     auto coordinates = coords.GetCoordinates();
     LO num_points = static_cast<LO>(coordinates.extent(0));
-    
-    Kokkos::View<Real**, DeviceMemorySpace> coordinates_d("coordinates_d", num_points, 2);
+
+    Kokkos::View<Real**, DeviceMemorySpace> coordinates_d("coordinates_d",
+                                                          num_points, 2);
     Kokkos::parallel_for(
       "copy_coordinates",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_points),
@@ -209,9 +212,11 @@ public:
         }
       });
 
-    Kokkos::View<LO*, DeviceMemorySpace> cell_indices_device("cell_indices", num_points);
-    Kokkos::View<bool*, DeviceMemorySpace> is_out_of_bounds_device("is_out_of_bounds", num_points);
-    
+    Kokkos::View<LO*, DeviceMemorySpace> cell_indices_device("cell_indices",
+                                                             num_points);
+    Kokkos::View<bool*, DeviceMemorySpace> is_out_of_bounds_device(
+      "is_out_of_bounds", num_points);
+
     // Parallel reduction to compute cell indices and count out-of-bounds points
     size_t num_out_of_bounds = 0;
     Kokkos::parallel_reduce(
@@ -232,25 +237,25 @@ public:
         cell_indices_device(i) = grid_.ClosestCellID(point);
       },
       num_out_of_bounds);
-    
+
     // Check for errors after kernel execution
     if (num_out_of_bounds > 0 && policy.mode == OutOfBoundsMode::ERROR) {
-      throw pcms_error(
-        "UniformGridSplineEvaluatorFactory2D: " + std::to_string(num_out_of_bounds) +
-        " point(s) found outside uniform grid domain");
+      throw pcms_error("UniformGridSplineEvaluatorFactory2D: " +
+                       std::to_string(num_out_of_bounds) +
+                       " point(s) found outside uniform grid domain");
     }
 
-    UniformGridFieldLocalizationHint<2> hint(cell_indices_device, coordinates_d,
-                                             policy.mode, is_out_of_bounds_device,
-                                             num_out_of_bounds);
+    UniformGridFieldLocalizationHint<2> hint(
+      cell_indices_device, coordinates_d, policy.mode, is_out_of_bounds_device,
+      num_out_of_bounds);
     return std::make_unique<UniformGridSplinePointEvaluator2D<>>(
       layout_, std::move(hint), policy.fill_value);
   }
 
   CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const override
   {
-    throw pcms_error(
-      "UniformGridSplineEvaluatorFactory2D: GetDOFHolderCoordinates not yet implemented");
+    throw pcms_error("UniformGridSplineEvaluatorFactory2D: "
+                     "GetDOFHolderCoordinates not yet implemented");
   }
 
 private:

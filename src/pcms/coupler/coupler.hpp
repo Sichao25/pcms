@@ -60,8 +60,7 @@ public:
 
   // Set the overlap mask for a specific layout by name
   void SetLayoutOverlapMask(const std::string& layout_name,
-                           std::unique_ptr<OverlapMask> overlap_mask);
-
+                            std::unique_ptr<OverlapMask> overlap_mask);
 
   template <typename T>
   FieldHandle<T> AddField(std::string name, Field<T>&& field,
@@ -273,8 +272,8 @@ pcms::FieldHandle<T> pcms::Application::AddField(
     std::make_unique<FieldCommunicator<T>>(name, layout_communicator, field_obj,
                                            std::move(serializer));
 
-  auto [it, inserted] = field_communicators_.emplace(name,
-                                                     std::move(field_communicator));
+  auto [it, inserted] =
+    field_communicators_.emplace(name, std::move(field_communicator));
   if (!inserted) {
     fields_.erase(field_it);
     throw pcms_error("Field with this name already exists");

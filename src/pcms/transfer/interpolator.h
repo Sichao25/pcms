@@ -35,13 +35,11 @@ class Interpolator : public TransferOperator<T>
 public:
   // Expensive: localizes target DOF coords into source mesh. Called once.
   Interpolator(const FunctionSpace& source_space,
-               const FunctionSpace& target_space,
-               OutOfBoundsPolicy policy = {})
-    : num_points_(static_cast<LO>(
-        target_space.GetLayout()
-            ->GetDOFHolderCoordinates()
-            .GetCoordinates()
-            .extent(0))),
+               const FunctionSpace& target_space, OutOfBoundsPolicy policy = {})
+    : num_points_(static_cast<LO>(target_space.GetLayout()
+                                    ->GetDOFHolderCoordinates()
+                                    .GetCoordinates()
+                                    .extent(0))),
       n_comp_(target_space.GetLayout()->GetNumComponents()),
       evaluator_(source_space.CreatePointEvaluator<T>(
         EvaluationRequest::FromFunctionSpace(target_space, policy)))
@@ -54,9 +52,9 @@ public:
   {
     PCMS_FUNCTION_TIMER;
     const LO num_points = num_points_;
-    const int n_comp    = n_comp_;
+    const int n_comp = n_comp_;
     Kokkos::View<T**, DeviceMemorySpace> output("interp_output", num_points,
-                                               n_comp);
+                                                n_comp);
     auto output_view = MakeRank2View(output);
     evaluator_->Evaluate(source, output_view);
     Kokkos::View<T*, DeviceMemorySpace> flat(

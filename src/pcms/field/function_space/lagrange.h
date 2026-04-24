@@ -28,7 +28,11 @@ namespace pcms
 class LagrangeFunctionSpace : public FunctionSpace
 {
 public:
-  enum class Backend { MeshFields, OmegaH };
+  enum class Backend
+  {
+    MeshFields,
+    OmegaH
+  };
 
 #ifdef PCMS_ENABLE_MESHFIELDS
   static constexpr Backend DefaultBackend = Backend::MeshFields;
@@ -39,31 +43,26 @@ public:
   // Unstructured mesh — dispatches to MeshFields or native Omega_h backend
   [[nodiscard]] static LagrangeFunctionSpace FromMesh(
     Omega_h::Mesh& mesh, int order, int num_components,
-    CoordinateSystem coordinate_system,
-    std::string global_id_name = "global",
+    CoordinateSystem coordinate_system, std::string global_id_name = "global",
     Backend backend = DefaultBackend);
 
   [[nodiscard]] static LagrangeFunctionSpace FromMesh(
     Omega_h::Mesh& mesh, int order, int num_components,
-    CoordinateSystem coordinate_system,
-    Omega_h::Read<Omega_h::I8> owned_mask,
-    std::string global_id_name = "global",
-    Backend backend = DefaultBackend);
+    CoordinateSystem coordinate_system, Omega_h::Read<Omega_h::I8> owned_mask,
+    std::string global_id_name = "global", Backend backend = DefaultBackend);
 
-  // Structured uniform grid — order-1 H1-conforming nodal field on a regular grid
+  // Structured uniform grid — order-1 H1-conforming nodal field on a regular
+  // grid
   [[nodiscard]] static LagrangeFunctionSpace FromUniformGrid(
-    const UniformGrid<2>& grid,
-    int num_components,
-    CoordinateSystem coordinate_system,
-    int order = 1);
+    const UniformGrid<2>& grid, int num_components,
+    CoordinateSystem coordinate_system, int order = 1);
 
   [[nodiscard]] static LagrangeFunctionSpace FromUniformGrid(
-    const UniformGrid<3>& grid,
-    int num_components,
-    CoordinateSystem coordinate_system,
-    int order = 1);
+    const UniformGrid<3>& grid, int num_components,
+    CoordinateSystem coordinate_system, int order = 1);
 
-  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout() const noexcept override;
+  [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout()
+    const noexcept override;
 
   [[nodiscard]] CoordinateSystem GetCoordinateSystem() const noexcept override;
 
@@ -71,11 +70,11 @@ protected:
   [[nodiscard]] FieldVariant CreateFieldImpl(
     Type value_type, FieldMetadata metadata) const override;
 
-  [[nodiscard]] FieldVariant CreateFieldImpl(FieldDataVariant data) const override;
+  [[nodiscard]] FieldVariant CreateFieldImpl(
+    FieldDataVariant data) const override;
 
   [[nodiscard]] PointEvaluatorVariant CreatePointEvaluatorImpl(
-    Type value_type,
-    const EvaluationRequest& request) const override;
+    Type value_type, const EvaluationRequest& request) const override;
 
 private:
   explicit LagrangeFunctionSpace(

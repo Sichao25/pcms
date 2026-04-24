@@ -13,24 +13,22 @@ namespace pcms
 SplineFunctionSpace::SplineFunctionSpace(
   std::shared_ptr<const FieldLayout> layout,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
-  : layout_(std::move(layout)),
-    evaluator_factory_(std::move(evaluator_factory))
+  : layout_(std::move(layout)), evaluator_factory_(std::move(evaluator_factory))
 {
 }
 
 SplineFunctionSpace SplineFunctionSpace::FromUniformGrid(
-  const UniformGrid<2>& grid,
-  CoordinateSystem coordinate_system)
+  const UniformGrid<2>& grid, CoordinateSystem coordinate_system)
 {
-  auto layout = std::make_shared<UniformGridFieldLayout<2>>(
-    grid, 1, coordinate_system, 1);
+  auto layout =
+    std::make_shared<UniformGridFieldLayout<2>>(grid, 1, coordinate_system, 1);
   auto evaluator_factory =
     std::make_shared<UniformGridSplineEvaluatorFactory2D>(layout);
   return SplineFunctionSpace(layout, std::move(evaluator_factory));
 }
 
-std::shared_ptr<const FieldLayout>
-SplineFunctionSpace::GetLayout() const noexcept
+std::shared_ptr<const FieldLayout> SplineFunctionSpace::GetLayout()
+  const noexcept
 {
   return layout_;
 }
@@ -40,15 +38,14 @@ CoordinateSystem SplineFunctionSpace::GetCoordinateSystem() const noexcept
   return evaluator_factory_->GetCoordinateSystem();
 }
 
-FieldVariant SplineFunctionSpace::CreateFieldImpl(
-  Type value_type, FieldMetadata metadata) const
+FieldVariant SplineFunctionSpace::CreateFieldImpl(Type value_type,
+                                                  FieldMetadata metadata) const
 {
   return apply_to_type(value_type, [&](auto tag) -> FieldVariant {
     using T = typename decltype(tag)::type;
     if constexpr (!std::is_same_v<T, double>) {
       throw pcms_error("SplineFunctionSpace: only double (Real) is supported");
-    }
-    else {
+    } else {
       return WrapField<double>(
         layout_, std::make_unique<SimpleFieldData<double>>(layout_, metadata),
         evaluator_factory_);
@@ -77,8 +74,7 @@ FieldVariant SplineFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
 }
 
 PointEvaluatorVariant SplineFunctionSpace::CreatePointEvaluatorImpl(
-  Type value_type,
-  const EvaluationRequest& request) const
+  Type value_type, const EvaluationRequest& request) const
 {
   if (value_type != Type::Real) {
     throw pcms_error(

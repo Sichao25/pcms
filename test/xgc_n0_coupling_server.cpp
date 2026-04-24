@@ -43,8 +43,8 @@ struct RegisteredField
 [[nodiscard]]
 static RegisteredField AddField(
   pcms::Application* application,
-  const pcms::LagrangeFunctionSpace& function_space,
-  const std::string& name, const std::string& path, int plane)
+  const pcms::LagrangeFunctionSpace& function_space, const std::string& name,
+  const std::string& path, int plane)
 {
   PCMS_ALWAYS_ASSERT(application != nullptr);
   auto field_name = MakeFieldName(name, plane);
@@ -200,9 +200,8 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
   MPI_Comm_rank(comm, &rank);
   auto time1 = std::chrono::steady_clock::now();
 
-  pcms::Coupler cpl(
-    "xgc_n0_coupling", comm, true,
-    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
+  pcms::Coupler cpl("xgc_n0_coupling", comm, true,
+                    redev::Partition{ts::setupServerPartition(mesh, cpn_file)});
   const auto partition = std::get<redev::ClassPtn>(cpl.GetPartition());
   std::string numbering = "simNumbering";
   PCMS_ALWAYS_ASSERT(mesh.has_tag(0, numbering));

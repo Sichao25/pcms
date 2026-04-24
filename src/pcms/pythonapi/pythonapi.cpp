@@ -41,8 +41,9 @@ PYBIND11_MODULE(pcms, m)
 
   // Bind mesh and field infrastructure
   pcms::bind_omega_h_mesh_module(m);
-  // bind_field_module is a no-op stub — FieldT<T>/LocalizationHint/FieldDataView
-  // have been removed from the C++ API.
+  // bind_field_module is a no-op stub —
+  // FieldT<T>/LocalizationHint/FieldDataView have been removed from the C++
+  // API.
   pcms::bind_field_module(m);
   pcms::bind_uniform_grid_field_layout_module(m);
   // Bind OutOfBoundsPolicy before FunctionSpace so the default argument in

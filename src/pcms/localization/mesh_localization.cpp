@@ -33,10 +33,11 @@ SupportResults AdjacencyLocalizationFactory::Build(
     Omega_h::Reals target_coords_oh =
       flatten_to_omega_h_reals(tgt_view, "tgt_coords");
 
-    return searchNeighbors(source_mesh_, target_coords_oh, n_tgt, radius_sq,
-                           static_cast<Omega_h::LO>(options_.min_req_supports),
-                           static_cast<Omega_h::LO>(3 * options_.min_req_supports),
-                           options_.adapt_radius);
+    return searchNeighbors(
+      source_mesh_, target_coords_oh, n_tgt, radius_sq,
+      static_cast<Omega_h::LO>(options_.min_req_supports),
+      static_cast<Omega_h::LO>(3 * options_.min_req_supports),
+      options_.adapt_radius);
   }
   const Omega_h::Reals src_oh =
     get_entity_centroids(source_mesh_, source_entity_dim_);
@@ -44,12 +45,13 @@ SupportResults AdjacencyLocalizationFactory::Build(
   Omega_h::Reals target_coords_oh =
     flatten_to_omega_h_reals(tgt_view, "tgt_coords");
 
-  return BuildPointCloudSupports(src_oh, target_coords_oh, dim,
-                                 options_.radius, options_.min_req_supports,
+  return BuildPointCloudSupports(src_oh, target_coords_oh, dim, options_.radius,
+                                 options_.min_req_supports,
                                  options_.adapt_radius);
 }
 
-SupportResults AdjacencyLocalizationFactory::BuildSameMeshCentroidToVertex() const
+SupportResults AdjacencyLocalizationFactory::BuildSameMeshCentroidToVertex()
+  const
 {
   PCMS_ALWAYS_ASSERT(source_entity_dim_ == Face);
   PCMS_ALWAYS_ASSERT(source_mesh_.dim() == 2);

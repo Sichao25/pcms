@@ -25,7 +25,7 @@ void bind_transfer_field_module(py::module& m)
          py::array_t<Real> output) {
         auto output_view = numpy_to_kokkos_view_2d<Real>(output);
         auto output_device = Kokkos::View<Real**, DeviceMemorySpace>(
-            "output_device", output_view.extent(0), output_view.extent(1));
+          "output_device", output_view.extent(0), output_view.extent(1));
         DeepCopyMismatchLayouts(output_device, output_view);
         auto output_rank2 = MakeRank2View(output_device);
         self.Evaluate(field, output_rank2);
@@ -40,21 +40,22 @@ void bind_transfer_field_module(py::module& m)
   // pair (localization happens at construction), then call apply() repeatedly
   // for different field states at zero additional localization cost.
   py::class_<Interpolator<Real>>(m, "Interpolator")
-    .def(py::init([](const FunctionSpace& source_space,
-                     const FunctionSpace& target_space,
-                     OutOfBoundsPolicy policy) {
-           return Interpolator<Real>(source_space, target_space, policy);
-         }),
-         py::arg("source_space"), py::arg("target_space"),
-         py::arg("policy") = OutOfBoundsPolicy{},
-         "Construct an interpolator. Localization is performed here and cached. "
-         "Call apply() repeatedly without re-localizing.")
+    .def(
+      py::init([](const FunctionSpace& source_space,
+                  const FunctionSpace& target_space, OutOfBoundsPolicy policy) {
+        return Interpolator<Real>(source_space, target_space, policy);
+      }),
+      py::arg("source_space"), py::arg("target_space"),
+      py::arg("policy") = OutOfBoundsPolicy{},
+      "Construct an interpolator. Localization is performed here and cached. "
+      "Call apply() repeatedly without re-localizing.")
     .def(
       "apply",
       [](const Interpolator<Real>& self, const Field<Real>& source,
          Field<Real>& target) { self.Apply(source, target); },
       py::arg("source"), py::arg("target"),
-      "Interpolate source field to target DOF locations (cheap; reuses cached localization).");
+      "Interpolate source field to target DOF locations (cheap; reuses cached "
+      "localization).");
 
   py::class_<Copy<Real>>(m, "Copy")
     .def(py::init([](const FunctionSpace& source_space,

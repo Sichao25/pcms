@@ -19,8 +19,8 @@ public:
   UniformGridFieldLayout(UniformGrid<Dim> grid, int num_components,
                          CoordinateSystem coordinate_system, int order = 1);
 
-  std::shared_ptr<const Discretization>
-  GetDiscretization() const noexcept override;
+  std::shared_ptr<const Discretization> GetDiscretization()
+    const noexcept override;
 
   int GetNumComponents() const override;
   LO GetNumOwnedDofHolder() const override;
@@ -39,8 +39,8 @@ public:
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensionsHost() const override;
 
-  Rank1View<const LO, HostMemorySpace>
-  GetDOFHolderClassificationIdsHost() const override;
+  Rank1View<const LO, HostMemorySpace> GetDOFHolderClassificationIdsHost()
+    const override;
 
   const UniformGrid<Dim>& GetGrid() const;
   LO GetNumCells() const;

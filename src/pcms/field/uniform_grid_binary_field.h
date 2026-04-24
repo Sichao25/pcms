@@ -33,27 +33,27 @@ namespace pcms
  * \return Pair of (layout, field) with binary mask values.
  */
 template <unsigned Dim>
-std::pair<std::shared_ptr<const UniformGridFieldLayout<Dim>>,
-          Field<Real>>
+std::pair<std::shared_ptr<const UniformGridFieldLayout<Dim>>, Field<Real>>
 CreateUniformGridBinaryField(Omega_h::Mesh& mesh, const UniformGrid<Dim>& grid)
 {
-  auto function_space =
-    LagrangeFunctionSpace::FromUniformGrid(grid, 1, CoordinateSystem::Cartesian);
-  auto layout =
-    std::dynamic_pointer_cast<const UniformGridFieldLayout<Dim>>(function_space.GetLayout());
+  auto function_space = LagrangeFunctionSpace::FromUniformGrid(
+    grid, 1, CoordinateSystem::Cartesian);
+  auto layout = std::dynamic_pointer_cast<const UniformGridFieldLayout<Dim>>(
+    function_space.GetLayout());
   PCMS_ALWAYS_ASSERT(layout != nullptr);
   auto field = function_space.template CreateField<Real>(FieldMetadata{});
 
   auto coord_view = layout->GetDOFHolderCoordinates();
-  auto coords     = coord_view.GetCoordinates();
-  LO n            = layout->GetNumOwnedDofHolder();
+  auto coords = coord_view.GetCoordinates();
+  LO n = layout->GetNumOwnedDofHolder();
 
   Kokkos::View<Real* [Dim]> coords_d("coords_d", n);
-  Kokkos::parallel_for("CopyCoords", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) {
-    for (int d = 0; d < Dim; ++d) {
-      coords_d(i, d) = coords(i, d);
-    }
-  });
+  Kokkos::parallel_for(
+    "CopyCoords", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) {
+      for (int d = 0; d < Dim; ++d) {
+        coords_d(i, d) = coords(i, d);
+      }
+    });
 
   // Run point-in-mesh search
   Kokkos::View<typename PointLocalizationSearch<Dim>::Result*> results_d;
@@ -62,7 +62,7 @@ CreateUniformGridBinaryField(Omega_h::Mesh& mesh, const UniformGrid<Dim>& grid)
     results_d = search(coords_d);
   } else {
     GridPointSearch3D search(mesh, grid.divisions[0], grid.divisions[1],
-                              grid.divisions[2]);
+                             grid.divisions[2]);
     results_d = search(coords_d);
   }
   auto results_h =
@@ -82,10 +82,9 @@ CreateUniformGridBinaryField(Omega_h::Mesh& mesh, const UniformGrid<Dim>& grid)
  * \brief Convenience overload: derives the grid from the mesh bounding box.
  */
 template <unsigned Dim>
-std::pair<std::shared_ptr<const UniformGridFieldLayout<Dim>>,
-          Field<Real>>
+std::pair<std::shared_ptr<const UniformGridFieldLayout<Dim>>, Field<Real>>
 CreateUniformGridBinaryField(Omega_h::Mesh& mesh,
-                              const std::array<LO, Dim>& divisions)
+                             const std::array<LO, Dim>& divisions)
 {
   return CreateUniformGridBinaryField<Dim>(
     mesh, CreateUniformGridFromMesh<Dim>(mesh, divisions));

@@ -38,16 +38,17 @@ private:
 };
 
 template <unsigned Dim>
-UniformGridDiscretization<Dim>::UniformGridDiscretization(
-  UniformGrid<Dim> grid)
+UniformGridDiscretization<Dim>::UniformGridDiscretization(UniformGrid<Dim> grid)
   : grid_(std::move(grid)),
-    vertex_class_dims_("uniform_grid_vertex_class_dims", [&]() {
-      LO n = 1;
-      for (unsigned d = 0; d < Dim; ++d)
-        n *= (grid_.divisions[d] + 1);
-      return n;
-    }()),
-    vertex_class_ids_("uniform_grid_vertex_class_ids", vertex_class_dims_.extent(0)),
+    vertex_class_dims_("uniform_grid_vertex_class_dims",
+                       [&]() {
+                         LO n = 1;
+                         for (unsigned d = 0; d < Dim; ++d)
+                           n *= (grid_.divisions[d] + 1);
+                         return n;
+                       }()),
+    vertex_class_ids_("uniform_grid_vertex_class_ids",
+                      vertex_class_dims_.extent(0)),
     cell_class_dims_("uniform_grid_cell_class_dims", grid_.GetNumCells()),
     cell_class_ids_("uniform_grid_cell_class_ids", cell_class_dims_.extent(0))
 {
@@ -101,7 +102,8 @@ UniformGridDiscretization<Dim>::GetEntityClassificationDimensions(
     return make_const_array_view(vertex_class_dims_);
   if (entity_dim == CellEntityDim)
     return make_const_array_view(cell_class_dims_);
-  return Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr, 0);
+  return Rank1View<const ClassificationDimension, DeviceMemorySpace>(nullptr,
+                                                                     0);
 }
 
 template <unsigned Dim>

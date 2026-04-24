@@ -22,20 +22,16 @@ class FieldExchangePlanner
 {
 public:
   virtual ExchangePlan BuildExchangePlan(
-    const FieldLayout& layout,
-    const redev::Partition& partition,
+    const FieldLayout& layout, const redev::Partition& partition,
     const OverlapMask* overlap_mask = nullptr) const = 0;
 
   virtual ExchangePlan BuildReceivePlan(
-    const FieldLayout& layout,
-    GlobalIDView<HostMemorySpace> received_gids,
-    int rank,
-    int nproc,
+    const FieldLayout& layout, GlobalIDView<HostMemorySpace> received_gids,
+    int rank, int nproc,
     const redev::InMessageLayout& in_message_layout) const = 0;
 
   virtual void FillGidMessage(
-    const FieldLayout& layout,
-    const ExchangePlan& plan,
+    const FieldLayout& layout, const ExchangePlan& plan,
     Rank1View<GO, HostMemorySpace> gid_message) const = 0;
 
   virtual ~FieldExchangePlanner() noexcept = default;
@@ -45,20 +41,16 @@ class GenericFieldExchangePlanner : public FieldExchangePlanner
 {
 public:
   ExchangePlan BuildExchangePlan(
-    const FieldLayout& layout,
-    const redev::Partition& partition,
+    const FieldLayout& layout, const redev::Partition& partition,
     const OverlapMask* overlap_mask = nullptr) const override;
 
   ExchangePlan BuildReceivePlan(
-    const FieldLayout& layout,
-    GlobalIDView<HostMemorySpace> received_gids,
-    int rank,
-    int nproc,
+    const FieldLayout& layout, GlobalIDView<HostMemorySpace> received_gids,
+    int rank, int nproc,
     const redev::InMessageLayout& in_message_layout) const override;
 
   void FillGidMessage(
-    const FieldLayout& layout,
-    const ExchangePlan& plan,
+    const FieldLayout& layout, const ExchangePlan& plan,
     Rank1View<GO, HostMemorySpace> gid_message) const override;
 };
 

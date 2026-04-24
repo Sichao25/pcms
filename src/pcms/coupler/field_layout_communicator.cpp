@@ -23,8 +23,9 @@ FieldLayoutCommunicator::FieldLayoutCommunicator(
     name_(name),
     redev_(redev),
     planner_(std::move(planner)),
-    overlap_mask_(overlap_mask ? std::make_unique<OverlapMask>(*overlap_mask) 
-                               : std::make_unique<OverlapMask>(layout.GetGidsHost().size())),
+    overlap_mask_(overlap_mask ? std::make_unique<OverlapMask>(*overlap_mask)
+                               : std::make_unique<OverlapMask>(
+                                   layout.GetGidsHost().size())),
     own_mpi_comm_(own_mpi_comm)
 {
   gid_comm_ = channel.CreateComm<GO>(name_ + "_gids", mpi_comm_);
@@ -71,15 +72,13 @@ void FieldLayoutCommunicator::UpdateLayout()
   PCMS_FUNCTION_TIMER;
   if (redev_.GetProcessType() == redev::ProcessType::Client) {
     // overlap_mask_ is always non-null (created in constructor if not provided)
-    plan_ = planner_->BuildExchangePlan(layout_,
-                                        redev::Partition{redev_.GetPartition()},
-                                        overlap_mask_.get());
+    plan_ = planner_->BuildExchangePlan(
+      layout_, redev::Partition{redev_.GetPartition()}, overlap_mask_.get());
     gid_comm_.SetOutMessageLayout(plan_.dest_ranks, plan_.offsets);
     std::vector<GO> gid_message(plan_.msg_size);
-    planner_->FillGidMessage(layout_,
-                             plan_,
-                             Rank1View<GO, HostMemorySpace>(gid_message.data(),
-                                                            gid_message.size()));
+    planner_->FillGidMessage(
+      layout_, plan_,
+      Rank1View<GO, HostMemorySpace>(gid_message.data(), gid_message.size()));
 
     channel_.BeginSendCommunicationPhase();
     gid_comm_.Send(gid_message.data());

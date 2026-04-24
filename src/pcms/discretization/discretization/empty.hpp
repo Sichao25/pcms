@@ -24,7 +24,6 @@ public:
 
   Rank1View<const ClassificationId, DeviceMemorySpace>
   GetEntityClassificationIds(int entity_dim) const override;
-
 };
 
 } // namespace pcms

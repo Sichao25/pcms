@@ -10,8 +10,10 @@ namespace pcms
 PointCloud::PointCloud(std::shared_ptr<const PointCloudLayout> layout)
   : layout_(std::move(layout)),
     metadata_{},
-    device_data_("", layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0)),
-    data_host_("", layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0))
+    device_data_("",
+                 layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0)),
+    data_host_("",
+               layout_->GetDOFHolderCoordinates().GetCoordinates().extent(0))
 {
 }
 
@@ -39,8 +41,7 @@ Rank1View<const Real, DeviceMemorySpace> PointCloud::GetDOFHolderData() const
   return make_const_array_view(device_data_);
 }
 
-void PointCloud::SetDOFHolderData(
-  Rank1View<const Real, DeviceMemorySpace> data)
+void PointCloud::SetDOFHolderData(Rank1View<const Real, DeviceMemorySpace> data)
 {
   PCMS_FUNCTION_TIMER;
   PCMS_ALWAYS_ASSERT(data.size() == device_data_.size());

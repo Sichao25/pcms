@@ -18,9 +18,7 @@ public:
   // The view must remain valid for the lifetime of this object.
   XGCFieldData(std::shared_ptr<const XGCFieldLayout> layout,
                FieldMetadata metadata, Rank1View<T, HostMemorySpace> data)
-    : layout_(std::move(layout)),
-      metadata_(metadata),
-      data_(data)
+    : layout_(std::move(layout)), metadata_(metadata), data_(data)
   {
     PCMS_ALWAYS_ASSERT(layout_ != nullptr);
     PCMS_ALWAYS_ASSERT(static_cast<LO>(data_.size()) ==
@@ -60,7 +58,8 @@ public:
 
   Rank1View<const T, DeviceMemorySpace> GetDOFHolderData() const override
   {
-    Kokkos::View<T*, HostMemorySpace> host_view("GetDOFHolderData_host_view", data_.size());
+    Kokkos::View<T*, HostMemorySpace> host_view("GetDOFHolderData_host_view",
+                                                data_.size());
     for (size_t i = 0; i < data_.size(); ++i) {
       host_view(i) = data_(i);
     }
@@ -68,8 +67,7 @@ public:
     return make_const_array_view(device_data_);
   }
 
-  void SetDOFHolderData(
-    Rank1View<const T, DeviceMemorySpace> values) override
+  void SetDOFHolderData(Rank1View<const T, DeviceMemorySpace> values) override
   {
     CopyDeviceRank1ViewToDeviceView(device_data_, values);
     CopyRank1ViewToHost(data_, values);

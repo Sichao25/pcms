@@ -14,13 +14,15 @@ enum class CoordinateSystem
   BEAMS3D
 };
 
-template <typename MemorySpace, 
-          typename LayoutPolicy = detail::default_layout_for_memory_space_t<MemorySpace>>
+template <typename MemorySpace,
+          typename LayoutPolicy =
+            detail::default_layout_for_memory_space_t<MemorySpace>>
 class CoordinateView
 {
 public:
-  CoordinateView(CoordinateSystem cs,
-                 Rank2View<const Real, MemorySpace, LayoutPolicy> coords) noexcept
+  CoordinateView(
+    CoordinateSystem cs,
+    Rank2View<const Real, MemorySpace, LayoutPolicy> coords) noexcept
     : coordinate_system_(cs), coordinates_(coords)
   {
   }
@@ -30,8 +32,8 @@ public:
     return coordinate_system_;
   }
 
-  [[nodiscard]] Rank2View<const Real, MemorySpace, LayoutPolicy> GetCoordinates()
-    const noexcept
+  [[nodiscard]] Rank2View<const Real, MemorySpace, LayoutPolicy>
+  GetCoordinates() const noexcept
   {
     return coordinates_;
   }
@@ -39,7 +41,8 @@ public:
   // would prefer if these operations were limited to use by
   // CoordinateTransformation as they are unsafe (i.e., you can break class
   // invariant) passkey pattern?
-  [[nodiscard]] Rank2View<const Real, MemorySpace, LayoutPolicy> GetCoordinates() noexcept
+  [[nodiscard]] Rank2View<const Real, MemorySpace, LayoutPolicy>
+  GetCoordinates() noexcept
   {
     return coordinates_;
   }

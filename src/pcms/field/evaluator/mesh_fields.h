@@ -14,10 +14,13 @@
 namespace pcms
 {
 
-// MeshFieldsPointEvaluator<T> implements PointEvaluator<T> for MeshFields-backed
-// simplex meshes. Each Evaluate call loads DOF data from the FieldData argument
-// into the MeshFieldBackend's shape_field_ via SetData, then calls evaluate().
-template <typename T, typename LayoutPolicy = detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
+// MeshFieldsPointEvaluator<T> implements PointEvaluator<T> for
+// MeshFields-backed simplex meshes. Each Evaluate call loads DOF data from the
+// FieldData argument into the MeshFieldBackend's shape_field_ via SetData, then
+// calls evaluate().
+template <typename T,
+          typename LayoutPolicy =
+            detail::default_layout_for_memory_space_t<DeviceMemorySpace>>
 class MeshFieldsPointEvaluator : public PointEvaluator<T, LayoutPolicy>
 {
 public:
@@ -30,8 +33,9 @@ public:
   {
   }
 
-  void Evaluate(const Field<T>& field,
-                Rank2View<T, DeviceMemorySpace, LayoutPolicy> values) const override
+  void Evaluate(
+    const Field<T>& field,
+    Rank2View<T, DeviceMemorySpace, LayoutPolicy> values) const override
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(values.extent(0) ==
@@ -90,8 +94,7 @@ public:
       search_(mesh_, 10, 10)
   {
     if (mesh_.dim() == 3) {
-      throw pcms_error(
-        "MeshFieldsEvaluatorFactory does not support 3D meshes");
+      throw pcms_error("MeshFieldsEvaluatorFactory does not support 3D meshes");
     }
     if (layout_->GetNumComponents() != 1) {
       throw pcms_error(
@@ -129,7 +132,9 @@ public:
     Kokkos::View<Real* [2], DeviceMemorySpace> coords_search(
       "coords_search", coordinates.extent(0));
     Kokkos::parallel_for(
-      "copy_coords", Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, coordinates.extent(0)),
+      "copy_coords",
+      Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
+        0, coordinates.extent(0)),
       KOKKOS_LAMBDA(const int i) {
         coords_search(i, 0) = coordinates(i, 0);
         coords_search(i, 1) = coordinates(i, 1);

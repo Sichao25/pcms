@@ -17,8 +17,8 @@ EmptyFieldLayout::EmptyFieldLayout()
   discretization_ = std::make_shared<EmptyDiscretization>();
 }
 
-std::shared_ptr<const Discretization>
-EmptyFieldLayout::GetDiscretization() const noexcept
+std::shared_ptr<const Discretization> EmptyFieldLayout::GetDiscretization()
+  const noexcept
 {
   return discretization_;
 }

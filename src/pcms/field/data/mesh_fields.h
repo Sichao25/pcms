@@ -23,7 +23,8 @@ public:
     : layout_(std::move(layout)),
       metadata_(metadata),
       mesh_field_(MakeMeshFieldBackend<T>(*layout_)),
-      host_data_("meshfields_field_data", static_cast<size_t>(layout_->OwnedSize())),
+      host_data_("meshfields_field_data",
+                 static_cast<size_t>(layout_->OwnedSize())),
       device_data_("meshfields_field_data_device",
                    static_cast<size_t>(layout_->OwnedSize()))
   {
@@ -41,8 +42,7 @@ public:
     return make_const_array_view(host_data_);
   }
 
-  void SetDOFHolderDataHost(
-    Rank1View<const T, HostMemorySpace> values) override
+  void SetDOFHolderDataHost(Rank1View<const T, HostMemorySpace> values) override
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
@@ -55,8 +55,7 @@ public:
     return make_const_array_view(device_data_);
   }
 
-  void SetDOFHolderData(
-    Rank1View<const T, DeviceMemorySpace> values) override
+  void SetDOFHolderData(Rank1View<const T, DeviceMemorySpace> values) override
   {
     PCMS_ALWAYS_ASSERT(values.size() ==
                        static_cast<size_t>(layout_->OwnedSize()));
@@ -81,8 +80,8 @@ private:
         size_t len = static_cast<size_t>(mesh.nents(i)) *
                      static_cast<size_t>(nodes_per_dim[i]) *
                      static_cast<size_t>(num_components);
-        Rank1View<const T, DeviceMemorySpace> subspan{flat.data_handle() + offset,
-                                                    len};
+        Rank1View<const T, DeviceMemorySpace> subspan{
+          flat.data_handle() + offset, len};
         mesh_field_->SetData(subspan, nodes_per_dim[i], num_components, i);
         offset += len;
       }

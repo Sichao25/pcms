@@ -246,9 +246,8 @@ struct FilterValidPointsFunctor
   OutOfBoundsMode mode_;
 
   FilterValidPointsFunctor(Kokkos::View<GridPointSearch2D::Result*> results,
-                          Kokkos::View<LO*> flags,
-                          Omega_h::Int mesh_dim,
-                          OutOfBoundsMode mode)
+                           Kokkos::View<LO*> flags, Omega_h::Int mesh_dim,
+                           OutOfBoundsMode mode)
     : search_results_(results),
       valid_flags_(flags),
       mesh_dim_(mesh_dim),
@@ -261,11 +260,11 @@ struct FilterValidPointsFunctor
   {
     auto [dim, elem_idx, coord] = search_results_(i);
     bool is_valid = (static_cast<int>(dim) == mesh_dim_) && (elem_idx >= 0);
-    
+
     if (mode_ == OutOfBoundsMode::ERROR && !is_valid) {
       Kokkos::abort("Points found outside mesh domain");
     }
-    
+
     valid_flags_(i) = is_valid ? 1 : 0;
     if (is_valid) {
       num_valid++;
@@ -283,11 +282,9 @@ struct CompactIndicesFunctor
   Kokkos::View<LO*> missing_indices_;
   LO num_valid_;
 
-  CompactIndicesFunctor(Kokkos::View<LO*> flags,
-                       Kokkos::View<LO*> scan,
-                       Kokkos::View<LO*> valid_indices,
-                       Kokkos::View<LO*> missing_indices,
-                       LO num_valid)
+  CompactIndicesFunctor(Kokkos::View<LO*> flags, Kokkos::View<LO*> scan,
+                        Kokkos::View<LO*> valid_indices,
+                        Kokkos::View<LO*> missing_indices, LO num_valid)
     : flags_(flags),
       scan_(scan),
       valid_indices_(valid_indices),
@@ -317,8 +314,8 @@ struct CountPerElementFunctor
   Kokkos::View<LO*> elem_counts_;
 
   CountPerElementFunctor(Kokkos::View<GridPointSearch2D::Result*> results,
-                        Kokkos::View<LO*> valid_indices,
-                        Kokkos::View<LO*> elem_counts)
+                         Kokkos::View<LO*> valid_indices,
+                         Kokkos::View<LO*> elem_counts)
     : search_results_(results),
       valid_indices_(valid_indices),
       elem_counts_(elem_counts)
@@ -345,12 +342,11 @@ struct FillCoordinatesDeviceFunctor
   Omega_h::Int dim_;
 
   FillCoordinatesDeviceFunctor(Kokkos::View<GridPointSearch2D::Result*> results,
-                              Kokkos::View<LO*> valid_indices,
-                              Kokkos::View<LO*> elem_counts,
-                              Kokkos::View<LO*> offsets,
-                              Kokkos::View<Real**> coordinates,
-                              Kokkos::View<LO*> indices,
-                              Omega_h::Int dim)
+                               Kokkos::View<LO*> valid_indices,
+                               Kokkos::View<LO*> elem_counts,
+                               Kokkos::View<LO*> offsets,
+                               Kokkos::View<Real**> coordinates,
+                               Kokkos::View<LO*> indices, Omega_h::Int dim)
     : search_results_(results),
       valid_indices_(valid_indices),
       elem_counts_(elem_counts),
@@ -368,7 +364,7 @@ struct FillCoordinatesDeviceFunctor
     auto [dim, elem_idx, coord] = search_results_(orig_idx);
     LO count = Kokkos::atomic_fetch_sub(&elem_counts_(elem_idx), 1);
     LO index = offsets_(elem_idx) + count - 1;
-    
+
     for (int j = 0; j < (dim_ + 1); ++j) {
       coordinates_(index, j) = coord[j];
     }
@@ -408,10 +404,7 @@ struct SetFinalOffsetFunctor
   }
 
   KOKKOS_INLINE_FUNCTION
-  void operator()(LO) const
-  {
-    offsets_(nelems_) = total_;
-  }
+  void operator()(LO) const { offsets_(nelems_) = total_; }
 };
 
 // ---------------------------------------------------------------------------
@@ -500,14 +493,16 @@ struct MeshFieldsAdapter2LocalizationHint
     offsets_d_ = Kokkos::View<LO*>("offsets_d", offsets_.extent(0));
     Kokkos::deep_copy(offsets_d_, offsets_);
 
-    coordinates_d_ = Kokkos::View<Real**>("coordinates_d", coordinates_.extent(0), coordinates_.extent(1));
+    coordinates_d_ = Kokkos::View<Real**>(
+      "coordinates_d", coordinates_.extent(0), coordinates_.extent(1));
     DeepCopyMismatchLayouts(coordinates_d_, coordinates_);
 
     indices_d_ = Kokkos::View<LO*>("indices_d", indices_.extent(0));
     Kokkos::deep_copy(indices_d_, indices_);
 
     if (num_missing_ > 0) {
-      missing_indices_d_ = Kokkos::View<LO*>("missing_indices_d", missing_indices_.extent(0));
+      missing_indices_d_ =
+        Kokkos::View<LO*>("missing_indices_d", missing_indices_.extent(0));
       Kokkos::deep_copy(missing_indices_d_, missing_indices_);
     }
   }
@@ -520,7 +515,7 @@ struct MeshFieldsAdapter2LocalizationHint
     : mode_(mode), num_valid_(0), num_missing_(0)
   {
     const LO n_points = search_results_d.size();
-    
+
     if (mode_ == OutOfBoundsMode::NEAREST_BOUNDARY) {
       PCMS_ALWAYS_ASSERT(false && "NEAREST_BOUNDARY mode not implemented yet");
     }
@@ -528,13 +523,13 @@ struct MeshFieldsAdapter2LocalizationHint
     // Step 1: Filter valid/missing points on device
     Kokkos::View<LO*> valid_flags("valid_flags", n_points);
     FilterValidPointsFunctor filter_functor(search_results_d, valid_flags,
-                                           mesh.dim(), mode_);
+                                            mesh.dim(), mode_);
     LO num_valid = 0, num_missing = 0;
     Kokkos::parallel_reduce(
       "FilterValidPoints",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_points),
       filter_functor, num_valid, num_missing);
-    
+
     num_valid_ = num_valid;
     num_missing_ = num_missing;
 
@@ -547,10 +542,10 @@ struct MeshFieldsAdapter2LocalizationHint
 
     Kokkos::View<LO*> valid_indices_d("valid_indices_d", num_valid_);
     Kokkos::View<LO*> missing_indices_tmp("missing_indices_tmp", num_missing_);
-    
+
     CompactIndicesFunctor compact_functor(valid_flags, scan_result,
-                                         valid_indices_d, missing_indices_tmp,
-                                         num_valid_);
+                                          valid_indices_d, missing_indices_tmp,
+                                          num_valid_);
     Kokkos::parallel_for(
       "CompactIndices",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, n_points),
@@ -558,9 +553,9 @@ struct MeshFieldsAdapter2LocalizationHint
 
     Kokkos::View<LO*> elem_counts_d("elem_counts_d", mesh.nelems());
     Kokkos::deep_copy(elem_counts_d, 0);
-    
+
     CountPerElementFunctor count_functor(search_results_d, valid_indices_d,
-                                        elem_counts_d);
+                                         elem_counts_d);
     Kokkos::parallel_for(
       "CountPerElement",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_valid_),
@@ -573,7 +568,7 @@ struct MeshFieldsAdapter2LocalizationHint
       "ComputeOffsets",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, mesh.nelems()),
       offsets_functor, total);
-    
+
     // Set final offset
     SetFinalOffsetFunctor set_final_functor(offsets_d_, mesh.nelems(), total);
     Kokkos::parallel_for(
@@ -582,13 +577,13 @@ struct MeshFieldsAdapter2LocalizationHint
       set_final_functor);
 
     // Step 6: Fill coordinates and indices on device
-    coordinates_d_ = Kokkos::View<Real**>("coordinates_d", num_valid_, mesh.dim() + 1);
+    coordinates_d_ =
+      Kokkos::View<Real**>("coordinates_d", num_valid_, mesh.dim() + 1);
     indices_d_ = Kokkos::View<LO*>("indices_d", num_valid_);
-    
-    FillCoordinatesDeviceFunctor fill_functor(search_results_d, valid_indices_d,
-                                             elem_counts_d, offsets_d_,
-                                             coordinates_d_, indices_d_,
-                                             mesh.dim());
+
+    FillCoordinatesDeviceFunctor fill_functor(
+      search_results_d, valid_indices_d, elem_counts_d, offsets_d_,
+      coordinates_d_, indices_d_, mesh.dim());
     Kokkos::parallel_for(
       "FillCoordinatesAndIndices",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, num_valid_),
@@ -601,7 +596,8 @@ struct MeshFieldsAdapter2LocalizationHint
 
     // Create host mirrors for compatibility (lazy copy - only if needed)
     offsets_ = Kokkos::create_mirror_view(offsets_d_);
-    coordinates_ = Kokkos::View<Real**, HostMemorySpace>("coordinates_", num_valid_, mesh.dim() + 1);
+    coordinates_ = Kokkos::View<Real**, HostMemorySpace>(
+      "coordinates_", num_valid_, mesh.dim() + 1);
     DeepCopyMismatchLayouts(coordinates_, coordinates_d_);
     indices_ = Kokkos::create_mirror_view(indices_d_);
     if (num_missing_ > 0) {

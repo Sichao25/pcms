@@ -22,15 +22,15 @@ class AdjacencyLocalizationFactory : public LocalizationFactory
 {
 public:
   AdjacencyLocalizationFactory(Omega_h::Mesh& source_mesh,
-                               int source_entity_dim,
-                               MLSOptions options)
+                               int source_entity_dim, MLSOptions options)
     : source_mesh_(source_mesh),
       source_entity_dim_(source_entity_dim),
       options_(options)
   {
   }
 
-  SupportResults Build(CoordinateView<DeviceMemorySpace> target_coords) const override;
+  SupportResults Build(
+    CoordinateView<DeviceMemorySpace> target_coords) const override;
   SupportResults BuildSameMeshCentroidToVertex() const;
 
 private:

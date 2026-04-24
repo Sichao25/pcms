@@ -33,8 +33,7 @@ void ValidateLagrangeWrappedFieldData(const FieldLayout& layout,
         "LagrangeFunctionSpace::CreateField: MeshFields layout requires "
         "MeshFieldsFieldData");
     }
-  }
-  else
+  } else
 #endif
   {
     if (dynamic_cast<const SimpleFieldData<T>*>(&data) == nullptr) {
@@ -136,8 +135,7 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
         using T = typename decltype(tag)::type;
         if constexpr (std::is_same_v<T, int8_t>) {
           throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
-        }
-        else {
+        } else {
           return std::make_unique<SimpleFieldData<T>>(layout, metadata);
         }
       });
@@ -147,10 +145,8 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
 
 LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
   Omega_h::Mesh& mesh, int order, int num_components,
-  CoordinateSystem coordinate_system,
-  Omega_h::Read<Omega_h::I8> owned_mask,
-  std::string global_id_name,
-  Backend backend)
+  CoordinateSystem coordinate_system, Omega_h::Read<Omega_h::I8> owned_mask,
+  std::string global_id_name, Backend backend)
 {
   if (backend == Backend::MeshFields) {
     throw pcms_error(
@@ -174,8 +170,7 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
         using T = typename decltype(tag)::type;
         if constexpr (std::is_same_v<T, int8_t>) {
           throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
-        }
-        else {
+        } else {
           return std::make_unique<SimpleFieldData<T>>(layout, metadata);
         }
       });
@@ -202,8 +197,7 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
         using T = typename decltype(tag)::type;
         if constexpr (std::is_same_v<T, int8_t>) {
           throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
-        }
-        else {
+        } else {
           return std::make_unique<SimpleFieldData<T>>(ug_layout, metadata);
         }
       });
@@ -216,8 +210,8 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
   CoordinateSystem coordinate_system, int order)
 {
   if (order != 0 && order != 1) {
-    throw std::invalid_argument(
-      "LagrangeFunctionSpace::FromUniformGrid: only orders 0 and 1 are supported");
+    throw std::invalid_argument("LagrangeFunctionSpace::FromUniformGrid: only "
+                                "orders 0 and 1 are supported");
   }
   auto ug_layout = std::make_shared<UniformGridFieldLayout<3>>(
     grid, num_components, coordinate_system, order);
@@ -230,8 +224,7 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
         using T = typename decltype(tag)::type;
         if constexpr (std::is_same_v<T, int8_t>) {
           throw pcms_error("LagrangeFunctionSpace: int8_t is not supported");
-        }
-        else {
+        } else {
           return std::make_unique<SimpleFieldData<T>>(ug_layout, metadata);
         }
       });
@@ -239,8 +232,8 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
     std::move(eval_factory));
 }
 
-std::shared_ptr<const FieldLayout>
-LagrangeFunctionSpace::GetLayout() const noexcept
+std::shared_ptr<const FieldLayout> LagrangeFunctionSpace::GetLayout()
+  const noexcept
 {
   return layout_;
 }
@@ -257,7 +250,7 @@ FieldVariant LagrangeFunctionSpace::CreateFieldImpl(
   return std::visit(
     [this](auto&& fd) -> FieldVariant {
       using FD = std::decay_t<decltype(fd)>;
-      using T  = typename FD::element_type::value_type;
+      using T = typename FD::element_type::value_type;
       return WrapField<T>(layout_, std::move(fd), evaluator_factory_);
     },
     std::move(field_data));
@@ -268,13 +261,12 @@ FieldVariant LagrangeFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
   return std::visit(
     [this](auto&& fd) -> FieldVariant {
       using FD = std::decay_t<decltype(fd)>;
-      using T  = typename FD::element_type::value_type;
+      using T = typename FD::element_type::value_type;
       PCMS_ALWAYS_ASSERT(fd != nullptr);
       if constexpr (std::is_same_v<T, int8_t>) {
         throw pcms_error(
           "LagrangeFunctionSpace: int8_t is not a supported field type");
-      }
-      else {
+      } else {
         ValidateLagrangeWrappedFieldData(*layout_, *fd);
         return WrapField<T>(layout_, std::move(fd), evaluator_factory_);
       }
@@ -283,8 +275,7 @@ FieldVariant LagrangeFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
 }
 
 PointEvaluatorVariant LagrangeFunctionSpace::CreatePointEvaluatorImpl(
-  Type value_type,
-  const EvaluationRequest& request) const
+  Type value_type, const EvaluationRequest& request) const
 {
   if (value_type != Type::Real) {
     throw pcms_error(

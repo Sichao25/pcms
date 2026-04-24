@@ -242,7 +242,8 @@ std::array<int, 4> MeshFieldsAdapterLayout::GetNodesPerDim() const
   return nodes_per_dim_;
 }
 
-Rank1View<const bool, HostMemorySpace> MeshFieldsAdapterLayout::GetOwnedHost() const
+Rank1View<const bool, HostMemorySpace> MeshFieldsAdapterLayout::GetOwnedHost()
+  const
 {
   Kokkos::deep_copy(owned_host_, owned_);
   return make_const_array_view(owned_host_);
@@ -260,7 +261,8 @@ MeshFieldsAdapterLayout::GetDOFHolderCoordinates() const
   return CoordinateView<DeviceMemorySpace>{coordinate_system_, coords_view};
 }
 
-bool MeshFieldsAdapterLayout::IsDistributed() const {
+bool MeshFieldsAdapterLayout::IsDistributed() const
+{
   return true;
 }
 
@@ -320,6 +322,5 @@ MeshFieldsAdapterLayout::GetDOFHolderClassificationIdsHost() const
 {
   return make_const_array_view(classification_ids_host_);
 }
-
 
 } // namespace pcms

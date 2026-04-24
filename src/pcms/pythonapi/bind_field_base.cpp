@@ -56,7 +56,8 @@ void bind_coordinate_system_module(py::module& m)
              throw std::runtime_error("Coordinates must be a 2D array");
            }
            // Create a view from the numpy array
-           using LayoutPolicy = detail::default_layout_for_memory_space_t<HostMemorySpace>;
+           using LayoutPolicy =
+             detail::default_layout_for_memory_space_t<HostMemorySpace>;
            Rank2View<const Real, HostMemorySpace, LayoutPolicy> coords_view(
              static_cast<Real*>(buf.ptr), buf.shape[0], buf.shape[1]);
            return CoordinateView<HostMemorySpace>(cs, coords_view);
@@ -170,12 +171,14 @@ void bind_create_field_module(py::module& m)
             coords_host(i, j) = coords_view(i, j);
           }
         }
-        auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>("coords_device", coords_view.extent(0), coords_view.extent(1));
+        auto coords_device = Kokkos::View<Real**, DeviceMemorySpace>(
+          "coords_device", coords_view.extent(0), coords_view.extent(1));
         DeepCopyMismatchLayouts(coords_device, coords_host);
         auto coords_device_view = MakeRank2View(coords_device);
         return PythonEvaluationRequest{
           EvaluationRequest::FromCoordinates(
-            CoordinateView<DeviceMemorySpace>(coordinate_system, coords_device_view),
+            CoordinateView<DeviceMemorySpace>(coordinate_system,
+                                              coords_device_view),
             policy),
           py::reinterpret_borrow<py::object>(coords),
           coords_device}; // Keep the View alive!
@@ -190,7 +193,8 @@ void bind_create_field_module(py::module& m)
         return PythonEvaluationRequest{
           EvaluationRequest::FromFunctionSpace(function_space, policy),
           py::none(),
-          Kokkos::View<Real**, DeviceMemorySpace>()}; // Empty view for function_space case
+          Kokkos::View<Real**, DeviceMemorySpace>()}; // Empty view for
+                                                      // function_space case
       },
       py::arg("function_space"), py::arg("policy") = OutOfBoundsPolicy{},
       "Create an EvaluationRequest from a FunctionSpace's DOF-holder sites.");
@@ -220,8 +224,7 @@ void bind_create_field_module(py::module& m)
           throw std::runtime_error("DOF holder data must be a 1D array");
         }
         Rank1View<const Real, HostMemorySpace> view(
-          static_cast<const Real*>(buf.ptr),
-          static_cast<size_t>(buf.shape[0]));
+          static_cast<const Real*>(buf.ptr), static_cast<size_t>(buf.shape[0]));
         self.SetDOFHolderDataHost(view);
       },
       py::arg("data"), "Set the DOF holder data from a 1D numpy array")
@@ -243,21 +246,24 @@ void bind_create_field_module(py::module& m)
     .def(
       "get_dof_holder_coordinates",
       [](const Field<Real>& self) {
-        auto cv    = self.GetLayout().GetDOFHolderCoordinates();
+        auto cv = self.GetLayout().GetDOFHolderCoordinates();
         auto coords = cv.GetCoordinates();
-        Kokkos::View<Real**, DeviceMemorySpace> coords_device("coords_device", coords.extent(0),
-                                               coords.extent(1));
+        Kokkos::View<Real**, DeviceMemorySpace> coords_device(
+          "coords_device", coords.extent(0), coords.extent(1));
         Kokkos::parallel_for(
-          Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(0, coords.extent(0)),
+          Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
+            0, coords.extent(0)),
           KOKKOS_LAMBDA(size_t i) {
             for (size_t j = 0; j < coords.extent(1); ++j) {
               coords_device(i, j) = coords(i, j);
             }
           });
-        Kokkos::View<Real**, HostMemorySpace> coords_host("coords_host", coords.extent(0), coords.extent(1));
+        Kokkos::View<Real**, HostMemorySpace> coords_host(
+          "coords_host", coords.extent(0), coords.extent(1));
         DeepCopyMismatchLayouts(coords_host, coords_device);
-        py::array_t<Real> result({static_cast<py::ssize_t>(coords_host.extent(0)),
-                                   static_cast<py::ssize_t>(coords_host.extent(1))});
+        py::array_t<Real> result(
+          {static_cast<py::ssize_t>(coords_host.extent(0)),
+           static_cast<py::ssize_t>(coords_host.extent(1))});
         auto buf = result.request();
         Real* ptr = static_cast<Real*>(buf.ptr);
         for (size_t i = 0; i < coords_host.extent(0); ++i)
@@ -289,7 +295,7 @@ void bind_create_field_module(py::module& m)
       [](Omega_h::Mesh& mesh, int order, int num_components,
          CoordinateSystem coordinate_system) {
         return LagrangeFunctionSpace::FromMesh(mesh, order, num_components,
-                                             coordinate_system);
+                                               coordinate_system);
       },
       py::arg("mesh"), py::arg("order"), py::arg("num_components") = 1,
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
@@ -352,14 +358,14 @@ void bind_create_field_module(py::module& m)
       "from_mesh",
       [](Omega_h::Mesh& mesh, int source_entity_dim, CoordinateSystem cs,
          MLSOptions opts) {
-        return PolynomialReconstructionFunctionSpace::FromMesh(mesh, source_entity_dim, cs, opts);
+        return PolynomialReconstructionFunctionSpace::FromMesh(
+          mesh, source_entity_dim, cs, opts);
       },
       py::arg("mesh"), py::arg("source_entity_dim"),
       py::arg("coordinate_system") = CoordinateSystem::Cartesian,
       py::arg("options") = MLSOptions{},
       "Create a PolynomialReconstructionFunctionSpace from mesh entity "
-      "coordinates.")
-    ;
+      "coordinates.");
 
   // Bind CreateUniformGridFromMesh for 2D
   m.def(

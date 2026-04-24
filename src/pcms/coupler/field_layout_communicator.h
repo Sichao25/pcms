@@ -17,8 +17,7 @@ class FieldLayoutCommunicator
 public:
   FieldLayoutCommunicator(const std::string& name, MPI_Comm mpi_comm,
                           redev::Redev& redev, redev::Channel& channel,
-                          const FieldLayout& layout,
-                          bool own_mpi_comm = false);
+                          const FieldLayout& layout, bool own_mpi_comm = false);
 
   FieldLayoutCommunicator(const std::string& name, MPI_Comm mpi_comm,
                           redev::Redev& redev, redev::Channel& channel,

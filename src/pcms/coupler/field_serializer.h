@@ -14,8 +14,7 @@ template <typename T>
 class FieldSerializer
 {
 public:
-  virtual int Serialize(const FieldData<T>& field,
-                        const FieldLayout& layout,
+  virtual int Serialize(const FieldData<T>& field, const FieldLayout& layout,
                         Rank1View<T, HostMemorySpace> buffer,
                         Rank1View<const LO, HostMemorySpace> permutation) const
   {

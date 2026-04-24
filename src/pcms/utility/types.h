@@ -59,11 +59,11 @@ template <typename F>
 auto apply_to_type(Type t, F&& f)
 {
   switch (t) {
-    case Type::Int8:  return f(detail::type_identity<int8_t>{});
-    case Type::LO:    return f(detail::type_identity<int32_t>{});
-    case Type::GO:    return f(detail::type_identity<int64_t>{});
+    case Type::Int8: return f(detail::type_identity<int8_t>{});
+    case Type::LO: return f(detail::type_identity<int32_t>{});
+    case Type::GO: return f(detail::type_identity<int64_t>{});
     case Type::Float: return f(detail::type_identity<float>{});
-    case Type::Real:  return f(detail::type_identity<double>{});
+    case Type::Real: return f(detail::type_identity<double>{});
   }
   throw pcms_error("apply_to_type: unhandled Type value");
 }

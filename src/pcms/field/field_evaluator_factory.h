@@ -76,8 +76,7 @@ public:
   // on the target factory.
   virtual bool HasDOFHolderCoordinates() const = 0;
 
-  virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates()
-    const = 0;
+  virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const = 0;
 
   // Whether this factory supports OutOfBoundsMode::NearestBoundary.
   // Backends that return false will throw a descriptive error if
