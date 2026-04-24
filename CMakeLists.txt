@@ -48,14 +48,9 @@ option(PCMS_ENABLE_C "Enable pcms C api" ON)
 option(PCMS_ENABLE_Python "Enable pcms Python api" OFF)
 
 option(PCMS_ENABLE_PRINT "PCMS print statements enabled" ON)
-option(PCMS_ENABLE_SPDLOG "use spdlog for logging" ON)
 
 option(PETSC_LINK_STATIC "Use pkg-config --static results for PETSc"
        ${_pcms_link_petsc_static_default})
-
-if(PCMS_ENABLE_SPDLOG)
-  find_package(spdlog REQUIRED)
-endif()
 
 # find package before fortran enabled, so we don't require the adios2 fortran
 # interfaces this is important because adios2 build with clang/gfortran is
@@ -128,10 +123,8 @@ endif()
 find_package(ADIOS2 CONFIG 2.10.2 REQUIRED)
 find_package(Kokkos CONFIG 4.5 REQUIRED)
 
-# note, building without PETSC / MESHFields likely doesn't work
-# TODO, resolve build to gate features based on petsc/meshfields support
 option(PCMS_ENABLE_MESHFIELDS "Enable MeshFields support" ON)
-option(PCMS_ENABLE_PETSC "Enable PETSc support" ON)
+option(PCMS_ENABLE_PETSC "Enable PETSc support" OFF)
 
 if(PCMS_ENABLE_MESHFIELDS)
   find_package(meshfields REQUIRED)

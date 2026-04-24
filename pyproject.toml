@@ -8,4 +8,3 @@ version = "0.3.0"
 
 [tool.scikit-build.cmake.define]
 PCMS_ENABLE_Python = true
-PCMS_ENABLE_SPDLOG = false
