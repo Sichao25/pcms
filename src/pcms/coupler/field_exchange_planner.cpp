@@ -195,7 +195,7 @@ static ReversePartitionMap2 BuildReversePartitionMap(
   ReversePartitionMap2 reverse_partition;
   LO n = static_cast<LO>(owned.extent(0));
   std::array<Real, 3> coord{};
-  Kokkos::View<bool*, HostMemorySpace> overlap_mask_view = overlap_mask.GetMask(layout);
+  auto overlap_mask_view = overlap_mask.GetMask(layout);
 
   for (LO local_index = 0; local_index < n; ++local_index) {
     if (!owned[local_index])

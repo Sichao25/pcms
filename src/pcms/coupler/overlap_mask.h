@@ -43,7 +43,7 @@ struct OverlapMask
   }
 
   // Get the mask, evaluating the function if needed
-  Kokkos::View<bool*, HostMemorySpace> GetMask(const FieldLayout& layout) const
+  Rank1View<const bool, HostMemorySpace> GetMask(const FieldLayout& layout) const
   {
     if (in_overlap_func_) {
       auto class_dims = layout.GetDOFHolderClassificationDimensionsHost();
@@ -53,7 +53,7 @@ struct OverlapMask
           static_cast<bool>(in_overlap_func_(class_dims[i], class_ids[i]));
       }
     }
-    return is_overlap_;
+    return make_const_array_view(is_overlap_);
   }
 };
 
