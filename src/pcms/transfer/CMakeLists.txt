@@ -15,10 +15,16 @@ set(PCMS_FIELD_TRANSFER_SOURCES
     interpolation_base.cpp)
 
 
-if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
+if(PCMS_ENABLE_MESHFIELDS)
   list(APPEND PCMS_FIELD_TRANSFER_HEADERS
       load_vector_integrator.hpp
-      mass_matrix_integrator.hpp
+      mass_matrix_integrator.hpp)
+  list(APPEND PCMS_FIELD_TRANSFER_SOURCES
+      load_vector_integrator.cpp)
+endif()
+
+if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
+  list(APPEND PCMS_FIELD_TRANSFER_HEADERS
       calculate_load_vector.hpp
       calculate_mass_matrix.hpp
       conservative_projection_solver.hpp
@@ -26,7 +32,6 @@ if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
       coo_assembly_utils.hpp
       petsc_utils.hpp)
   list(APPEND PCMS_FIELD_TRANSFER_SOURCES
-      load_vector_integrator.cpp
       calculate_load_vector.cpp
       calculate_mass_matrix.cpp
       conservative_projection_solver.cpp
