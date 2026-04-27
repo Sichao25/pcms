@@ -23,7 +23,7 @@ struct InitilizeXGCMembersFunctor
   void operator()(LO i) const
   {
     owned_(i) = false;
-    gids_(i) = static_cast<GO>(i + 1);
+    gids_(i) = static_cast<GO>(i) + 1;
     class_dims_(i) = -1;
     class_ids_(i) = -1;
   }

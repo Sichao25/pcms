@@ -59,13 +59,18 @@ TEST_CASE("evaluate quadratic 2d meshfields_field")
   Omega_h::Write<Real> test_f(nverts + nedges);
   Omega_h::parallel_for(
     nverts, OMEGA_H_LAMBDA(int i) {
-      test_f[i] = sin_f(mesh_coords[2 * i], mesh_coords[2 * i + 1]);
+      test_f[i] = sin_f(mesh_coords[2 * static_cast<size_t>(i)],
+                        mesh_coords[2 * static_cast<size_t>(i) + 1]);
     });
   Omega_h::parallel_for(
     nedges, OMEGA_H_LAMBDA(int i) {
       auto ep = Omega_h::gather_verts<2>(edge_verts, i);
-      Real cx = (mesh_coords[2 * ep[0]] + mesh_coords[2 * ep[1]]) / 2;
-      Real cy = (mesh_coords[2 * ep[0] + 1] + mesh_coords[2 * ep[1] + 1]) / 2;
+      Real cx = (mesh_coords[2 * static_cast<size_t>(ep[0])] +
+                 mesh_coords[2 * static_cast<size_t>(ep[1])]) /
+                2;
+      Real cy = (mesh_coords[2 * static_cast<size_t>(ep[0]) + 1] +
+                 mesh_coords[2 * static_cast<size_t>(ep[1]) + 1]) /
+                2;
       test_f[nverts + i] = sin_f(cx, cy);
     });
 

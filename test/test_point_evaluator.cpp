@@ -100,7 +100,8 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
     Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_b_device);
 
   for (int i = 0; i < n; ++i) {
-    Real x = pts[2 * i], y = pts[2 * i + 1];
+    Real x = pts[2 * static_cast<size_t>(i)],
+         y = pts[2 * static_cast<size_t>(i) + 1];
     REQUIRE(out_a_host(i) ==
             Catch::Approx(pcms::test::linear_f(x, y)).margin(1e-10));
     REQUIRE(out_b_host(i) == Catch::Approx(42.0).margin(1e-10));
@@ -391,7 +392,8 @@ TEST_CASE(
     Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_b_device);
 
   for (int i = 0; i < n; ++i) {
-    Real x = pts[2 * i], y = pts[2 * i + 1];
+    Real x = pts[2 * static_cast<size_t>(i)],
+         y = pts[2 * static_cast<size_t>(i) + 1];
     REQUIRE(out_a_host(i) ==
             Catch::Approx(pcms::test::linear_f(x, y)).margin(1e-10));
     REQUIRE(out_b_host(i) == Catch::Approx(42.0).margin(1e-10));

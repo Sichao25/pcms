@@ -110,7 +110,8 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(Omega_h::Mesh& mesh, int order,
   classification_ids_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
   for (int i = 0; i < n; ++i) {
-    classification_dims_host_(i) = static_cast<LO>(class_dims_host[i]);
+    classification_dims_host_(i) =
+      static_cast<LO>(static_cast<unsigned char>(class_dims_host[i]));
     classification_ids_host_(i) = static_cast<LO>(class_ids_host[i]);
   }
   discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);
@@ -151,7 +152,8 @@ OmegaHLagrangeLayout::OmegaHLagrangeLayout(
   classification_ids_host_ =
     Kokkos::View<LO*, HostMemorySpace>("classification_ids", n);
   for (int i = 0; i < n; ++i) {
-    classification_dims_host_(i) = static_cast<LO>(class_dims_host[i]);
+    classification_dims_host_(i) =
+      static_cast<LO>(static_cast<unsigned char>(class_dims_host[i]));
     classification_ids_host_(i) = static_cast<LO>(class_ids_host[i]);
   }
   discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);

@@ -265,7 +265,8 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 
   for (int i = 0; i < n; ++i) {
-    INFO("Point " << i << " (" << pts[2 * i] << ", " << pts[2 * i + 1] << ")"
+    INFO("Point " << i << " (" << pts[2 * static_cast<size_t>(i)] << ", "
+                  << pts[2 * static_cast<size_t>(i) + 1] << ")"
                   << " got=" << out_host(i) << " expected=" << expected[i]);
     REQUIRE(out_host(i) == Catch::Approx(expected[i]).margin(abs_tol));
   }
@@ -349,7 +350,8 @@ void CheckEvaluationWithFill(const Factory& factory, const Field<Real>& field,
   auto expected = EvaluateReferenceFunction<ExecutionSpace>(pts, func);
 
   for (int i = 0; i < n; ++i) {
-    INFO("Point " << i << " (" << pts[2 * i] << ", " << pts[2 * i + 1] << ")"
+    INFO("Point " << i << " (" << pts[2 * static_cast<size_t>(i)] << ", "
+                  << pts[2 * static_cast<size_t>(i) + 1] << ")"
                   << " got=" << out_host(i));
     if (is_inside[i]) {
       INFO(" expected=" << expected[i]);

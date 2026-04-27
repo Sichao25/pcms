@@ -313,27 +313,35 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
 
 int main(int argc, char** argv)
 {
-  auto lib = Omega_h::Library(&argc, &argv);
-  auto world = lib.world();
-  const int rank = world->rank();
-  int size = world->size();
-  if (argc != 4) {
-    if (!rank) {
-      std::cerr << "Usage: " << argv[0]
-                << "</path/to/omega_h/mesh> "
-                   "</path/to/partitionFile.cpn> "
-                   "sml_nphi_total";
+  try {
+    auto lib = Omega_h::Library(&argc, &argv);
+    auto world = lib.world();
+    const int rank = world->rank();
+    int size = world->size();
+    if (argc != 4) {
+      if (!rank) {
+        std::cerr << "Usage: " << argv[0]
+                  << "</path/to/omega_h/mesh> "
+                     "</path/to/partitionFile.cpn> "
+                     "sml_nphi_total";
+      }
+      exit(EXIT_FAILURE);
     }
-    exit(EXIT_FAILURE);
+
+    const auto meshFile = argv[1];
+    const auto classPartitionFile = argv[2];
+    const int sml_nphi_total = std::atoi(argv[3]);
+
+    Omega_h::Mesh mesh(&lib);
+    Omega_h::binary::read(meshFile, lib.world(), &mesh);
+    MPI_Comm mpi_comm = lib.world()->get_impl();
+    omegah_coupler(mpi_comm, mesh, classPartitionFile, sml_nphi_total);
+    return 0;
+  } catch (const std::exception& e) {
+    std::cerr << "Exception caught in main: " << e.what() << std::endl;
+    return 1;
+  } catch (...) {
+    std::cerr << "Unknown exception caught in main" << std::endl;
+    return 1;
   }
-
-  const auto meshFile = argv[1];
-  const auto classPartitionFile = argv[2];
-  const int sml_nphi_total = std::atoi(argv[3]);
-
-  Omega_h::Mesh mesh(&lib);
-  Omega_h::binary::read(meshFile, lib.world(), &mesh);
-  MPI_Comm mpi_comm = lib.world()->get_impl();
-  omegah_coupler(mpi_comm, mesh, classPartitionFile, sml_nphi_total);
-  return 0;
 }

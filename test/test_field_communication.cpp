@@ -244,41 +244,50 @@ void server(MPI_Comm comm, Omega_h::Mesh& mesh, std::string comm_name,
 
 int main(int argc, char** argv)
 {
-  auto lib = Omega_h::Library(&argc, &argv);
-  auto world = lib.world();
-  int rank = world->rank();
-  if (argc != 4) {
-    std::cerr << "Usage: " << argv[0]
-              << " <clientId=-1|0|1|2|3> /path/to/omega_h/mesh"
-              << " /path/to/partitionFile.cpn\n";
-    exit(EXIT_FAILURE);
-  }
-  int clientId = atoi(argv[1]);
-  REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 3);
-  const auto meshFile = argv[2];
-  const auto classPartitionFile = argv[3];
-
-  Omega_h::Mesh mesh = Omega_h::binary::read(meshFile, world);
-  adios2::Params params{{"Streaming", "On"}, {"OpenTimeoutSecs", "60"}};
-  MPI_Comm mpi_comm = lib.world()->get_impl();
-
-  switch (clientId) {
-    case -1:
-      server(mpi_comm, mesh, "lin_field_comm", 1, params, classPartitionFile);
-      break;
-    case 0: client1(mpi_comm, mesh, "lin_field_comm", 1, params); break;
-    case 1: client2(mpi_comm, mesh, "lin_field_comm", 1, params); break;
-    case 2:
-      test_shared_layout(lib, meshFile, classPartitionFile, /*is_server=*/true);
-      break;
-    case 3:
-      test_shared_layout(lib, meshFile, classPartitionFile,
-                         /*is_server=*/false);
-      break;
-    default:
-      std::cerr << "Unhandled client id (should be -1,0,1,2,3)\n";
+  try {
+    auto lib = Omega_h::Library(&argc, &argv);
+    auto world = lib.world();
+    int rank = world->rank();
+    if (argc != 4) {
+      std::cerr << "Usage: " << argv[0]
+                << " <clientId=-1|0|1|2|3> /path/to/omega_h/mesh"
+                << " /path/to/partitionFile.cpn\n";
       exit(EXIT_FAILURE);
-  }
+    }
+    int clientId = atoi(argv[1]);
+    REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 3);
+    const auto meshFile = argv[2];
+    const auto classPartitionFile = argv[3];
 
-  return 0;
+    Omega_h::Mesh mesh = Omega_h::binary::read(meshFile, world);
+    adios2::Params params{{"Streaming", "On"}, {"OpenTimeoutSecs", "60"}};
+    MPI_Comm mpi_comm = lib.world()->get_impl();
+
+    switch (clientId) {
+      case -1:
+        server(mpi_comm, mesh, "lin_field_comm", 1, params, classPartitionFile);
+        break;
+      case 0: client1(mpi_comm, mesh, "lin_field_comm", 1, params); break;
+      case 1: client2(mpi_comm, mesh, "lin_field_comm", 1, params); break;
+      case 2:
+        test_shared_layout(lib, meshFile, classPartitionFile,
+                           /*is_server=*/true);
+        break;
+      case 3:
+        test_shared_layout(lib, meshFile, classPartitionFile,
+                           /*is_server=*/false);
+        break;
+      default:
+        std::cerr << "Unhandled client id (should be -1,0,1,2,3)\n";
+        exit(EXIT_FAILURE);
+    }
+
+    return 0;
+  } catch (const std::exception& e) {
+    std::cerr << "Exception caught in main: " << e.what() << std::endl;
+    return 1;
+  } catch (...) {
+    std::cerr << "Unknown exception caught in main" << std::endl;
+    return 1;
+  }
 }

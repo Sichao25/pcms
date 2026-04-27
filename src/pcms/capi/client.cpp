@@ -83,7 +83,7 @@ protected:
             "EmptyFunctionSpace::CreateField: field data size does not match "
             "layout");
         }
-        return WrapField<T>(layout_, std::move(fd));
+        return WrapField<T>(layout_, std::forward<decltype(fd)>(fd));
       },
       std::move(data));
   }

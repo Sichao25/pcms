@@ -30,7 +30,7 @@ namespace
 std::vector<Real> MakeGrid2D(int N)
 {
   std::vector<Real> pts;
-  pts.reserve(N * N * 2);
+  pts.reserve(static_cast<size_t>(N) * N * 2);
   for (int j = 0; j < N; ++j) {
     for (int i = 0; i < N; ++i) {
       pts.push_back(static_cast<Real>(i) / (N - 1));
@@ -43,7 +43,7 @@ std::vector<Real> MakeGrid2D(int N)
 std::vector<Real> MakeGrid3D(int N)
 {
   std::vector<Real> pts;
-  pts.reserve(N * N * N * 3);
+  pts.reserve(static_cast<size_t>(N) * N * N * 3);
   for (int k = 0; k < N; ++k) {
     for (int j = 0; j < N; ++j) {
       for (int i = 0; i < N; ++i) {
@@ -206,7 +206,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: same PointEvaluator "
     Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_b_device);
 
   for (int i = 0; i < n; ++i) {
-    Real x = pts[2 * i], y = pts[2 * i + 1];
+    Real x = pts[2 * static_cast<size_t>(i)],
+         y = pts[2 * static_cast<size_t>(i) + 1];
     REQUIRE(out_a_host(i) ==
             Catch::Approx(pcms::test::linear_f(x, y)).margin(5e-3));
     REQUIRE(out_b_host(i) == Catch::Approx(cval).margin(5e-3));
@@ -235,7 +236,8 @@ TEST_CASE("PolynomialReconstructionFunctionSpace MLS: Evaluate throws for "
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
   // Two-component output — must throw
-  Kokkos::View<Real*, DeviceMemorySpace> out_device("out", n * 2);
+  Kokkos::View<Real*, DeviceMemorySpace> out_device("out",
+                                                    static_cast<size_t>(n) * 2);
   using LayoutPolicy =
     pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
   auto out_view =

@@ -202,7 +202,8 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
   auto class_dims_h = Omega_h::HostRead<Omega_h::I8>(class_dims_);
   auto class_ids_h = Omega_h::HostRead<Omega_h::ClassId>(class_ids_);
   for (int i = 0; i < n; ++i) {
-    classification_dims_host_(i) = static_cast<LO>(class_dims_h[i]);
+    classification_dims_host_(i) =
+      static_cast<LO>(static_cast<unsigned char>(class_dims_h[i]));
     classification_ids_host_(i) = static_cast<LO>(class_ids_h[i]);
   }
   discretization_ = std::make_shared<OmegaHDiscretization>(mesh_);

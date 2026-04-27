@@ -80,7 +80,8 @@ OmegaHEntityLayout::OmegaHEntityLayout(Omega_h::Mesh& mesh, int entity_dim,
   auto class_dims_host = Omega_h::HostRead<Omega_h::I8>(class_dims_);
   auto class_ids_host = Omega_h::HostRead<Omega_h::ClassId>(class_ids_);
   for (int i = 0; i < mesh.nents(entity_dim_); ++i) {
-    classification_dims_host_(i) = static_cast<LO>(class_dims_host[i]);
+    classification_dims_host_(i) =
+      static_cast<LO>(static_cast<unsigned char>(class_dims_host[i]));
     classification_ids_host_(i) = static_cast<LO>(class_ids_host[i]);
   }
 }

@@ -205,42 +205,51 @@ void omegah_coupler(MPI_Comm comm, Omega_h::Mesh& mesh,
 
 int main(int argc, char** argv)
 {
-  auto lib = Omega_h::Library(&argc, &argv);
-  auto world = lib.world();
-  const int rank = world->rank();
-  int size = world->size();
-  if (argc != 4) {
-    if (!rank) {
-      std::cerr << "Usage: " << argv[0]
-                << "</path/to/omega_h/mesh> "
-                   "</path/to/partitionFile.cpn>"
-                   "<coupler type (0 xgc, 1 omega-h)>";
-    }
-    exit(EXIT_FAILURE);
-  }
-
-  const auto meshFile = argv[1];
-  const auto classPartitionFile = argv[2];
-  int coupler_type = std::stoi(argv[3]);
-
-  Omega_h::Mesh mesh(&lib);
-  Omega_h::binary::read(meshFile, lib.world(), &mesh);
-  MPI_Comm mpi_comm = lib.world()->get_impl();
-  if (coupler_type == 0) {
-    if (size != 1) {
+  try {
+    auto lib = Omega_h::Library(&argc, &argv);
+    auto world = lib.world();
+    const int rank = world->rank();
+    int size = world->size();
+    if (argc != 4) {
       if (!rank) {
-        std::cerr << "XGC Adapter only works on 1 rank (not a distributed mesh "
-                     "datastructure)"
-                  << std::endl;
+        std::cerr << "Usage: " << argv[0]
+                  << "</path/to/omega_h/mesh> "
+                     "</path/to/partitionFile.cpn>"
+                     "<coupler type (0 xgc, 1 omega-h)>";
       }
+      exit(EXIT_FAILURE);
+    }
+
+    const auto meshFile = argv[1];
+    const auto classPartitionFile = argv[2];
+    int coupler_type = std::stoi(argv[3]);
+
+    Omega_h::Mesh mesh(&lib);
+    Omega_h::binary::read(meshFile, lib.world(), &mesh);
+    MPI_Comm mpi_comm = lib.world()->get_impl();
+    if (coupler_type == 0) {
+      if (size != 1) {
+        if (!rank) {
+          std::cerr
+            << "XGC Adapter only works on 1 rank (not a distributed mesh "
+               "datastructure)"
+            << std::endl;
+        }
+        std::abort();
+      }
+      xgc_coupler(mpi_comm, mesh, classPartitionFile);
+    } else if (coupler_type == 1) {
+      omegah_coupler(mpi_comm, mesh, classPartitionFile);
+    } else {
+      std::cerr << "Invalid coupler type. Choose 1 for XGC, 2 for Omega-h\n";
       std::abort();
     }
-    xgc_coupler(mpi_comm, mesh, classPartitionFile);
-  } else if (coupler_type == 1) {
-    omegah_coupler(mpi_comm, mesh, classPartitionFile);
-  } else {
-    std::cerr << "Invalid coupler type. Choose 1 for XGC, 2 for Omega-h\n";
-    std::abort();
+    return 0;
+  } catch (const std::exception& e) {
+    std::cerr << "Exception caught in main: " << e.what() << std::endl;
+    return 1;
+  } catch (...) {
+    std::cerr << "Unknown exception caught in main" << std::endl;
+    return 1;
   }
-  return 0;
 }

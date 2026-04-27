@@ -50,8 +50,10 @@ TEST_CASE(
   REQUIRE(static_cast<int>(dof_coords_host.extent(0)) == 4);
   REQUIRE(static_cast<int>(dof_coords_host.extent(1)) == 2);
   for (int i = 0; i < 4; ++i) {
-    REQUIRE(dof_coords_host(i, 0) == Catch::Approx(coords[2 * i]));
-    REQUIRE(dof_coords_host(i, 1) == Catch::Approx(coords[2 * i + 1]));
+    REQUIRE(dof_coords_host(i, 0) ==
+            Catch::Approx(coords[2 * static_cast<size_t>(i)]));
+    REQUIRE(dof_coords_host(i, 1) ==
+            Catch::Approx(coords[2 * static_cast<size_t>(i) + 1]));
   }
 }
 
