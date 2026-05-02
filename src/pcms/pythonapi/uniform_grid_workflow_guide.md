@@ -113,9 +113,8 @@ Create a mask where each uniform grid vertex is marked as 1 (inside mesh) or 0 (
 
 ```python
 # Create binary mask indicating which vertices are inside the mesh
-# Returns tuple of (layout, field) - layout must be kept alive while using field
-mask_layout, mask_field = pcms.create_uniform_grid_binary_field(mesh, [4, 4])
-print(f"Created mask field with {mask_layout.get_num_vertices()} vertices")
+mask_field = pcms.create_uniform_grid_binary_field(mesh, [4, 4])
+print(f"Created mask field with {mask_field.get_num_dof_holders()} vertices")
 ```
 
 **Accessing Values**:
@@ -133,18 +132,19 @@ mask_value = mask_data[vertex_id]  # Returns 0.0 or 1.0
 #### Option A: Create Field Programmatically
 
 ```python
-# Create field layout with linear (order=1) elements and 1 component (scalar)
-omega_h_layout = pcms.create_lagrange_layout(
+# Create a concrete FunctionSpace with linear (order=1) elements and
+# 1 component (scalar)
+omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
     mesh, 
     1,
     1,
     pcms.CoordinateSystem.Cartesian
 )
-omega_h_field = omega_h_layout.create_field()
+omega_h_field = omega_h_factory.create_field()
 
 # Initialize field with f(x,y) = x + 2*y
-coords = omega_h_layout.get_dof_holder_coordinates()
-num_nodes = omega_h_layout.get_num_owned_dof_holder()
+coords = omega_h_field.get_dof_holder_coordinates()
+num_nodes = omega_h_field.get_num_dof_holders()
 omega_h_data = np.zeros(num_nodes)
 
 for i in range(num_nodes):
@@ -154,8 +154,6 @@ for i in range(num_nodes):
 
 omega_h_field.set_dof_holder_data(omega_h_data)
 
-# Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
-omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
 ```
 
 #### Option B: Use Existing Element/Face Field from Mesh Tags
@@ -172,29 +170,29 @@ face_field = mesh.get_tag(face_dim, face_tag.name())
 # Convert element field to vertex field using averaging
 vertex_field = pcms.map_entity_field_to_vertices_average(mesh, face_field, face_dim)
 
-# Create vertex-based field layout and set data
-omega_h_layout = pcms.create_lagrange_layout(mesh, 1, 1, pcms.CoordinateSystem.Cartesian)
-omega_h_field = omega_h_layout.create_field()
+# Create vertex-based field and set data
+omega_h_factory = pcms.LagrangeFunctionSpace.from_mesh(
+    mesh, 1, 1, pcms.CoordinateSystem.Cartesian
+)
+omega_h_field = omega_h_factory.create_field()
 omega_h_field.set_dof_holder_data(vertex_field)
 
-# Set out-of-bounds behavior (FILL with 0.0 for points outside mesh)
-omega_h_field.set_out_of_bounds_mode(pcms.OutOfBoundsMode.FILL, 0.0)
 ```
 
 ---
 
-### Step 6: Create Uniform Grid Field Layout
+### Step 6: Create Uniform Grid Field
 
 Set up the data structure for storing field values on the uniform grid vertices.
 
 ```python
-# Create uniform grid field layout
-ug_layout = pcms.UniformGridFieldLayout2D(
+# Create a uniform-grid FunctionSpace
+ug_factory = pcms.LagrangeFunctionSpace.from_uniform_grid(
     grid, 
     1,                                      # Number of components
     pcms.CoordinateSystem.Cartesian
 )
-ug_field = ug_layout.create_field()
+ug_field = ug_factory.create_field()
 ```
 
 ---
@@ -204,8 +202,9 @@ ug_field = ug_layout.create_field()
 Interpolate field values from the unstructured mesh to the structured uniform grid vertices.
 
 ```python
-# Transfer field from Omega_h mesh to uniform grid
-pcms.interpolate_field(omega_h_field, ug_field)
+# Transfer field from Omega_h mesh to uniform grid using two FunctionSpaces
+interp = pcms.Interpolator(omega_h_factory, ug_factory)
+interp.apply(omega_h_field, ug_field)
 ```
 
 ---
@@ -217,7 +216,7 @@ Retrieve interpolated values and verify correctness.
 ```python
 # Get field data and coordinates
 ug_field_data = ug_field.get_dof_holder_data()
-ug_coords = ug_layout.get_dof_holder_coordinates()
+ug_coords = ug_field.get_dof_holder_coordinates()
 
 # Access data at vertex (i, j)
 vertex_id = j * (grid.divisions[0] + 1) + i
@@ -227,15 +226,14 @@ x, y = ug_coords[vertex_id, 0], ug_coords[vertex_id, 1]
 
 ---
 
-### Step 9: Export Field Data with `to_mdspan`
+### Step 9: Export Flat Field Data
 
-Convert field data to a structured $x \times y$ (or $x \times y \times z$) array
-for downstream analyses.
+Retrieve the flat DOF arrays for downstream analyses.
 
 ```python
-# Convert field data to a structured array
-grid_values = ug_field.to_numpy()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
-mask_values = mask_field.to_numpy()  # 2D: (nx+1, ny+1), 3D: (nx+1, ny+1, nz+1)
+# Get flat DOF arrays
+grid_values = ug_field.get_dof_holder_data()
+mask_values = mask_field.get_dof_holder_data()
 
 # Save to file (example)
 np.save('field_data.npy', grid_values)
@@ -249,18 +247,24 @@ np.save('field_data.npy', grid_values)
 - `create_uniform_grid_from_mesh(mesh, divisions)` - Create grid from mesh
 - `create_uniform_grid_binary_field(mesh, divisions)` - Create inside/outside mask
 
-### Field Layout
-- `create_lagrange_layout(mesh, order, num_components, coord_system)` - Omega_h field layout
-- `UniformGridFieldLayout2D(grid, num_components, coord_system)` - 2D grid layout
-- `UniformGridFieldLayout3D(grid, num_components, coord_system)` - 3D grid layout
+### Field Factories
+- `FunctionSpace` - abstract base class for field spaces in the Python API
+- `LagrangeFunctionSpace.from_mesh(mesh, order, num_components, coord_system)` - create an Omega_h-backed FunctionSpace
+- `LagrangeFunctionSpace.from_uniform_grid(grid, num_components, coord_system, order=1)` - create a uniform-grid-backed FunctionSpace
 
 ### Field Operations
-- `layout.create_field()` - Create field from layout
+- `space.create_field()` - Create a real-valued field from a concrete FunctionSpace
+- `EvaluationRequest.from_coordinates(coords, coord_system=Cartesian, policy=...)` - Build an explicit coordinate-based evaluation request
+- `EvaluationRequest.from_function_space(space, policy=...)` - Build an evaluation request from another FunctionSpace's DOF-holder sites
+- `space.create_point_evaluator(request)` - Create a reusable point evaluator from an `EvaluationRequest`
+- `field.get_num_dof_holders()` - Number of owned DOF holders (nodes/elements)
+- `field.get_num_components()` - Number of field components per DOF holder
+- `field.get_dof_holder_coordinates()` - DOF holder coordinates as a 2D numpy array
 - `field.set_dof_holder_data(data)` - Set field values
 - `field.get_dof_holder_data()` - Get field values
-- `field.to_mdspan()` - Get field values as a structured array
-- `field.set_out_of_bounds_mode(mode, fill_value=0.0)` - Set behavior for points outside mesh
-- `interpolate_field(source_field, target_field)` - Interpolate between fields
+- `Interpolator(source_space, target_space)` - Create an interpolator between FunctionSpaces (cached localization)
+- `interpolator.apply(source_field, target_field)` - Interpolate between fields
+- `Copy(source_space, target_space)` - Create a copy operator for compatible FunctionSpaces
 - `map_entity_field_to_vertices_average(mesh, field_data, entity_dim)` - Convert element/face field to vertex field by averaging
 
 ### Out-of-Bounds Modes
@@ -295,8 +299,8 @@ np.save('field_data.npy', grid_values)
 ### Grid Properties
 - `grid.get_num_cells()` - Total number of cells
 - `grid.divisions` - Cell divisions in each dimension
-- `layout.get_num_vertices()` - Total number of vertices
-- `layout.get_dof_holder_coordinates()` - Vertex coordinates
+- `field.get_num_dof_holders()` - Total number of field DOF holders
+- `field.get_dof_holder_coordinates()` - DOF holder coordinates
 
 ---
 

@@ -4,8 +4,11 @@ set(
         assert.h
         bounding_box.h
         common.h
+        entity_types.h
         mesh_geometry.h
         memory_spaces.h
+        mpi_type.h
+        omega_h_array_utils.h
         types.h
         array_mask.h
         inclusive_scan.h
@@ -30,7 +33,7 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../..>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(pcms_utility PUBLIC Kokkos::kokkos perfstubs)
-target_compile_features(pcms_utility PUBLIC cxx_std_17)
+target_compile_features(pcms_utility PUBLIC cxx_std_20)
 
 set_target_properties(
         pcms_utility PROPERTIES OUTPUT_NAME pcmsutility EXPORT_NAME

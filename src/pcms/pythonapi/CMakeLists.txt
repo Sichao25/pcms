@@ -6,16 +6,16 @@ pybind11_add_module(pcms
   pythonapi.cpp
   bind_field_base.cpp
   bind_field_layout.cpp
-  bind_omega_h_field2.cpp
+        bind_omega_h_field.cpp
   bind_omega_h_field_layout.cpp
   bind_uniform_grid_field.cpp
   bind_uniform_grid_field_layout.cpp
   bind_omega_h.cpp
-  bind_transfer_field2.cpp
+        bind_transfer_field.cpp
         bind_mls_interpolation.cpp
         bind_mesh_utilities.cpp
 )
-set_target_properties(pcms PROPERTIES CXX_STANDARD 17)
+target_compile_features(pcms PUBLIC cxx_std_20)
 target_link_libraries(pcms PRIVATE Kokkos::kokkos pybind11::module MPI::MPI_C pcms::core pcms::transfer)
 
 # if we are building as a python package from the pyproject.toml

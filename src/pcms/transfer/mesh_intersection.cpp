@@ -1,5 +1,6 @@
 #include "pcms/transfer/mesh_intersection.hpp"
 #include "pcms/utility/mesh_geometry.h"
+#include "pcms/utility/omega_h_array_utils.h"
 
 namespace pcms
 {
@@ -24,8 +25,8 @@ void FindIntersections::adjBasedIntersectSearch(
 
   const auto flat_centroids =
     pcms::get_entity_centroids(target_mesh_, Omega_h::FACE);
-  auto centroids = Kokkos::View<const Omega_h::Real* [2]>(
-    flat_centroids.data(), target_mesh_.nfaces());
+  // Convert layout_right 1D Omega_h array to 2D Kokkos view with correct layout
+  auto centroids = ConvertCoordsTo2D(flat_centroids, target_mesh_.nfaces(), 2);
 
   pcms::GridPointSearch2D search_cell(source_mesh_, 20, 20);
   auto results = search_cell(centroids);

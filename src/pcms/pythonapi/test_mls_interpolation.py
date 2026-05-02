@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Tests for MLS-backed PolynomialReconstructionFunctionSpace using the
+Field<T>-based API.
+"""
 
 import numpy as np
 import pcms
@@ -16,15 +20,15 @@ def poly_value(x, y, degree):
     raise ValueError(f"Unsupported polynomial degree: {degree}")
 
 
-def build_full_support(num_targets, num_sources):
-    supports_ptr = np.arange(0, (num_targets + 1) * num_sources,
-                             num_sources, dtype=np.int32)
-    supports_idx = np.tile(np.arange(num_sources, dtype=np.int32), num_targets)
-    radii2 = np.full(num_targets, 10.0, dtype=np.float64)
-    return pcms.SupportResults(supports_ptr, supports_idx, radii2)
-
-
 def test_mls_interpolation_polynomial_reproduction():
+    """
+    Verify that MLS reproduces polynomials up to the configured degree.
+
+    Source points are a 4x4 grid on [0,1]^2.  Target points are six
+    arbitrary interior locations.  For each interpolation degree d, MLS
+    must exactly reproduce any polynomial of degree <= d (up to the
+    configured tolerance).
+    """
     tolerance = 5e-4
 
     grid_vals = np.linspace(0.0, 1.0, 4)
@@ -41,17 +45,28 @@ def test_mls_interpolation_polynomial_reproduction():
         ],
         dtype=np.float64,
     )
-
-    num_sources = source_xy.shape[0]
     num_targets = target_xy.shape[0]
 
-    source_coordinates = source_xy.reshape(-1)
-    target_coordinates = target_xy.reshape(-1)
-    support = build_full_support(num_targets, num_sources)
-
-    print("Testing MLS interpolation for polynomial reproduction...")
+    print("Testing MLS polynomial reproduction via PolynomialReconstructionFunctionSpace...")
 
     for interp_degree in range(1, 4):
+        # Use a radius that covers the entire unit square from any target so
+        # all 16 source points are always in support (equivalent to the
+        # full-support test in the old low-level API).
+        opts = pcms.MLSOptions()
+        opts.degree = interp_degree
+        opts.radius = 1.5
+        opts.adapt_radius = False
+        opts.basis = pcms.RadialBasisFunction.NO_OP
+
+        factory = pcms.PolynomialReconstructionFunctionSpace.from_coords(
+            source_xy, pcms.CoordinateSystem.Cartesian, opts
+        )
+        field = factory.create_field()
+        request = pcms.EvaluationRequest.from_coordinates(target_xy)
+        evaluator = factory.create_point_evaluator(request)
+        results = np.zeros((num_targets, 1), dtype=np.float64)
+
         for func_degree in range(interp_degree, -1, -1):
             source_values = np.array(
                 [poly_value(x, y, func_degree) for (x, y) in source_xy],
@@ -62,18 +77,9 @@ def test_mls_interpolation_polynomial_reproduction():
                 dtype=np.float64,
             )
 
-            approx_target_values = pcms.mls_interpolation(
-                source_values,
-                source_coordinates,
-                target_coordinates,
-                support,
-                2,
-                interp_degree,
-                pcms.RadialBasisFunction.NO_OP,
-                1e-5,
-                1e-6,
-                5.0,
-            )
+            field.set_dof_holder_data(source_values)
+            evaluator.evaluate(field, results)
+            approx_target_values = results[:, 0]
 
             max_abs_err = np.max(np.abs(exact_target_values - approx_target_values))
             assert max_abs_err < tolerance, (
@@ -81,10 +87,13 @@ def test_mls_interpolation_polynomial_reproduction():
                 f"func_degree={func_degree}: max_abs_err={max_abs_err}"
             )
 
+    print("MLS polynomial reproduction test passed.")
+
+
 if __name__ == "__main__":
     lib = pcms.OmegaHLibrary()
     world = lib.world()
-    
+
     try:
         test_mls_interpolation_polynomial_reproduction()
         print("MLS interpolation test passed")
@@ -94,6 +103,5 @@ if __name__ == "__main__":
         traceback.print_exc()
         exit(1)
     finally:
-        # Explicitly delete objects to avoid an MPI finalizing issue
         del world
         del lib

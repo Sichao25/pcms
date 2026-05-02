@@ -9,6 +9,7 @@
 #include "pcms.h"
 #include "test_support.h"
 #include <pcms/version.h>
+#include "pcms/utility/types.h"
 
 namespace ts = test_support;
 

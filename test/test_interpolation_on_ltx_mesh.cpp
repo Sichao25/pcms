@@ -472,8 +472,8 @@ void write_xgc_mesh_as_vtu(
   file << "        <DataArray type=\"Float64\" Name=\"Points\" "
           "NumberOfComponents=\"3\" format=\"ascii\">\n";
   for (size_t i = 0; i < n_points; ++i) {
-    file << "          " << node_coords[2 * i] << " " << node_coords[2 * i + 1]
-         << " 0.0\n";
+    file << "          " << node_coords[2 * static_cast<size_t>(i)] << " "
+         << node_coords[2 * static_cast<size_t>(i) + 1] << " 0.0\n";
   }
   file << "        </DataArray>\n";
   file << "      </Points>\n";

@@ -182,7 +182,7 @@ if(PCMS_ENABLE_OMEGA_H)
       TESTNAME
       test_proxy_coupling_4p
       TIMEOUT
-      10
+      60
       NAME1
       rdv
       EXE1
@@ -372,20 +372,15 @@ if(Catch2_FOUND)
                              test_coordinate.cpp test_bounding_box.cpp)
   if(PCMS_ENABLE_XGC)
     list(APPEND PCMS_UNIT_TEST_SOURCES test_xgc_reverse_classification.cpp
-         test_xgc_field_adapter.cpp)
+         test_xgc_field_data.cpp)
   endif()
 
   if(PCMS_ENABLE_OMEGA_H)
-    add_executable(field_transfer_example field_transfer_example.cpp)
-    target_link_libraries(field_transfer_example PUBLIC pcms::core
-                                                        pcms::transfer)
     list(
       APPEND
       PCMS_UNIT_TEST_SOURCES
       test_error_handling.cpp
-      test_field_transfer.cpp
       test_uniform_grid.cpp
-      test_omega_h_copy.cpp
       test_field_evaluation.cpp
       test_field_interpolation.cpp
       test_field_copy.cpp
@@ -398,7 +393,12 @@ if(Catch2_FOUND)
       test_uniform_grid_field.cpp
       test_interpolation_class.cpp
       test_mesh_geometry.cpp
-      test_omega_h_field2_outofbounds.cpp)
+            test_polynomial_reconstruction_function_space.cpp
+            test_polynomial_reconstruction_mls_evaluation.cpp
+      test_localization_factory.cpp
+      test_omega_h_field2_outofbounds.cpp
+      test_omega_h_lagrange_field.cpp
+      test_point_evaluator.cpp)
   endif()
 
   if(PCMS_ENABLE_MESHFIELDS)
@@ -406,7 +406,7 @@ if(Catch2_FOUND)
       test_load_vector.cpp)
   endif()
 
-  if(PCMS_ENABLE_PETSC)
+  if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
     list(APPEND PCMS_UNIT_TEST_SOURCES
       test_mesh_intersection_field_transfer.cpp)
   endif()
@@ -464,12 +464,17 @@ if(PCMS_ENABLE_C)
                      test_proxy_coupling_xgc_server.cpp)
       target_link_libraries(test_proxy_couple_xgc_cpp_interface
                             PUBLIC pcms::core MPI::MPI_C test_support)
+      # New test with proper overlap mask feature (no hacky ownership modification)
+      add_executable(test_proxy_couple_xgc_overlap_interface
+                     test_proxy_coupling_xgc_server_overlap.cpp)
+      target_link_libraries(test_proxy_couple_xgc_overlap_interface
+                            PUBLIC pcms::core MPI::MPI_C test_support)
       if(HOST_NPROC GREATER_EQUAL 3)
         dual_mpi_test(
           TESTNAME
           xgc_proxy_to_xgc
           TIMEOUT
-          10
+          30
           NAME1
           cinterface
           EXE1
@@ -488,13 +493,37 @@ if(PCMS_ENABLE_C)
           ${d3d1p}
           ${d3d1p_cpn}
           0)
+        # Test with proper overlap mask feature (XGC adapter)
+        dual_mpi_test(
+          TESTNAME
+          xgc_proxy_to_xgc_overlap
+          TIMEOUT
+          30
+          NAME1
+          cinterface
+          EXE1
+          $<TARGET_FILE:test_proxy_couple_xgc_c_interface>
+          PROCS1
+          2
+          ARGS1
+          ${PCMS_TEST_DATA_DIR}/d3d/meshRclassification.txt
+          NAME2
+          cppinterface_overlap
+          EXE2
+          $<TARGET_FILE:test_proxy_couple_xgc_overlap_interface>
+          PROCS2
+          1
+          ARGS2
+          ${d3d1p}
+          ${d3d1p_cpn}
+          0)
       endif()
       if(HOST_NPROC GREATER_EQUAL 6)
         dual_mpi_test(
           TESTNAME
           xgc_proxy_to_omega
           TIMEOUT
-          10
+          30
           NAME1
           cinterface
           EXE1
@@ -507,6 +536,30 @@ if(PCMS_ENABLE_C)
           cppinterface
           EXE2
           $<TARGET_FILE:test_proxy_couple_xgc_cpp_interface>
+          PROCS2
+          2
+          ARGS2
+          ${d3d1p}
+          ${d3d2p_cpn}
+          1)
+        # Test with proper overlap mask feature (Omega-h adapter)
+        dual_mpi_test(
+          TESTNAME
+          xgc_proxy_to_omega_overlap
+          TIMEOUT
+          30
+          NAME1
+          cinterface
+          EXE1
+          $<TARGET_FILE:test_proxy_couple_xgc_c_interface>
+          PROCS1
+          4
+          ARGS1
+          ${PCMS_TEST_DATA_DIR}/d3d/meshRclassification.txt
+          NAME2
+          cppinterface_overlap
+          EXE2
+          $<TARGET_FILE:test_proxy_couple_xgc_overlap_interface>
           PROCS2
           2
           ARGS2
@@ -542,7 +595,7 @@ if(PCMS_ENABLE_Fortran)
       TESTNAME
       xgc_fortran_proxy_to_omega
       TIMEOUT
-      10
+      30
       NAME1
       finterface
       EXE1

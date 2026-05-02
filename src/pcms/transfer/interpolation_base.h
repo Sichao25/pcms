@@ -12,8 +12,8 @@
 #ifndef PCMS_TRANSFER_INTERPOLATION_BASE_H
 #define PCMS_TRANSFER_INTERPOLATION_BASE_H
 
-#include "mls_interpolation.hpp"
-#include "adj_search.hpp"
+#include "pcms/field/evaluator/mls_interpolation.hpp"
+#include "pcms/localization/adj_search.hpp"
 #include "interpolation_helpers.h"
 #include <Omega_h_file.hpp>
 #include "pcms/utility/arrays.h"
