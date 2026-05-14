@@ -34,6 +34,17 @@ if(PCMS_ENABLE_OMEGA_H)
       ${notRendezvous}
       ${cyclone1p})
   endif()
+  
+  # EQDSK test - takes filename as parameter
+  add_exe(test_eqdsk)
+  target_link_libraries(test_eqdsk pcms::utility)
+  # To run: ctest -R test_eqdsk_load -E none  
+  # or: mpiexec -n 1 ./test_eqdsk /path/to/your/file.geqdsk
+  # Note: Test is not added by default - provide EQDSK file path to enable
+  if(DEFINED PCMS_EQDSK_TEST_FILE)
+    mpi_test(test_eqdsk_load 1 ./test_eqdsk ${PCMS_EQDSK_TEST_FILE})
+  endif()
+  
   add_exe(test_ohClassPtn_appRibPtn)
   set(cyclone2p ${PCMS_TEST_DATA_DIR}/cyclone/23elements/2p.osh/)
   if(HOST_NPROC GREATER_EQUAL 4)
