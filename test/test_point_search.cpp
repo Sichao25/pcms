@@ -100,6 +100,70 @@ TEST_CASE("Triangle BBox Intersection Regression")
           true);
 }
 
+TEST_CASE("barycentric distance to closest edge")
+{
+  using pcms::distance_to_closest_edge_from_barycentric;
+  // Triangle embedded in 2D
+  Omega_h::Matrix<2, 3> coords{{0.0, 0.0}, {1.0, 0.0}, {0.5, 1.0}};
+
+  auto point_from_bary = [&](const Omega_h::Vector<3>& xi) {
+    Omega_h::Vector<2> p{0.0, 0.0};
+    for (int i = 0; i < 3; ++i) {
+      p[0] += xi[i] * coords[i][0];
+      p[1] += xi[i] * coords[i][1];
+    }
+    return p;
+  };
+
+  auto dist_point_to_seg = [](const Omega_h::Vector<2>& p,
+                              const Omega_h::Vector<2>& a,
+                              const Omega_h::Vector<2>& b) {
+    auto ab = b - a;
+    auto ap = p - a;
+    auto ab2 = Omega_h::inner_product(ab, ab);
+    if (ab2 == 0.0)
+      return Omega_h::norm(ap);
+    double t = Omega_h::inner_product(ap, ab) / ab2;
+    if (t < 0.0)
+      t = 0.0;
+    if (t > 1.0)
+      t = 1.0;
+    auto proj = a + t * ab;
+    return Omega_h::norm(p - proj);
+  };
+
+  auto check = [&](const Omega_h::Vector<3>& xi) {
+    auto p = point_from_bary(xi);
+    // Euclidean distance to each triangle edge
+    double d01 = dist_point_to_seg(p, coords[0], coords[1]);
+    double d12 = dist_point_to_seg(p, coords[1], coords[2]);
+    double d20 = dist_point_to_seg(p, coords[2], coords[0]);
+    double d_true = std::min(d01, std::min(d12, d20));
+
+    double d_bary = distance_to_closest_edge_from_barycentric<2>(coords, xi);
+    REQUIRE(d_bary == Catch::Approx(d_true).epsilon(1e-12));
+  };
+
+  SECTION("interior points")
+  {
+    check(Omega_h::Vector<3>{1.0 / 3, 1.0 / 3, 1.0 / 3});
+    check(Omega_h::Vector<3>{0.25, 0.25, 0.5});
+    check(Omega_h::Vector<3>{0.1, 0.6, 0.3});
+    check(Omega_h::Vector<3>{0.49, 0.49, 0.02});
+  }
+  SECTION("on edges and at vertices")
+  {
+    // Edge midpoints
+    check(Omega_h::Vector<3>{0.0, 0.5, 0.5});
+    check(Omega_h::Vector<3>{0.5, 0.0, 0.5});
+    check(Omega_h::Vector<3>{0.5, 0.5, 0.0});
+    // Vertices
+    check(Omega_h::Vector<3>{1.0, 0.0, 0.0});
+    check(Omega_h::Vector<3>{0.0, 1.0, 0.0});
+    check(Omega_h::Vector<3>{0.0, 0.0, 1.0});
+  }
+}
+
 template <typename T>
 bool num_candidates_within_range(const T& intersection_map, pcms::LO min,
                                  pcms::LO max)
@@ -205,27 +269,33 @@ TEST_CASE("uniform grid search")
   {
     {
       auto [dim, idx, coords] = results_h(0);
+      const auto face_idx = search.GetOwningElementId(results_h(0));
 
       CAPTURE(idx);
 
       REQUIRE(dim == GridPointSearch2D::Result::Dimensionality::VERTEX);
       REQUIRE(idx == 0);
+      REQUIRE(face_idx >= 0);
       REQUIRE(coords[0] == Catch::Approx(1));
       REQUIRE(coords[1] == Catch::Approx(0));
       REQUIRE(coords[2] == Catch::Approx(0));
     }
     {
       auto [dim, idx, coords] = results_h(1);
+      const auto face_idx = search.GetOwningElementId(results_h(1));
       REQUIRE(dim == GridPointSearch2D::Result::Dimensionality::EDGE);
       REQUIRE(idx == 156);
+      REQUIRE(face_idx >= 0);
       REQUIRE(coords[0] == Catch::Approx(0.5));
       REQUIRE(coords[1] == Catch::Approx(0.1));
       REQUIRE(coords[2] == Catch::Approx(0.4));
     }
     {
       auto [dim, idx, coords] = results_h(7);
+      const auto face_idx = search.GetOwningElementId(results_h(7));
       REQUIRE(dim == GridPointSearch2D::Result::Dimensionality::FACE);
       REQUIRE(idx == 0);
+      REQUIRE(face_idx >= 0);
     }
   }
   // feature needs to be added
@@ -236,21 +306,25 @@ TEST_CASE("uniform grid search")
     REQUIRE(out_of_bounds.dimensionality ==
             GridPointSearch2D::Result::Dimensionality::VERTEX);
     REQUIRE(-1 * out_of_bounds.element_id == top_right.element_id);
+    REQUIRE(search.GetOwningElementId(out_of_bounds) >= 0);
 
     out_of_bounds = results_h(4);
     auto bot_left = results_h(0);
     REQUIRE(out_of_bounds.dimensionality ==
             GridPointSearch2D::Result::Dimensionality::VERTEX);
     REQUIRE(-1 * out_of_bounds.element_id == bot_left.element_id);
+    REQUIRE(search.GetOwningElementId(out_of_bounds) >= 0);
 
     out_of_bounds = results_h(5);
     REQUIRE(out_of_bounds.dimensionality ==
             GridPointSearch2D::Result::Dimensionality::EDGE);
     REQUIRE(out_of_bounds.element_id == -219);
+    REQUIRE(search.GetOwningElementId(out_of_bounds) >= 0);
 
     out_of_bounds = results_h(6);
     REQUIRE(out_of_bounds.dimensionality ==
             GridPointSearch2D::Result::Dimensionality::EDGE);
     REQUIRE(-1 * out_of_bounds.element_id == bot_left.element_id);
+    REQUIRE(search.GetOwningElementId(out_of_bounds) >= 0);
   }
 }

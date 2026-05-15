@@ -140,8 +140,10 @@ public:
         coords_search(i, 1) = coordinates(i, 1);
       });
     auto results = search_(coords_search);
+    auto owning_ids = search_.GetOwningElementIds(results);
 
-    MeshFieldsAdapter2LocalizationHint hint(mesh_, results, policy.mode);
+    MeshFieldsAdapter2LocalizationHint hint(mesh_, results, coords_search,
+                                            owning_ids, policy.mode);
 
     return std::make_unique<MeshFieldsPointEvaluator<T>>(
       layout_, std::move(hint), policy.fill_value);
