@@ -198,10 +198,6 @@ struct CountPointsPerElementFunctor
   KOKKOS_INLINE_FUNCTION
   void operator()(LO i) const
   {
-    auto [dim, elem_idx, coord] = search_results_(i);
-    (void)dim;
-    (void)elem_idx;
-    (void)coord;
     const auto owner_idx = owning_elem_ids_(i);
     Kokkos::atomic_add(&elem_counts_(owner_idx), 1);
   }
@@ -239,6 +235,8 @@ struct FillCoordinatesAndIndicesFunctor
   void operator()(LO i) const
   {
     auto [dim, elem_idx, coord] = search_results_(i);
+    (void)dim;
+    (void)elem_idx;
     const auto owner_idx = owning_elem_ids_(i);
     LO count = Kokkos::atomic_sub_fetch(&elem_counts_(owner_idx), 1);
     LO index = offsets_(owner_idx) + count - 1;
@@ -274,9 +272,9 @@ struct FilterValidPointsFunctor
   void operator()(LO i, LO& num_valid, LO& num_missing) const
   {
     auto [dim, elem_idx, coord] = search_results_(i);
-    const auto owner_idx = owning_elem_ids_(i);
     (void)dim;
     (void)coord;
+    const auto owner_idx = owning_elem_ids_(i);
     bool is_missing = (elem_idx < 0) || (owner_idx < 0);
 
     if (mode_ == OutOfBoundsMode::ERROR && is_missing) {
@@ -347,10 +345,6 @@ struct CountPerElementFunctor
   void operator()(LO i) const
   {
     LO orig_idx = valid_indices_(i);
-    auto [dim, elem_idx, coord] = search_results_(orig_idx);
-    (void)dim;
-    (void)elem_idx;
-    (void)coord;
     const auto owner_idx = owning_elem_ids_(orig_idx);
     Kokkos::atomic_add(&elem_counts_(owner_idx), 1);
   }
@@ -398,10 +392,6 @@ struct FillCoordinatesDeviceFunctor
   void operator()(LO i) const
   {
     LO orig_idx = valid_indices_(i);
-    auto [dim, elem_idx, coord] = search_results_(orig_idx);
-    (void)dim;
-    (void)elem_idx;
-    (void)coord;
     const auto owner_idx = owning_elem_ids_(orig_idx);
     LO count =
       Kokkos::atomic_fetch_add(&elem_counts_(owner_idx), static_cast<LO>(-1));
@@ -520,10 +510,6 @@ struct MeshFieldsAdapter2LocalizationHint
                                                    mesh.nelems());
     Kokkos::deep_copy(elem_counts, 0);
     for (size_t i = 0; i < num_valid_; ++i) {
-      auto [dim, elem_idx, coord] = search_results(valid_point_indices[i]);
-      (void)dim;
-      (void)elem_idx;
-      (void)coord;
       const auto owner_idx = owning_elem_ids(valid_point_indices[i]);
       elem_counts[owner_idx] += 1;
     }
@@ -540,10 +526,6 @@ struct MeshFieldsAdapter2LocalizationHint
     const auto mesh_coords = mesh.coords();
     for (size_t i = 0; i < num_valid_; ++i) {
       size_t orig_idx = valid_point_indices[i];
-      auto [dim, elem_idx, coord] = search_results(orig_idx);
-      (void)dim;
-      (void)elem_idx;
-      (void)coord;
       const auto owner_idx = owning_elem_ids(orig_idx);
       elem_counts(owner_idx) -= 1;
       LO index = offsets_(owner_idx) + elem_counts(owner_idx);
