@@ -11,101 +11,16 @@
 namespace pcms
 {
 
-struct GEQDData
-{
-  // Header
-  std::array<std::string, 6> eqd_case;
-
-  int eqd_imfit;
-  int eqd_mw;
-  int eqd_mh;
-
-  // Scalars
-  double eqd_rdim;
-  double eqd_zdim;
-  double eqd_rzero;
-  double eqd_r_min;
-  double eqd_zmid;
-
-  double eqd_rmaxis;
-  double eqd_zmaxis;
-  double eqd_ssimag;
-  double eqd_ssibry;
-  double eqd_bzero;
-
-  double eqd_cpasma;
-
-  double eqd_drgrid;
-  double eqd_dzgrid;
-  double eqd_z_min;
-  double eqd_r_max;
-  double eqd_z_max;
-  double eqd_darea;
-
-  int eqd_nbdry;
-  int eqd_nlim;
-
-  double eqd_psi_factor = 1.0;
-
-  // 1D arrays
-  std::vector<double> eqd_fpol;
-  std::vector<double> eqd_pres;
-  std::vector<double> eqd_qpsi;
-  std::vector<double> eqd_workk;
-  std::vector<double> eqd_ffprim;
-  std::vector<double> eqd_pprime;
-  std::vector<double> eqd_xsi;
-
-  std::vector<double> eqd_rgrid;
-  std::vector<double> eqd_zgrid;
-  std::vector<double> eqd_psi_grid;
-
-  std::vector<double> eqd_rbdry;
-  std::vector<double> eqd_zbdry;
-
-  std::vector<double> eqd_rlim;
-  std::vector<double> eqd_zlim;
-
-  // 2D array
-  std::vector<std::vector<double>> eqd_psirz;
-};
-
-struct EQDData
-{
-  int eqd_mw;
-  int eqd_mh;
-  int eqd_mpsi;
-
-  int eqd_nlim;
-
-  double eqd_r_min;
-  double eqd_r_max;
-  double eqd_z_min;
-  double eqd_z_max;
-
-  double eqd_rmaxis;
-  double eqd_zmaxis;
-
-  std::vector<double> eqd_psi_grid;
-  std::vector<double> eq_I;
-
-  std::vector<double> eqd_rgrid;
-  std::vector<double> eqd_zgrid;
-
-  std::vector<double> eqd_rlim;
-  std::vector<double> eqd_zlim;
-
-  // 2D psi array
-  std::vector<std::vector<double>> eqd_psirz;
-};
-
 /**
  * @brief Data structure for EQDSK equilibrium data (simplified for field
  * evaluation)
  *
- * Contains only the essential data needed for poloidal flux field evaluation:
+ * Contains the essential data needed for poloidal flux field evaluation:
  * - Uniform 2D grid structure (R-Z computational domain)
  * - PSIZR: Poloidal flux values on grid points
+ * - psi_grid: Normalized poloidal flux grid values
+ * - I_psi: Poloidal current function at psi_grid points (F(psi) for G-EQDSK,
+ *   I(psi) for EQD format)
  *
  * All grid data is stored in column-major order (R varies fastest).
  */
@@ -123,15 +38,24 @@ struct EQDSKData
   // PSIZR: Poloidal flux in Weber/rad on the rectangular grid points
   Kokkos::View<Real*, DeviceMemorySpace> PSIZR;
 
+  // Psi grid: Normalized poloidal flux grid values
+  Kokkos::View<Real*, DeviceMemorySpace> psi_grid;
+
+  // I_psi: Poloidal current function I(psi) at psi_grid points
+  Kokkos::View<Real*, DeviceMemorySpace> I_psi;
+
   // Constructors
   // Constructor from file
   EQDSKData(const std::string& filename);
 
-  // Constructor from GEQDData (G-EQDSK format)
-  explicit EQDSKData(const GEQDData& geqd);
-
-  // Constructor from EQDData (EQD format)
-  explicit EQDSKData(const EQDData& eqd);
+  // Manual constructor for programmatic construction
+  // grid: Uniform2DGrid structure defining the R-Z computational domain
+  // psirz: 2D flux array (flattened in column-major order, size =
+  // grid.divisions[0]*grid.divisions[1]) psi_grid_vals: psi grid values (size =
+  // npsi) I_psi_vals: poloidal current function values (size = npsi)
+  EQDSKData(const Uniform2DGrid& grid, const std::vector<Real>& psirz,
+            const std::vector<Real>& psi_grid_vals,
+            const std::vector<Real>& I_psi_vals);
 
   // Accessor methods for backward compatibility
   [[nodiscard]] int GetNW() const noexcept { return grid.divisions[0]; }
@@ -190,6 +114,18 @@ struct EQDSKData
   {
     return grid.bot_left[1] + i_Z * GetDeltaZ();
   }
+
+  // Accessor for poloidal current data size
+  [[nodiscard]] int GetNPsi() const noexcept
+  {
+    return static_cast<int>(psi_grid.extent(0));
+  }
+
+  // Accessor for psi grid value
+  [[nodiscard]] Real GetPsiGrid(int i) const { return psi_grid[i]; }
+
+  // Accessor for poloidal current at psi grid point
+  [[nodiscard]] Real GetI(int i) const { return I_psi[i]; }
 };
 
 } // namespace pcms

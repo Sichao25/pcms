@@ -10,305 +10,177 @@
 namespace pcms
 {
 
-void readgfile(const std::string& filename, GEQDData& eqd)
+// ============================================================================
+// File readers for EQDSKData
+// ============================================================================
+
+void read_geqdsk(const std::string& filename, EQDSKData& eqdsk)
 {
-  constexpr double pi = 3.1415926535897932;
-  constexpr double tmu = 2.0e-07;
-  constexpr double twopi = 2.0 * pi;
+  constexpr double psi_factor = 1.0; // Default psi factor
 
   std::ifstream fin(filename);
 
   if (!fin) {
-    throw std::runtime_error("Cannot open file");
+    throw std::runtime_error("Cannot open G-EQDSK file: " + filename);
   }
 
   // ----------------------------------------
   // Read header
   // ----------------------------------------
-  // G-EQDSK format (Fortran format: 6a8,3i4):
-  //   6 strings of 8 characters each (characters 1-48)
-  //   3 integers of 4 characters each (characters 49-60)
-  // Example: "  EFITD    05/12/98      # 96333 ,3337ms           3  65  65"
-
   std::string first_line;
   std::getline(fin, first_line);
 
-  // Ensure line is long enough (at least 60 characters for full format)
   if (first_line.length() < 60) {
     first_line.resize(60, ' ');
   }
 
-  // Read 6 strings of 8 characters each (positions 0-47)
-  for (int i = 0; i < 6; i++) {
-    eqd.eqd_case[i] = first_line.substr(i * 8, 8);
-  }
-
-  // Read 3 integers of 4 characters each (positions 48-59)
-  std::string imfit_str = first_line.substr(48, 4);
-  std::string mw_str = first_line.substr(52, 4);
-  std::string mh_str = first_line.substr(56, 4);
-
-  eqd.eqd_imfit = std::stoi(imfit_str);
-  eqd.eqd_mw = std::stoi(mw_str);
-  eqd.eqd_mh = std::stoi(mh_str);
-
-  // ----------------------------------------
-  // Allocate arrays
-  // ----------------------------------------
-
-  int mw = eqd.eqd_mw;
-  int mh = eqd.eqd_mh;
-
-  eqd.eqd_fpol.resize(mw);
-  eqd.eqd_pres.resize(mw);
-  eqd.eqd_qpsi.resize(mw);
-  eqd.eqd_workk.resize(mw);
-  eqd.eqd_ffprim.resize(mw);
-  eqd.eqd_pprime.resize(mw);
-  eqd.eqd_xsi.resize(mw);
-
-  eqd.eqd_rgrid.resize(mw);
-  eqd.eqd_zgrid.resize(mh);
-  eqd.eqd_psi_grid.resize(mw);
-
-  eqd.eqd_psirz.resize(mw, std::vector<double>(mh));
+  int mw = std::stoi(first_line.substr(52, 4));
+  int mh = std::stoi(first_line.substr(56, 4));
 
   // ----------------------------------------
   // Read geometry
   // ----------------------------------------
+  double rdim, zdim, rzero, r_min, zmid;
+  fin >> rdim >> zdim >> rzero >> r_min >> zmid;
 
-  fin >> eqd.eqd_rdim >> eqd.eqd_zdim >> eqd.eqd_rzero >> eqd.eqd_r_min >>
-    eqd.eqd_zmid;
-
-  fin >> eqd.eqd_rmaxis >> eqd.eqd_zmaxis >> eqd.eqd_ssimag >> eqd.eqd_ssibry >>
-    eqd.eqd_bzero;
-
-  double xdum;
-  double sdum;
-
-  fin >> eqd.eqd_cpasma >> xdum >> xdum >> eqd.eqd_rmaxis >> xdum;
-
-  fin >> eqd.eqd_zmaxis >> xdum >> sdum >> xdum >> xdum;
+  double ssimag, ssibry, dummy;
+  fin >> dummy >> dummy >> ssimag >> ssibry >> dummy;
+  fin >> dummy >> dummy >> dummy >> dummy >> dummy;
+  fin >> dummy >> dummy >> dummy >> dummy >> dummy;
 
   // ----------------------------------------
-  // Read profiles
+  // Read fpol (poloidal current function)
   // ----------------------------------------
-
+  std::vector<double> fpol(mw);
   for (int i = 0; i < mw; i++) {
-    fin >> eqd.eqd_fpol[i];
+    fin >> fpol[i];
   }
 
-  for (int i = 0; i < mw; i++) {
-    fin >> eqd.eqd_pres[i];
-  }
-
-  for (int i = 0; i < mw; i++) {
-    fin >> eqd.eqd_workk[i];
-  }
-
-  eqd.eqd_drgrid = eqd.eqd_rdim / double(mw - 1);
-  eqd.eqd_dzgrid = eqd.eqd_zdim / double(mh - 1);
-
-  eqd.eqd_z_min = eqd.eqd_zmid - eqd.eqd_zdim / 2.0;
-
-  eqd.eqd_darea = eqd.eqd_drgrid * eqd.eqd_dzgrid;
-
-  for (int i = 0; i < mw; i++) {
-    if (eqd.eqd_imfit >= 0) {
-      eqd.eqd_ffprim[i] = -eqd.eqd_workk[i] / (twopi * tmu);
-    } else {
-      eqd.eqd_ffprim[i] = -eqd.eqd_workk[i];
-    }
-  }
-
-  // ----------------------------------------
-  // pprime
-  // ----------------------------------------
-
-  for (int i = 0; i < mw; i++) {
-    fin >> eqd.eqd_workk[i];
-  }
-
-  for (int i = 0; i < mw; i++) {
-    eqd.eqd_pprime[i] = -eqd.eqd_workk[i];
+  // Skip pres, ffprim, pprime arrays (3 * mw values)
+  for (int i = 0; i < 3 * mw; i++) {
+    fin >> dummy;
   }
 
   // ----------------------------------------
   // Read psirz
   // ----------------------------------------
-
+  std::vector<std::vector<double>> psirz(mw, std::vector<double>(mh));
   for (int j = 0; j < mh; j++) {
     for (int i = 0; i < mw; i++) {
-      fin >> eqd.eqd_psirz[i][j];
+      fin >> psirz[i][j];
     }
   }
 
-  // ----------------------------------------
-  // qpsi
-  // ----------------------------------------
-
+  // Skip qpsi array
   for (int i = 0; i < mw; i++) {
-    fin >> eqd.eqd_qpsi[i];
+    fin >> dummy;
   }
 
-  // ----------------------------------------
-  // Boundary info
-  // ----------------------------------------
-
-  fin >> eqd.eqd_nbdry >> eqd.eqd_nlim;
-
-  eqd.eqd_rbdry.resize(eqd.eqd_nbdry);
-  eqd.eqd_zbdry.resize(eqd.eqd_nbdry);
-
-  eqd.eqd_rlim.resize(eqd.eqd_nlim);
-  eqd.eqd_zlim.resize(eqd.eqd_nlim);
-
-  for (int i = 0; i < eqd.eqd_nbdry; i++) {
-    fin >> eqd.eqd_rbdry[i] >> eqd.eqd_zbdry[i];
-  }
-
-  for (int i = 0; i < eqd.eqd_nlim; i++) {
-    fin >> eqd.eqd_rlim[i] >> eqd.eqd_zlim[i];
+  // Skip boundary and limiter info
+  int nbdry, nlim;
+  fin >> nbdry >> nlim;
+  for (int i = 0; i < nbdry + nlim; i++) {
+    fin >> dummy >> dummy;
   }
 
   fin.close();
 
   // ----------------------------------------
-  // Apply psi factor
+  // Build EQDSKData
   // ----------------------------------------
+  ssimag *= psi_factor;
+  ssibry *= psi_factor;
+  double z_min = zmid - zdim / 2.0;
 
-  for (int i = 0; i < mw; i++) {
-    for (int j = 0; j < mh; j++) {
-      eqd.eqd_psirz[i][j] *= eqd.eqd_psi_factor;
+  // Initialize grid structure
+  eqdsk.grid.divisions[0] = static_cast<LO>(mw);
+  eqdsk.grid.divisions[1] = static_cast<LO>(mh);
+  eqdsk.grid.edge_length[0] = static_cast<Real>(rdim);
+  eqdsk.grid.edge_length[1] = static_cast<Real>(zdim);
+  eqdsk.grid.bot_left[0] = static_cast<Real>(r_min);
+  eqdsk.grid.bot_left[1] = static_cast<Real>(z_min);
+
+  // Allocate and copy PSIZR
+  eqdsk.PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", mw * mh);
+  auto psizr_host = Kokkos::create_mirror_view(eqdsk.PSIZR);
+  for (int j = 0; j < mh; ++j) {
+    for (int i = 0; i < mw; ++i) {
+      psizr_host(i + j * mw) = static_cast<Real>(psirz[i][j] * psi_factor);
     }
   }
+  Kokkos::deep_copy(eqdsk.PSIZR, psizr_host);
 
-  eqd.eqd_ssimag *= eqd.eqd_psi_factor;
-  eqd.eqd_ssibry *= eqd.eqd_psi_factor;
-
-  // ----------------------------------------
-  // Build grids
-  // ----------------------------------------
-
-  eqd.eqd_r_max = eqd.eqd_r_min + eqd.eqd_rdim;
-  eqd.eqd_z_max = eqd.eqd_z_min + eqd.eqd_zdim;
-
-  for (int i = 0; i < mw; i++) {
-    eqd.eqd_rgrid[i] = eqd.eqd_r_min + (eqd.eqd_r_max - eqd.eqd_r_min) *
-                                         double(i) / double(mw - 1);
+  // Build psi_grid
+  eqdsk.psi_grid = Kokkos::View<Real*, DeviceMemorySpace>("psi_grid", mw);
+  auto psi_grid_host = Kokkos::create_mirror_view(eqdsk.psi_grid);
+  for (int i = 0; i < mw; ++i) {
+    psi_grid_host(i) = static_cast<Real>(
+      double(i) / double(mw - 1) * (ssibry - ssimag) + ssimag);
   }
+  Kokkos::deep_copy(eqdsk.psi_grid, psi_grid_host);
 
-  for (int i = 0; i < mh; i++) {
-    eqd.eqd_zgrid[i] = eqd.eqd_z_min + (eqd.eqd_z_max - eqd.eqd_z_min) *
-                                         double(i) / double(mh - 1);
+  // Allocate and copy poloidal current function
+  eqdsk.I_psi = Kokkos::View<Real*, DeviceMemorySpace>("I_psi", mw);
+  auto I_psi_host = Kokkos::create_mirror_view(eqdsk.I_psi);
+  for (int i = 0; i < mw; ++i) {
+    I_psi_host(i) = static_cast<Real>(fpol[i]);
   }
-
-  for (int i = 0; i < mw; i++) {
-    eqd.eqd_psi_grid[i] =
-      double(i) / double(mw - 1) * (eqd.eqd_ssibry - eqd.eqd_ssimag) +
-      eqd.eqd_ssimag;
-  }
-
-  std::cout << "Finished reading G-EQDSK file\n";
+  Kokkos::deep_copy(eqdsk.I_psi, I_psi_host);
 }
 
-void readeqdfile(const std::string& filename, EQDData& eqd)
+void read_eqd(const std::string& filename, EQDSKData& eqdsk)
 {
   std::ifstream fin(filename);
 
   if (!fin) {
-    throw std::runtime_error("Cannot open eqd file");
+    throw std::runtime_error("Cannot open EQD file: " + filename);
   }
 
-  // ----------------------------------------
   // Read header
-  // ----------------------------------------
-
   std::string eq_header;
   std::getline(fin, eq_header);
 
-  // ----------------------------------------
   // Read dimensions
-  // ----------------------------------------
+  int mw, mh, mpsi;
+  fin >> mw >> mh >> mpsi;
 
-  fin >> eqd.eqd_mw >> eqd.eqd_mh >> eqd.eqd_mpsi;
-
-  int mw = eqd.eqd_mw;
-  int mh = eqd.eqd_mh;
-  int mpsi = eqd.eqd_mpsi;
-
-  // ----------------------------------------
-  // Allocate arrays
-  // ----------------------------------------
-
-  eqd.eqd_psi_grid.resize(mpsi);
-
-  eqd.eq_I.resize(mpsi);
-
-  eqd.eqd_rgrid.resize(mw);
-  eqd.eqd_zgrid.resize(mh);
-
-  eqd.eqd_psirz.resize(mw, std::vector<double>(mh));
-
-  // ----------------------------------------
   // Read geometry
-  // ----------------------------------------
+  double r_min, r_max, z_min, z_max;
+  fin >> r_min >> r_max >> z_min >> z_max;
 
-  fin >> eqd.eqd_r_min >> eqd.eqd_r_max >> eqd.eqd_z_min >> eqd.eqd_z_max;
+  double rmaxis, zmaxis, eq_axis_b;
+  fin >> rmaxis >> zmaxis >> eq_axis_b;
 
-  double eq_axis_b;
+  // Skip dummy variables
+  double dummy;
+  fin >> dummy >> dummy >> dummy;
 
-  fin >> eqd.eqd_rmaxis >> eqd.eqd_zmaxis >> eq_axis_b;
-
-  // dummy variables
-  double eq_x_psi_loc;
-  double eq_x_r;
-  double eq_x_z;
-
-  fin >> eq_x_psi_loc >> eq_x_r >> eq_x_z;
-
-  // ----------------------------------------
-  // Read psi grid
-  // ----------------------------------------
-
+  // Read psi_grid
+  std::vector<double> psi_grid_vec(mpsi);
   for (int i = 0; i < mpsi; i++) {
-    fin >> eqd.eqd_psi_grid[i];
+    fin >> psi_grid_vec[i];
   }
 
-  std::cout << "Axis (R,Z,B) = " << eqd.eqd_rmaxis << " " << eqd.eqd_zmaxis
-            << " " << eq_axis_b << "\n";
+  std::cout << "Axis (R,Z,B) = " << rmaxis << " " << zmaxis << " " << eq_axis_b
+            << "\\n";
 
-  // ----------------------------------------
   // Read I(psi)
-  // ----------------------------------------
-
+  std::vector<double> eq_I_vec(mpsi);
   for (int i = 0; i < mpsi; i++) {
-    fin >> eqd.eq_I[i];
+    fin >> eq_I_vec[i];
   }
 
-  // ----------------------------------------
   // Read psi(R,Z)
-  // ----------------------------------------
-
-  // Keep same indexing convention
-  // as original Fortran:
-  //
-  // eqd_psirz(i,j)
-  //
+  std::vector<std::vector<double>> psirz(mw, std::vector<double>(mh));
   for (int j = 0; j < mh; j++) {
     for (int i = 0; i < mw; i++) {
-      fin >> eqd.eqd_psirz[i][j];
+      fin >> psirz[i][j];
     }
   }
 
-  // ----------------------------------------
-  // End flag
-  // ----------------------------------------
-
+  // Verify end flag
   int end_flag;
-
   fin >> end_flag;
-
   if (end_flag != -1) {
     throw std::runtime_error("Wrong EQD file format");
   }
@@ -316,54 +188,49 @@ void readeqdfile(const std::string& filename, EQDData& eqd)
   fin.close();
 
   // ----------------------------------------
-  // Build R grid
+  // Build EQDSKData
   // ----------------------------------------
 
-  for (int i = 0; i < mw; i++) {
+  // Initialize grid structure
+  eqdsk.grid.divisions[0] = static_cast<LO>(mw);
+  eqdsk.grid.divisions[1] = static_cast<LO>(mh);
+  eqdsk.grid.edge_length[0] = static_cast<Real>(r_max - r_min);
+  eqdsk.grid.edge_length[1] = static_cast<Real>(z_max - z_min);
+  eqdsk.grid.bot_left[0] = static_cast<Real>(r_min);
+  eqdsk.grid.bot_left[1] = static_cast<Real>(z_min);
 
-    eqd.eqd_rgrid[i] = eqd.eqd_r_min + (eqd.eqd_r_max - eqd.eqd_r_min) *
-                                         double(i) / double(mw - 1);
+  // Allocate and copy PSIZR
+  eqdsk.PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", mw * mh);
+  auto psizr_host = Kokkos::create_mirror_view(eqdsk.PSIZR);
+  for (int j = 0; j < mh; ++j) {
+    for (int i = 0; i < mw; ++i) {
+      psizr_host(i + j * mw) = static_cast<Real>(psirz[i][j]);
+    }
   }
+  Kokkos::deep_copy(eqdsk.PSIZR, psizr_host);
 
-  // ----------------------------------------
-  // Build Z grid
-  // ----------------------------------------
-
-  for (int i = 0; i < mh; i++) {
-
-    eqd.eqd_zgrid[i] = eqd.eqd_z_min + (eqd.eqd_z_max - eqd.eqd_z_min) *
-                                         double(i) / double(mh - 1);
+  // Allocate and copy psi_grid
+  eqdsk.psi_grid = Kokkos::View<Real*, DeviceMemorySpace>("psi_grid", mpsi);
+  auto psi_grid_host = Kokkos::create_mirror_view(eqdsk.psi_grid);
+  for (int i = 0; i < mpsi; ++i) {
+    psi_grid_host(i) = static_cast<Real>(psi_grid_vec[i]);
   }
+  Kokkos::deep_copy(eqdsk.psi_grid, psi_grid_host);
 
-  // ----------------------------------------
-  // Construct rectangular limiter
-  // ----------------------------------------
-
-  eqd.eqd_nlim = 4;
-
-  eqd.eqd_rlim.resize(4);
-  eqd.eqd_zlim.resize(4);
-
-  eqd.eqd_rlim[0] = eqd.eqd_rgrid[0];
-  eqd.eqd_zlim[0] = eqd.eqd_zgrid[0];
-
-  eqd.eqd_rlim[1] = eqd.eqd_rgrid[0];
-  eqd.eqd_zlim[1] = eqd.eqd_zgrid[mh - 1];
-
-  eqd.eqd_rlim[2] = eqd.eqd_rgrid[mw - 1];
-  eqd.eqd_zlim[2] = eqd.eqd_zgrid[mh - 1];
-
-  eqd.eqd_rlim[3] = eqd.eqd_rgrid[mw - 1];
-  eqd.eqd_zlim[3] = eqd.eqd_zgrid[0];
+  // Allocate and copy poloidal current function
+  eqdsk.I_psi = Kokkos::View<Real*, DeviceMemorySpace>("I_psi", mpsi);
+  auto I_psi_host = Kokkos::create_mirror_view(eqdsk.I_psi);
+  for (int i = 0; i < mpsi; ++i) {
+    I_psi_host(i) = static_cast<Real>(eq_I_vec[i]);
+  }
+  Kokkos::deep_copy(eqdsk.I_psi, I_psi_host);
 
   std::cout << "EQD file loaded successfully\n";
 }
 
 // ============================================================================
-// EQDSKData Constructors
+// EQDSKData Constructor
 // ============================================================================
-
-// Constructor from filename
 EQDSKData::EQDSKData(const std::string& filename)
 {
   // Determine file type by extension
@@ -378,64 +245,62 @@ EQDSKData::EQDSKData(const std::string& filename)
 
   // Check for EQD format extensions
   if (extension == ".eqd") {
-    EQDData eqd;
-    readeqdfile(filename, eqd);
-    *this = EQDSKData(eqd);
+    read_eqd(filename, *this);
   }
   // Default to G-EQDSK format for .geq, .geqdsk, .g, or any other extension
   else {
-    GEQDData geqd;
-    readgfile(filename, geqd);
-    *this = EQDSKData(geqd);
+    read_geqdsk(filename, *this);
   }
 }
 
-// Constructor from GEQDData (G-EQDSK format)
-EQDSKData::EQDSKData(const GEQDData& geqd)
+// Manual constructor for programmatic construction
+EQDSKData::EQDSKData(const Uniform2DGrid& grid_in,
+                     const std::vector<Real>& psirz,
+                     const std::vector<Real>& psi_grid_vals,
+                     const std::vector<Real>& I_psi_vals)
+  : grid(grid_in)
 {
-  // Initialize grid structure
-  grid.divisions[0] = static_cast<LO>(geqd.eqd_mw);
-  grid.divisions[1] = static_cast<LO>(geqd.eqd_mh);
-  grid.edge_length[0] = static_cast<Real>(geqd.eqd_rdim);
-  grid.edge_length[1] = static_cast<Real>(geqd.eqd_zdim);
-  grid.bot_left[0] = static_cast<Real>(geqd.eqd_r_min);
-  grid.bot_left[1] = static_cast<Real>(geqd.eqd_z_min);
+  const int mw = grid.divisions[0];
+  const int mh = grid.divisions[1];
 
-  // Allocate and copy 2D PSIZR array (column-major: R varies fastest)
-  const int nw = geqd.eqd_mw;
-  const int nh = geqd.eqd_mh;
-  PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", nw * nh);
+  // Validate input dimensions
+  if (psirz.size() != static_cast<size_t>(mw * mh)) {
+    throw std::runtime_error("psirz size mismatch: expected " +
+                             std::to_string(mw * mh) + " but got " +
+                             std::to_string(psirz.size()));
+  }
+
+  if (psi_grid_vals.size() != I_psi_vals.size()) {
+    throw std::runtime_error("psi_grid and I_psi size mismatch: " +
+                             std::to_string(psi_grid_vals.size()) + " vs " +
+                             std::to_string(I_psi_vals.size()));
+  }
+
+  const int npsi = static_cast<int>(psi_grid_vals.size());
+
+  // Allocate and copy PSIZR
+  PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", mw * mh);
   auto psizr_host = Kokkos::create_mirror_view(PSIZR);
-  for (int j = 0; j < nh; ++j) {
-    for (int i = 0; i < nw; ++i) {
-      psizr_host(i + j * nw) = static_cast<Real>(geqd.eqd_psirz[i][j]);
-    }
+  for (int i = 0; i < mw * mh; ++i) {
+    psizr_host(i) = psirz[i];
   }
   Kokkos::deep_copy(PSIZR, psizr_host);
-}
 
-// Constructor from EQDData (EQD format)
-EQDSKData::EQDSKData(const EQDData& eqd)
-{
-  // Initialize grid structure
-  grid.divisions[0] = static_cast<LO>(eqd.eqd_mw);
-  grid.divisions[1] = static_cast<LO>(eqd.eqd_mh);
-  grid.edge_length[0] = static_cast<Real>(eqd.eqd_r_max - eqd.eqd_r_min);
-  grid.edge_length[1] = static_cast<Real>(eqd.eqd_z_max - eqd.eqd_z_min);
-  grid.bot_left[0] = static_cast<Real>(eqd.eqd_r_min);
-  grid.bot_left[1] = static_cast<Real>(eqd.eqd_z_min);
-
-  // Allocate and copy 2D PSIZR array (column-major: R varies fastest)
-  const int nw = eqd.eqd_mw;
-  const int nh = eqd.eqd_mh;
-  PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", nw * nh);
-  auto psizr_host = Kokkos::create_mirror_view(PSIZR);
-  for (int j = 0; j < nh; ++j) {
-    for (int i = 0; i < nw; ++i) {
-      psizr_host(i + j * nw) = static_cast<Real>(eqd.eqd_psirz[i][j]);
-    }
+  // Allocate and copy psi_grid
+  psi_grid = Kokkos::View<Real*, DeviceMemorySpace>("psi_grid", npsi);
+  auto psi_grid_host = Kokkos::create_mirror_view(psi_grid);
+  for (int i = 0; i < npsi; ++i) {
+    psi_grid_host(i) = psi_grid_vals[i];
   }
-  Kokkos::deep_copy(PSIZR, psizr_host);
+  Kokkos::deep_copy(psi_grid, psi_grid_host);
+
+  // Allocate and copy I_psi
+  I_psi = Kokkos::View<Real*, DeviceMemorySpace>("I_psi", npsi);
+  auto I_psi_host = Kokkos::create_mirror_view(I_psi);
+  for (int i = 0; i < npsi; ++i) {
+    I_psi_host(i) = I_psi_vals[i];
+  }
+  Kokkos::deep_copy(I_psi, I_psi_host);
 }
 
 } // namespace pcms

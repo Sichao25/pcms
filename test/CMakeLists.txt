@@ -35,16 +35,6 @@ if(PCMS_ENABLE_OMEGA_H)
       ${cyclone1p})
   endif()
   
-  # EQDSK test - takes filename as parameter
-  add_exe(test_eqdsk)
-  target_link_libraries(test_eqdsk pcms::utility)
-  # To run: ctest -R test_eqdsk_load -E none  
-  # or: mpiexec -n 1 ./test_eqdsk /path/to/your/file.geqdsk
-  # Note: Test is not added by default - provide EQDSK file path to enable
-  if(DEFINED PCMS_EQDSK_TEST_FILE)
-    mpi_test(test_eqdsk_load 1 ./test_eqdsk ${PCMS_EQDSK_TEST_FILE})
-  endif()
-  
   add_exe(test_ohClassPtn_appRibPtn)
   set(cyclone2p ${PCMS_TEST_DATA_DIR}/cyclone/23elements/2p.osh/)
   if(HOST_NPROC GREATER_EQUAL 4)
@@ -391,6 +381,7 @@ if(Catch2_FOUND)
       APPEND
       PCMS_UNIT_TEST_SOURCES
       test_error_handling.cpp
+      test_eqdsk.cpp
       test_uniform_grid.cpp
       test_field_evaluation.cpp
       test_field_interpolation.cpp
@@ -456,6 +447,18 @@ if(Catch2_FOUND)
                   --ltx_mesh ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/ltx
                   --data_root ${PCMS_TEST_DATA_DIR}/ltx-interpolation-case/
   )
+
+  # EQDSK test with Catch2
+  #if(PCMS_ENABLE_OMEGA_H)
+    #add_executable(test_eqdsk test_eqdsk.cpp)
+    #target_link_libraries(test_eqdsk PUBLIC 
+    #  Catch2::Catch2WithMain
+    #  pcms::utility
+    #  pcms::core
+   # )
+   # target_include_directories(test_eqdsk PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+   # Catch_discover_tests(test_eqdsk)
+  #endif()
 
  include(Catch)
    Catch_discover_tests(unit_tests)

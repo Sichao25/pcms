@@ -4,83 +4,180 @@
 #include <pcms/field/coordinate_system.h>
 #include <pcms/field/evaluation_request.h>
 #include <Kokkos_Core.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 #include <iostream>
 #include <cmath>
-#include <cassert>
 
+using Catch::Approx;
 using pcms::CoordinateSystem;
 using pcms::EQDSKData;
 
-// This test only verifies that the EQDSK data can be loaded and that the
-// SplineFunctionSpace can be created and evaluated. The actual values of the
-// loaded data and the spline evaluation are not checked.
-int main(int argc, char** argv)
+TEST_CASE("EQDSKData manual constructor")
 {
   auto lib = Omega_h::Library{};
 
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <eqdsk_file>\n";
-    return 1;
+  SECTION("Basic grid construction")
+  {
+    // Create a simple test grid
+    pcms::Uniform2DGrid test_grid;
+    test_grid.divisions[0] = 5;     // 5 R points
+    test_grid.divisions[1] = 4;     // 4 Z points
+    test_grid.bot_left[0] = 1.0;    // R_min
+    test_grid.bot_left[1] = -1.0;   // Z_min
+    test_grid.edge_length[0] = 2.0; // R_max - R_min = 3.0 - 1.0
+    test_grid.edge_length[1] = 2.0; // Z_max - Z_min = 1.0 - (-1.0)
+
+    // Create test PSIZR data (5x4 = 20 values)
+    std::vector<pcms::Real> test_psirz(20);
+    for (int i = 0; i < 20; ++i) {
+      test_psirz[i] = static_cast<pcms::Real>(i * 0.1);
+    }
+
+    // Create test psi_grid and I_psi data
+    const int test_npsi = 5;
+    std::vector<pcms::Real> test_psi_grid(test_npsi);
+    std::vector<pcms::Real> test_I_psi(test_npsi);
+    for (int i = 0; i < test_npsi; ++i) {
+      test_psi_grid[i] = static_cast<pcms::Real>(i * 0.2);
+      test_I_psi[i] = static_cast<pcms::Real>(1.0 + i * 0.5);
+    }
+
+    // Construct EQDSKData manually
+    EQDSKData eqdsk_data(test_grid, test_psirz, test_psi_grid, test_I_psi);
+
+    // Verify grid properties
+    REQUIRE(eqdsk_data.GetNW() == 5);
+    REQUIRE(eqdsk_data.GetNH() == 4);
+    REQUIRE(eqdsk_data.GetRMin() == Approx(1.0));
+    REQUIRE(eqdsk_data.GetRMax() == Approx(3.0));
+    REQUIRE(eqdsk_data.GetZMin() == Approx(-1.0));
+    REQUIRE(eqdsk_data.GetZMax() == Approx(1.0));
+    REQUIRE(eqdsk_data.GetRDIM() == Approx(2.0));
+    REQUIRE(eqdsk_data.GetZDIM() == Approx(2.0));
+
+    // Verify grid spacing
+    REQUIRE(eqdsk_data.GetDeltaR() == Approx(0.5));
+    REQUIRE(eqdsk_data.GetDeltaZ() == Approx(2.0 / 3.0));
+
+    // Verify PSIZR data
+    REQUIRE(eqdsk_data.PSIZR.extent(0) == 20);
+    auto psizr_host = Kokkos::create_mirror_view_and_copy(
+      pcms::HostMemorySpace(), eqdsk_data.PSIZR);
+    for (int i = 0; i < 20; ++i) {
+      REQUIRE(psizr_host(i) == Approx(test_psirz[i]));
+    }
+
+    // Verify psi_grid and I_psi data
+    REQUIRE(eqdsk_data.GetNPsi() == test_npsi);
+    auto psi_grid_host = Kokkos::create_mirror_view_and_copy(
+      pcms::HostMemorySpace(), eqdsk_data.psi_grid);
+    auto I_psi_host = Kokkos::create_mirror_view_and_copy(
+      pcms::HostMemorySpace(), eqdsk_data.I_psi);
+
+    for (int i = 0; i < test_npsi; ++i) {
+      REQUIRE(psi_grid_host(i) == Approx(test_psi_grid[i]));
+      REQUIRE(I_psi_host(i) == Approx(test_I_psi[i]));
+    }
   }
 
-  const std::string filename(argv[1]);
+  SECTION("Grid accessor methods")
+  {
+    // Create a test grid
+    pcms::Uniform2DGrid test_grid;
+    test_grid.divisions[0] = 5;
+    test_grid.divisions[1] = 4;
+    test_grid.bot_left[0] = 1.0;
+    test_grid.bot_left[1] = -1.0;
+    test_grid.edge_length[0] = 2.0;
+    test_grid.edge_length[1] = 2.0;
 
-  std::cout << "Loading EQDSK file: " << filename << "\n";
+    std::vector<pcms::Real> test_psirz(20, 0.0);
+    std::vector<pcms::Real> test_psi_grid(5, 0.0);
+    std::vector<pcms::Real> test_I_psi(5, 0.0);
 
-  try {
-    // Test constructor from file
-    EQDSKData eqdsk_data(filename);
+    EQDSKData eqdsk_data(test_grid, test_psirz, test_psi_grid, test_I_psi);
 
-    std::cout << "Grid dimensions: NW = " << eqdsk_data.GetNW()
-              << ", NH = " << eqdsk_data.GetNH() << "\n";
-    std::cout << "R range: [" << eqdsk_data.GetRMin() << ", "
-              << eqdsk_data.GetRMax() << "]\n";
-    std::cout << "Z range: [" << eqdsk_data.GetZMin() << ", "
-              << eqdsk_data.GetZMax() << "]\n";
-    std::cout << "Grid spacing: dR = " << eqdsk_data.GetDeltaR()
-              << ", dZ = " << eqdsk_data.GetDeltaZ() << "\n";
+    // Verify index calculations
+    REQUIRE(eqdsk_data.GetPsiIndex(0, 0) == 0);
+    REQUIRE(eqdsk_data.GetPsiIndex(4, 0) == 4);
+    REQUIRE(eqdsk_data.GetPsiIndex(0, 3) == 15);
+    REQUIRE(eqdsk_data.GetPsiIndex(4, 3) == 19);
 
-    // Verify grid dimensions are positive
-    assert(eqdsk_data.GetNW() > 0);
-    assert(eqdsk_data.GetNH() > 0);
+    // Verify coordinate calculations
+    REQUIRE(eqdsk_data.GetR(0) == Approx(1.0));
+    REQUIRE(eqdsk_data.GetR(4) == Approx(3.0));
+    REQUIRE(eqdsk_data.GetZ(0) == Approx(-1.0));
+    REQUIRE(eqdsk_data.GetZ(3) == Approx(1.0));
+  }
 
-    // Verify grid bounds are valid
-    assert(eqdsk_data.GetRMin() < eqdsk_data.GetRMax());
-    assert(eqdsk_data.GetZMin() < eqdsk_data.GetZMax());
+  SECTION("Input validation")
+  {
+    pcms::Uniform2DGrid test_grid;
+    test_grid.divisions[0] = 5;
+    test_grid.divisions[1] = 4;
+    test_grid.bot_left[0] = 1.0;
+    test_grid.bot_left[1] = -1.0;
+    test_grid.edge_length[0] = 2.0;
+    test_grid.edge_length[1] = 2.0;
 
-    // Verify grid dimensions match
-    const double r_tol = 1e-10;
-    const double z_tol = 1e-10;
-    assert(std::abs(eqdsk_data.GetRDIM() -
-                    (eqdsk_data.GetRMax() - eqdsk_data.GetRMin())) < r_tol);
-    assert(std::abs(eqdsk_data.GetZDIM() -
-                    (eqdsk_data.GetZMax() - eqdsk_data.GetZMin())) < z_tol);
+    std::vector<pcms::Real> test_psi_grid(5, 0.0);
+    std::vector<pcms::Real> test_I_psi(5, 0.0);
 
-    // Verify PSIZR array size
-    const int expected_size = eqdsk_data.GetNW() * eqdsk_data.GetNH();
-    assert(eqdsk_data.PSIZR.extent(0) == static_cast<size_t>(expected_size));
+    // Wrong PSIZR size (should be 20)
+    std::vector<pcms::Real> wrong_psirz(15, 0.0);
+    REQUIRE_THROWS_AS(
+      EQDSKData(test_grid, wrong_psirz, test_psi_grid, test_I_psi),
+      std::runtime_error);
 
-    assert(eqdsk_data.GetDeltaR() > 0.0);
-    assert(eqdsk_data.GetDeltaZ() > 0.0);
+    // Mismatched psi_grid and I_psi sizes
+    std::vector<pcms::Real> correct_psirz(20, 0.0);
+    std::vector<pcms::Real> wrong_I_psi(3, 0.0);
+    REQUIRE_THROWS_AS(
+      EQDSKData(test_grid, correct_psirz, test_psi_grid, wrong_I_psi),
+      std::runtime_error);
+  }
+}
 
-    const int NW = eqdsk_data.GetNW();
-    const int NH = eqdsk_data.GetNH();
+TEST_CASE("EQDSKData with SplineFunctionSpace")
+{
+  auto lib = Omega_h::Library{};
 
-    assert(eqdsk_data.GetPsiIndex(0, 0) == 0);
-    assert(eqdsk_data.GetPsiIndex(NW - 1, 0) == NW - 1);
-    assert(eqdsk_data.GetPsiIndex(0, NH - 1) == (NH - 1) * NW);
-    assert(eqdsk_data.GetPsiIndex(NW - 1, NH - 1) == NW * NH - 1);
+  // Create a test grid
+  pcms::Uniform2DGrid test_grid;
+  test_grid.divisions[0] = 10; // 10 R points
+  test_grid.divisions[1] = 8;  // 8 Z points
+  test_grid.bot_left[0] = 1.0;
+  test_grid.bot_left[1] = -1.0;
+  test_grid.edge_length[0] = 2.0;
+  test_grid.edge_length[1] = 2.0;
 
-    const double coord_tol = 1e-10;
-    assert(std::abs(eqdsk_data.GetR(0) - eqdsk_data.GetRMin()) < coord_tol);
-    assert(std::abs(eqdsk_data.GetR(NW - 1) - eqdsk_data.GetRMax()) <
-           coord_tol);
-    assert(std::abs(eqdsk_data.GetZ(0) - eqdsk_data.GetZMin()) < coord_tol);
-    assert(std::abs(eqdsk_data.GetZ(NH - 1) - eqdsk_data.GetZMax()) <
-           coord_tol);
+  const int NW = 10;
+  const int NH = 8;
 
-    std::cout << "\nTesting SplineFunctionSpace evaluation...\n";
+  // Create test PSIZR data with a simple quadratic pattern
+  std::vector<pcms::Real> test_psirz(NW * NH);
+  for (int j = 0; j < NH; ++j) {
+    for (int i = 0; i < NW; ++i) {
+      double r = 1.0 + i * 2.0 / (NW - 1);
+      double z = -1.0 + j * 2.0 / (NH - 1);
+      test_psirz[i + j * NW] = static_cast<pcms::Real>(r * r + z * z);
+    }
+  }
 
+  // Create test psi_grid and I_psi data
+  const int test_npsi = 10;
+  std::vector<pcms::Real> test_psi_grid(test_npsi);
+  std::vector<pcms::Real> test_I_psi(test_npsi);
+  for (int i = 0; i < test_npsi; ++i) {
+    test_psi_grid[i] = static_cast<pcms::Real>(i * 0.5);
+    test_I_psi[i] = static_cast<pcms::Real>(1.0 + i * 0.3);
+  }
+
+  EQDSKData eqdsk_data(test_grid, test_psirz, test_psi_grid, test_I_psi);
+
+  SECTION("Spline function space creation and evaluation")
+  {
     // Create a modified grid for spline interpolation
     // EQDSK grid.divisions = NW x NH (number of data points)
     // SplineFunctionSpace with order=1 needs grid.divisions = (NW-1) x (NH-1)
@@ -98,16 +195,14 @@ int main(int argc, char** argv)
     auto layout = spline_space.GetLayout();
     const int layout_size = layout->OwnedSize();
     const int psizr_size = static_cast<int>(eqdsk_data.PSIZR.extent(0));
-    std::cout << "Layout OwnedSize: " << layout_size << "\n";
-    std::cout << "PSIZR size: " << psizr_size << " (NW=" << NW << " * NH=" << NH
-              << ")\n";
 
-    assert(layout_size == psizr_size);
+    REQUIRE(layout_size == psizr_size);
 
     psi_field.GetData().SetDOFHolderData(
       pcms::Rank1View<const pcms::Real, pcms::DeviceMemorySpace>(
         eqdsk_data.PSIZR.data(), eqdsk_data.PSIZR.extent(0)));
 
+    // Evaluate at test points
     const pcms::Real R_mid =
       (eqdsk_data.GetRMin() + eqdsk_data.GetRMax()) / 2.0;
     const pcms::Real Z_mid =
@@ -157,24 +252,9 @@ int main(int argc, char** argv)
     auto results_host = Kokkos::create_mirror_view_and_copy(
       pcms::HostMemorySpace(), eval_results_1d);
 
-    std::cout << "Spline evaluation results:\n";
+    // Verify that all results are finite
     for (int i = 0; i < num_eval_points; ++i) {
-      std::cout << "  Point " << i << ": (R=" << eval_coords[2 * i]
-                << ", Z=" << eval_coords[2 * i + 1]
-                << ") -> Psi = " << results_host(i) << "\n";
+      REQUIRE(std::isfinite(results_host(i)));
     }
-
-    for (int i = 0; i < num_eval_points; ++i) {
-      assert(std::isfinite(results_host(i)));
-    }
-
-    std::cout << "SplineFunctionSpace evaluation test passed!\n";
-
-    std::cout << "\nAll tests passed!\n";
-    return 0;
-
-  } catch (const std::exception& e) {
-    std::cerr << "Error: " << e.what() << "\n";
-    return 1;
   }
 }
