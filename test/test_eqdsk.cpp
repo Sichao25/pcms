@@ -156,7 +156,7 @@ TEST_CASE("EQDSKData with SplineFunctionSpace")
   const int NH = 8;
 
   // Create test PSIZR data with a simple quadratic pattern
-  std::vector<pcms::Real> test_psirz(NW * NH);
+  std::vector<pcms::Real> test_psirz(static_cast<size_t>(NW) * NH);
   for (int j = 0; j < NH; ++j) {
     for (int i = 0; i < NW; ++i) {
       double r = 1.0 + i * 2.0 / (NW - 1);
@@ -221,7 +221,7 @@ TEST_CASE("EQDSKData with SplineFunctionSpace")
 
     auto eval_coords_host = Kokkos::View<pcms::Real**, pcms::HostMemorySpace>(
       "eval_coords_host", num_eval_points, 2);
-    for (int i = 0; i < num_eval_points; ++i) {
+    for (size_t i = 0; i < num_eval_points; ++i) {
       eval_coords_host(i, 0) = eval_coords[2 * i];     // R
       eval_coords_host(i, 1) = eval_coords[2 * i + 1]; // Z
     }

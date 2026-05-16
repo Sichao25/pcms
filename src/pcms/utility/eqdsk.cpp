@@ -101,7 +101,8 @@ void read_geqdsk(const std::string& filename, EQDSKData& eqdsk)
   eqdsk.grid.bot_left[1] = static_cast<Real>(z_min);
 
   // Allocate and copy PSIZR
-  eqdsk.PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", mw * mh);
+  eqdsk.PSIZR = Kokkos::View<Real*, DeviceMemorySpace>(
+    "PSIZR", static_cast<size_t>(mw) * mh);
   auto psizr_host = Kokkos::create_mirror_view(eqdsk.PSIZR);
   for (int j = 0; j < mh; ++j) {
     for (int i = 0; i < mw; ++i) {
@@ -200,7 +201,8 @@ void read_eqd(const std::string& filename, EQDSKData& eqdsk)
   eqdsk.grid.bot_left[1] = static_cast<Real>(z_min);
 
   // Allocate and copy PSIZR
-  eqdsk.PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", mw * mh);
+  eqdsk.PSIZR = Kokkos::View<Real*, DeviceMemorySpace>(
+    "PSIZR", static_cast<size_t>(mw) * mh);
   auto psizr_host = Kokkos::create_mirror_view(eqdsk.PSIZR);
   for (int j = 0; j < mh; ++j) {
     for (int i = 0; i < mw; ++i) {
@@ -264,7 +266,7 @@ EQDSKData::EQDSKData(const Uniform2DGrid& grid_in,
   const int mh = grid.divisions[1];
 
   // Validate input dimensions
-  if (psirz.size() != static_cast<size_t>(mw * mh)) {
+  if (psirz.size() != static_cast<size_t>(mw) * mh) {
     throw std::runtime_error("psirz size mismatch: expected " +
                              std::to_string(mw * mh) + " but got " +
                              std::to_string(psirz.size()));
@@ -279,7 +281,8 @@ EQDSKData::EQDSKData(const Uniform2DGrid& grid_in,
   const int npsi = static_cast<int>(psi_grid_vals.size());
 
   // Allocate and copy PSIZR
-  PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR", mw * mh);
+  PSIZR = Kokkos::View<Real*, DeviceMemorySpace>("PSIZR",
+                                                 static_cast<size_t>(mw) * mh);
   auto psizr_host = Kokkos::create_mirror_view(PSIZR);
   for (int i = 0; i < mw * mh; ++i) {
     psizr_host(i) = psirz[i];
