@@ -145,32 +145,6 @@ template <unsigned dim>
   return true;
 }
 
-// [[nodiscard]] KOKKOS_INLINE_FUNCTION bool bbox_verts_within_triangle(
-//   const AABBox<2>& bbox, const Omega_h::Matrix<2, 3>& coords, Real fuzz)
-// {
-//   auto left = bbox.center[0] - bbox.half_width[0];
-//   auto right = bbox.center[0] + bbox.half_width[0];
-//   auto bot = bbox.center[1] - bbox.half_width[1];
-//   auto top = bbox.center[1] + bbox.half_width[1];
-//   auto xi = Omega_h::barycentric_from_global<2, 2>({left, bot}, coords);
-//   if (Omega_h::is_barycentric_inside(xi, fuzz)) {
-//     return true;
-//   }
-//   xi = Omega_h::barycentric_from_global<2, 2>({left, top}, coords);
-//   if (Omega_h::is_barycentric_inside(xi, fuzz)) {
-//     return true;
-//   }
-//   xi = Omega_h::barycentric_from_global<2, 2>({right, top}, coords);
-//   if (Omega_h::is_barycentric_inside(xi, fuzz)) {
-//     return true;
-//   }
-//   xi = Omega_h::barycentric_from_global<2, 2>({right, bot}, coords);
-//   if (Omega_h::is_barycentric_inside(xi, fuzz)) {
-//     return true;
-//   }
-//   return false;
-// }
-
 template <int dim>
 [[nodiscard]] KOKKOS_INLINE_FUNCTION bool bbox_verts_within_simplex(
   const AABBox<dim>& bbox, const Omega_h::Matrix<dim, dim + 1>& coords)

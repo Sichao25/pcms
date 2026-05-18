@@ -124,6 +124,16 @@ public:
 
   virtual Kokkos::View<Result*> operator()(
     Kokkos::View<const Real* [dim]> point) const = 0;
+
+  /**
+   * This function provides a temporary solution to retrieve the original
+   * behavior of the point search, which previously returned the face ID
+   * regardless of which entity the search result belonged to. Many parts of
+   * the codebase still rely on this legacy behavior. After updating the point
+   * search to return the exact entity, this function can be called to retrieve
+   * the old behavior and ensure correctness. Long term, the implementation
+   * should be updated to properly handle the new result.
+   */
   [[nodiscard]] virtual LO GetOwningElementId(const Result& result) const = 0;
   [[nodiscard]] virtual Kokkos::View<LO*> GetOwningElementIds(
     Kokkos::View<const Result*> results) const = 0;
