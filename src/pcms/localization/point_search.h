@@ -13,6 +13,44 @@
 
 namespace pcms
 {
+
+/**
+ * Get the owning element (face for 2D, region for 3D) for a given entity.
+ *
+ * Given an entity of dimension `entity_dim` with ID `element_id`, returns the
+ * smallest ID of the owning element of dimension `mesh_dim` (the mesh's
+ * top-level dimension).
+ */
+LO GetOwningElementId(Omega_h::Mesh& mesh, int mesh_dim, int entity_dim,
+                      LO element_id);
+
+template <typename DimEnum>
+KOKKOS_INLINE_FUNCTION LO
+GetOwningElementIdFromAdj(const Omega_h::Adj& upward_adj, DimEnum entity_dim,
+                          DimEnum target_dim, LO element_id)
+{
+  if (element_id < 0)
+    return -1;
+
+  // If entity is already at target dimension, return it directly
+  if (static_cast<int>(entity_dim) == static_cast<int>(target_dim))
+    return element_id;
+
+  const auto begin = upward_adj.a2ab[element_id];
+  const auto end = upward_adj.a2ab[element_id + 1];
+  if (begin >= end)
+    return -1;
+
+  // Find the smallest owning element ID
+  LO owner = upward_adj.ab2b[begin];
+  for (auto i = begin + 1; i < end; ++i) {
+    const LO candidate = upward_adj.ab2b[i];
+    if (candidate < owner)
+      owner = candidate;
+  }
+  return owner;
+}
+
 //
 // TODO take a bounding box as we may want a bbox that's bigger than the mesh!
 // this function is in the public header for testing, but should not be directly
@@ -134,9 +172,9 @@ public:
    * the old behavior and ensure correctness. Long term, the implementation
    * should be updated to properly handle the new result.
    */
-  [[nodiscard]] virtual LO GetOwningElementId(const Result& result) const = 0;
+  [[nodiscard]] virtual LO GetOwningElementId(const Result& result) = 0;
   [[nodiscard]] virtual Kokkos::View<LO*> GetOwningElementIds(
-    Kokkos::View<const Result*> results) const = 0;
+    Kokkos::View<const Result*> results) = 0;
   virtual ~PointLocalizationSearch() = default;
 
 protected:
@@ -167,13 +205,11 @@ public:
    */
   Kokkos::View<Result*> operator()(
     Kokkos::View<const Real* [DIM]> point) const override;
-  [[nodiscard]] LO GetOwningElementId(const Result& result) const override;
+  [[nodiscard]] LO GetOwningElementId(const Result& result) override;
   [[nodiscard]] Kokkos::View<LO*> GetOwningElementIds(
-    Kokkos::View<const Result*> results) const override;
+    Kokkos::View<const Result*> results) override;
 
 private:
-  [[nodiscard]] LO get_smallest_owner_face_id(
-    Result::Dimensionality dimensionality, LO element_id) const;
   Omega_h::Mesh mesh_;
   Omega_h::Adj tris2edges_adj_;
   Omega_h::Adj tris2verts_adj_;
@@ -207,13 +243,11 @@ public:
    */
   Kokkos::View<Result*> operator()(
     Kokkos::View<const Real* [DIM]> point) const override;
-  [[nodiscard]] LO GetOwningElementId(const Result& result) const override;
+  [[nodiscard]] LO GetOwningElementId(const Result& result) override;
   [[nodiscard]] Kokkos::View<LO*> GetOwningElementIds(
-    Kokkos::View<const Result*> results) const override;
+    Kokkos::View<const Result*> results) override;
 
 private:
-  [[nodiscard]] LO get_smallest_owner_region_id(
-    Result::Dimensionality dimensionality, LO element_id) const;
   Omega_h::Mesh mesh_;
   Omega_h::Adj tris2edges_adj_;
   Omega_h::Adj tris2verts_adj_;

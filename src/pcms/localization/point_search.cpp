@@ -29,6 +29,39 @@ KOKKOS_INLINE_FUNCTION bool normal_intersects_segment(
 
 namespace pcms
 {
+
+LO GetOwningElementId(Omega_h::Mesh& mesh, int mesh_dim, int entity_dim,
+                      LO element_id)
+{
+  if (element_id < 0)
+    return -1;
+
+  const int target_dim = mesh_dim; // faces for 2D, regions for 3D
+
+  // If entity is already at target dimension, return it directly
+  if (entity_dim == target_dim)
+    return element_id;
+
+  // Get the upward adjacency from entity_dim to target_dim
+  auto upward_adj = mesh.ask_up(entity_dim, target_dim);
+  auto a2ab_h = Omega_h::HostRead<LO>(upward_adj.a2ab);
+  auto ab2b_h = Omega_h::HostRead<LO>(upward_adj.ab2b);
+
+  const auto begin = a2ab_h[element_id];
+  const auto end = a2ab_h[element_id + 1];
+  if (begin >= end)
+    return -1;
+
+  // Find the smallest owning element ID
+  LO owner = ab2b_h[begin];
+  for (auto i = begin + 1; i < end; ++i) {
+    const LO candidate = ab2b_h[i];
+    if (candidate < owner)
+      owner = candidate;
+  }
+  return owner;
+}
+
 KOKKOS_INLINE_FUNCTION
 AABBox<2> triangle_bbox(const Omega_h::Matrix<2, 3>& coords)
 {
@@ -576,7 +609,7 @@ GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny)
 
 GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny,
                                      const PointSearchTolerances& tolerances)
-  : PointLocalizationSearch(tolerances)
+  : PointLocalizationSearch(tolerances), mesh_(mesh)
 {
   auto mesh_bbox = Omega_h::get_bounding_box<2>(&mesh);
   auto grid_h = Kokkos::create_mirror_view(grid_);
@@ -600,57 +633,21 @@ GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny,
   verts2faces_up_ = mesh.ask_up(Omega_h::VERT, Omega_h::FACE);
 }
 
-LO GridPointSearch2D::get_smallest_owner_face_id(
-  Result::Dimensionality dimensionality, LO element_id) const
-{
-  if (element_id < 0)
-    return -1;
-  if (dimensionality == Result::Dimensionality::FACE)
-    return element_id;
-
-  auto edges2faces_a2ab_h_ = Omega_h::HostRead<LO>(edges2faces_up_.a2ab);
-  auto edges2faces_ab2b_h_ = Omega_h::HostRead<LO>(edges2faces_up_.ab2b);
-  auto verts2faces_a2ab_h_ = Omega_h::HostRead<LO>(verts2faces_up_.a2ab);
-  auto verts2faces_ab2b_h_ = Omega_h::HostRead<LO>(verts2faces_up_.ab2b);
-
-  const Omega_h::HostRead<LO>* a2ab_h = nullptr;
-  const Omega_h::HostRead<LO>* ab2b_h = nullptr;
-  if (dimensionality == Result::Dimensionality::EDGE) {
-    a2ab_h = &edges2faces_a2ab_h_;
-    ab2b_h = &edges2faces_ab2b_h_;
-  } else if (dimensionality == Result::Dimensionality::VERTEX) {
-    a2ab_h = &verts2faces_a2ab_h_;
-    ab2b_h = &verts2faces_ab2b_h_;
-  } else {
-    return -1;
-  }
-
-  const auto begin = (*a2ab_h)[element_id];
-  const auto end = (*a2ab_h)[element_id + 1];
-  if (begin >= end)
-    return -1;
-  LO owner = (*ab2b_h)[begin];
-  for (auto i = begin + 1; i < end; ++i) {
-    const LO candidate = (*ab2b_h)[i];
-    if (candidate < owner)
-      owner = candidate;
-  }
-  return owner;
-}
-
-LO GridPointSearch2D::GetOwningElementId(const Result& result) const
+LO GridPointSearch2D::GetOwningElementId(const Result& result)
 {
   const LO query_id =
     (result.element_id < 0) ? -result.element_id : result.element_id;
-  return get_smallest_owner_face_id(result.dimensionality, query_id);
+  return pcms::GetOwningElementId(
+    mesh_, 2, static_cast<int>(result.dimensionality), query_id);
 }
 
 Kokkos::View<LO*> GridPointSearch2D::GetOwningElementIds(
-  Kokkos::View<const Result*> results) const
+  Kokkos::View<const Result*> results)
 {
   Kokkos::View<LO*> owners("point search owning face ids", results.extent(0));
   auto edges2faces_up = edges2faces_up_;
   auto verts2faces_up = verts2faces_up_;
+  constexpr int mesh_dim = 2;
   Kokkos::parallel_for(
     results.extent(0), KOKKOS_LAMBDA(const LO i) {
       const auto result = results(i);
@@ -661,27 +658,17 @@ Kokkos::View<LO*> GridPointSearch2D::GetOwningElementIds(
       LO owner = -1;
       if (element_id >= 0) {
         if (result.dimensionality == Result::Dimensionality::FACE) {
-          owner = element_id;
+          owner = GetOwningElementIdFromAdj(
+            edges2faces_up, Result::Dimensionality::FACE,
+            Result::Dimensionality::FACE, element_id);
         } else if (result.dimensionality == Result::Dimensionality::EDGE) {
-          const LO begin = edges2faces_up.a2ab[element_id];
-          const LO end = edges2faces_up.a2ab[element_id + 1];
-          if (begin < end) {
-            owner = edges2faces_up.ab2b[begin];
-            for (LO j = begin + 1; j < end; ++j) {
-              const LO candidate = edges2faces_up.ab2b[j];
-              owner = (candidate < owner) ? candidate : owner;
-            }
-          }
+          owner = GetOwningElementIdFromAdj(
+            edges2faces_up, Result::Dimensionality::EDGE,
+            Result::Dimensionality::FACE, element_id);
         } else if (result.dimensionality == Result::Dimensionality::VERTEX) {
-          const LO begin = verts2faces_up.a2ab[element_id];
-          const LO end = verts2faces_up.a2ab[element_id + 1];
-          if (begin < end) {
-            owner = verts2faces_up.ab2b[begin];
-            for (LO j = begin + 1; j < end; ++j) {
-              const LO candidate = verts2faces_up.ab2b[j];
-              owner = (candidate < owner) ? candidate : owner;
-            }
-          }
+          owner = GetOwningElementIdFromAdj(
+            verts2faces_up, Result::Dimensionality::VERTEX,
+            Result::Dimensionality::FACE, element_id);
         }
       }
       owners(i) = owner;
@@ -759,7 +746,7 @@ GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz)
 
 GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
                                      const PointSearchTolerances& tolerances)
-  : PointLocalizationSearch(tolerances)
+  : PointLocalizationSearch(tolerances), mesh_(mesh)
 {
   auto mesh_bbox = Omega_h::get_bounding_box<3>(&mesh);
   auto grid_h = Kokkos::create_mirror_view(grid_);
@@ -789,63 +776,22 @@ GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
   faces2regions_up_ = mesh.ask_up(Omega_h::FACE, Omega_h::REGION);
 }
 
-LO GridPointSearch3D::get_smallest_owner_region_id(
-  Result::Dimensionality dimensionality, LO element_id) const
-{
-  if (element_id < 0)
-    return -1;
-  if (dimensionality == Result::Dimensionality::REGION)
-    return element_id;
-
-  auto verts2regions_a2ab_h_ = Omega_h::HostRead<LO>(verts2regions_up_.a2ab);
-  auto verts2regions_ab2b_h_ = Omega_h::HostRead<LO>(verts2regions_up_.ab2b);
-  auto edges2regions_a2ab_h_ = Omega_h::HostRead<LO>(edges2regions_up_.a2ab);
-  auto edges2regions_ab2b_h_ = Omega_h::HostRead<LO>(edges2regions_up_.ab2b);
-  auto faces2regions_a2ab_h_ = Omega_h::HostRead<LO>(faces2regions_up_.a2ab);
-  auto faces2regions_ab2b_h_ = Omega_h::HostRead<LO>(faces2regions_up_.ab2b);
-
-  const Omega_h::HostRead<LO>* a2ab_h = nullptr;
-  const Omega_h::HostRead<LO>* ab2b_h = nullptr;
-  if (dimensionality == Result::Dimensionality::FACE) {
-    a2ab_h = &faces2regions_a2ab_h_;
-    ab2b_h = &faces2regions_ab2b_h_;
-  } else if (dimensionality == Result::Dimensionality::EDGE) {
-    a2ab_h = &edges2regions_a2ab_h_;
-    ab2b_h = &edges2regions_ab2b_h_;
-  } else if (dimensionality == Result::Dimensionality::VERTEX) {
-    a2ab_h = &verts2regions_a2ab_h_;
-    ab2b_h = &verts2regions_ab2b_h_;
-  } else {
-    return -1;
-  }
-
-  const auto begin = (*a2ab_h)[element_id];
-  const auto end = (*a2ab_h)[element_id + 1];
-  if (begin >= end)
-    return -1;
-  LO owner = (*ab2b_h)[begin];
-  for (auto i = begin + 1; i < end; ++i) {
-    const LO candidate = (*ab2b_h)[i];
-    if (candidate < owner)
-      owner = candidate;
-  }
-  return owner;
-}
-
-LO GridPointSearch3D::GetOwningElementId(const Result& result) const
+LO GridPointSearch3D::GetOwningElementId(const Result& result)
 {
   const LO query_id =
     (result.element_id < 0) ? -result.element_id : result.element_id;
-  return get_smallest_owner_region_id(result.dimensionality, query_id);
+  return pcms::GetOwningElementId(
+    mesh_, 3, static_cast<int>(result.dimensionality), query_id);
 }
 
 Kokkos::View<LO*> GridPointSearch3D::GetOwningElementIds(
-  Kokkos::View<const Result*> results) const
+  Kokkos::View<const Result*> results)
 {
   Kokkos::View<LO*> owners("point search owning region ids", results.extent(0));
   auto verts2regions_up = verts2regions_up_;
   auto edges2regions_up = edges2regions_up_;
   auto faces2regions_up = faces2regions_up_;
+  constexpr int mesh_dim = 3;
   Kokkos::parallel_for(
     results.extent(0), KOKKOS_LAMBDA(const LO i) {
       const auto result = results(i);
@@ -856,37 +802,21 @@ Kokkos::View<LO*> GridPointSearch3D::GetOwningElementIds(
       LO owner = -1;
       if (element_id >= 0) {
         if (result.dimensionality == Result::Dimensionality::REGION) {
-          owner = element_id;
+          owner = GetOwningElementIdFromAdj(
+            faces2regions_up, Result::Dimensionality::REGION,
+            Result::Dimensionality::REGION, element_id);
         } else if (result.dimensionality == Result::Dimensionality::FACE) {
-          const LO begin = faces2regions_up.a2ab[element_id];
-          const LO end = faces2regions_up.a2ab[element_id + 1];
-          if (begin < end) {
-            owner = faces2regions_up.ab2b[begin];
-            for (LO j = begin + 1; j < end; ++j) {
-              const LO candidate = faces2regions_up.ab2b[j];
-              owner = (candidate < owner) ? candidate : owner;
-            }
-          }
+          owner = GetOwningElementIdFromAdj(
+            faces2regions_up, Result::Dimensionality::FACE,
+            Result::Dimensionality::REGION, element_id);
         } else if (result.dimensionality == Result::Dimensionality::EDGE) {
-          const LO begin = edges2regions_up.a2ab[element_id];
-          const LO end = edges2regions_up.a2ab[element_id + 1];
-          if (begin < end) {
-            owner = edges2regions_up.ab2b[begin];
-            for (LO j = begin + 1; j < end; ++j) {
-              const LO candidate = edges2regions_up.ab2b[j];
-              owner = (candidate < owner) ? candidate : owner;
-            }
-          }
+          owner = GetOwningElementIdFromAdj(
+            edges2regions_up, Result::Dimensionality::EDGE,
+            Result::Dimensionality::REGION, element_id);
         } else if (result.dimensionality == Result::Dimensionality::VERTEX) {
-          const LO begin = verts2regions_up.a2ab[element_id];
-          const LO end = verts2regions_up.a2ab[element_id + 1];
-          if (begin < end) {
-            owner = verts2regions_up.ab2b[begin];
-            for (LO j = begin + 1; j < end; ++j) {
-              const LO candidate = verts2regions_up.ab2b[j];
-              owner = (candidate < owner) ? candidate : owner;
-            }
-          }
+          owner = GetOwningElementIdFromAdj(
+            verts2regions_up, Result::Dimensionality::VERTEX,
+            Result::Dimensionality::REGION, element_id);
         }
       }
       owners(i) = owner;
