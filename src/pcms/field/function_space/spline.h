@@ -10,6 +10,7 @@
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/utility/arrays.h"
+#include "pcms/utility/eqdsk.h"
 #include "pcms/utility/memory_spaces.h"
 #include "pcms/utility/uniform_grid.h"
 
@@ -23,6 +24,8 @@ class SplineFunctionSpace : public FunctionSpace
 public:
   [[nodiscard]] static SplineFunctionSpace FromUniformGrid(
     const UniformGrid<2>& grid, CoordinateSystem coordinate_system);
+
+  [[nodiscard]] static SplineFunctionSpace FromEQDSK(EQDSKData eqdsk_data);
 
   [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout()
     const noexcept override;

@@ -93,8 +93,10 @@ void read_geqdsk(const std::string& filename, EQDSKData& eqdsk)
   double z_min = zmid - zdim / 2.0;
 
   // Initialize grid structure
-  eqdsk.grid.divisions[0] = static_cast<LO>(mw);
-  eqdsk.grid.divisions[1] = static_cast<LO>(mh);
+  // grid.divisions stores cell counts, which is one less than point counts
+  // mw = NW = number of R grid points, mh = NH = number of Z grid points
+  eqdsk.grid.divisions[0] = static_cast<LO>(mw - 1);
+  eqdsk.grid.divisions[1] = static_cast<LO>(mh - 1);
   eqdsk.grid.edge_length[0] = static_cast<Real>(rdim);
   eqdsk.grid.edge_length[1] = static_cast<Real>(zdim);
   eqdsk.grid.bot_left[0] = static_cast<Real>(r_min);
@@ -193,8 +195,9 @@ void read_eqd(const std::string& filename, EQDSKData& eqdsk)
   // ----------------------------------------
 
   // Initialize grid structure
-  eqdsk.grid.divisions[0] = static_cast<LO>(mw);
-  eqdsk.grid.divisions[1] = static_cast<LO>(mh);
+  // grid.divisions stores cell counts, which is one less than point counts
+  eqdsk.grid.divisions[0] = static_cast<LO>(mw - 1);
+  eqdsk.grid.divisions[1] = static_cast<LO>(mh - 1);
   eqdsk.grid.edge_length[0] = static_cast<Real>(r_max - r_min);
   eqdsk.grid.edge_length[1] = static_cast<Real>(z_max - z_min);
   eqdsk.grid.bot_left[0] = static_cast<Real>(r_min);
@@ -262,8 +265,9 @@ EQDSKData::EQDSKData(const Uniform2DGrid& grid_in,
                      const std::vector<Real>& I_psi_vals)
   : grid(grid_in)
 {
-  const int mw = grid.divisions[0];
-  const int mh = grid.divisions[1];
+  // grid.divisions stores cell counts, so number of grid points = divisions + 1
+  const int mw = grid.divisions[0] + 1;
+  const int mh = grid.divisions[1] + 1;
 
   // Validate input dimensions
   if (psirz.size() != static_cast<size_t>(mw) * mh) {

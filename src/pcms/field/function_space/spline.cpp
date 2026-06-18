@@ -27,6 +27,11 @@ SplineFunctionSpace SplineFunctionSpace::FromUniformGrid(
   return SplineFunctionSpace(layout, std::move(evaluator_factory));
 }
 
+SplineFunctionSpace SplineFunctionSpace::FromEQDSK(EQDSKData eqdsk_data)
+{
+  return FromUniformGrid(eqdsk_data.grid, CoordinateSystem::Cartesian);
+}
+
 std::shared_ptr<const FieldLayout> SplineFunctionSpace::GetLayout()
   const noexcept
 {

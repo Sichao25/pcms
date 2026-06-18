@@ -27,8 +27,8 @@ namespace pcms
 struct EQDSKData
 {
   // Grid structure for the R-Z computational domain
-  // grid.divisions[0] = NW (number of R grid points)
-  // grid.divisions[1] = NH (number of Z grid points)
+  // grid.divisions[0] = number of R cells (NW - 1)
+  // grid.divisions[1] = number of Z cells (NH - 1)
   // grid.edge_length[0] = RDIM (horizontal dimension in meter)
   // grid.edge_length[1] = ZDIM (vertical dimension in meter)
   // grid.bot_left[0] = RLEFT (minimum R in meter)
@@ -50,16 +50,18 @@ struct EQDSKData
 
   // Manual constructor for programmatic construction
   // grid: Uniform2DGrid structure defining the R-Z computational domain
+  //   grid.divisions = number of cells in R and Z
   // psirz: 2D flux array (flattened in column-major order, size =
-  // grid.divisions[0]*grid.divisions[1]) psi_grid_vals: psi grid values (size =
-  // npsi) I_psi_vals: poloidal current function values (size = npsi)
+  //   (grid.divisions[0]+1)*(grid.divisions[1]+1))
+  // psi_grid_vals: psi grid values (size = npsi)
+  // I_psi_vals: poloidal current function values (size = npsi)
   EQDSKData(const Uniform2DGrid& grid, const std::vector<Real>& psirz,
             const std::vector<Real>& psi_grid_vals,
             const std::vector<Real>& I_psi_vals);
 
   // Accessor methods for backward compatibility
-  [[nodiscard]] int GetNW() const noexcept { return grid.divisions[0]; }
-  [[nodiscard]] int GetNH() const noexcept { return grid.divisions[1]; }
+  [[nodiscard]] int GetNW() const noexcept { return grid.divisions[0] + 1; }
+  [[nodiscard]] int GetNH() const noexcept { return grid.divisions[1] + 1; }
   [[nodiscard]] Real GetRDIM() const noexcept { return grid.edge_length[0]; }
   [[nodiscard]] Real GetZDIM() const noexcept { return grid.edge_length[1]; }
   [[nodiscard]] Real GetRLEFT() const noexcept { return grid.bot_left[0]; }
@@ -85,19 +87,23 @@ struct EQDSKData
 
   [[nodiscard]] Real GetDeltaR() const noexcept
   {
-    const int NW = grid.divisions[0];
-    return (NW > 1) ? grid.edge_length[0] / static_cast<Real>(NW - 1) : 0.0;
+    const int num_R_cells = grid.divisions[0];
+    return (num_R_cells > 0)
+             ? grid.edge_length[0] / static_cast<Real>(num_R_cells)
+             : 0.0;
   }
 
   [[nodiscard]] Real GetDeltaZ() const noexcept
   {
-    const int NH = grid.divisions[1];
-    return (NH > 1) ? grid.edge_length[1] / static_cast<Real>(NH - 1) : 0.0;
+    const int num_Z_cells = grid.divisions[1];
+    return (num_Z_cells > 0)
+             ? grid.edge_length[1] / static_cast<Real>(num_Z_cells)
+             : 0.0;
   }
 
   [[nodiscard]] int GetPsiIndex(int i_R, int i_Z) const noexcept
   {
-    return i_R + i_Z * grid.divisions[0];
+    return i_R + i_Z * (grid.divisions[0] + 1);
   }
 
   [[nodiscard]] Real GetPsi(int i_R, int i_Z) const

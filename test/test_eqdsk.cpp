@@ -20,9 +20,10 @@ TEST_CASE("EQDSKData manual constructor")
   SECTION("Basic grid construction")
   {
     // Create a simple test grid
+    // divisions stores cell counts: 4 R cells, 3 Z cells → 5x4 grid points
     pcms::Uniform2DGrid test_grid;
-    test_grid.divisions[0] = 5;     // 5 R points
-    test_grid.divisions[1] = 4;     // 4 Z points
+    test_grid.divisions[0] = 4;     // 4 R cells → 5 R points
+    test_grid.divisions[1] = 3;     // 3 Z cells → 4 Z points
     test_grid.bot_left[0] = 1.0;    // R_min
     test_grid.bot_left[1] = -1.0;   // Z_min
     test_grid.edge_length[0] = 2.0; // R_max - R_min = 3.0 - 1.0
@@ -83,10 +84,10 @@ TEST_CASE("EQDSKData manual constructor")
 
   SECTION("Grid accessor methods")
   {
-    // Create a test grid
+    // Create a test grid (4 R cells, 3 Z cells → 5x4 grid points)
     pcms::Uniform2DGrid test_grid;
-    test_grid.divisions[0] = 5;
-    test_grid.divisions[1] = 4;
+    test_grid.divisions[0] = 4;
+    test_grid.divisions[1] = 3;
     test_grid.bot_left[0] = 1.0;
     test_grid.bot_left[1] = -1.0;
     test_grid.edge_length[0] = 2.0;
@@ -114,8 +115,8 @@ TEST_CASE("EQDSKData manual constructor")
   SECTION("Input validation")
   {
     pcms::Uniform2DGrid test_grid;
-    test_grid.divisions[0] = 5;
-    test_grid.divisions[1] = 4;
+    test_grid.divisions[0] = 4;
+    test_grid.divisions[1] = 3;
     test_grid.bot_left[0] = 1.0;
     test_grid.bot_left[1] = -1.0;
     test_grid.edge_length[0] = 2.0;
@@ -143,17 +144,17 @@ TEST_CASE("EQDSKData with SplineFunctionSpace")
 {
   auto lib = Omega_h::Library{};
 
-  // Create a test grid
+  // Create a test grid (9 R cells, 7 Z cells → 10x8 grid points)
   pcms::Uniform2DGrid test_grid;
-  test_grid.divisions[0] = 10; // 10 R points
-  test_grid.divisions[1] = 8;  // 8 Z points
+  test_grid.divisions[0] = 9; // 9 R cells → 10 R points
+  test_grid.divisions[1] = 7; // 7 Z cells → 8 Z points
   test_grid.bot_left[0] = 1.0;
   test_grid.bot_left[1] = -1.0;
   test_grid.edge_length[0] = 2.0;
   test_grid.edge_length[1] = 2.0;
 
-  const int NW = 10;
-  const int NH = 8;
+  const int NW = test_grid.divisions[0] + 1; // 10
+  const int NH = test_grid.divisions[1] + 1; // 8
 
   // Create test PSIZR data with a simple quadratic pattern
   std::vector<pcms::Real> test_psirz(static_cast<size_t>(NW) * NH);
@@ -178,17 +179,10 @@ TEST_CASE("EQDSKData with SplineFunctionSpace")
 
   SECTION("Spline function space creation and evaluation")
   {
-    // Create a modified grid for spline interpolation
-    // EQDSK grid.divisions = NW x NH (number of data points)
-    // SplineFunctionSpace with order=1 needs grid.divisions = (NW-1) x (NH-1)
-    // cells
-    pcms::UniformGrid<2> spline_grid;
-    spline_grid.bot_left = eqdsk_data.grid.bot_left;
-    spline_grid.edge_length = eqdsk_data.grid.edge_length;
-    spline_grid.divisions = {NW - 1, NH - 1}; // Number of cells, not points
+    // Use eqdsk_data.grid directly - divisions are already cell counts
+    // pcms::UniformGrid<2> spline_grid = eqdsk_data.grid;
 
-    auto spline_space = pcms::SplineFunctionSpace::FromUniformGrid(
-      spline_grid, CoordinateSystem::Cartesian);
+    auto spline_space = pcms::SplineFunctionSpace::FromEQDSK(eqdsk_data);
 
     auto psi_field = spline_space.CreateField<pcms::Real>();
 
