@@ -179,9 +179,6 @@ TEST_CASE("EQDSKData with SplineFunctionSpace")
 
   SECTION("Spline function space creation and evaluation")
   {
-    // Use eqdsk_data.grid directly - divisions are already cell counts
-    // pcms::UniformGrid<2> spline_grid = eqdsk_data.grid;
-
     auto spline_space = pcms::SplineFunctionSpace::FromEQDSK(eqdsk_data);
 
     auto psi_field = spline_space.CreateField<pcms::Real>();
