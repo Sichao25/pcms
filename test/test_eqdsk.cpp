@@ -1,5 +1,6 @@
 #include <pcms/utility/eqdsk.h>
 #include <pcms/utility/arrays.h>
+#include <pcms/field/eqdsk_field.h>
 #include <pcms/field/function_space/spline.h>
 #include <pcms/field/coordinate_system.h>
 #include <pcms/field/evaluation_request.h>
@@ -179,19 +180,20 @@ TEST_CASE("EQDSKData with SplineFunctionSpace")
 
   SECTION("Spline function space creation and evaluation")
   {
-    auto spline_space = pcms::SplineFunctionSpace::FromEQDSK(eqdsk_data);
+    // auto spline_space = pcms::SplineFunctionSpace::FromEQDSK(eqdsk_data);
 
-    auto psi_field = spline_space.CreateField<pcms::Real>();
+    // auto psi_field = spline_space.CreateField<pcms::Real>();
 
+    auto [spline_space, psi_field] = pcms::MakeEQDSKField(eqdsk_data);
     auto layout = spline_space.GetLayout();
     const int layout_size = layout->OwnedSize();
     const int psizr_size = static_cast<int>(eqdsk_data.PSIZR.extent(0));
 
     REQUIRE(layout_size == psizr_size);
 
-    psi_field.GetData().SetDOFHolderData(
-      pcms::Rank1View<const pcms::Real, pcms::DeviceMemorySpace>(
-        eqdsk_data.PSIZR.data(), eqdsk_data.PSIZR.extent(0)));
+    // psi_field.GetData().SetDOFHolderData(
+    //   pcms::Rank1View<const pcms::Real, pcms::DeviceMemorySpace>(
+    //     eqdsk_data.PSIZR.data(), eqdsk_data.PSIZR.extent(0)));
 
     // Evaluate at test points
     const pcms::Real R_mid =
