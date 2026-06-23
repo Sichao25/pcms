@@ -16,6 +16,7 @@ struct EQDSKField
   Field<Real> field;
 };
 
+// TODD: @jacobmerson replace with Function.
 struct EQDSKFieldWithData
 {
   EQDSKData data;
@@ -40,7 +41,8 @@ struct EQDSKFieldWithData
  */
 inline EQDSKField MakeEQDSKField(const EQDSKData& eqdsk_data)
 {
-  auto space = SplineFunctionSpace::FromEQDSK(eqdsk_data);
+  auto space = SplineFunctionSpace::FromUniformGrid(
+    eqdsk_data.grid, CoordinateSystem::Cartesian);
   auto field = space.CreateField<Real>();
   field.GetData().SetDOFHolderData(Rank1View<const Real, DeviceMemorySpace>(
     eqdsk_data.PSIZR.data(), eqdsk_data.PSIZR.extent(0)));
@@ -65,10 +67,7 @@ inline EQDSKField MakeEQDSKField(const EQDSKData& eqdsk_data)
 inline EQDSKFieldWithData MakeEQDSKField(const std::string& filename)
 {
   auto eqdsk_data = EQDSKData(filename);
-  auto space = SplineFunctionSpace::FromEQDSK(eqdsk_data);
-  auto field = space.CreateField<Real>();
-  field.GetData().SetDOFHolderData(Rank1View<const Real, DeviceMemorySpace>(
-    eqdsk_data.PSIZR.data(), eqdsk_data.PSIZR.extent(0)));
+  auto [space, field] = MakeEQDSKField(eqdsk_data);
   return {std::move(eqdsk_data), std::move(space), std::move(field)};
 }
 

@@ -25,8 +25,6 @@ public:
   [[nodiscard]] static SplineFunctionSpace FromUniformGrid(
     const UniformGrid<2>& grid, CoordinateSystem coordinate_system);
 
-  [[nodiscard]] static SplineFunctionSpace FromEQDSK(EQDSKData eqdsk_data);
-
   [[nodiscard]] std::shared_ptr<const FieldLayout> GetLayout()
     const noexcept override;
 
