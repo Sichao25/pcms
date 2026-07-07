@@ -154,6 +154,56 @@ def test_vtk_io(lib, world):
         assert os.path.exists(vtu_compressed), f"Compressed VTU file was not created"
         compressed_size = os.path.getsize(vtu_compressed)
         print(f"Compressed VTU file created (size: {compressed_size} bytes)")
+
+        print(f"Reading from VTU file: {vtu_file}")
+        mesh_read = pcms.read_mesh_vtu(vtu_file, world)
+        assert mesh_read.dim() == dim_orig, f"Dimension mismatch: {mesh_read.dim()} != {dim_orig}"
+        assert mesh_read.nverts() == nverts_orig, f"Vertex count mismatch: {mesh_read.nverts()} != {nverts_orig}"
+        assert mesh_read.nelems() == nelems_orig, f"Element count mismatch: {mesh_read.nelems()} != {nelems_orig}"
+        
+        print("✓ VTK I/O test passed")
+        
+        # Explicitly delete mesh objects before cleanup
+        del mesh
+        gc.collect()  # Force garbage collection
+        
+    finally:
+        # Clean up temporary files
+        shutil.rmtree(test_dir, ignore_errors=True)
+        print(f"Cleaned up test directory: {test_dir}")
+
+def test_vtk_parallel_io(lib, world):
+    """Test VTK file format I/O"""
+    print("\n=== Testing VTK Format I/O ===")
+    
+    # Build a simple 3D box mesh
+    print("Creating test mesh...")
+    mesh = pcms.build_box(
+        world,
+        pcms.Family.SIMPLEX,
+        1.5, 1.0, 0.5,  # x, y, z dimensions
+        3, 3, 2,         # nx, ny, nz divisions
+        False            # symmetric
+    )
+    
+    # Get initial mesh properties
+    nverts_orig = mesh.nverts()
+    nelems_orig = mesh.nelems()
+    dim_orig = mesh.dim()
+    coords_orig = mesh.coords()
+    print(f"Original mesh: dim={dim_orig}, nverts={nverts_orig}, nelems={nelems_orig}")
+    print(f"Coordinates shape: {coords_orig.shape}")
+    
+    # Create unique temporary directory for test files
+    test_dir = tempfile.mkdtemp(prefix="pcms_test_vtk_")
+    print(f"Using temporary directory: {test_dir}")
+    try:
+        # Test VTU write (VTU is write-only in the API, typically for visualization)
+        vtu_file = os.path.join(test_dir, "test_mesh.vtu")
+        print(f"Writing to VTU file: {vtu_file}")
+        pcms.write_mesh_parallel_vtk(vtu_file, mesh, compress=False)
+        
+        mesh_read = pcms.read_mesh_parallel_vtk(vtu_file + "/pieces.pvtu", world)
         
         print("✓ VTK I/O test passed")
         
@@ -419,6 +469,7 @@ if __name__ == "__main__":
         test_binary_io(lib, world)
         test_gmsh_io(lib, world)
         test_vtk_io(lib, world)
+        test_vtk_parallel_io(lib, world)
         test_meshb_io(lib, world)
         test_exodus_io(lib, world)
         test_adios2_io(lib, world)
