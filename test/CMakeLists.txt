@@ -380,6 +380,7 @@ if(Catch2_FOUND)
       APPEND
       PCMS_UNIT_TEST_SOURCES
       test_error_handling.cpp
+      test_eqdsk.cpp
       test_uniform_grid.cpp
       test_field_evaluation.cpp
       test_field_interpolation.cpp
