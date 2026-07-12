@@ -71,7 +71,8 @@ protected:
 };
 
 template <typename T>
-Field<T> FieldFactory::CreateField(std::string name, FieldMetadata metadata) const
+Field<T> FieldFactory::CreateField(std::string name,
+                                   FieldMetadata metadata) const
 {
   static_assert(is_supported_field_type_v<T>,
                 "T is not a supported field type");
