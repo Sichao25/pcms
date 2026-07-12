@@ -89,7 +89,7 @@ jobs:
       with:
         repo-name: 'omega_h-openmpi'
         repo-path: 'SCOREC/omega_h'
-        repo-ref: '1765836a00b9a64b8b3791f1442ac52f147e43b2'
+        repo-ref: '2b2e778472f48a85a5ff5e70083e3a415e58be72'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
