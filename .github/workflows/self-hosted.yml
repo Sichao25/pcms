@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - develop
+  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   build_and_test:
