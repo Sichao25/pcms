@@ -12,7 +12,7 @@ TEST_CASE("Field exchange plans exclude GID message headers",
   // Two incoming messages. Each contains a five-entry entity-offset header
   // followed by two vertex GIDs.
   Kokkos::View<pcms::GO*, pcms::HostMemorySpace> received(
-    "received_gids", 2 * (pcms::ent_offsets_len + 2));
+    "received_gids", 2 * static_cast<std::size_t>(pcms::ent_offsets_len + 2));
   const pcms::GO message[] = {
     0, 2, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 3, 1,
   };
@@ -48,7 +48,8 @@ TEST_CASE("GID messages insert headers around compact field payloads",
   plan.msg_size = 4;
 
   Kokkos::View<pcms::GO*, pcms::HostMemorySpace> message(
-    "gid_message", plan.msg_size + 2 * pcms::ent_offsets_len);
+    "gid_message",
+    plan.msg_size + 2 * static_cast<std::size_t>(pcms::ent_offsets_len));
   pcms::GenericFieldExchangePlanner planner;
   planner.FillGidMessage(layout, plan,
                          pcms::Rank1View<pcms::GO, pcms::HostMemorySpace>(

@@ -108,9 +108,10 @@ OmegaHIntersectionRHSIntegrator::BuildDataImpl(
   // Pass 2: fill coords, node_gids, and coeffs on device. node_gids/coeffs hold
   // ndof (target DOFs per element) entries per integration point.
   Kokkos::View<Real**, DeviceMemorySpace> coords("rhs_coords", num_pts, 2);
-  Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids("rhs_node_gids",
-                                                       num_pts * ndof);
-  Kokkos::View<Real*, DeviceMemorySpace> coeffs("rhs_coeffs", num_pts * ndof);
+  Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids(
+    "rhs_node_gids", static_cast<std::size_t>(num_pts) * ndof);
+  Kokkos::View<Real*, DeviceMemorySpace> coeffs(
+    "rhs_coeffs", static_cast<std::size_t>(num_pts) * ndof);
 
   Kokkos::parallel_for(
     "rhs_fill", nelems, KOKKOS_LAMBDA(int elm) {

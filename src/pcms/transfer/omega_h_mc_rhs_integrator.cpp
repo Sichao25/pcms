@@ -91,10 +91,10 @@ OmegaHMonteCarloRHSIntegrator::Data OmegaHMonteCarloRHSIntegrator::BuildData(
   Data d;
   d.coords =
     Kokkos::View<Real**, DeviceMemorySpace>("mc_rhs_coords", num_samples, 2);
-  d.node_gids = Kokkos::View<PetscInt*, DeviceMemorySpace>("mc_rhs_node_gids",
-                                                           num_samples * 3);
-  d.coeffs =
-    Kokkos::View<Real*, DeviceMemorySpace>("mc_rhs_coeffs", num_samples * 3);
+  d.node_gids = Kokkos::View<PetscInt*, DeviceMemorySpace>(
+    "mc_rhs_node_gids", static_cast<std::size_t>(num_samples) * 3);
+  d.coeffs = Kokkos::View<Real*, DeviceMemorySpace>(
+    "mc_rhs_coeffs", static_cast<std::size_t>(num_samples) * 3);
   d.nverts = static_cast<PetscInt>(mesh.nverts());
 
   const int npe = samples_per_element;
