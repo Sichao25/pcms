@@ -5,18 +5,13 @@
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/transfer/integration_point_set.hpp"
 #include "pcms/transfer/linear_form_integrator.hpp"
+#include "pcms/transfer/monte_carlo_sampling.hpp"
 #include <Kokkos_Core.hpp>
 #include <cstdint>
 #include <memory>
 
 namespace pcms
 {
-
-// Strategy for generating sample points on each target element.
-enum class MonteCarloSampling
-{
-  UniformRandom, // independent uniform draws per element (XorShift64 pool)
-};
 
 // Monte Carlo RHS integrator for conservative L2 projection onto order-1
 // Lagrange spaces on Omega_h 2D simplex meshes.

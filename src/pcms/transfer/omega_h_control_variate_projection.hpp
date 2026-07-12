@@ -6,7 +6,7 @@
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/transfer/interpolator.h"
-#include "pcms/transfer/omega_h_mc_rhs_integrator.hpp"
+#include "pcms/transfer/monte_carlo_sampling.hpp"
 #include "pcms/transfer/transfer_operator.hpp"
 #include <cstdint>
 #include <memory>
@@ -14,8 +14,8 @@
 namespace pcms
 {
 
-// Forward declaration keeps PETSc headers out of this header.
 class GalerkinProjectionSolver;
+class OmegaHMonteCarloRHSIntegrator;
 
 // Variance-reduced Monte Carlo Galerkin projection using a control variate.
 //

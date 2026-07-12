@@ -65,7 +65,7 @@ target_link_libraries(pcms_transfer PUBLIC
     Omega_h::omega_h)
 
 if(PCMS_ENABLE_MESHFIELDS)
-  target_link_libraries(pcms_transfer PUBLIC meshfields::meshfields)
+  target_link_libraries(pcms_transfer PRIVATE meshfields::meshfields)
 endif()
 
 if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)

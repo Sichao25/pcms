@@ -1,5 +1,6 @@
 #include "pcms/transfer/omega_h_conservative_projection.hpp"
 #include "pcms/transfer/conservative_projection_solver.hpp"
+#include "pcms/transfer/omega_h_intersection_rhs_integrator.hpp"
 #include "pcms/transfer/omega_h_mass_integrator.hpp"
 #include "pcms/utility/arrays.h"
 #include <Omega_h_array.hpp>

@@ -1,6 +1,7 @@
 #include "pcms/transfer/omega_h_control_variate_projection.hpp"
 #include "pcms/transfer/conservative_projection_solver.hpp"
 #include "pcms/transfer/omega_h_mass_integrator.hpp"
+#include "pcms/transfer/omega_h_mc_rhs_integrator.hpp"
 #include "pcms/utility/arrays.h"
 #include <Kokkos_Core.hpp>
 #include <Omega_h_array.hpp>

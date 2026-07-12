@@ -4,7 +4,6 @@
 #include "pcms/field/function_space.h"
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/point_evaluator.h"
-#include "pcms/transfer/omega_h_intersection_rhs_integrator.hpp"
 #include "pcms/transfer/transfer_operator.hpp"
 #include <Kokkos_Core.hpp>
 #include <memory>
@@ -12,8 +11,8 @@
 namespace pcms
 {
 
-// Forward declaration keeps PETSc headers out of this header.
 class GalerkinProjectionSolver;
+class OmegaHIntersectionRHSIntegrator;
 
 // Conservative Galerkin projection between Omega_h order-1 Lagrange spaces.
 //
