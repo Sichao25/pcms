@@ -9,6 +9,8 @@ on:
     branches:
       - main
       - develop
+  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   clang-tidy-check:
