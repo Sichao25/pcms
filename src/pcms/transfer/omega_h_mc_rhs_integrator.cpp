@@ -62,8 +62,33 @@ KOKKOS_INLINE_FUNCTION void FillElementSamples(
   }
 }
 
-} // namespace
+// Samples samples_per_element from a uniform random distribution over the
+// target element, writing their coordinates, node GIDs, and coefficients.
+void FillElementSamples(
+  int nelems, int samples_per_element, const Omega_h::Reals& mesh_coords,
+  const Omega_h::LOs& faces2nodes,
+  const Kokkos::View<const LO*, DeviceMemorySpace>& global_to_local,
+  const Kokkos::View<Real**, DeviceMemorySpace>& coords,
+  const Kokkos::View<PetscInt*, DeviceMemorySpace>& node_gids,
+  const Kokkos::View<Real*, DeviceMemorySpace>& coeffs, uint64_t seed)
+{
+  Kokkos::Random_XorShift64_Pool<DefaultExecutionSpace> pool(seed);
+  Kokkos::parallel_for(
+    "mc_rhs_fill_random", Kokkos::RangePolicy<DefaultExecutionSpace>(0, nelems),
+    KOKKOS_LAMBDA(int elm) {
+      auto gen = pool.get_state();
+      FillElementSamples(elm, samples_per_element, mesh_coords, faces2nodes,
+                         global_to_local, coords, node_gids, coeffs,
+                         [&](int /*s*/, Real& u, Real& v) {
+                           u = gen.drand();
+                           v = gen.drand();
+                         });
+      pool.free_state(gen);
+    });
+  Kokkos::fence();
+}
 
+} // namespace
 
 OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(
   const FunctionSpace& target_space, int samples_per_element,
@@ -102,21 +127,8 @@ OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(
   Kokkos::View<Real*, DeviceMemorySpace> coeffs(
     "mc_rhs_coeffs", static_cast<std::size_t>(num_samples) * 3);
 
-  const int npe = samples_per_element;
-  Kokkos::Random_XorShift64_Pool<DefaultExecutionSpace> pool(seed);
-  Kokkos::parallel_for(
-    "mc_rhs_fill_random", Kokkos::RangePolicy<DefaultExecutionSpace>(0, nelems),
-    KOKKOS_LAMBDA(int elm) {
-      auto gen = pool.get_state();
-      FillElementSamples(elm, npe, mesh_coords, faces2nodes, global_to_local,
-                         coords, node_gids, coeffs,
-                         [&](int /*s*/, Real& u, Real& v) {
-                           u = gen.drand();
-                           v = gen.drand();
-                         });
-      pool.free_state(gen);
-    });
-  Kokkos::fence();
+  FillElementSamples(nelems, samples_per_element, mesh_coords, faces2nodes,
+                     global_to_local, coords, node_gids, coeffs, seed);
 
   point_set_ = IntegrationPointSet<DeviceMemorySpace>(
     CoordinateSystem::Cartesian, std::move(coords));
