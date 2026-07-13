@@ -64,14 +64,21 @@ KOKKOS_INLINE_FUNCTION void FillElementSamples(
 
 } // namespace
 
-// ---------------------------------------------------------------------------
-// OmegaHMonteCarloRHSIntegrator::BuildData
-// ---------------------------------------------------------------------------
 
-OmegaHMonteCarloRHSIntegrator::Data OmegaHMonteCarloRHSIntegrator::BuildData(
-  const std::shared_ptr<const OmegaHLagrangeLayout>& target_layout,
-  CoordinateSystem target_coordinate_system, int samples_per_element,
+OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(
+  const FunctionSpace& target_space, int samples_per_element,
   MonteCarloSampling sampling, uint64_t seed)
+  : OmegaHMonteCarloRHSIntegrator(
+      std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(
+        target_space.GetLayout()),
+      target_space.GetCoordinateSystem(), samples_per_element, sampling, seed)
+{
+}
+
+OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(
+  std::shared_ptr<const OmegaHLagrangeLayout> target_layout,
+  CoordinateSystem target_coordinate_system, int samples_per_element,
+  MonteCarloSampling /*sampling*/, uint64_t seed)
 {
   detail::CheckOmegaHScalarP1Layout(target_coordinate_system, target_layout,
                                     "OmegaHMonteCarloRHSIntegrator", "target");
@@ -88,20 +95,14 @@ OmegaHMonteCarloRHSIntegrator::Data OmegaHMonteCarloRHSIntegrator::BuildData(
   const auto faces2nodes = mesh.ask_down(Omega_h::FACE, Omega_h::VERT).ab2b;
   const auto global_to_local = target_layout->GetGlobalToLocalPermutation();
 
-  Data d;
-  d.coords =
-    Kokkos::View<Real**, DeviceMemorySpace>("mc_rhs_coords", num_samples, 2);
-  d.node_gids = Kokkos::View<PetscInt*, DeviceMemorySpace>(
+  Kokkos::View<Real**, DeviceMemorySpace> coords("mc_rhs_coords", num_samples,
+                                                 2);
+  Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids(
     "mc_rhs_node_gids", static_cast<std::size_t>(num_samples) * 3);
-  d.coeffs = Kokkos::View<Real*, DeviceMemorySpace>(
+  Kokkos::View<Real*, DeviceMemorySpace> coeffs(
     "mc_rhs_coeffs", static_cast<std::size_t>(num_samples) * 3);
-  d.nverts = static_cast<PetscInt>(mesh.nverts());
 
   const int npe = samples_per_element;
-  auto coords = d.coords;
-  auto node_gids = d.node_gids;
-  auto coeffs = d.coeffs;
-
   Kokkos::Random_XorShift64_Pool<DefaultExecutionSpace> pool(seed);
   Kokkos::parallel_for(
     "mc_rhs_fill_random", Kokkos::RangePolicy<DefaultExecutionSpace>(0, nelems),
@@ -117,40 +118,14 @@ OmegaHMonteCarloRHSIntegrator::Data OmegaHMonteCarloRHSIntegrator::BuildData(
     });
   Kokkos::fence();
 
-  return d;
-}
+  point_set_ = IntegrationPointSet<DeviceMemorySpace>(
+    CoordinateSystem::Cartesian, std::move(coords));
+  node_gids_ = std::move(node_gids);
+  coeffs_ = std::move(coeffs);
 
-// ---------------------------------------------------------------------------
-// OmegaHMonteCarloRHSIntegrator constructors
-// ---------------------------------------------------------------------------
-
-OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(
-  const FunctionSpace& target_space, int samples_per_element,
-  MonteCarloSampling sampling, uint64_t seed)
-  : OmegaHMonteCarloRHSIntegrator(
-      std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(
-        target_space.GetLayout()),
-      target_space.GetCoordinateSystem(), samples_per_element, sampling, seed)
-{
-}
-
-OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(
-  std::shared_ptr<const OmegaHLagrangeLayout> target_layout,
-  CoordinateSystem target_coordinate_system, int samples_per_element,
-  MonteCarloSampling sampling, uint64_t seed)
-  : OmegaHMonteCarloRHSIntegrator(
-      BuildData(target_layout, target_coordinate_system, samples_per_element,
-                sampling, seed))
-{
-}
-
-OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(Data data)
-  : point_set_(CoordinateSystem::Cartesian, std::move(data.coords)),
-    node_gids_(std::move(data.node_gids)),
-    coeffs_(std::move(data.coeffs))
-{
   const PetscInt nnz = static_cast<PetscInt>(node_gids_.extent(0));
-  PetscErrorCode ierr = createSeqVec(PETSC_COMM_WORLD, data.nverts, &vec_);
+  PetscErrorCode ierr =
+    createSeqVec(PETSC_COMM_WORLD, static_cast<PetscInt>(mesh.nverts()), &vec_);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = VecSetPreallocationCOO(vec_, nnz, node_gids_.data());
   CHKERRABORT(PETSC_COMM_WORLD, ierr);

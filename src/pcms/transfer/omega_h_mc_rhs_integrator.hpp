@@ -52,22 +52,6 @@ public:
     Rank2View<const Real, DeviceMemorySpace> sampled_values) override;
 
 private:
-  // Internal data bundle produced by the sample-generation kernel.
-  struct Data
-  {
-    Kokkos::View<Real**, DeviceMemorySpace> coords;       // [num_samples, 2]
-    Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids; // [num_samples * 3]
-    Kokkos::View<Real*, DeviceMemorySpace> coeffs;        // [num_samples * 3]
-    PetscInt nverts = 0;                                  // target DOF count
-  };
-
-  static Data BuildData(
-    const std::shared_ptr<const OmegaHLagrangeLayout>& target_layout,
-    CoordinateSystem target_coordinate_system, int samples_per_element,
-    MonteCarloSampling sampling, uint64_t seed);
-
-  explicit OmegaHMonteCarloRHSIntegrator(Data data);
-
   Vec vec_ = nullptr;
   IntegrationPointSet<DeviceMemorySpace> point_set_;
   Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids_; // COO indices

@@ -25,6 +25,8 @@ template <typename MemorySpace>
 class IntegrationPointSet
 {
 public:
+  IntegrationPointSet() = default;
+
   IntegrationPointSet(CoordinateSystem coordinate_system,
                       Kokkos::View<Real**, MemorySpace> coords)
     : coordinate_system_(coordinate_system), coords_(std::move(coords))
@@ -46,7 +48,7 @@ public:
   }
 
 private:
-  CoordinateSystem coordinate_system_;
+  CoordinateSystem coordinate_system_ = CoordinateSystem::Cartesian;
   Kokkos::View<Real**, MemorySpace> coords_;
 };
 

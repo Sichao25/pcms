@@ -49,33 +49,6 @@ public:
     Rank2View<const Real, DeviceMemorySpace> sampled_values) override;
 
 private:
-  // Internal data bundle produced by the two-pass device kernel. node_gids and
-  // coeffs are laid out with ndof_per_elem entries per integration point.
-  struct Data
-  {
-    Kokkos::View<Real**, DeviceMemorySpace> coords;       // [num_pts, 2]
-    Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids; // [num_pts*ndof]
-    Kokkos::View<Real*, DeviceMemorySpace> coeffs;        // [num_pts*ndof]
-    int ndof_per_elem = 0;                                // target DOFs/element
-    PetscInt num_target_dofs = 0;                         // target DOF count
-  };
-
-  static Data BuildData(const FunctionSpace& source_space,
-                        const FunctionSpace& target_space);
-  static Data BuildData(
-    std::shared_ptr<const OmegaHLagrangeLayout> source_layout,
-    CoordinateSystem source_coordinate_system,
-    std::shared_ptr<const OmegaHLagrangeLayout> target_layout,
-    CoordinateSystem target_coordinate_system);
-
-  // Order-templated two-pass builder, selected at runtime on the target order.
-  template <int TgtOrder>
-  static Data BuildDataImpl(const OmegaHLagrangeLayout& source_layout,
-                            const OmegaHLagrangeLayout& target_layout,
-                            int quad_order);
-
-  OmegaHIntersectionRHSIntegrator(Data data);
-
   Vec vec_ = nullptr;
   IntegrationPointSet<DeviceMemorySpace> point_set_;
   Kokkos::View<PetscInt*, DeviceMemorySpace>

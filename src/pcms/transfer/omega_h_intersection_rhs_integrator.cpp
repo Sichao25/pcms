@@ -11,28 +11,29 @@
 namespace pcms
 {
 
-// ---------------------------------------------------------------------------
-// OmegaHIntersectionRHSIntegrator::BuildData
-// ---------------------------------------------------------------------------
 
-OmegaHIntersectionRHSIntegrator::Data
-OmegaHIntersectionRHSIntegrator::BuildData(const FunctionSpace& source_space,
-                                           const FunctionSpace& target_space)
+namespace
 {
-  return BuildData(std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(
-                     source_space.GetLayout()),
-                   source_space.GetCoordinateSystem(),
-                   std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(
-                     target_space.GetLayout()),
-                   target_space.GetCoordinateSystem());
-}
 
-OmegaHIntersectionRHSIntegrator::Data
-OmegaHIntersectionRHSIntegrator::BuildData(
-  std::shared_ptr<const OmegaHLagrangeLayout> source_layout,
-  CoordinateSystem source_coordinate_system,
-  std::shared_ptr<const OmegaHLagrangeLayout> target_layout,
-  CoordinateSystem target_coordinate_system)
+// Results of the two-pass intersection kernel; the constructor moves these into
+// the integrator's members.
+struct Data
+{
+  Kokkos::View<Real**, DeviceMemorySpace> coords;
+  Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids;
+  Kokkos::View<Real*, DeviceMemorySpace> coeffs;
+  int ndof_per_elem = 0;
+  PetscInt num_target_dofs = 0;
+};
+
+template <int TgtOrder>
+Data BuildDataImpl(const OmegaHLagrangeLayout& source_layout,
+                   const OmegaHLagrangeLayout& target_layout, int quad_order);
+
+Data BuildData(const std::shared_ptr<const OmegaHLagrangeLayout>& source_layout,
+               CoordinateSystem source_coordinate_system,
+               const std::shared_ptr<const OmegaHLagrangeLayout>& target_layout,
+               CoordinateSystem target_coordinate_system)
 {
   detail::CheckOmegaHScalarLagrangeLayout(
     source_coordinate_system, source_layout, "OmegaHIntersectionRHSIntegrator",
@@ -54,10 +55,8 @@ OmegaHIntersectionRHSIntegrator::BuildData(
 }
 
 template <int TgtOrder>
-OmegaHIntersectionRHSIntegrator::Data
-OmegaHIntersectionRHSIntegrator::BuildDataImpl(
-  const OmegaHLagrangeLayout& source_layout,
-  const OmegaHLagrangeLayout& target_layout, int quad_order)
+Data BuildDataImpl(const OmegaHLagrangeLayout& source_layout,
+                   const OmegaHLagrangeLayout& target_layout, int quad_order)
 {
   using Basis = detail::TargetTriBasis<TgtOrder>;
   constexpr int ndof = Basis::ndof;
@@ -163,6 +162,8 @@ OmegaHIntersectionRHSIntegrator::BuildDataImpl(
   return d;
 }
 
+} // namespace
+
 // ---------------------------------------------------------------------------
 // OmegaHIntersectionRHSIntegrator constructors
 // ---------------------------------------------------------------------------
@@ -184,18 +185,15 @@ OmegaHIntersectionRHSIntegrator::OmegaHIntersectionRHSIntegrator(
   CoordinateSystem source_coordinate_system,
   std::shared_ptr<const OmegaHLagrangeLayout> target_layout,
   CoordinateSystem target_coordinate_system)
-  : OmegaHIntersectionRHSIntegrator(
-      BuildData(std::move(source_layout), source_coordinate_system,
-                std::move(target_layout), target_coordinate_system))
 {
-}
+  Data data = BuildData(source_layout, source_coordinate_system, target_layout,
+                        target_coordinate_system);
+  point_set_ = IntegrationPointSet<DeviceMemorySpace>(
+    CoordinateSystem::Cartesian, std::move(data.coords));
+  node_gids_ = std::move(data.node_gids);
+  coeffs_ = std::move(data.coeffs);
+  ndof_per_elem_ = data.ndof_per_elem;
 
-OmegaHIntersectionRHSIntegrator::OmegaHIntersectionRHSIntegrator(Data data)
-  : point_set_(CoordinateSystem::Cartesian, std::move(data.coords)),
-    node_gids_(std::move(data.node_gids)),
-    coeffs_(std::move(data.coeffs)),
-    ndof_per_elem_(data.ndof_per_elem)
-{
   const PetscInt nnz = static_cast<PetscInt>(node_gids_.extent(0));
   PetscErrorCode ierr =
     createSeqVec(PETSC_COMM_WORLD, data.num_target_dofs, &vec_);
