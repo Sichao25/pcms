@@ -29,48 +29,6 @@ struct memory_space_accessor : public Kokkos::default_accessor<ElementType>
   {
   }
 };
-
-} // namespace detail
-
-template <typename ContainerType, typename ElementType, typename Extents,
-          typename LayoutPolicy, typename AccessorPolicy>
-auto make_mdspan(const ContainerType& /* unused */)
-  -> Kokkos::mdspan<ElementType, Extents, LayoutPolicy, AccessorPolicy>
-{
-  static_assert(detail::dependent_always_false<ContainerType>::type,
-                "creating mdspan is not implemented for type");
-}
-
-// TODO make_mdspan
-
-template <int Rank, typename ElementType, typename MemorySpace,
-          typename LayoutPolicy = Kokkos::layout_right, typename IndexType = LO>
-using View =
-  Kokkos::mdspan<ElementType, Kokkos::dextents<IndexType, Rank>, LayoutPolicy,
-                 detail::memory_space_accessor<
-                   std::remove_reference_t<ElementType>, MemorySpace>>;
-
-template <typename ElementType, typename MemorySpace,
-          typename LayoutPolicy = Kokkos::layout_right>
-using Rank1View = View<1, ElementType, MemorySpace, LayoutPolicy>;
-
-template <typename ElementType, typename MemorySpace,
-          typename LayoutPolicy = Kokkos::layout_right>
-using Rank2View = View<2, ElementType, MemorySpace, LayoutPolicy>;
-
-template <typename ElementType, typename MemorySpace,
-          typename LayoutPolicy = Kokkos::layout_right>
-using Rank3View = View<3, ElementType, MemorySpace, LayoutPolicy>;
-
-template <typename ElementType, typename MemorySpace,
-          typename LayoutPolicy = Kokkos::layout_right>
-using Rank4View = View<4, ElementType, MemorySpace, LayoutPolicy>;
-
-template <typename MemorySpace>
-using GlobalIDView = View<1, const GO, MemorySpace, Kokkos::layout_right, GO>;
-
-namespace detail
-{
 template <typename T, typename = std::void_t<>>
 struct HasValueType : std::false_type
 {};
@@ -156,7 +114,45 @@ using default_layout_for_memory_space_t =
   typename default_layout_for_memory_space<MemorySpace>::type;
 
 } // namespace detail
-  // default implementation of make_array_view
+
+template <typename ContainerType, typename ElementType, typename Extents,
+          typename LayoutPolicy, typename AccessorPolicy>
+auto make_mdspan(const ContainerType& /* unused */)
+  -> Kokkos::mdspan<ElementType, Extents, LayoutPolicy, AccessorPolicy>
+{
+  static_assert(detail::dependent_always_false<ContainerType>::type,
+                "creating mdspan is not implemented for type");
+}
+
+// TODO make_mdspan
+
+template <int Rank, typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = detail::default_layout_for_memory_space_t<MemorySpace> , typename IndexType = LO>
+using View =
+  Kokkos::mdspan<ElementType, Kokkos::dextents<IndexType, Rank>, LayoutPolicy,
+                 detail::memory_space_accessor<
+                   std::remove_reference_t<ElementType>, MemorySpace>>;
+
+template <typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = detail::default_layout_for_memory_space_t<MemorySpace>>
+using Rank1View = View<1, ElementType, MemorySpace, LayoutPolicy>;
+
+template <typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = detail::default_layout_for_memory_space_t<MemorySpace>>
+using Rank2View = View<2, ElementType, MemorySpace, LayoutPolicy>;
+
+template <typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = detail::default_layout_for_memory_space_t<MemorySpace>>
+using Rank3View = View<3, ElementType, MemorySpace, LayoutPolicy>;
+
+template <typename ElementType, typename MemorySpace,
+          typename LayoutPolicy = detail::default_layout_for_memory_space_t<MemorySpace>>
+using Rank4View = View<4, ElementType, MemorySpace, LayoutPolicy>;
+
+template <typename MemorySpace>
+using GlobalIDView = View<1, const GO, MemorySpace, Kokkos::layout_right, GO>;
+
+// default implementation of make_array_view
 template <typename T, typename MemorySpace = detail::memory_space_selector_t<T>,
           typename ElementType = detail::element_type_t<T>>
 auto make_array_view(const T& array)
@@ -239,6 +235,7 @@ auto MakeConstRank2View(const Kokkos::View<T**, Properties...>& view)
 template <typename T>
 auto MakeConstRank2View(Omega_h::Read<T> array, int dim)
 {
+  // Cannonical usage of Omega_h arrays is a layout_right 1D array
   return Rank2View<const T, DeviceMemorySpace, Kokkos::layout_right>(
     array.data(), array.size() / dim, dim);
 }
