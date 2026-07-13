@@ -103,7 +103,12 @@ OmegaHMassIntegrator::OmegaHMassIntegrator(
     PetscErrorCode ierr =
       createSeqAIJMat(PETSC_COMM_WORLD, num_dofs, num_dofs, 0, nullptr, &mat_);
     CHKERRABORT(PETSC_COMM_WORLD, ierr);
-    ierr = MatSetPreallocationCOO(mat_, nnz, coo_rows.data(), coo_cols.data());
+    auto coo_rows_host =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_rows);
+    auto coo_cols_host =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_cols);
+    ierr = MatSetPreallocationCOO(mat_, nnz, coo_rows_host.data(),
+                                  coo_cols_host.data());
     CHKERRABORT(PETSC_COMM_WORLD, ierr);
     ierr = MatSetValuesCOO(mat_, vals.data(), INSERT_VALUES);
     CHKERRABORT(PETSC_COMM_WORLD, ierr);
@@ -136,7 +141,12 @@ OmegaHMassIntegrator::OmegaHMassIntegrator(
   PetscErrorCode ierr =
     createSeqAIJMat(PETSC_COMM_WORLD, num_dofs, num_dofs, 0, nullptr, &mat_);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
-  ierr = MatSetPreallocationCOO(mat_, nnz, coo_rows.data(), coo_cols.data());
+  auto coo_rows_host =
+    Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_rows);
+  auto coo_cols_host =
+    Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_cols);
+  ierr = MatSetPreallocationCOO(mat_, nnz, coo_rows_host.data(),
+                                coo_cols_host.data());
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = MatSetValuesCOO(mat_, elm_mass_dev.data(), INSERT_VALUES);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
@@ -153,7 +163,6 @@ Mat OmegaHMassIntegrator::GetMatrix() const noexcept
 {
   return mat_;
 }
-
 
 std::unique_ptr<BilinearFormIntegrator> BuildOmegaHMassIntegrator(
   const FunctionSpace& target_space)
