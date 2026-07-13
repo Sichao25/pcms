@@ -11,11 +11,47 @@
 #include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/profile.h"
+#include "pcms/coupler/global_communicator.h"
 #include <memory>
 
 namespace pcms
 {
+template <typename T>
+class GlobalDataInterface
+{
+public:
+  GlobalDataInterface(const std::string& name,
+                      MPI_Comm mpi_comm,
+                      redev::Channel& channel)
+    : mpi_comm_(mpi_comm),
+      type_info_(typeid(T)),
+      comm_(name, mpi_comm_, channel)
+  {
+    PCMS_FUNCTION_TIMER;
+  }
 
+  void SendData(T* msg,
+            std::string VarName,
+            size_t msg_size,
+            Mode mode = Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    comm_.Send(msg, std::move(VarName), msg_size, mode);
+  }
+
+  std::vector<T> ReceiveData(std::string VarName,
+                         size_t msg_size,
+                         Mode mode = Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    return comm_.Receive(std::move(VarName), msg_size, mode);
+  }
+
+private:
+  MPI_Comm mpi_comm_;
+  const std::type_info& type_info_;
+  GlobalCommunicator<T> comm_;
+};
 class Application;
 
 template <typename T>
@@ -70,6 +106,8 @@ public:
   FieldHandle<T> AddField(std::string name, Field<T>&& field,
                           std::unique_ptr<FieldSerializer<T>> serializer,
                           bool participates = true);
+  template <typename T>
+  std::unique_ptr<GlobalDataInterface<T>> AddData(std::string name, MPI_Comm mpi_comm);
 
   void SendField(const std::string& name,
                  redev::Mode mode = redev::Mode::Synchronous)
@@ -162,6 +200,13 @@ private:
   std::map<std::string, std::unique_ptr<OverlapMask>> layout_overlap_masks_;
 };
 
+template <typename T>
+std::unique_ptr<GlobalDataInterface<T>>
+Application::AddData(std::string name, MPI_Comm mpi_comm)
+{
+  PCMS_FUNCTION_TIMER;
+  return std::make_unique<GlobalDataInterface<T>>(name, mpi_comm, channel_);
+}
 class Coupler
 {
 private:
