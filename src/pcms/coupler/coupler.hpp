@@ -20,8 +20,7 @@ template <typename T>
 class GlobalDataInterface
 {
 public:
-  GlobalDataInterface(const std::string& name,
-                      MPI_Comm mpi_comm,
+  GlobalDataInterface(const std::string& name, MPI_Comm mpi_comm,
                       redev::Channel& channel)
     : mpi_comm_(mpi_comm),
       type_info_(typeid(T)),
@@ -30,18 +29,15 @@ public:
     PCMS_FUNCTION_TIMER;
   }
 
-  void SendData(T* msg,
-            std::string VarName,
-            size_t msg_size,
-            Mode mode = Mode::Synchronous)
+  void SendData(T* msg, std::string VarName, size_t msg_size,
+                Mode mode = Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
     comm_.Send(msg, std::move(VarName), msg_size, mode);
   }
 
-  std::vector<T> ReceiveData(std::string VarName,
-                         size_t msg_size,
-                         Mode mode = Mode::Synchronous)
+  std::vector<T> ReceiveData(std::string VarName, size_t msg_size,
+                             Mode mode = Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
     return comm_.Receive(std::move(VarName), msg_size, mode);
@@ -107,7 +103,8 @@ public:
                           std::unique_ptr<FieldSerializer<T>> serializer,
                           bool participates = true);
   template <typename T>
-  std::unique_ptr<GlobalDataInterface<T>> AddData(std::string name, MPI_Comm mpi_comm);
+  std::unique_ptr<GlobalDataInterface<T>> AddData(std::string name,
+                                                  MPI_Comm mpi_comm);
 
   void SendField(const std::string& name,
                  redev::Mode mode = redev::Mode::Synchronous)
@@ -201,8 +198,8 @@ private:
 };
 
 template <typename T>
-std::unique_ptr<GlobalDataInterface<T>>
-Application::AddData(std::string name, MPI_Comm mpi_comm)
+std::unique_ptr<GlobalDataInterface<T>> Application::AddData(std::string name,
+                                                             MPI_Comm mpi_comm)
 {
   PCMS_FUNCTION_TIMER;
   return std::make_unique<GlobalDataInterface<T>>(name, mpi_comm, channel_);
