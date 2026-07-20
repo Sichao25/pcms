@@ -20,14 +20,14 @@ void xgc_delta_f(MPI_Comm comm)
       app->BeginSendPhase();
       GDI->SendData(mean.data(), "mean", mean.size());
       app->EndSendPhase();
-      printf("delta Sent mean:%d\n", mean[0]);
+      printf("delta Sent mean:%ld\n", mean[0]);
       app->BeginReceivePhase();
       mean = GDI->ReceiveData("mean", mean.size());
       app->EndReceivePhase();
       mean[0] = mean[0] / 2;
     }
   } while (!done);
-  printf("final Mean = %d\n", mean[0]);
+  printf("final Mean = %ld\n", mean[0]);
   assert(std::fabs(mean[0] - 1.0) < 1e-12);
   printf("GDI test successful.\n");
 }
@@ -43,12 +43,12 @@ void xgc_total_f(MPI_Comm comm)
       app->BeginReceivePhase();
       mean = GDI->ReceiveData("mean", mean.size());
       app->EndReceivePhase();
-      printf("total Recieved mean:%d\n", mean[0]);
+      printf("total Recieved mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       app->BeginSendPhase();
       GDI->SendData(mean.data(), "mean", mean.size());
       app->EndSendPhase();
-      printf("total Sent mean:%d\n", mean[0]);
+      printf("total Sent mean:%ld\n", mean[0]);
     }
   } while (!done);
 }
@@ -73,22 +73,22 @@ void xgc_coupler(MPI_Comm comm)
       delta_f->BeginReceivePhase();
       mean = GDI_delta->ReceiveData("mean", 1);
       delta_f->EndReceivePhase();
-      printf("delta Received mean:%d\n", mean[0]);
+      printf("delta Received mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       const auto msg_size = mean.size();
       total_f->BeginSendPhase();
       GDI_total->SendData(mean.data(), "mean", msg_size);
       total_f->EndSendPhase();
-      printf("total sent mean:%d\n", mean[0]);
+      printf("total sent mean:%ld\n", mean[0]);
       total_f->BeginReceivePhase();
       mean = GDI_total->ReceiveData("mean", msg_size);
       total_f->EndReceivePhase();
-      printf("delta Received mean:%d\n", mean[0]);
+      printf("delta Received mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       delta_f->BeginSendPhase();
       GDI_delta->SendData(mean.data(), "mean", msg_size);
       delta_f->EndSendPhase();
-      printf("detla sent mean:%d\n", mean[0]);
+      printf("detla sent mean:%ld\n", mean[0]);
     }
   } while (!done);
 }
@@ -110,7 +110,6 @@ int main(int argc, char** argv)
     case 0: xgc_delta_f(comm); break;
 
     case 1: xgc_total_f(comm); break;
-
     default:
       std::cerr << "Unhandled client id; expected -1, 0, or 1\n";
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
