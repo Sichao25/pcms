@@ -1,9 +1,9 @@
-
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_file.hpp>
 #include "test_support.h"
 #include "pcms/coupler/coupler.hpp"
 #include <pcms/utility/types.h>
+
 static constexpr bool done = true;
 static constexpr int COMM_ROUNDS = 1;
 
@@ -88,7 +88,7 @@ void xgc_coupler(MPI_Comm comm)
       delta_f->BeginSendPhase();
       GDI_delta->SendData(mean.data(), "mean", msg_size);
       delta_f->EndSendPhase();
-      printf("detla sent mean:%ld\n", mean[0]);
+      printf("delta sent mean:%ld\n", mean[0]);
     }
   } while (!done);
 }
