@@ -165,7 +165,7 @@ jobs:
       with:
         repo-name: 'redev'
         repo-path: 'SCOREC/redev'
-        repo-ref: 'ac09848a5f9b89493e8b679c9080b9efe5538376'
+        repo-ref: 'eb52569702864979f5b7d03d9c082c96f20b2bd5'
         cache: true
         cache-suffix: ${{ matrix.python_api == 'ON' && '-shared' || '' }}
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
