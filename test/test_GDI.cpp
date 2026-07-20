@@ -24,12 +24,12 @@ void xgc_delta_f(MPI_Comm comm)
       app->BeginReceivePhase();
       mean = GDI->ReceiveData("mean", mean.size());
       app->EndReceivePhase();
-      mean[0] = mean[0]/2;
+      mean[0] = mean[0] / 2;
     }
   } while (!done);
   printf("final Mean = %d\n", mean[0]);
   assert(std::fabs(mean[0] - 1.0) < 1e-12);
-   printf("GDI test successful.\n");
+  printf("GDI test successful.\n");
 }
 void xgc_total_f(MPI_Comm comm)
 {
@@ -44,7 +44,7 @@ void xgc_total_f(MPI_Comm comm)
       mean = GDI->ReceiveData("mean", mean.size());
       app->EndReceivePhase();
       printf("total Recieved mean:%d\n", mean[0]);
-      mean[0] = mean[0]/2;
+      mean[0] = mean[0] / 2;
       app->BeginSendPhase();
       GDI->SendData(mean.data(), "mean", mean.size());
       app->EndSendPhase();
@@ -61,8 +61,7 @@ void xgc_coupler(MPI_Comm comm)
   redev::Reals cuts = {0};
   auto partition = redev::Partition{redev::RCBPtn{dim, ranks, cuts}};
 
-  pcms::Coupler cpl("proxy_couple", comm, true,
-                   partition);
+  pcms::Coupler cpl("proxy_couple", comm, true, partition);
   auto* total_f = cpl.AddApplication("proxy_couple_xgc_total_f");
   auto* delta_f = cpl.AddApplication("proxy_couple_xgc_delta_f");
 
@@ -75,8 +74,8 @@ void xgc_coupler(MPI_Comm comm)
       mean = GDI_delta->ReceiveData("mean", 1);
       delta_f->EndReceivePhase();
       printf("delta Received mean:%d\n", mean[0]);
-      mean[0] = mean[0]/2;
-      const auto  msg_size = mean.size();
+      mean[0] = mean[0] / 2;
+      const auto msg_size = mean.size();
       total_f->BeginSendPhase();
       GDI_total->SendData(mean.data(), "mean", msg_size);
       total_f->EndSendPhase();
@@ -85,7 +84,7 @@ void xgc_coupler(MPI_Comm comm)
       mean = GDI_total->ReceiveData("mean", msg_size);
       total_f->EndReceivePhase();
       printf("delta Received mean:%d\n", mean[0]);
-      mean[0] = mean[0]/2;
+      mean[0] = mean[0] / 2;
       delta_f->BeginSendPhase();
       GDI_delta->SendData(mean.data(), "mean", msg_size);
       delta_f->EndSendPhase();
@@ -106,17 +105,11 @@ int main(int argc, char** argv)
   MPI_Comm comm = MPI_COMM_WORLD;
 
   switch (clientId) {
-    case -1:
-      xgc_coupler(comm);
-      break;
+    case -1: xgc_coupler(comm); break;
 
-    case 0:
-      xgc_delta_f(comm);
-      break;
+    case 0: xgc_delta_f(comm); break;
 
-    case 1:
-      xgc_total_f(comm);
-      break;
+    case 1: xgc_total_f(comm); break;
 
     default:
       std::cerr << "Unhandled client id; expected -1, 0, or 1\n";
