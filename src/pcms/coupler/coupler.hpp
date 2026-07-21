@@ -22,32 +22,34 @@ class GlobalDataInterface
 public:
   GlobalDataInterface(const std::string& name, MPI_Comm mpi_comm,
                       redev::Channel& channel)
-    : mpi_comm_(mpi_comm),
-      type_info_(typeid(T)),
-      comm_(name, mpi_comm_, channel)
+    : mpi_comm_(mpi_comm), comm_(name, mpi_comm_, channel)
   {
     PCMS_FUNCTION_TIMER;
   }
 
-  void SendData(T* msg, std::string VarName, size_t msg_size,
-                Mode mode = Mode::Synchronous)
+  void SendData(T* msg, std::string variable_name, std::size_t msg_size,
+                redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
-    comm_.Send(msg, std::move(VarName), msg_size, mode);
+    comm_.Send(msg, variable_name, msg_size, mode);
   }
 
-  std::vector<T> ReceiveData(std::string VarName, size_t msg_size,
-                             Mode mode = Mode::Synchronous)
+  std::vector<T> ReceiveData(std::string variable_name, std::size_t msg_size,
+                             redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
-    return comm_.Receive(std::move(VarName), msg_size, mode);
+    return comm_.Receive(variable_name, msg_size, mode);
   }
 
 private:
   MPI_Comm mpi_comm_;
-  const std::type_info& type_info_;
   GlobalCommunicator<T> comm_;
 };
+using GlobalDataVariant =
+  std::variant<GlobalDataInterface<int8_t>, GlobalDataInterface<int32_t>,
+               GlobalDataInterface<int64_t>, GlobalDataInterface<float>,
+               GlobalDataInterface<double>>;
+
 class Application;
 
 template <typename T>
@@ -62,7 +64,27 @@ public:
   void Send(redev::Mode mode = redev::Mode::Synchronous) const;
   void Receive(redev::Mode mode = redev::Mode::Synchronous) const;
   [[nodiscard]] Field<T>& GetField() const;
+private:
+  Application* app_;
+  std::string name_;
+};
+template <typename T>
+class DataHandle
+{
+public:
+  DataHandle(Application* app, std::string name)
+    : app_(app), name_(std::move(name))
+  {
+  }
 
+  void Send(T* msg, std::string variable_name, std::size_t msg_size,
+            redev::Mode mode = redev::Mode::Synchronous) const;
+
+  [[nodiscard]] std::vector<T> Receive(
+    std::string variable_name, std::size_t msg_size,
+    redev::Mode mode = redev::Mode::Synchronous) const;
+
+  [[nodiscard]] GlobalDataInterface<T>& GetDataInterface() const;
 private:
   Application* app_;
   std::string name_;
@@ -103,9 +125,10 @@ public:
                           std::unique_ptr<FieldSerializer<T>> serializer,
                           bool participates = true);
   template <typename T>
-  std::unique_ptr<GlobalDataInterface<T>> AddData(std::string name,
-                                                  MPI_Comm mpi_comm);
-
+  DataHandle<T> AddData(std::string name, MPI_Comm mpi_comm);
+  template <typename T>
+  [[nodiscard]] GlobalDataInterface<T>& GetDataInterface(
+    const std::string& name);
   void SendField(const std::string& name,
                  redev::Mode mode = redev::Mode::Synchronous)
   {
@@ -126,6 +149,27 @@ public:
       [mode](auto& field_communicator) { field_communicator->Receive(); },
       detail::find_or_error(name, field_communicators_));
   };
+  template <typename T>
+  void SendData(const std::string& name, T* msg, std::string variable_name,
+                std::size_t msg_size,
+                redev::Mode mode = redev::Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    PCMS_ALWAYS_ASSERT(InSendPhase());
+    GetDataInterface<T>(name).SendData(msg, std::move(variable_name), msg_size,
+                                       mode);
+  }
+
+  template <typename T>
+  std::vector<T> ReceiveData(const std::string& name, std::string variable_name,
+                             std::size_t msg_size,
+                             redev::Mode mode = redev::Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    PCMS_ALWAYS_ASSERT(InReceivePhase());
+    return GetDataInterface<T>(name).ReceiveData(std::move(variable_name),
+                                                 msg_size, mode);
+  }
   [[nodiscard]] bool InSendPhase() const noexcept
   {
     PCMS_FUNCTION_TIMER;
@@ -195,15 +239,53 @@ private:
   std::map<const FieldLayout*, std::unique_ptr<FieldLayoutCommunicator>>
     field_layout_communicators_;
   std::map<std::string, std::unique_ptr<OverlapMask>> layout_overlap_masks_;
+  std::map<std::string, GlobalDataVariant> global_data_interfaces_;
 };
-
 template <typename T>
-std::unique_ptr<GlobalDataInterface<T>> Application::AddData(std::string name,
-                                                             MPI_Comm mpi_comm)
+DataHandle<T> Application::AddData(std::string name, MPI_Comm mpi_comm)
 {
   PCMS_FUNCTION_TIMER;
-  return std::make_unique<GlobalDataInterface<T>>(name, mpi_comm, channel_);
+  auto [it, inserted] = global_data_interfaces_.try_emplace(
+    name, std::in_place_type<GlobalDataInterface<T>>, name, mpi_comm, channel_);
+  if (!inserted) {
+    throw pcms_error("Global data interface with this name already exists");
+  }
+  return DataHandle<T>{this, std::move(name)};
 }
+template <typename T>
+GlobalDataInterface<T>& Application::GetDataInterface(const std::string& name)
+{
+  auto* data_interface = std::get_if<GlobalDataInterface<T>>( &detail::find_or_error(name, global_data_interfaces_));
+  if (data_interface == nullptr) {
+    throw pcms_error(
+      "Global data interface stored with different type than requested");
+  }
+  return *data_interface;
+}
+template <typename T>
+GlobalDataInterface<T>& DataHandle<T>::GetDataInterface() const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+  return app_->GetDataInterface<T>(name_);
+}
+template <typename T>
+void DataHandle<T>::Send(T* msg, std::string variable_name,
+                         std::size_t msg_size, redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+  app_->SendData<T>(name_, msg, std::move(variable_name), msg_size, mode);
+}
+
+template <typename T>
+std::vector<T> DataHandle<T>::Receive(std::string variable_name,
+                                      std::size_t msg_size,
+                                      redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+
+  return app_->ReceiveData<T>(name_, std::move(variable_name), msg_size, mode);
+}
+
 class Coupler
 {
 private:

@@ -12,17 +12,17 @@ void xgc_delta_f(MPI_Comm comm)
   pcms::Coupler coupler("proxy_couple", comm, false, {});
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
-  const auto GDI = app->AddData<pcms::GO>("global_comm", comm);
+  auto gdi = app->AddData<pcms::GO>("global_comm", comm);
   auto mean = std::vector<long>(1);
   mean[0] = 16;
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginSendPhase();
-      GDI->SendData(mean.data(), "mean", mean.size());
+      gdi.Send(mean.data(), "mean", mean.size());
       app->EndSendPhase();
       printf("delta Sent mean:%ld\n", mean[0]);
       app->BeginReceivePhase();
-      mean = GDI->ReceiveData("mean", mean.size());
+      mean = gdi.Receive("mean", mean.size());
       app->EndReceivePhase();
       mean[0] = mean[0] / 2;
     }
@@ -41,12 +41,12 @@ void xgc_total_f(MPI_Comm comm)
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginReceivePhase();
-      mean = GDI->ReceiveData("mean", mean.size());
+      mean = GDI.Receive("mean", mean.size());
       app->EndReceivePhase();
       printf("total Recieved mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       app->BeginSendPhase();
-      GDI->SendData(mean.data(), "mean", mean.size());
+      GDI.Send(mean.data(), "mean", mean.size());
       app->EndSendPhase();
       printf("total Sent mean:%ld\n", mean[0]);
     }
@@ -71,22 +71,22 @@ void xgc_coupler(MPI_Comm comm)
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       delta_f->BeginReceivePhase();
-      mean = GDI_delta->ReceiveData("mean", 1);
+      mean = GDI_delta.Receive("mean", 1);
       delta_f->EndReceivePhase();
       printf("delta Received mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       const auto msg_size = mean.size();
       total_f->BeginSendPhase();
-      GDI_total->SendData(mean.data(), "mean", msg_size);
+      GDI_total.Send(mean.data(), "mean", msg_size);
       total_f->EndSendPhase();
       printf("total sent mean:%ld\n", mean[0]);
       total_f->BeginReceivePhase();
-      mean = GDI_total->ReceiveData("mean", msg_size);
+      mean = GDI_total.Receive("mean", msg_size);
       total_f->EndReceivePhase();
       printf("delta Received mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       delta_f->BeginSendPhase();
-      GDI_delta->SendData(mean.data(), "mean", msg_size);
+      GDI_delta.Send(mean.data(), "mean", msg_size);
       delta_f->EndSendPhase();
       printf("delta sent mean:%ld\n", mean[0]);
     }
