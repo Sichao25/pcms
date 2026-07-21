@@ -64,6 +64,7 @@ public:
   void Send(redev::Mode mode = redev::Mode::Synchronous) const;
   void Receive(redev::Mode mode = redev::Mode::Synchronous) const;
   [[nodiscard]] Field<T>& GetField() const;
+
 private:
   Application* app_;
   std::string name_;
@@ -85,6 +86,7 @@ public:
     redev::Mode mode = redev::Mode::Synchronous) const;
 
   [[nodiscard]] GlobalDataInterface<T>& GetDataInterface() const;
+
 private:
   Application* app_;
   std::string name_;
@@ -255,7 +257,8 @@ DataHandle<T> Application::AddData(std::string name, MPI_Comm mpi_comm)
 template <typename T>
 GlobalDataInterface<T>& Application::GetDataInterface(const std::string& name)
 {
-  auto* data_interface = std::get_if<GlobalDataInterface<T>>( &detail::find_or_error(name, global_data_interfaces_));
+  auto* data_interface = std::get_if<GlobalDataInterface<T>>(
+    &detail::find_or_error(name, global_data_interfaces_));
   if (data_interface == nullptr) {
     throw pcms_error(
       "Global data interface stored with different type than requested");
