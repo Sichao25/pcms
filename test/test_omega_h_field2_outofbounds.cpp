@@ -53,9 +53,9 @@ TEST_CASE("uniform_grid_field out of bounds FILL mode")
 
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian, 1);
-  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
+  auto field = factory->CreateFunction<Real>();
   pcms::test::SetField(
-    field.GetData(), *factory.GetLayout(),
+    field.GetData(), *factory->GetLayout(),
     OMEGA_H_LAMBDA(Real x, Real y) { return x + y; });
 
   Real fill_value = -999.0;
@@ -85,9 +85,9 @@ TEST_CASE("spline_field out of bounds FILL mode")
 
   auto factory = pcms::SplineFunctionSpace::FromUniformGrid(
     grid, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
+  auto field = factory->CreateFunction<Real>();
   pcms::test::SetField(
-    field.GetData(), *factory.GetLayout(),
+    field.GetData(), *factory->GetLayout(),
     OMEGA_H_LAMBDA(Real x, Real y) { return x + y; });
 
   Real fill_value = -999.0;
