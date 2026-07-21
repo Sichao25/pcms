@@ -95,26 +95,36 @@ void xgc_coupler(MPI_Comm comm)
 
 int main(int argc, char** argv)
 {
-  MPI_Init(&argc, &argv);
+  try {
+    MPI_Init(&argc, &argv);
 
-  OMEGA_H_CHECK(argc == 2);
+    OMEGA_H_CHECK(argc == 2);
 
-  const auto clientId = std::atoi(argv[1]);
-  REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 1);
+    const auto clientId = std::atoi(argv[1]);
+    REDEV_ALWAYS_ASSERT(clientId >= -1 && clientId <= 1);
 
-  MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Comm comm = MPI_COMM_WORLD;
 
-  switch (clientId) {
-    case -1: xgc_coupler(comm); break;
+    switch (clientId) {
+      case -1: xgc_coupler(comm); break;
 
-    case 0: xgc_delta_f(comm); break;
+      case 0: xgc_delta_f(comm); break;
 
-    case 1: xgc_total_f(comm); break;
-    default:
-      std::cerr << "Unhandled client id; expected -1, 0, or 1\n";
-      MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+      case 1: xgc_total_f(comm); break;
+      default:
+        std::cerr << "Unhandled client id; expected -1, 0, or 1\n";
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
+
+    MPI_Finalize();
+    return 0;
   }
-
-  MPI_Finalize();
-  return 0;
+  catch (const std::exception& e) {
+    std::cerr << "Exception caught in main: " << e.what() << std::endl;
+    return 1;
+  }
+  catch (...) {
+    std::cerr << "Unknown exception caught in main\n";
+    return 1;
+  }
 }
