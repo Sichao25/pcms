@@ -118,12 +118,10 @@ int main(int argc, char** argv)
 
     MPI_Finalize();
     return 0;
-  }
-  catch (const std::exception& e) {
+  } catch (const std::exception& e) {
     std::cerr << "Exception caught in main: " << e.what() << std::endl;
     return 1;
-  }
-  catch (...) {
+  } catch (...) {
     std::cerr << "Unknown exception caught in main\n";
     return 1;
   }
