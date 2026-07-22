@@ -43,7 +43,7 @@ public:
       for (LO i = 0; i < num_dof; ++i) {
         // A negative permutation entry marks a holder outside the exchange
         // (non-owned, or owned but outside the overlap region); it has no slot.
-        if (owned[i] && permutation[i] >= 0) {
+        if (permutation[i] >= 0) {
           for (LO c = 0; c < num_comp; ++c) {
             buffer[permutation[i] * num_comp + c] = data(i, c);
           }
@@ -65,7 +65,6 @@ public:
     }
 
     auto current = xgc_field->GetDOFHolderDataHost();
-    auto owned = layout.GetOwnedHost();
     const LO num_dof = static_cast<LO>(current.extent(0));
     const LO num_comp = static_cast<LO>(current.extent(1));
     std::vector<T> full_data(current.size());
@@ -79,7 +78,7 @@ public:
         // A negative permutation entry marks a holder outside the exchange
         // (owned but outside the overlap region); no data was received for it,
         // so it keeps its current value (pre-filled above).
-        if (owned[i] && permutation[i] >= 0) {
+        if (permutation[i] >= 0) {
           for (LO c = 0; c < num_comp; ++c) {
             full_data[i * num_comp + c] = buffer[permutation[i] * num_comp + c];
           }

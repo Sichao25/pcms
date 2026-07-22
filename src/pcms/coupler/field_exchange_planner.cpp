@@ -305,14 +305,13 @@ void GenericFieldExchangePlanner::FillGidMessage(
 
   for (LO local_index = 0; local_index < static_cast<LO>(gids.size());
        ++local_index) {
-    if (!owned[local_index])
-      continue;
-
     LO perm_index = plan.permutation[local_index];
     // Owned holders outside the overlap region carry the sentinel and have no
     // slot in the message.
     if (perm_index < 0)
       continue;
+    // A holder with a valid permutation slot must be owned.
+    PCMS_ALWAYS_ASSERT(owned[local_index]);
     auto block_index = GetMessageBlockIndex(perm_index, offsets);
     const auto gid_index =
       perm_index + static_cast<LO>((block_index + 1) * ent_offsets_len);
