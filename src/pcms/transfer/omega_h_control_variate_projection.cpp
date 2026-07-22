@@ -20,8 +20,7 @@ OmegaHControlVariateProjection::OmegaHControlVariateProjection(
     interpolator_(source_space, target_space),
     control_variate_(target_space.CreateField<Real>())
 {
-  const auto sample_coords =
-    rhs_integrator_->GetIntegrationPoints().GetCoordinates();
+  const auto sample_coords = rhs_integrator_->GetIntegrationPoints();
   source_at_samples_ = source_space.CreatePointEvaluator<Real>(
     EvaluationRequest::FromCoordinates(sample_coords));
   control_variate_at_samples_ = target_space.CreatePointEvaluator<Real>(
@@ -48,7 +47,7 @@ void OmegaHControlVariateProjection::Apply(const Field<Real>& source,
   // 2. Sample the source field and the control variate at the fixed Monte
   //    Carlo sample points; the stochastic RHS integrates the residual.
   const std::size_t num_samples =
-    rhs_integrator_->GetIntegrationPoints().NumPoints();
+    rhs_integrator_->GetIntegrationPoints().GetValues().extent(0);
   Kokkos::View<Real**, DeviceMemorySpace> f_samples("cv_f_samples", num_samples,
                                                     1);
   Kokkos::View<Real**, DeviceMemorySpace> residual("cv_residual", num_samples,

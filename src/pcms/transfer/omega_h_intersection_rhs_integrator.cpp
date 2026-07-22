@@ -187,8 +187,7 @@ OmegaHIntersectionRHSIntegrator::OmegaHIntersectionRHSIntegrator(
 {
   Data data = BuildData(source_layout, source_coordinate_system, target_layout,
                         target_coordinate_system);
-  point_set_ = IntegrationPointSet<DeviceMemorySpace>(
-    CoordinateSystem::Cartesian, std::move(data.coords));
+  coords_ = std::move(data.coords);
   node_gids_ = std::move(data.node_gids);
   coeffs_ = std::move(data.coeffs);
   ndof_per_elem_ = data.ndof_per_elem;
@@ -217,10 +216,11 @@ OmegaHIntersectionRHSIntegrator::~OmegaHIntersectionRHSIntegrator()
 // OmegaHIntersectionRHSIntegrator public interface
 // ---------------------------------------------------------------------------
 
-const IntegrationPointSet<DeviceMemorySpace>&
+CoordinateView<DeviceMemorySpace>
 OmegaHIntersectionRHSIntegrator::GetIntegrationPoints() const noexcept
 {
-  return point_set_;
+  return CoordinateView<DeviceMemorySpace>(CoordinateSystem::Cartesian,
+                                           MakeConstRank2View(coords_));
 }
 
 Vec OmegaHIntersectionRHSIntegrator::GetVector() const noexcept

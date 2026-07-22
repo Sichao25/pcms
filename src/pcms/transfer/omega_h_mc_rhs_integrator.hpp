@@ -1,9 +1,9 @@
 #ifndef PCMS_TRANSFER_OMEGA_H_MC_RHS_INTEGRATOR_HPP
 #define PCMS_TRANSFER_OMEGA_H_MC_RHS_INTEGRATOR_HPP
 
+#include "pcms/field/coordinate_system.h"
 #include "pcms/field/function_space.h"
 #include "pcms/field/layout/omega_h_lagrange.h"
-#include "pcms/transfer/integration_point_set.hpp"
 #include "pcms/transfer/linear_form_integrator.hpp"
 #include "pcms/transfer/monte_carlo_sampling.hpp"
 #include <Kokkos_Core.hpp>
@@ -45,7 +45,7 @@ public:
 
   Vec GetVector() const noexcept override;
 
-  const IntegrationPointSet<DeviceMemorySpace>& GetIntegrationPoints()
+  CoordinateView<DeviceMemorySpace> GetIntegrationPoints()
     const noexcept override;
 
   void Assemble(
@@ -53,7 +53,8 @@ public:
 
 private:
   Vec vec_ = nullptr;
-  IntegrationPointSet<DeviceMemorySpace> point_set_;
+  Kokkos::View<Real**, DeviceMemorySpace>
+    coords_; // [num_pts][dim] sample coordinates
   Kokkos::View<PetscInt*, DeviceMemorySpace> node_gids_; // COO indices
   Kokkos::View<Real*, DeviceMemorySpace> coeffs_;        // basis * |T| / N
 };

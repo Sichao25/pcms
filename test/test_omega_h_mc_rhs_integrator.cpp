@@ -65,10 +65,10 @@ void EvaluateAndAssemble(pcms::LinearFormIntegrator& integrator,
                          const pcms::FunctionSpace& source_space,
                          const pcms::Field<pcms::Real>& source_field)
 {
-  const auto& pts = integrator.GetIntegrationPoints();
-  const std::size_t npts = pts.GetCoordinates().GetValues().extent(0);
+  const auto pts = integrator.GetIntegrationPoints();
+  const std::size_t npts = pts.GetValues().extent(0);
   auto evaluator = source_space.CreatePointEvaluator<pcms::Real>(
-    pcms::EvaluationRequest::FromCoordinates(pts.GetCoordinates()));
+    pcms::EvaluationRequest::FromCoordinates(pts));
   Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace> sampled("sampled", npts,
                                                               1);
   evaluator->Evaluate(source_field, pcms::MakeRank2View(sampled));
@@ -92,8 +92,7 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator: sample points lie inside the domain",
   for (const auto sampling : {pcms::MonteCarloSampling::UniformRandom}) {
     pcms::OmegaHMonteCarloRHSIntegrator integrator(
       target_space, samples_per_element, sampling);
-    const auto raw_coords =
-      integrator.GetIntegrationPoints().GetCoordinates().GetValues();
+    const auto raw_coords = integrator.GetIntegrationPoints().GetValues();
     auto coords_view = Kokkos::View<const pcms::Real**, Kokkos::LayoutRight,
                                     pcms::DeviceMemorySpace,
                                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>(
@@ -216,7 +215,7 @@ TEST_CASE("OmegaHControlVariateProjection: reduces error vs plain Monte Carlo",
     seed);
   auto evaluator = source_space.CreatePointEvaluator<pcms::Real>(
     pcms::EvaluationRequest::FromCoordinates(
-      mc_integrator.GetIntegrationPoints().GetCoordinates()));
+      mc_integrator.GetIntegrationPoints()));
   pcms::OmegaHMassIntegrator mass_integrator(target_space);
   pcms::GalerkinProjectionSolver solver(mass_integrator, mc_integrator);
   const auto mc_projected = solver.Solve(*evaluator, source_field);

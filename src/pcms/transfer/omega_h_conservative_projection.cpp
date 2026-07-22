@@ -53,7 +53,7 @@ OmegaHConservativeProjection::OmegaHConservativeProjection(
 
   evaluator_ =
     source_space.CreatePointEvaluator<Real>(EvaluationRequest::FromCoordinates(
-      rhs_integrator_->GetIntegrationPoints().GetCoordinates()));
+      rhs_integrator_->GetIntegrationPoints()));
 
   // Mass integrator is only needed to build the solver; PETSc reference-counts
   // the matrix so it remains alive inside the KSP after this scope ends.

@@ -7,7 +7,6 @@ set(PCMS_FIELD_TRANSFER_HEADERS
     interpolator.h
     copy.h
     transfer_operator.hpp
-    integration_point_set.hpp
 )
 
 
