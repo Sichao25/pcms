@@ -208,9 +208,12 @@ static void adjBasedSearchFromPoints(
       Omega_h::Real cutoffDistance = radii2[id];
       Omega_h::LO source_cell_id = source_cell_ids[id];
 
-      OMEGA_H_CHECK_PRINTF(source_cell_id >= 0,
-                           "ERROR: Source cell id not found for target %d\n",
-                           id);
+      // Targets outside the source mesh are flagged with an invalid cell id
+      // (see locate_target_cells). Skip them: no supports, no memory access.
+      if (source_cell_id < 0) {
+        nSupports[id] = 0;
+        return;
+      }
 
       const Omega_h::LO num_verts_in_dim = dim + 1;
       Omega_h::LO start_ptr = source_cell_id * num_verts_in_dim;
@@ -382,6 +385,10 @@ SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
                              true);
   } else {
     pcms::printInfo("INFO: Adaptive radius search... \n");
+    // Cap the adaptation so targets that can never reach the required support
+    // count (e.g. points outside the source mesh, which are skipped and always
+    // report 0 supports) do not spin the loop forever.
+    const int max_radius_adjust_loops = 50;
     int r_adjust_loop = 0;
     while (true) {
       nSupports = Omega_h::Write<Omega_h::LO>(
@@ -407,6 +414,14 @@ SupportResults searchNeighbors(Omega_h::Mesh& source_mesh,
       if (within_number_of_support_range(min_supports_found, max_supports_found,
                                          min_req_support,
                                          3 * min_req_support)) {
+        break;
+      }
+
+      if (r_adjust_loop >= max_radius_adjust_loops) {
+        pcms::printInfo(
+          "WARNING: radius adaptation hit the %d-loop cap; some targets remain "
+          "outside the [%d, %d] support range\n",
+          max_radius_adjust_loops, min_req_support, 3 * min_req_support);
         break;
       }
 
@@ -471,6 +486,9 @@ SupportResults searchNeighbors(Omega_h::Mesh& mesh,
     search.adjBasedSearch(supports_ptr, nSupports, supports_idx, radii2, true);
   } else {
     pcms::printInfo("INFO: Adaptive radius search... \n");
+    // Cap the adaptation so targets that can never reach the required support
+    // count do not spin the loop forever (see searchNeighborsFromPoints).
+    const int max_radius_adjust_loops = 50;
     int r_adjust_loop = 0;
     while (true) { // until the number of minimum support is met
       const auto max_radius = Omega_h::get_max(Omega_h::read(radii2));
@@ -495,6 +513,14 @@ SupportResults searchNeighbors(Omega_h::Mesh& mesh,
 
       if (within_number_of_support_range(min_nSupports, max_nSupports,
                                          min_support, 3 * min_support)) {
+        break;
+      }
+
+      if (r_adjust_loop >= max_radius_adjust_loops) {
+        pcms::printInfo(
+          "WARNING: radius adaptation hit the %d-loop cap; some targets remain "
+          "outside the [%d, %d] support range\n",
+          max_radius_adjust_loops, min_support, 3 * min_support);
         break;
       }
 
