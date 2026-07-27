@@ -126,6 +126,9 @@ int main(int argc, char** argv)
       case 0: xgc_delta_f(comm); break;
 
       case 1: xgc_total_f(comm); break;
+      default:
+        std::cerr << "Unhandled client id; expected -1, 0, or 1\n";
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     MPI_Finalize();
