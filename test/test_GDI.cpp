@@ -13,16 +13,24 @@ void xgc_delta_f(MPI_Comm comm)
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
   auto gdi = app->AddData<pcms::GO>("global_comm", comm);
-  auto mean = std::vector<long>(1);
+
+  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer(
+    "mean_buffer", 1);
+
+  pcms::Rank1View<long, pcms::HostMemorySpace> mean{
+    mean_buffer.data(),
+    mean_buffer.extent(0)};
+
   mean[0] = 16;
+
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginSendPhase();
-      gdi.Send(mean.data(), "mean", mean.size());
+      gdi.Send(mean, "mean");
       app->EndSendPhase();
       printf("delta Sent mean:%ld\n", mean[0]);
       app->BeginReceivePhase();
-      mean = gdi.Receive("mean", mean.size());
+      gdi.Receive(mean,"mean");
       app->EndReceivePhase();
       mean[0] = mean[0] / 2;
     }
@@ -37,16 +45,22 @@ void xgc_total_f(MPI_Comm comm)
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
   auto GDI = app->AddData<pcms::GO>("global_comm", comm);
-  auto mean = std::vector<pcms::GO>(1);
+  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer(
+    "mean_buffer", 1);
+
+  pcms::Rank1View<long, pcms::HostMemorySpace> mean{
+    mean_buffer.data(),
+    mean_buffer.extent(0)};
+
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       app->BeginReceivePhase();
-      mean = GDI.Receive("mean", mean.size());
+      GDI.Receive(mean, "mean");
       app->EndReceivePhase();
       printf("total Recieved mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       app->BeginSendPhase();
-      GDI.Send(mean.data(), "mean", mean.size());
+      GDI.Send(mean, "mean");
       app->EndSendPhase();
       printf("total Sent mean:%ld\n", mean[0]);
     }
@@ -67,26 +81,33 @@ void xgc_coupler(MPI_Comm comm)
 
   auto GDI_total = total_f->AddData<pcms::GO>("global_comm", comm);
   auto GDI_delta = delta_f->AddData<pcms::GO>("global_comm", comm);
-  auto mean = std::vector<pcms::GO>(1);
+
+  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer(
+    "mean_buffer", 1);
+
+  pcms::Rank1View<long, pcms::HostMemorySpace> mean{
+    mean_buffer.data(),
+    mean_buffer.extent(0)};
+
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
       delta_f->BeginReceivePhase();
-      mean = GDI_delta.Receive("mean", 1);
+      GDI_delta.Receive(mean, "mean");
       delta_f->EndReceivePhase();
       printf("delta Received mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       const auto msg_size = mean.size();
       total_f->BeginSendPhase();
-      GDI_total.Send(mean.data(), "mean", msg_size);
+      GDI_total.Send(mean, "mean");
       total_f->EndSendPhase();
       printf("total sent mean:%ld\n", mean[0]);
       total_f->BeginReceivePhase();
-      mean = GDI_total.Receive("mean", msg_size);
+      GDI_total.Receive(mean, "mean");
       total_f->EndReceivePhase();
       printf("delta Received mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
       delta_f->BeginSendPhase();
-      GDI_delta.Send(mean.data(), "mean", msg_size);
+      GDI_delta.Send(mean, "mean");
       delta_f->EndSendPhase();
       printf("delta sent mean:%ld\n", mean[0]);
     }
