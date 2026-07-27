@@ -95,8 +95,6 @@ public:
                std::string variable_name,
                redev::Mode mode = redev::Mode::Synchronous) const;
 
-  [[nodiscard]] GlobalDataInterface<T>& GetDataInterface() const;
-
 private:
   Application* app_;
   std::string name_;
@@ -278,12 +276,7 @@ GlobalDataInterface<T>& Application::GetDataInterface(const std::string& name)
   }
   return *data_interface;
 }
-template <typename T>
-GlobalDataInterface<T>& DataHandle<T>::GetDataInterface() const
-{
-  PCMS_ALWAYS_ASSERT(app_ != nullptr);
-  return app_->GetDataInterface<T>(name_);
-}
+
 template <typename T>
 void DataHandle<T>::Send(Rank1View<T, pcms::HostMemorySpace> msg,
                          std::string variable_name, redev::Mode mode) const
