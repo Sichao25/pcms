@@ -112,7 +112,7 @@ int main(int argc, char** argv)
 {
   try {
     MPI_Init(&argc, &argv);
-
+    Kokkos::initialize(argc, argv);
     OMEGA_H_CHECK(argc == 2);
 
     const auto clientId = std::atoi(argv[1]);
@@ -126,9 +126,6 @@ int main(int argc, char** argv)
       case 0: xgc_delta_f(comm); break;
 
       case 1: xgc_total_f(comm); break;
-      default:
-        std::cerr << "Unhandled client id; expected -1, 0, or 1\n";
-        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     MPI_Finalize();
