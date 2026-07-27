@@ -14,12 +14,10 @@ void xgc_delta_f(MPI_Comm comm)
 
   auto gdi = app->AddData<pcms::GO>("global_comm", comm);
 
-  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer(
-    "mean_buffer", 1);
+  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer("mean_buffer", 1);
 
-  pcms::Rank1View<long, pcms::HostMemorySpace> mean{
-    mean_buffer.data(),
-    mean_buffer.extent(0)};
+  pcms::Rank1View<long, pcms::HostMemorySpace> mean{mean_buffer.data(),
+                                                    mean_buffer.extent(0)};
 
   mean[0] = 16;
 
@@ -30,7 +28,7 @@ void xgc_delta_f(MPI_Comm comm)
       app->EndSendPhase();
       printf("delta Sent mean:%ld\n", mean[0]);
       app->BeginReceivePhase();
-      gdi.Receive(mean,"mean");
+      gdi.Receive(mean, "mean");
       app->EndReceivePhase();
       mean[0] = mean[0] / 2;
     }
@@ -45,12 +43,10 @@ void xgc_total_f(MPI_Comm comm)
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
   auto GDI = app->AddData<pcms::GO>("global_comm", comm);
-  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer(
-    "mean_buffer", 1);
+  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer("mean_buffer", 1);
 
-  pcms::Rank1View<long, pcms::HostMemorySpace> mean{
-    mean_buffer.data(),
-    mean_buffer.extent(0)};
+  pcms::Rank1View<long, pcms::HostMemorySpace> mean{mean_buffer.data(),
+                                                    mean_buffer.extent(0)};
 
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
@@ -82,12 +78,10 @@ void xgc_coupler(MPI_Comm comm)
   auto GDI_total = total_f->AddData<pcms::GO>("global_comm", comm);
   auto GDI_delta = delta_f->AddData<pcms::GO>("global_comm", comm);
 
-  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer(
-    "mean_buffer", 1);
+  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer("mean_buffer", 1);
 
-  pcms::Rank1View<long, pcms::HostMemorySpace> mean{
-    mean_buffer.data(),
-    mean_buffer.extent(0)};
+  pcms::Rank1View<long, pcms::HostMemorySpace> mean{mean_buffer.data(),
+                                                    mean_buffer.extent(0)};
 
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
