@@ -10,6 +10,7 @@
 #include <pcms/transfer/omega_h_mass_integrator.hpp>
 #include <KokkosController.hpp>
 #include <MeshField.hpp>
+#include <MeshField_Config.hpp>
 #include <MeshField_Element.hpp>
 #include <petscksp.h>
 #include <map>
@@ -60,7 +61,11 @@ std::map<std::pair<pcms::GO, pcms::GO>, pcms::Real> BuildReferenceMassMap(
     omf(mesh);
   auto coordField = omf.getCoordField();
   const auto [shp, map] = MeshField::Omegah::getTriangleElement<1>(mesh);
+#if MeshFields_VERSION < 10000
   MeshField::FieldElement coordFe(mesh.nelems(), coordField, shp, map);
+#else
+  MeshField::FieldElement coordFe(mesh.nelems(), coordField.field, shp, map);
+#endif
   auto elm_mass_dev = buildElementMassMatrix(mesh, coordFe);
   auto elm_mass_host =
     Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, elm_mass_dev);
