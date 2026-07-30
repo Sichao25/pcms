@@ -63,3 +63,48 @@ TEST_CASE("GID messages insert headers around compact field payloads",
     REQUIRE(message(i) == expected[i]);
   }
 }
+
+// Verify the permutation documented on ExchangePlan::permutation:
+//   - permutation[i] < 0 for holders excluded from this exchange.
+//   - If all holders are owned, a partial GID message leaves the unmatched
+//     (owned but not participating) holders with permutation[i] < 0.
+TEST_CASE("ExchangePlan permutation is negative for non-participating holders",
+          "[field_exchange][permutation]")
+{
+  // Create 6 points (all owned), GIDs 0-5. Only GIDs 0-3 will appear in
+  // the received message, so holders 4 and 5 should have negative
+  // permutation entries.
+  Kokkos::View<pcms::Real**> coords("coords", 6, 2);
+  pcms::PointCloudLayout layout(2, coords, pcms::CoordinateSystem::Cartesian);
+
+  const std::size_t header_len =
+    static_cast<std::size_t>(pcms::ent_offsets_len);
+  const std::size_t msg_total = header_len + 4;
+  Kokkos::View<pcms::GO*, pcms::HostMemorySpace> received("received_gids",
+                                                          msg_total);
+  const pcms::GO message[] = {0, 4, 4, 4, 4, 0, 1, 2, 3};
+  for (size_t i = 0; i < received.size(); ++i)
+    received(i) = message[i];
+
+  redev::InMessageLayout in;
+  in.srcRanks = {0};
+  in.offset = {0, static_cast<redev::LO>(msg_total)};
+
+  pcms::GenericFieldExchangePlanner planner;
+  const auto plan = planner.BuildReceivePlan(
+    layout,
+    pcms::GlobalIDView<pcms::HostMemorySpace>(received.data(), received.size()),
+    0, 1, in);
+
+  REQUIRE(plan.permutation.size() == 6);
+  // GIDs 0-3 are in the received message → non-negative permutation entries.
+  REQUIRE(plan.permutation[0] == 0);
+  REQUIRE(plan.permutation[1] == 1);
+  REQUIRE(plan.permutation[2] == 2);
+  REQUIRE(plan.permutation[3] == 3);
+  // GIDs 4-5 are not in the message → negative sentinel.
+  REQUIRE(plan.permutation[4] < 0);
+  REQUIRE(plan.permutation[5] < 0);
+  // Payload length excludes headers.
+  REQUIRE(plan.msg_size == 4);
+}

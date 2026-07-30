@@ -1,7 +1,7 @@
 #ifndef PCMS_TRANSFER_LINEAR_FORM_INTEGRATOR_H
 #define PCMS_TRANSFER_LINEAR_FORM_INTEGRATOR_H
 
-#include "pcms/transfer/integration_point_set.hpp"
+#include "pcms/field/coordinate_system.h"
 #include "pcms/utility/arrays.h"
 #include <petscvec.h>
 
@@ -13,7 +13,7 @@ class LinearFormIntegrator
 public:
   // Returns the ordered integration points. The index ordering must match the
   // first dimension of sampled_values passed to Assemble.
-  virtual const IntegrationPointSet<DeviceMemorySpace>& GetIntegrationPoints()
+  virtual CoordinateView<DeviceMemorySpace> GetIntegrationPoints()
     const noexcept = 0;
 
   // Returns the internally-owned vector. The integrator owns the vector;

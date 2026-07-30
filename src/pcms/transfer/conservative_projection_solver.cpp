@@ -46,7 +46,7 @@ GalerkinProjectionSolver::GalerkinProjectionSolver(
   nverts_ = m;
 
   const std::size_t num_pts =
-    rhs_integrator_->GetIntegrationPoints().NumPoints();
+    rhs_integrator_->GetIntegrationPoints().GetValues().extent(0);
   sampled_values_ =
     Kokkos::View<Real**, DeviceMemorySpace>("rhs_sampled", num_pts, 1);
 

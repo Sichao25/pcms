@@ -130,8 +130,7 @@ OmegaHMonteCarloRHSIntegrator::OmegaHMonteCarloRHSIntegrator(
   FillElementSamples(nelems, samples_per_element, mesh_coords, faces2nodes,
                      global_to_local, coords, node_gids, coeffs, seed);
 
-  point_set_ = IntegrationPointSet<DeviceMemorySpace>(
-    CoordinateSystem::Cartesian, std::move(coords));
+  coords_ = std::move(coords);
   node_gids_ = std::move(node_gids);
   coeffs_ = std::move(coeffs);
 
@@ -159,10 +158,11 @@ OmegaHMonteCarloRHSIntegrator::~OmegaHMonteCarloRHSIntegrator()
 // OmegaHMonteCarloRHSIntegrator public interface
 // ---------------------------------------------------------------------------
 
-const IntegrationPointSet<DeviceMemorySpace>&
+CoordinateView<DeviceMemorySpace>
 OmegaHMonteCarloRHSIntegrator::GetIntegrationPoints() const noexcept
 {
-  return point_set_;
+  return CoordinateView<DeviceMemorySpace>(CoordinateSystem::Cartesian,
+                                           MakeConstRank2View(coords_));
 }
 
 Vec OmegaHMonteCarloRHSIntegrator::GetVector() const noexcept
