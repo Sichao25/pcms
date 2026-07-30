@@ -93,8 +93,7 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator: sample points lie inside the domain",
   for (const auto sampling : {pcms::MonteCarloSampling::UniformRandom}) {
     pcms::OmegaHMonteCarloRHSIntegrator integrator(
       *target_space, samples_per_element, sampling);
-    const auto raw_coords =
-      integrator.GetIntegrationPoints().GetValues();
+    const auto raw_coords = integrator.GetIntegrationPoints().GetValues();
     auto coords_view = Kokkos::View<const pcms::Real**, Kokkos::LayoutRight,
                                     pcms::DeviceMemorySpace,
                                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>(
