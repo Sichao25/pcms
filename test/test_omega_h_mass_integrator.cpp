@@ -68,12 +68,16 @@ std::map<std::pair<pcms::GO, pcms::GO>, pcms::Real> BuildReferenceMassMap(
   const auto layout =
     std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(space.GetLayout());
   REQUIRE(layout != nullptr);
-  const auto& faces2nodes = mesh.ask_down(Omega_h::FACE, Omega_h::VERT).ab2b;
+  const auto faces2nodes_h = Omega_h::HostRead<Omega_h::LO>(
+    mesh.ask_down(Omega_h::FACE, Omega_h::VERT).ab2b);
   const auto& gids = layout->GetGidsHost();
 
   std::map<std::pair<GO, GO>, Real> ref;
   for (int e = 0; e < mesh.nelems(); ++e) {
-    const auto verts = Omega_h::gather_verts<3>(faces2nodes, e);
+    const int v0 = faces2nodes_h[e * 3 + 0];
+    const int v1 = faces2nodes_h[e * 3 + 1];
+    const int v2 = faces2nodes_h[e * 3 + 2];
+    const int verts[3] = {v0, v1, v2};
     for (int i = 0; i < 3; ++i) {
       const GO row = static_cast<GO>(gids[verts[i]]);
       for (int j = 0; j < 3; ++j) {
