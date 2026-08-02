@@ -148,9 +148,9 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
   // 2D grid: [0,1]^2 with 10x10 divisions
   const int N = 10;
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {1.0, 1.0};
-  grid.divisions = {N, N};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{1.0, 1.0}};
+  grid.divisions = {{N, N}};
 
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, CoordinateSystem::Cartesian, 1);
@@ -174,9 +174,9 @@ TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
 {
   const int N = 10;
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {1.0, 1.0};
-  grid.divisions = {N, N};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{1.0, 1.0}};
+  grid.divisions = {{N, N}};
 
   auto factory = pcms::SplineFunctionSpace::FromUniformGrid(
     grid, CoordinateSystem::Cartesian);

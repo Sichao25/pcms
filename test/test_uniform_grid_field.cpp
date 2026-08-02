@@ -21,9 +21,9 @@ using pcms::CreateUniformGridFromMesh;
 TEST_CASE("UniformGridDiscretization SameEntities: identical grids")
 {
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {1.0, 1.0};
-  grid.divisions = {4, 4};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{1.0, 1.0}};
+  grid.divisions = {{4, 4}};
 
   pcms::UniformGridFieldLayout<2> layout_a(grid, 1,
                                            pcms::CoordinateSystem::Cartesian);
@@ -41,14 +41,14 @@ TEST_CASE("UniformGridDiscretization SameEntities: identical grids")
 TEST_CASE("UniformGridDiscretization SameEntities: different grids")
 {
   pcms::UniformGrid<2> grid_a;
-  grid_a.bot_left = {0.0, 0.0};
-  grid_a.edge_length = {1.0, 1.0};
-  grid_a.divisions = {4, 4};
+  grid_a.bot_left = {{0.0, 0.0}};
+  grid_a.edge_length = {{1.0, 1.0}};
+  grid_a.divisions = {{4, 4}};
 
   pcms::UniformGrid<2> grid_b;
-  grid_b.bot_left = {0.0, 0.0};
-  grid_b.edge_length = {1.0, 1.0};
-  grid_b.divisions = {8, 8};
+  grid_b.bot_left = {{0.0, 0.0}};
+  grid_b.edge_length = {{1.0, 1.0}};
+  grid_b.divisions = {{8, 8}};
 
   pcms::UniformGridFieldLayout<2> layout_a(grid_a, 1,
                                            pcms::CoordinateSystem::Cartesian);
@@ -95,9 +95,9 @@ void VerifyMaskFieldValues(const pcms::UniformGrid<2>& grid,
 TEST_CASE("UniformGrid field creation")
 {
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {10.0, 10.0};
-  grid.divisions = {5, 5};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{10.0, 10.0}};
+  grid.divisions = {{5, 5}};
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
@@ -117,9 +117,9 @@ TEST_CASE("UniformGrid field creation")
 TEST_CASE("UniformGrid order-0 field creation and evaluation")
 {
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {10.0, 10.0};
-  grid.divisions = {2, 2};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{10.0, 10.0}};
+  grid.divisions = {{2, 2}};
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian, 0);
@@ -171,9 +171,9 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
 TEST_CASE("UniformGrid field data operations", "[uniform_grid_field]")
 {
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {10.0, 10.0};
-  grid.divisions = {4, 4};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{10.0, 10.0}};
+  grid.divisions = {{4, 4}};
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
@@ -198,9 +198,9 @@ TEST_CASE("UniformGrid field data operations", "[uniform_grid_field]")
 TEST_CASE("UniformGrid field evaluation - piecewise constant")
 {
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {10.0, 10.0};
-  grid.divisions = {2, 2};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{10.0, 10.0}};
+  grid.divisions = {{2, 2}};
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
@@ -261,9 +261,9 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
 TEST_CASE("UniformGrid field serialization")
 {
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {10.0, 10.0};
-  grid.divisions = {3, 3};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{10.0, 10.0}};
+  grid.divisions = {{3, 3}};
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
@@ -285,9 +285,9 @@ TEST_CASE("UniformGrid field serialization")
 TEST_CASE("UniformGrid field copy")
 {
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {0.0, 0.0};
-  grid.edge_length = {10.0, 10.0};
-  grid.divisions = {2, 2};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.edge_length = {{10.0, 10.0}};
+  grid.divisions = {{2, 2}};
 
   auto layout = std::make_shared<pcms::UniformGridFieldLayout<2>>(
     grid, 1, pcms::CoordinateSystem::Cartesian);
@@ -333,9 +333,9 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
     OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) { return x + 2.0 * y; });
 
   pcms::UniformGrid<2> grid;
-  grid.edge_length = {1.0, 1.0};
-  grid.bot_left = {0.0, 0.0};
-  grid.divisions = {2, 2};
+  grid.edge_length = {{1.0, 1.0}};
+  grid.bot_left = {{0.0, 0.0}};
+  grid.divisions = {{2, 2}};
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian);
   auto ug_field = ug_factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
@@ -422,9 +422,9 @@ TEST_CASE("Create binary field from uniform grid")
       Omega_h::build_box(world, OMEGA_H_SIMPLEX, 0.5, 0.5, 0.0, 5, 5, 0, false);
 
     pcms::UniformGrid<2> grid;
-    grid.edge_length = {1.0, 1.0};
-    grid.bot_left = {0.0, 0.0};
-    grid.divisions = {10, 10};
+    grid.edge_length = {{1.0, 1.0}};
+    grid.bot_left = {{0.0, 0.0}};
+    grid.divisions = {{10, 10}};
 
     auto [layout, field] = pcms::CreateUniformGridBinaryField<2>(mesh, grid);
     auto field_data = pcms::FlattenToRank1View(field.GetDOFHolderDataHost());
