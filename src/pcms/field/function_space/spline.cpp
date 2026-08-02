@@ -11,20 +11,21 @@ namespace pcms
 {
 
 SplineFunctionSpace::SplineFunctionSpace(
-  std::shared_ptr<const FieldLayout> layout,
+  Key, std::shared_ptr<const FieldLayout> layout,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
   : layout_(std::move(layout)), evaluator_factory_(std::move(evaluator_factory))
 {
 }
 
-SplineFunctionSpace SplineFunctionSpace::FromUniformGrid(
+std::shared_ptr<SplineFunctionSpace> SplineFunctionSpace::FromUniformGrid(
   const UniformGrid<2>& grid, CoordinateSystem coordinate_system)
 {
   auto layout =
     std::make_shared<UniformGridFieldLayout<2>>(grid, 1, coordinate_system, 1);
   auto evaluator_factory =
     std::make_shared<UniformGridSplineEvaluatorFactory2D>(layout);
-  return SplineFunctionSpace(layout, std::move(evaluator_factory));
+  return std::make_shared<SplineFunctionSpace>(Key{}, layout,
+                                               std::move(evaluator_factory));
 }
 
 std::shared_ptr<const FieldLayout> SplineFunctionSpace::GetLayout()
@@ -47,8 +48,7 @@ FieldVariant SplineFunctionSpace::CreateFieldImpl(Type value_type,
       throw pcms_error("SplineFunctionSpace: only double (Real) is supported");
     } else {
       return WrapField<double>(
-        layout_, std::make_unique<SimpleFieldData<double>>(layout_, metadata),
-        evaluator_factory_);
+        layout_, std::make_unique<SimpleFieldData<double>>(layout_, metadata));
     }
   });
 }
@@ -70,7 +70,7 @@ FieldVariant SplineFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
       "SplineFunctionSpace::CreateField: field data size does not match "
       "layout");
   }
-  return WrapField<double>(layout_, std::move(fd), evaluator_factory_);
+  return WrapField<double>(layout_, std::move(fd));
 }
 
 PointEvaluatorVariant SplineFunctionSpace::CreatePointEvaluatorImpl(
