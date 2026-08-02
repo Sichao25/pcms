@@ -615,7 +615,7 @@ GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny,
   auto grid_h = Kokkos::create_mirror_view(grid_);
   grid_h(0) =
     Uniform2DGrid{.edge_length = {{mesh_bbox.max[0] - mesh_bbox.min[0],
-                                  mesh_bbox.max[1] - mesh_bbox.min[1]}},
+                                   mesh_bbox.max[1] - mesh_bbox.min[1]}},
                   .bot_left = {{mesh_bbox.min[0], mesh_bbox.min[1]}},
                   .divisions = {{Nx, Ny}}};
   Kokkos::deep_copy(grid_, grid_h);
