@@ -614,10 +614,10 @@ GridPointSearch2D::GridPointSearch2D(Omega_h::Mesh& mesh, LO Nx, LO Ny,
   auto mesh_bbox = Omega_h::get_bounding_box<2>(&mesh);
   auto grid_h = Kokkos::create_mirror_view(grid_);
   grid_h(0) =
-    Uniform2DGrid{.edge_length = {{mesh_bbox.max[0] - mesh_bbox.min[0],
-                                   mesh_bbox.max[1] - mesh_bbox.min[1]}},
-                  .bot_left = {{mesh_bbox.min[0], mesh_bbox.min[1]}},
-                  .divisions = {{Nx, Ny}}};
+    Uniform2DGrid{.edge_length = {mesh_bbox.max[0] - mesh_bbox.min[0],
+                                  mesh_bbox.max[1] - mesh_bbox.min[1]},
+                  .bot_left = {mesh_bbox.min[0], mesh_bbox.min[1]},
+                  .divisions = {Nx, Ny}};
   Kokkos::deep_copy(grid_, grid_h);
   // Determine inflation radius from tolerances (max of vertex/edge tol)
   auto tol_h = Kokkos::create_mirror_view(tolerances_);
@@ -761,7 +761,7 @@ GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
 
   grid_h(0) = Uniform3DGrid{.edge_length = edge_lengths,
                             .bot_left = bot_left,
-                            .divisions = {{Nx, Ny, Nz}}};
+                            .divisions = {Nx, Ny, Nz}};
 
   Kokkos::deep_copy(grid_, grid_h);
   candidate_map_ =

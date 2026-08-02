@@ -47,9 +47,9 @@ TEST_CASE("uniform_grid_field out of bounds FILL mode")
 {
   const int N = 10;
   pcms::UniformGrid<2> grid;
-  grid.bot_left = {{0.0, 0.0}};
-  grid.edge_length = {{1.0, 1.0}};
-  grid.divisions = {{N, N}};
+  grid.bot_left = {0.0, 0.0};
+  grid.edge_length = {1.0, 1.0};
+  grid.divisions = {N, N};
 
   auto factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian, 1);

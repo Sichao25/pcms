@@ -11,7 +11,7 @@ using pcms::UniformGrid;
 TEST_CASE("uniform grid")
 {
   Uniform2DGrid uniform_grid{
-    .edge_length = {{10, 12}}, .bot_left = {{0, 0}}, .divisions = {{10, 12}}};
+    .edge_length = {10, 12}, .bot_left = {0, 0}, .divisions = {10, 12}};
   REQUIRE(uniform_grid.GetNumCells() == 120);
   // Omega_h::Vector<2> point{0,0};
   SECTION("Closest Cell ID")
