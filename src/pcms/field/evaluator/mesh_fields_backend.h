@@ -425,12 +425,8 @@ struct FillCoordinatesDeviceFunctor
     for (int j = 0; j < (dim_ + 1); ++j)
       coordinates_(index, j) = local[j];
 #else
-    // Computation in barycentric_from_global sometimes produce values
-    // slightly outside [0, 1] for points on or near element boundaries.
     for (int j = 0; j < dim_; ++j) {
-      coordinates_(index, j) = local[j] < 0.0   ? 0.0
-                               : local[j] > 1.0 ? 1.0
-                                                : local[j];
+      coordinates_(index, j) = local[j];
     }
 #endif
     indices_(index) = orig_idx;
@@ -573,12 +569,8 @@ struct MeshFieldsAdapter2LocalizationHint
       for (int j = 0; j < (mesh.dim() + 1); ++j)
         coordinates_(index, j) = local[j];
 #else
-      // Computation in barycentric_from_global sometimes produce values
-      // slightly outside [0, 1] for points on or near element boundaries.
       for (int j = 0; j < mesh.dim(); ++j) {
-        coordinates_(index, j) = local[j] < 0.0   ? 0.0
-                                 : local[j] > 1.0 ? 1.0
-                                                  : local[j];
+        coordinates_(index, j) = local[j];
       }
 #endif
       indices_(index) = static_cast<LO>(orig_idx);
