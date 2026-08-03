@@ -1,17 +1,18 @@
 import pcms
+import PyOmega_h as omega_h
 import numpy as np
 
 def test_copy(world, dim, order, num_components):
-    """Test copying omega_h_field2 data"""
+    """Test copying omega_h field data."""
     nx = 100
     ny = 100 if dim > 1 else 0
     nz = 100 if dim > 2 else 0
     print(f"\nStarting test: dim={dim}, order={order}, num_components={num_components}")
 
     # Build mesh
-    mesh = pcms.build_box(
+    mesh = omega_h.build_box(
         world, 
-        pcms.Family.SIMPLEX, 
+        omega_h.Family.SIMPLEX, 
         1.0, 1.0, 1.0, 
         nx, ny, nz, 
         False
@@ -20,34 +21,29 @@ def test_copy(world, dim, order, num_components):
     print(f"  Mesh type: {type(mesh)}")
     print(f"  Mesh object: {mesh}")
 
-    # Create layout
-    print("  About to create layout...")
-    layout = pcms.create_lagrange_layout(
-        mesh, 
-        order, 
-        num_components,
-        pcms.CoordinateSystem.Cartesian
+    # Create factory and layout
+    print("  About to create factory...")
+    factory = pcms.LagrangeFunctionSpace.from_mesh(
+        mesh, order, num_components, pcms.CoordinateSystem.Cartesian
     )
-    print(f"  Layout created successfully")
     print(f"Testing dim={dim}, order={order}, num_components={num_components}...")
 
-    # Get number of data points
-    ndata = layout.get_num_owned_dof_holder() * num_components
+    # Create original field and set data
+    original = factory.create_field()
+    print("  Created original field")
+    ndata = original.get_num_dof_holders() * original.get_num_components()
     print(f"  Number of data points: {ndata}")
 
     # Create sequential array of IDs
     ids = np.arange(ndata, dtype=np.float64)
     print(f"  Created array of IDs from 0 to {ndata-1}")
-
-    # Create original field and set data
-    original = layout.create_field()
-    print("  Created original field")
     original.set_dof_holder_data(ids)
     print("  Set data in original field")
 
     # Create copied field and copy data
-    copied = layout.create_field()
-    pcms.copy_field(original, copied)
+    copied = factory.create_field()
+    copier = pcms.Copy(factory, factory)
+    copier.apply(original, copied)
     print("  Copied data to new field")
 
     # Get copied data
@@ -66,10 +62,10 @@ def test_copy(world, dim, order, num_components):
 
 def main():
     """Run all test cases"""
-    print("Testing copy omega_h_field2 data...")
+    print("Testing copy omega_h field data...")
 
     # Initialize Omega_h library
-    lib = pcms.OmegaHLibrary()
+    lib = omega_h.OmegaHLibrary()
     world = lib.world()
     print("Initialized Omega_h library and world")
 

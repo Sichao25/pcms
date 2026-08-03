@@ -6,7 +6,6 @@
 #include "interpolation_helpers.h"
 #include "pcms/utility/mesh_geometry.h"
 
-#include <execution>
 namespace pcms
 {
 
@@ -67,55 +66,6 @@ MLSMeshInterpolation::MLSMeshInterpolation(
     Omega_h::HostWrite<Omega_h::Real>(target_mesh_.nverts(), "target field");
 
   find_supports(min_req_supports_, 3 * min_req_supports_);
-}
-
-// replace with Kokkos::minmax_element when out of experimental
-// https://kokkos.org/kokkos-core-wiki/API/algorithms/std-algorithms/all/StdMinMaxElement.html
-void minmax(Omega_h::Read<Omega_h::LO> num_supports,
-            unsigned& min_supports_found, unsigned& max_supports_found)
-{
-  using minMaxReducerType = Kokkos::MinMax<unsigned, Kokkos::HostSpace>;
-  using minMaxValueType = minMaxReducerType::value_type;
-  minMaxValueType minmax;
-  Kokkos::parallel_reduce(
-    num_supports.size(),
-    KOKKOS_LAMBDA(int i, minMaxValueType& update) {
-      if (num_supports[i] < update.min_val)
-        update.min_val = num_supports[i];
-      if (num_supports[i] > update.max_val)
-        update.max_val = num_supports[i];
-    },
-    minMaxReducerType(minmax));
-  Kokkos::fence();
-  min_supports_found = minmax.min_val;
-  max_supports_found = minmax.max_val;
-}
-
-void adapt_radii(unsigned min_req_supports, unsigned max_allowed_supports,
-                 Omega_h::LO n_targets, Omega_h::Write<Omega_h::Real> radii2_l,
-                 Omega_h::Write<Omega_h::LO> num_supports)
-{
-  Omega_h::parallel_for(
-    "increase radius", n_targets, OMEGA_H_LAMBDA(const int& i) {
-      Omega_h::LO nsupports = num_supports[i];
-      if (nsupports < min_req_supports) {
-        double factor =
-          Omega_h::Real(min_req_supports) / Omega_h::Real(nsupports);
-        OMEGA_H_CHECK_PRINTF(factor > 1.0,
-                             "Factor should be more than 1.0: %f\n", factor);
-        factor = (nsupports == 0 || factor > 1.5) ? 1.5 : factor;
-        radii2_l[i] *= factor;
-      } else if (nsupports > max_allowed_supports) { // if too many supports
-        double factor =
-          Omega_h::Real(min_req_supports) / Omega_h::Real(nsupports);
-        OMEGA_H_CHECK_PRINTF(factor < 1.0,
-                             "Factor should be less than 1.0: %f\n", factor);
-        factor = (factor < 0.1) ? 0.33 : factor;
-        radii2_l[i] *= factor;
-      }
-      num_supports[i] = 0; // reset the support pointer
-    });
-  Kokkos::fence();
 }
 
 struct ScanSupportIdxFunctor

@@ -1,39 +1,48 @@
-find_package(KokkosKernels REQUIRED)
-
 set(PCMS_FIELD_TRANSFER_HEADERS
-    pcms_interpolator_aliases.hpp
-    adj_search.hpp
-    mls_interpolation_impl.hpp
-    queue_visited.hpp
     linear_interpolant.hpp
     multidimarray.hpp
-    mls_interpolation.hpp
-    pcms_interpolator_view_utils.hpp
-    pcms_interpolator_logger.hpp
     interpolation_base.h
     interpolation_helpers.h
-    spline_interpolator.hpp
-    calculate_load_vector.hpp
-    calculate_mass_matrix.hpp
-    conservative_projection_solver.hpp
-    coo_assembly_utils.hpp
-    load_vector_integrator.hpp
-    mass_matrix_integrator.hpp
     mesh_intersection.hpp
-    petsc_utils.hpp)
+    interpolator.h
+    copy.h
+    transfer_operator.hpp
+)
 
 
 set(PCMS_FIELD_TRANSFER_SOURCES
-    adj_search.cpp
-    calculate_load_vector.cpp
-    calculate_mass_matrix.cpp
-    conservative_projection_solver.cpp
-    petsc_utils.cpp
-    coo_assembly_utils.cpp
-    load_vector_integrator.cpp
     mesh_intersection.cpp
-    mls_interpolation.cpp
     interpolation_base.cpp)
+
+
+if(PCMS_ENABLE_MESHFIELDS)
+  list(APPEND PCMS_FIELD_TRANSFER_HEADERS
+      mass_matrix_integrator.hpp)
+endif()
+
+if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
+  list(APPEND PCMS_FIELD_TRANSFER_HEADERS
+      linear_form_integrator.hpp
+      bilinear_form_integrator.hpp
+      conservative_projection_solver.hpp
+      omega_h_conservative_projection.hpp
+      omega_h_intersection_rhs_integrator.hpp
+      omega_h_mass_integrator.hpp
+      omega_h_mc_rhs_integrator.hpp
+      omega_h_control_variate_projection.hpp
+      coo_assembly_utils.hpp
+      petsc_utils.hpp
+      omega_h_form_integrator_utils.hpp)
+  list(APPEND PCMS_FIELD_TRANSFER_SOURCES
+      conservative_projection_solver.cpp
+      omega_h_conservative_projection.cpp
+      omega_h_intersection_rhs_integrator.cpp
+      omega_h_mass_integrator.cpp
+      omega_h_mc_rhs_integrator.cpp
+      omega_h_control_variate_projection.cpp
+      petsc_utils.cpp
+      coo_assembly_utils.cpp)
+endif()
 
 add_library(pcms_transfer ${PCMS_FIELD_TRANSFER_SOURCES})
 set_target_properties(pcms_transfer PROPERTIES
@@ -44,17 +53,23 @@ target_sources(pcms_transfer PUBLIC
         TYPE HEADERS
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
         FILES ${PCMS_FIELD_TRANSFER_HEADERS})
+
 add_library(pcms::transfer ALIAS pcms_transfer)
-target_compile_features(pcms_transfer PUBLIC cxx_std_17)
+target_compile_features(pcms_transfer PUBLIC cxx_std_20)
 
 target_link_libraries(pcms_transfer PUBLIC
     pcms::core
-    Omega_h::omega_h
-    PRIVATE Kokkos::kokkoskernels)
+    pcms::field
+    pcms::localization
+    Omega_h::omega_h)
 
-target_link_libraries(pcms_transfer PUBLIC meshfields::meshfields)
+if(PCMS_ENABLE_MESHFIELDS)
+  target_link_libraries(pcms_transfer PRIVATE meshfields::meshfields)
+endif()
 
-target_link_libraries(pcms_transfer PRIVATE PETSc::PETSc)
+if(PCMS_ENABLE_PETSC AND PCMS_ENABLE_MESHFIELDS)
+  target_link_libraries(pcms_transfer PRIVATE PETSc::PETSc)
+endif()
 
 target_compile_definitions(pcms_transfer PUBLIC R3D_USE_KOKKOS)
 

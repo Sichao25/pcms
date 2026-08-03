@@ -4,7 +4,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
-#include <pcms/transfer/spline_interpolator.hpp>
+#include "pcms/field/evaluator/spline_interpolator.hpp"
 
 using namespace pcms;
 
@@ -230,6 +230,31 @@ void pspltest1(Kokkos::View<double*, HostMemorySpace> res_1d)
   dotest1(inum, x, z2sin, 1000, xtest, ftest, res_1d);
 }
 
+void pspltest1_long_periodic(Kokkos::View<double*, HostMemorySpace> res_1d)
+{
+  const double pi2 = 6.28318530718;
+  const double zero = 0.0;
+  int inum = 16;
+
+  Kokkos::View<double*, TestMemorySpace> zdum_view("zdum_view_long", 1000);
+  Kokkos::View<double*, TestMemorySpace> xtest_view("xtest_view_long", 1000);
+  Kokkos::View<double*, TestMemorySpace> ftest_view("ftest_view_long", 1000);
+  Kokkos::View<double*, TestMemorySpace> x_view("x_view_long", inum);
+  Kokkos::View<double*, TestMemorySpace> zcos_view("zcos_view_long", inum);
+  Kokkos::View<double*, TestMemorySpace> z2sin_view("z2sin_view_long", inum);
+
+  tset(1000, xtest_view, ftest_view, zdum_view, zero - 0.1, pi2 + 0.1);
+  tset(inum, x_view, z2sin_view, zcos_view, zero, pi2);
+
+  auto x = Rank1View<double, TestMemorySpace>(x_view.data(), x_view.size());
+  auto z2sin =
+    Rank1View<double, TestMemorySpace>(z2sin_view.data(), z2sin_view.size());
+  auto xtest = Rank1View<double, TestMemorySpace>(xtest_view.data(), 1000);
+  auto ftest = Rank1View<double, TestMemorySpace>(ftest_view.data(), 1000);
+
+  dotest1(inum, x, z2sin, 1000, xtest, ftest, res_1d);
+}
+
 void dotest2(Rank1View<double, TestMemorySpace> x,
              Rank1View<double, TestMemorySpace> fx, int nx,
              Rank1View<double, TestMemorySpace> th,
@@ -379,6 +404,13 @@ TEST_CASE("test_cubic_spline_interpolator")
     for (int i = 0; i < 6; ++i) {
       REQUIRE(are_equal(res_1d(i), gt_1d[i]));
     }
+
+    Kokkos::View<double*, HostMemorySpace> res_1d_long("res_1d_long", 6);
+    pspltest1_long_periodic(res_1d_long);
+    REQUIRE(res_1d_long(2) < 1.0e-3);
+    REQUIRE(res_1d_long(3) < 1.0e-3);
+    REQUIRE(res_1d_long(4) < 1.0e-3);
+    REQUIRE(res_1d_long(5) < 1.0e-3);
 
     Kokkos::View<double*, HostMemorySpace> res_2d("res_2d", 4);
     double gt_2d[4] = {1.8312E-03, 6.7151E-04, 1.8312E-03, 6.7151E-04};
