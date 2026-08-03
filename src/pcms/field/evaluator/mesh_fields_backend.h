@@ -27,32 +27,33 @@ class MeshFieldBackend
 {
 public:
   virtual ~MeshFieldBackend() = default;
-  virtual Kokkos::View<T* [1]> evaluate(Kokkos::View<T**> localCoords,
-                                        Kokkos::View<LO*> offsets) const = 0;
+  virtual Kokkos::View<T**> evaluate(Kokkos::View<T**> localCoords,
+                                     Kokkos::View<LO*> offsets) const = 0;
   virtual void SetData(Rank1View<const T, DeviceMemorySpace> data,
                        size_t num_nodes, size_t num_components, int dim) = 0;
   virtual void GetData(Rank1View<T, DeviceMemorySpace> data, size_t num_nodes,
                        size_t num_components, int dim) const = 0;
+  virtual int GetNumComponents() const = 0;
 };
 
 // ---------------------------------------------------------------------------
 // Concrete backend implementation
 // ---------------------------------------------------------------------------
-template <typename T, int Dim, int Order>
+template <typename T, int Dim, int Order, int NumComponents>
 class MeshFieldBackendImpl : public MeshFieldBackend<T>
 {
 public:
   MeshFieldBackendImpl(Omega_h::Mesh& mesh)
     : mesh_(mesh),
       mesh_field_(mesh),
-      shape_field_(mesh_field_.template CreateLagrangeField<T, Order, 1>())
+      shape_field_(mesh_field_.template CreateLagrangeField<T, Order, NumComponents>())
   {
   }
 
-  Kokkos::View<T* [1]> evaluate(Kokkos::View<T**> localCoords,
-                                Kokkos::View<LO*> offsets) const override
+  Kokkos::View<T**> evaluate(Kokkos::View<T**> localCoords,
+                              Kokkos::View<LO*> offsets) const override
   {
-    auto self = const_cast<MeshFieldBackendImpl<T, Dim, Order>*>(this);
+    auto self = const_cast<MeshFieldBackendImpl<T, Dim, Order, NumComponents>*>(this);
 #if MeshFields_VERSION < 10000
     return self->mesh_field_.triangleLocalPointEval(localCoords, offsets,
                                                     shape_field_);
@@ -61,6 +62,8 @@ public:
                                                     shape_field_.field);
 #endif
   }
+
+  int GetNumComponents() const override { return NumComponents; }
 
   void SetData(Rank1View<const T, DeviceMemorySpace> data, size_t num_nodes,
                size_t num_components, int dim) override
@@ -105,7 +108,7 @@ public:
 private:
   Omega_h::Mesh& mesh_;
   MeshField::OmegahMeshField<DefaultExecutionSpace, Dim> mesh_field_;
-  using FWC = decltype(mesh_field_.template CreateLagrangeField<T, Order, 1>());
+  using FWC = decltype(mesh_field_.template CreateLagrangeField<T, Order, NumComponents>());
   FWC shape_field_; // FWC = FieldWithController; keeps ctrlr alive
 };
 
@@ -128,18 +131,36 @@ std::shared_ptr<MeshFieldBackend<T>> MakeMeshFieldBackend(
     throw pcms_error("MeshFieldBackend does not support 3D meshes");
   }
   auto nodes_per_dim = layout.GetNodesPerDim();
+  int num_components = layout.GetNumComponents();
+
+  // Helper lambda to instantiate the correct template based on component count
+  auto make_backend = [&]<int Dim, int Order>() -> std::shared_ptr<MeshFieldBackend<T>> {
+    switch (num_components) {
+      case 1: return std::make_shared<MeshFieldBackendImpl<T, Dim, Order, 1>>(mesh);
+      case 2: return std::make_shared<MeshFieldBackendImpl<T, Dim, Order, 2>>(mesh);
+      case 3: return std::make_shared<MeshFieldBackendImpl<T, Dim, Order, 3>>(mesh);
+      case 4: return std::make_shared<MeshFieldBackendImpl<T, Dim, Order, 4>>(mesh);
+      case 5: return std::make_shared<MeshFieldBackendImpl<T, Dim, Order, 5>>(mesh);
+      case 6: return std::make_shared<MeshFieldBackendImpl<T, Dim, Order, 6>>(mesh);
+      default:
+        throw pcms_error(
+          "MeshFieldBackend only supports 1-6 components. Requested: " +
+          std::to_string(num_components));
+    }
+  };
+
   if (nodes_per_dim[0] == 1 && nodes_per_dim[1] == 0 && nodes_per_dim[2] == 0 &&
       nodes_per_dim[3] == 0) {
     switch (mesh.dim()) {
-      case 1: return std::make_shared<MeshFieldBackendImpl<T, 1, 1>>(mesh);
-      case 2: return std::make_shared<MeshFieldBackendImpl<T, 2, 1>>(mesh);
+      case 1: return make_backend.template operator()<1, 1>();
+      case 2: return make_backend.template operator()<2, 1>();
       default: break;
     }
   } else if (nodes_per_dim[0] == 1 && nodes_per_dim[1] == 1 &&
              nodes_per_dim[2] == 0 && nodes_per_dim[3] == 0) {
     switch (mesh.dim()) {
-      case 2: return std::make_shared<MeshFieldBackendImpl<T, 2, 2>>(mesh);
-      case 3: return std::make_shared<MeshFieldBackendImpl<T, 3, 2>>(mesh);
+      case 2: return make_backend.template operator()<2, 2>();
+      case 3: return make_backend.template operator()<3, 2>();
       default: break;
     }
   }

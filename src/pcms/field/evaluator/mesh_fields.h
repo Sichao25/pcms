@@ -42,8 +42,6 @@ public:
                        hint_.coordinates_.extent(0) + hint_.num_missing_);
     PCMS_ALWAYS_ASSERT(values.extent(1) ==
                        static_cast<size_t>(layout_->GetNumComponents()));
-    // ensure that only scalar fields are supported
-    PCMS_ALWAYS_ASSERT(layout_->GetNumComponents() == 1);
     auto const* mesh_field_data =
       dynamic_cast<const MeshFieldsFieldData<T>*>(&field.GetData());
     if (!mesh_field_data) {
@@ -55,13 +53,18 @@ public:
     auto eval_results = mesh_field_data->GetMeshFieldBackend()->evaluate(
       hint_.coordinates_d_, hint_.offsets_d_);
 
+    // Get number of components from backend
+    const int num_components = mesh_field_data->GetMeshFieldBackend()->GetNumComponents();
+
     // Scatter results directly on device (no host copy)
     Kokkos::parallel_for(
       "CopyEvalResultsToValues",
       Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
         0, eval_results.extent(0)),
       KOKKOS_CLASS_LAMBDA(LO i) {
-        values(hint_.indices_d_(i), 0) = eval_results(i, 0);
+        for (int c = 0; c < num_components; ++c) {
+          values(hint_.indices_d_(i), c) = eval_results(i, c);
+        }
       });
 
     if (hint_.num_missing_ > 0 && hint_.mode_ == OutOfBoundsMode::FILL) {
@@ -71,7 +74,9 @@ public:
         Kokkos::RangePolicy<DeviceMemorySpace::execution_space>(
           0, hint_.num_missing_),
         KOKKOS_CLASS_LAMBDA(LO i) {
-          values(hint_.missing_indices_d_(i), 0) = fill_val;
+          for (int c = 0; c < num_components; ++c) {
+            values(hint_.missing_indices_d_(i), c) = fill_val;
+          }
         });
     }
   }
@@ -97,10 +102,6 @@ public:
   {
     if (mesh_.dim() == 3) {
       throw pcms_error("MeshFieldsEvaluatorFactory does not support 3D meshes");
-    }
-    if (layout_->GetNumComponents() != 1) {
-      throw pcms_error(
-        "MeshFieldsEvaluatorFactory only supports single-component fields");
     }
   }
 
