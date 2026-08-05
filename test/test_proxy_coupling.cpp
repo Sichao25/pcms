@@ -35,7 +35,8 @@ void initializeFieldWithGids(const pcms::FieldLayout& layout,
     Kokkos::RangePolicy<pcms::HostMemorySpace::execution_space>(0, n),
     [=](int i) { ids[i] = gids[i] * multiplier; });
 
-  field->SetDOFHolderDataHost(pcms::make_const_array_view(ids));
+  field->SetDOFHolderDataHost(
+    pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace>(ids.data(), n, 1));
 }
 
 bool validateField(const pcms::FieldLayout& layout,
@@ -44,7 +45,7 @@ bool validateField(const pcms::FieldLayout& layout,
                    pcms::Real multiplier = 1.0)
 {
   auto gids = layout.GetGidsHost();
-  auto copied_array = field->GetDOFHolderDataHost();
+  auto copied_array = pcms::FlattenToRank1View(field->GetDOFHolderDataHost());
   auto owned = layout.GetOwnedHost();
   const auto n = layout.GetNumOwnedDofHolder();
 
@@ -89,20 +90,20 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  app->AddLayout("gids", factory.GetLayout());
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::DefaultBackend, "gids");
 
-  auto gids_field = factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
-  auto gids2_field = factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto gids_field = factory->CreateFunction<pcms::Real>("gids");
+  auto gids2_field = factory->CreateFunction<pcms::Real>("gids2");
 
   auto* gids_ptr = &gids_field.GetData();
   auto* gids2_ptr = &gids2_field.GetData();
 
-  initializeFieldWithGids(*factory.GetLayout(), gids_ptr, 1.0);
-  initializeFieldWithGids(*factory.GetLayout(), gids2_ptr, 2.0);
+  initializeFieldWithGids(*factory->GetLayout(), gids_ptr, 1.0);
+  initializeFieldWithGids(*factory->GetLayout(), gids2_ptr, 2.0);
 
-  app->AddField("gids", std::move(gids_field));
-  app->AddField("gids2", std::move(gids2_field));
+  app->AddField(std::move(gids_field));
+  app->AddField(std::move(gids2_field));
 
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
@@ -113,7 +114,7 @@ void xgc_delta_f(MPI_Comm comm, Omega_h::Mesh& mesh)
       app->ReceiveField("gids"); //(Alt) df_gid_field->Receive();
       app->EndReceivePhase();
 
-      if (!validateField(*factory.GetLayout(), gids_ptr, "gids", rank, 1.0)) {
+      if (!validateField(*factory->GetLayout(), gids_ptr, "gids", rank, 1.0)) {
         std::cerr << "xgc_delta_f: Field validation failed at round " << i
                   << std::endl;
         exit(EXIT_FAILURE);
@@ -130,16 +131,16 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  app->AddLayout("gids", factory.GetLayout());
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::DefaultBackend, "gids");
 
-  auto gids_field = factory.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto gids_field = factory->CreateFunction<pcms::Real>("gids");
 
   auto* gids_ptr = &gids_field.GetData();
 
-  initializeFieldWithGids(*factory.GetLayout(), gids_ptr, 10.0);
+  initializeFieldWithGids(*factory->GetLayout(), gids_ptr, 10.0);
 
-  app->AddField("gids", std::move(gids_field));
+  app->AddField(std::move(gids_field));
 
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
@@ -150,7 +151,7 @@ void xgc_total_f(MPI_Comm comm, Omega_h::Mesh& mesh)
       app->ReceiveField("gids"); //(Alt) tf_gid_field->Receive();
       app->EndReceivePhase();
 
-      if (!validateField(*factory.GetLayout(), gids_ptr, "gids", rank, 10.0)) {
+      if (!validateField(*factory->GetLayout(), gids_ptr, "gids", rank, 10.0)) {
         std::cerr << "xgc_total_f: Field validation failed at round " << i
                   << std::endl;
         exit(EXIT_FAILURE);
@@ -172,27 +173,24 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
   auto* total_f = cpl.AddApplication("proxy_couple_xgc_total_f");
   auto* delta_f = cpl.AddApplication("proxy_couple_xgc_delta_f");
   auto factory_total = pcms::LagrangeFunctionSpace::FromMesh(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  total_f->AddLayout("gids", factory_total.GetLayout());
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::DefaultBackend, "gids");
 
   auto factory_delta = pcms::LagrangeFunctionSpace::FromMesh(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  delta_f->AddLayout("gids", factory_delta.GetLayout());
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::DefaultBackend, "gids");
   // TODO, fields should have a transfer policy rather than parameters
-  auto total_gids_field =
-    factory_total.CreateField<pcms::Real>(pcms::FieldMetadata{});
-  auto delta_gids_field =
-    factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
-  auto delta_gids2_field =
-    factory_delta.CreateField<pcms::Real>(pcms::FieldMetadata{});
+  auto total_gids_field = factory_total->CreateFunction<pcms::Real>("gids");
+  auto delta_gids_field = factory_delta->CreateFunction<pcms::Real>("gids");
+  auto delta_gids2_field = factory_delta->CreateFunction<pcms::Real>("gids2");
 
   auto* total_gids_ptr = &total_gids_field.GetData();
   auto* delta_gids_ptr = &delta_gids_field.GetData();
   auto* delta_gids2_ptr = &delta_gids2_field.GetData();
 
-  total_f->AddField("gids", std::move(total_gids_field));
-  delta_f->AddField("gids", std::move(delta_gids_field));
-  delta_f->AddField("gids2", std::move(delta_gids2_field));
+  total_f->AddField(std::move(total_gids_field));
+  delta_f->AddField(std::move(delta_gids_field));
+  delta_f->AddField(std::move(delta_gids2_field));
 
   do {
     for (int i = 0; i < COMM_ROUNDS; ++i) {
@@ -200,7 +198,7 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
       total_f->ReceiveField("gids");
       total_f->EndReceivePhase();
 
-      if (!validateField(*factory_total.GetLayout(), total_gids_ptr, "gids",
+      if (!validateField(*factory_total->GetLayout(), total_gids_ptr, "gids",
                          rank, 10.0)) {
         std::cerr << "xgc_coupler: total_f field validation failed at round "
                   << i << std::endl;
@@ -211,7 +209,7 @@ void xgc_coupler(MPI_Comm comm, Omega_h::Mesh& mesh, std::string_view cpn_file)
       delta_f->ReceiveField("gids");
       delta_f->EndReceivePhase();
 
-      if (!validateField(*factory_delta.GetLayout(), delta_gids_ptr, "gids",
+      if (!validateField(*factory_delta->GetLayout(), delta_gids_ptr, "gids",
                          rank, 1.0)) {
         std::cerr << "xgc_coupler: delta_f field validation failed at round "
                   << i << std::endl;

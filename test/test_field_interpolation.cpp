@@ -27,15 +27,16 @@ TEST_CASE("interpolate linear 2d omega_h_field")
     Omega_h::build_box(world, OMEGA_H_SIMPLEX, 1, 1, 0, 100, 100, 0, false);
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
-  auto field = factory.CreateField<Real>(pcms::FieldMetadata{});
-  auto interpolated = factory.CreateField<Real>(pcms::FieldMetadata{});
+  auto field = factory->CreateFunction<Real>();
+  auto interpolated = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field, OMEGA_H_LAMBDA(Real x, Real y) { return -0.3 * x + 0.5 * y; });
 
-  pcms::Interpolator<Real> interp(factory, factory);
+  pcms::Interpolator<Real> interp(*factory, *factory);
   interp.Apply(field, interpolated);
-  auto interpolated_dof = interpolated.GetDOFHolderDataHost();
-  auto original_dof = field.GetDOFHolderDataHost();
+  auto interpolated_dof =
+    pcms::FlattenToRank1View(interpolated.GetDOFHolderDataHost());
+  auto original_dof = pcms::FlattenToRank1View(field.GetDOFHolderDataHost());
   REQUIRE(interpolated_dof.size() == original_dof.size());
   for (int i = 0; i < static_cast<int>(interpolated_dof.size()); ++i) {
     REQUIRE_THAT(interpolated_dof[i],
@@ -54,7 +55,7 @@ TEST_CASE("interpolate quadratic 2d meshfields_field")
   auto factory2 = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
-  auto layout = factory2.GetLayout();
+  auto layout = factory2->GetLayout();
   const auto nverts = mesh.nents(0);
   const auto nedges = mesh.nents(1);
   auto mesh_coords = mesh.coords();
@@ -79,15 +80,17 @@ TEST_CASE("interpolate quadratic 2d meshfields_field")
     });
 
   Omega_h::HostWrite<Real> test_f_host(test_f);
-  auto field = factory2.CreateField<Real>(pcms::FieldMetadata{});
-  auto interpolated = factory2.CreateField<Real>(pcms::FieldMetadata{});
-  field.SetDOFHolderDataHost(pcms::make_const_array_view(test_f_host));
+  auto field = factory2->CreateFunction<Real>();
+  auto interpolated = factory2->CreateFunction<Real>();
+  field.SetDOFHolderDataHost(pcms::Rank2View<const Real, pcms::HostMemorySpace>(
+    test_f_host.data(), test_f_host.size(), 1));
 
-  pcms::Interpolator<Real> interp(factory2, factory2);
+  pcms::Interpolator<Real> interp(*factory2, *factory2);
   interp.Apply(field, interpolated);
 
-  auto interpolated_dof = interpolated.GetDOFHolderDataHost();
-  auto original_dof = field.GetDOFHolderDataHost();
+  auto interpolated_dof =
+    pcms::FlattenToRank1View(interpolated.GetDOFHolderDataHost());
+  auto original_dof = pcms::FlattenToRank1View(field.GetDOFHolderDataHost());
   REQUIRE(interpolated_dof.size() == original_dof.size());
   for (int i = 0; i < static_cast<int>(interpolated_dof.size()); ++i) {
     REQUIRE_THAT(interpolated_dof[i],
@@ -123,13 +126,13 @@ TEST_CASE("Interpolator: construct once, apply twice with different data")
   auto factory = pcms::LagrangeFunctionSpace::FromMesh(
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
 
-  auto source = factory.CreateField<Real>(pcms::FieldMetadata{});
-  auto target = factory.CreateField<Real>(pcms::FieldMetadata{});
+  auto source = factory->CreateFunction<Real>();
+  auto target = factory->CreateFunction<Real>();
 
   // Construct Interpolator once — localization happens here.
   // Because source and target share the same layout (same factory),
   // the target DOF holder coordinates are the source mesh node coordinates.
-  pcms::Interpolator<pcms::Real> interp(factory, factory);
+  pcms::Interpolator<pcms::Real> interp(*factory, *factory);
 
   // First application: linear function f(x,y) = -0.3*x + 0.5*y
   pcms::test::SetField(
@@ -137,8 +140,8 @@ TEST_CASE("Interpolator: construct once, apply twice with different data")
   interp.Apply(source, target);
 
   {
-    auto src_dof = source.GetDOFHolderDataHost();
-    auto tgt_dof = target.GetDOFHolderDataHost();
+    auto src_dof = pcms::FlattenToRank1View(source.GetDOFHolderDataHost());
+    auto tgt_dof = pcms::FlattenToRank1View(target.GetDOFHolderDataHost());
     REQUIRE(tgt_dof.size() == src_dof.size());
     for (int i = 0; i < static_cast<int>(tgt_dof.size()); ++i) {
       REQUIRE_THAT(tgt_dof[i], Catch::Matchers::WithinRel(src_dof[i], 0.001) ||
@@ -153,7 +156,7 @@ TEST_CASE("Interpolator: construct once, apply twice with different data")
   interp.Apply(source, target);
 
   {
-    auto tgt_dof = target.GetDOFHolderDataHost();
+    auto tgt_dof = pcms::FlattenToRank1View(target.GetDOFHolderDataHost());
     for (int i = 0; i < static_cast<int>(tgt_dof.size()); ++i) {
       REQUIRE_THAT(tgt_dof[i], Catch::Matchers::WithinAbs(7.0, 1E-10));
     }

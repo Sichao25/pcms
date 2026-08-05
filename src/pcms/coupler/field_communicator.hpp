@@ -34,8 +34,13 @@ public:
       field_(field),
       serializer_(std::move(serializer))
   {
-    PCMS_ALWAYS_ASSERT(&layout_comm.GetLayout() == &field.GetLayout());
-    comm_buffer_.resize(layout_comm.GetMsgSize());
+    PCMS_ALWAYS_ASSERT(layout_comm.GetLayout().GetName() ==
+                       field.GetLayout().GetName());
+    // The exchange plan is per DOF holder; the field payload carries
+    // num_components values per holder, so the buffer is scaled accordingly.
+    comm_buffer_.resize(
+      layout_comm.GetMsgSize() *
+      static_cast<size_t>(field.GetLayout().GetNumComponents()));
     comm_ =
       layout_comm_.GetChannel().CreateComm<T>(name, layout_comm.GetMPIComm());
     layout_comm_.SetOutMessageLayout<T>(comm_);
