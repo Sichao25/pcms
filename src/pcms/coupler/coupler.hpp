@@ -20,39 +20,41 @@ template <typename T>
 class GlobalDataInterface
 {
 public:
-  GlobalDataInterface(const std::string& name, MPI_Comm mpi_comm,
-                      redev::Channel& channel)
-    : mpi_comm_(mpi_comm), comm_(name, mpi_comm_, channel)
+  GlobalDataInterface(std::string name,
+                      Rank1View<T, pcms::HostMemorySpace> data,
+                      MPI_Comm mpi_comm, redev::Channel& channel)
+    : data_(data),
+      variable_name_(name),
+      mpi_comm_(mpi_comm),
+      comm_(name, mpi_comm_, channel)
   {
     PCMS_FUNCTION_TIMER;
   }
-  // Todo: make a constant view
-  void SendData(Rank1View<T, pcms::HostMemorySpace> msg,
-                std::string variable_name,
-                redev::Mode mode = redev::Mode::Synchronous)
+
+  void Send(redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
 
-    comm_.Send(msg.data_handle(), std::move(variable_name),
-               static_cast<std::size_t>(msg.extent(0)), mode);
+    comm_.Send(data_.data_handle(), variable_name_,
+               static_cast<std::size_t>(data_.extent(0)), mode);
   }
 
-  void ReceiveData(Rank1View<T, pcms::HostMemorySpace> msg,
-                   std::string variable_name,
-                   redev::Mode mode = redev::Mode::Synchronous)
+  void Receive(redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
 
     auto received = comm_.Receive(
-      std::move(variable_name), static_cast<std::size_t>(msg.extent(0)), mode);
+      variable_name_, static_cast<std::size_t>(data_.extent(0)), mode);
 
     PCMS_ALWAYS_ASSERT(received.size() ==
-                       static_cast<std::size_t>(msg.extent(0)));
+                       static_cast<std::size_t>(data_.extent(0)));
 
-    std::copy(received.begin(), received.end(), msg.data_handle());
+    std::copy(received.begin(), received.end(), data_.data_handle());
   }
 
 private:
+  Rank1View<T, pcms::HostMemorySpace> data_;
+  std::string variable_name_;
   MPI_Comm mpi_comm_;
   GlobalCommunicator<T> comm_;
 };
@@ -88,12 +90,8 @@ public:
     : app_(app), name_(std::move(name))
   {
   }
-  void Send(Rank1View<T, pcms::HostMemorySpace> msg, std::string variable_name,
-            redev::Mode mode = redev::Mode::Synchronous) const;
-
-  void Receive(Rank1View<T, pcms::HostMemorySpace> msg,
-               std::string variable_name,
-               redev::Mode mode = redev::Mode::Synchronous) const;
+  void Send(redev::Mode mode = redev::Mode::Synchronous) const;
+  void Receive(redev::Mode mode = redev::Mode::Synchronous) const;
 
 private:
   Application* app_;
@@ -135,7 +133,9 @@ public:
                           std::unique_ptr<FieldSerializer<T>> serializer,
                           bool participates = true);
   template <typename T>
-  DataHandle<T> AddData(std::string name, MPI_Comm mpi_comm);
+  DataHandle<T> AddData(std::string name,
+                        Rank1View<T, pcms::HostMemorySpace> data,
+                        MPI_Comm mpi_comm);
   template <typename T>
   [[nodiscard]] GlobalDataInterface<T>& GetDataInterface(
     const std::string& name);
@@ -159,28 +159,24 @@ public:
       [mode](auto& field_communicator) { field_communicator->Receive(); },
       detail::find_or_error(name, field_communicators_));
   };
-  template <typename T>
   void SendData(const std::string& name,
-                Rank1View<T, pcms::HostMemorySpace> msg,
-                std::string variable_name,
                 redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(InSendPhase());
 
-    GetDataInterface<T>(name).SendData(msg, std::move(variable_name), mode);
+    std::visit([mode](auto& data_interface) { data_interface.Send(mode); },
+               detail::find_or_error(name, global_data_interfaces_));
   }
 
-  template <typename T>
   void ReceiveData(const std::string& name,
-                   Rank1View<T, pcms::HostMemorySpace> msg,
-                   std::string variable_name,
                    redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(InReceivePhase());
 
-    GetDataInterface<T>(name).ReceiveData(msg, std::move(variable_name), mode);
+    std::visit([mode](auto& data_interface) { data_interface.Receive(mode); },
+               detail::find_or_error(name, global_data_interfaces_));
   }
   [[nodiscard]] bool InSendPhase() const noexcept
   {
@@ -255,11 +251,14 @@ private:
 };
 
 template <typename T>
-DataHandle<T> Application::AddData(std::string name, MPI_Comm mpi_comm)
+DataHandle<T> Application::AddData(std::string name,
+                                   Rank1View<T, pcms::HostMemorySpace> data,
+                                   MPI_Comm mpi_comm)
 {
   PCMS_FUNCTION_TIMER;
   auto [it, inserted] = global_data_interfaces_.try_emplace(
-    name, std::in_place_type<GlobalDataInterface<T>>, name, mpi_comm, channel_);
+    name, std::in_place_type<GlobalDataInterface<T>>, name, data, mpi_comm,
+    channel_);
   if (!inserted) {
     throw pcms_error("Global data interface with this name already exists");
   }
@@ -278,20 +277,18 @@ GlobalDataInterface<T>& Application::GetDataInterface(const std::string& name)
 }
 
 template <typename T>
-void DataHandle<T>::Send(Rank1View<T, pcms::HostMemorySpace> msg,
-                         std::string variable_name, redev::Mode mode) const
+void DataHandle<T>::Send(redev::Mode mode) const
 {
   PCMS_ALWAYS_ASSERT(app_ != nullptr);
 
-  app_->SendData<T>(name_, msg, std::move(variable_name), mode);
+  app_->SendData(name_, mode);
 }
 template <typename T>
-void DataHandle<T>::Receive(Rank1View<T, pcms::HostMemorySpace> msg,
-                            std::string variable_name, redev::Mode mode) const
+void DataHandle<T>::Receive(redev::Mode mode) const
 {
   PCMS_ALWAYS_ASSERT(app_ != nullptr);
 
-  app_->ReceiveData<T>(name_, msg, std::move(variable_name), mode);
+  app_->ReceiveData(name_, mode);
 }
 
 class Coupler
