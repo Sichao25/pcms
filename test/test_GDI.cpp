@@ -3,6 +3,7 @@
 #include "test_support.h"
 #include "pcms/coupler/coupler.hpp"
 #include <pcms/utility/types.h>
+#include <vector>
 
 static constexpr bool done = true;
 static constexpr int COMM_ROUNDS = 1;
@@ -12,10 +13,7 @@ void xgc_delta_f(MPI_Comm comm)
   pcms::Coupler coupler("proxy_couple", comm, false, {});
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
-  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer("mean_buffer", 1);
-
-  pcms::Rank1View<long, pcms::HostMemorySpace> mean{mean_buffer.data(),
-                                                    mean_buffer.extent(0)};
+  std::vector<pcms::GO> mean(1);
   app->AddData<pcms::GO>("mean", mean, comm);
 
   mean[0] = 16;
@@ -41,10 +39,7 @@ void xgc_total_f(MPI_Comm comm)
   pcms::Coupler coupler("proxy_couple", comm, false, {});
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
-  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer("mean_buffer", 1);
-
-  pcms::Rank1View<long, pcms::HostMemorySpace> mean{mean_buffer.data(),
-                                                    mean_buffer.extent(0)};
+  std::vector<pcms::GO> mean(1);
   app->AddData<pcms::GO>("mean", mean, comm);
 
   do {
@@ -74,10 +69,7 @@ void xgc_coupler(MPI_Comm comm)
   auto* total_f = cpl.AddApplication("proxy_couple_xgc_total_f");
   auto* delta_f = cpl.AddApplication("proxy_couple_xgc_delta_f");
 
-  Kokkos::View<long*, pcms::HostMemorySpace> mean_buffer("mean_buffer", 1);
-
-  pcms::Rank1View<long, pcms::HostMemorySpace> mean{mean_buffer.data(),
-                                                    mean_buffer.extent(0)};
+  std::vector<pcms::GO> mean(1);
   total_f->AddData<pcms::GO>("mean", mean, comm);
   delta_f->AddData<pcms::GO>("mean", mean, comm);
 

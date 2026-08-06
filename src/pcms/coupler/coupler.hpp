@@ -165,8 +165,7 @@ public:
                           std::unique_ptr<FieldSerializer<T>> serializer,
                           bool participates = true);
   template <typename T>
-  DataHandle<T> AddData(std::string name,
-                        Rank1View<T, pcms::HostMemorySpace> data,
+  DataHandle<T> AddData(std::string name, std::vector<T>& data,
                         MPI_Comm mpi_comm);
   template <typename T>
   FunctionHandle<T> AddFunction(Function<T>&& function,
@@ -298,14 +297,15 @@ private:
 };
 
 template <typename T>
-DataHandle<T> Application::AddData(std::string name,
-                                   Rank1View<T, pcms::HostMemorySpace> data,
+DataHandle<T> Application::AddData(std::string name, std::vector<T>& data,
                                    MPI_Comm mpi_comm)
 {
   PCMS_FUNCTION_TIMER;
+  auto data_view = make_array_view(data);
   auto [it, inserted] = global_data_interfaces_.try_emplace(
-    name, std::in_place_type<GlobalDataInterface<T>>, name, data, mpi_comm,
+    name, std::in_place_type<GlobalDataInterface<T>>, name, data_view, mpi_comm,
     channel_);
+
   if (!inserted) {
     throw pcms_error("Global data interface with this name already exists");
   }
