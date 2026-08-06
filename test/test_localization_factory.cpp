@@ -14,6 +14,7 @@
 #include "pcms/localization/point_cloud_localization.h"
 #include "pcms/discretization/discretization/omega_h.hpp"
 #include "pcms/utility/arrays.h"
+#include "pcms/utility/omega_h_array_utils.h"
 #include "field_test_utils.h"
 
 namespace
@@ -46,17 +47,7 @@ TEST_CASE(
   auto target_device = pcms::test::CreateDeviceCoordinateView(
     target_coords, pcms::CoordinateSystem::Cartesian, dim);
 
-  auto coords_read = Omega_h::HostRead<Omega_h::Real>(source_coords);
-
-  // auto coords_dev = Kokkos::create_mirror_view_and_copy(
-  //   Kokkos::DefaultExecutionSpace{}, coords_host);
-  auto coords_dev = Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace>(
-    "point_cloud_coords", mesh.nverts(), dim);
-  auto coords_host = Kokkos::create_mirror(pcms::HostMemorySpace(), coords_dev);
-  for (int i = 0; i < mesh.nverts(); ++i)
-    for (int d = 0; d < dim; ++d)
-      coords_host(i, d) = coords_read[i * dim + d];
-  Kokkos::deep_copy(coords_dev, coords_host);
+  auto coords_dev = pcms::ConvertCoordsTo2D(source_coords, mesh.nverts(), dim);
 
   auto layout = std::make_shared<pcms::PointCloudLayout>(
     dim, coords_dev, pcms::CoordinateSystem::Cartesian);

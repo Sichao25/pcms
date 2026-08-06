@@ -8,6 +8,7 @@
 #include <pcms/field/layout/omega_h_lagrange.h>
 #include <pcms/transfer/mass_matrix_integrator.hpp>
 #include <pcms/transfer/omega_h_mass_integrator.hpp>
+#include "field_test_utils.h"
 #include <KokkosController.hpp>
 #include <MeshField.hpp>
 #include <MeshField_Element.hpp>
@@ -22,33 +23,6 @@
 
 namespace
 {
-
-Omega_h::Mesh BuildUnitSquare(Omega_h::Library& lib)
-{
-  const Omega_h::Reals coords({0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0});
-  Omega_h::LOs ev2v({0, 1, 3, 1, 2, 3});
-  Omega_h::Mesh mesh(&lib);
-  Omega_h::build_from_elems_and_coords(&mesh, OMEGA_H_SIMPLEX, 2, ev2v, coords);
-  mesh.add_tag<Omega_h::I8>(
-    0, "class_dim", 1,
-    Omega_h::Read<Omega_h::I8>(mesh.nverts(), Omega_h::I8(0)));
-  mesh.add_tag<Omega_h::ClassId>(
-    0, "class_id", 1,
-    Omega_h::Read<Omega_h::ClassId>(mesh.nverts(), Omega_h::ClassId(0)));
-  mesh.add_tag<Omega_h::I8>(
-    1, "class_dim", 1,
-    Omega_h::Read<Omega_h::I8>(mesh.nedges(), Omega_h::I8(1)));
-  mesh.add_tag<Omega_h::ClassId>(
-    1, "class_id", 1,
-    Omega_h::Read<Omega_h::ClassId>(mesh.nedges(), Omega_h::ClassId(0)));
-  mesh.add_tag<Omega_h::I8>(
-    2, "class_dim", 1,
-    Omega_h::Read<Omega_h::I8>(mesh.nelems(), Omega_h::I8(2)));
-  mesh.add_tag<Omega_h::ClassId>(
-    2, "class_id", 1,
-    Omega_h::Read<Omega_h::ClassId>(mesh.nelems(), Omega_h::ClassId(0)));
-  return mesh;
-}
 
 std::map<std::pair<pcms::GO, pcms::GO>, pcms::Real> BuildReferenceMassMap(
   Omega_h::Mesh& mesh, const pcms::FunctionSpace& space)
@@ -98,11 +72,9 @@ TEST_CASE(
   "[mass_integrator]")
 {
   Omega_h::Library lib;
-  auto mesh = BuildUnitSquare(lib);
+  auto mesh = pcms::test::BuildUnitSquare(lib, 0);
 
-  auto space = pcms::LagrangeFunctionSpace::FromMesh(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
-    pcms::LagrangeFunctionSpace::Backend::OmegaH);
+  auto space = pcms::test::MakeP1Space(mesh);
 
   const auto ref = BuildReferenceMassMap(mesh, *space);
 
@@ -128,11 +100,9 @@ TEST_CASE("OmegaHMassIntegrator: row sums match lumped mass",
   // each node: row_sum(i) = integral(N_i dx). For a regular mesh of unit
   // area with uniform nodal distribution the sum over all nodes equals 1.
   Omega_h::Library lib;
-  auto mesh = BuildUnitSquare(lib);
+  auto mesh = pcms::test::BuildUnitSquare(lib, 0);
 
-  auto space = pcms::LagrangeFunctionSpace::FromMesh(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
-    pcms::LagrangeFunctionSpace::Backend::OmegaH);
+  auto space = pcms::test::MakeP1Space(mesh);
 
   const auto layout =
     std::dynamic_pointer_cast<const pcms::OmegaHLagrangeLayout>(
@@ -169,7 +139,7 @@ TEST_CASE("OmegaHMassIntegrator: row sums match lumped mass",
 TEST_CASE("OmegaHMassIntegrator: rejects invalid layouts", "[mass_integrator]")
 {
   Omega_h::Library lib;
-  auto mesh = BuildUnitSquare(lib);
+  auto mesh = pcms::test::BuildUnitSquare(lib, 0);
 
   SECTION("multi-component space throws")
   {

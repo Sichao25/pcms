@@ -7,6 +7,7 @@
 #include <Kokkos_Core.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include "field_test_utils.h"
 #include <iostream>
 #include <cmath>
 
@@ -212,42 +213,24 @@ TEST_CASE("EQDSKData with SplineFunctionSpace")
 
     const int num_eval_points = 3;
 
-    auto eval_coords_host = Kokkos::View<pcms::Real**, pcms::HostMemorySpace>(
-      "eval_coords_host", num_eval_points, 2);
-    for (size_t i = 0; i < num_eval_points; ++i) {
-      eval_coords_host(i, 0) = eval_coords[2 * i];     // R
-      eval_coords_host(i, 1) = eval_coords[2 * i + 1]; // Z
-    }
-
-    auto eval_coords_device =
-      Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace>("eval_coords_device",
-                                                          num_eval_points, 2);
-    pcms::DeepCopyMismatchLayouts(eval_coords_device, eval_coords_host);
-
-    auto coords_view = pcms::MakeRank2View(eval_coords_device);
-    auto coord_view = pcms::CoordinateView<pcms::DeviceMemorySpace>{
-      CoordinateSystem::Cartesian, coords_view};
-    auto eval_request = pcms::EvaluationRequest::FromCoordinates(coord_view);
+    auto device_coords = pcms::test::CreateDeviceCoordinateView(
+      eval_coords, CoordinateSystem::Cartesian);
+    auto eval_request =
+      pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view);
 
     auto evaluator =
       spline_space->CreatePointEvaluator<pcms::Real>(eval_request);
 
-    auto eval_results_1d = Kokkos::View<pcms::Real*, pcms::DeviceMemorySpace>(
-      "eval_results", num_eval_points);
-
-    using LayoutPolicy =
-      pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
-    pcms::Rank2View<pcms::Real, pcms::DeviceMemorySpace, LayoutPolicy>
-      eval_results(eval_results_1d.data(), num_eval_points, 1);
-
-    evaluator->Evaluate(psi_field, eval_results);
+    Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace> eval_results(
+      "eval_results", num_eval_points, 1);
+    evaluator->Evaluate(psi_field, pcms::MakeRank2View(eval_results));
 
     auto results_host = Kokkos::create_mirror_view_and_copy(
-      pcms::HostMemorySpace(), eval_results_1d);
+      pcms::HostMemorySpace(), eval_results);
 
     // Verify that all results are finite
     for (int i = 0; i < num_eval_points; ++i) {
-      REQUIRE(std::isfinite(results_host(i)));
+      REQUIRE(std::isfinite(results_host(i, 0)));
     }
   }
 }
