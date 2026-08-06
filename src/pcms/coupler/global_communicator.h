@@ -2,6 +2,7 @@
 #define PCMS_GLOBAL_COMMUNICATOR_H
 #include <redev.h>
 #include <pcms/utility/profile.h>
+#include <pcms/utility/assert.h>
 namespace pcms
 {
 using redev::Mode;
