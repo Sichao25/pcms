@@ -169,10 +169,6 @@ public:
                         Rank1View<T, pcms::HostMemorySpace> data,
                         MPI_Comm mpi_comm);
   template <typename T>
-  [[nodiscard]] GlobalDataInterface<T>& GetDataInterface(
-    const std::string& name);
-
-  template <typename T>
   FunctionHandle<T> AddFunction(Function<T>&& function,
                                 bool participates = true);
 
@@ -314,17 +310,6 @@ DataHandle<T> Application::AddData(std::string name,
     throw pcms_error("Global data interface with this name already exists");
   }
   return DataHandle<T>{this, std::move(name)};
-}
-template <typename T>
-GlobalDataInterface<T>& Application::GetDataInterface(const std::string& name)
-{
-  auto* data_interface = std::get_if<GlobalDataInterface<T>>(
-    &detail::find_or_error(name, global_data_interfaces_));
-  if (data_interface == nullptr) {
-    throw pcms_error(
-      "Global data interface stored with different type than requested");
-  }
-  return *data_interface;
 }
 
 template <typename T>
