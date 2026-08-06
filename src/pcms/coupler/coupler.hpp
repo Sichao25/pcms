@@ -164,6 +164,9 @@ public:
   FieldHandle<T> AddField(std::string name, Field<T>&& field,
                           std::unique_ptr<FieldSerializer<T>> serializer,
                           bool participates = true);
+  // Registers a reference to user-owned data. The Application does not take
+  // ownership; it uses the registered reference for subsequent send and receive
+  // operations.
   template <typename T>
   DataHandle<T> AddData(std::string name, std::vector<T>& data,
                         MPI_Comm mpi_comm);
