@@ -460,8 +460,6 @@ if(Catch2_FOUND)
     target_link_libraries(unit_tests PRIVATE PETSc::PETSc)
   endif()
 
- target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
   add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
   target_link_libraries(test_interpolation_on_ltx_mesh PUBLIC Catch2::Catch2WithMain
                                                         pcms::core
