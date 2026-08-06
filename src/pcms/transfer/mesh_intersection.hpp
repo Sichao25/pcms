@@ -15,19 +15,29 @@ namespace pcms
 constexpr static double abs_tol = 1e-18; /// abs tolerance
 constexpr static double rel_tol = 1e-12; /// rel tolerance
 
-[[nodiscard]] OMEGA_H_INLINE r3d::Few<r3d::Vector<2>, 3>
+// Upper bound on intersecting source elements recorded per target element.
+// Must not exceed the BFS queue capacity (MAX_SIZE_QUEUE); raised for 3D where
+// a single target tet can overlap many source tets.
+constexpr static int kMaxIntersectionsPerTarget = MAX_SIZE_QUEUE;
+
+// Gather the vertex coordinates of a simplex element (triangle for Dim==2,
+// tetrahedron for Dim==3) into an r3d simplex, ready for
+// r3d::intersect_simplices.
+template <int Dim>
+[[nodiscard]] OMEGA_H_INLINE r3d::Few<r3d::Vector<Dim>, Dim + 1>
 get_vert_coords_of_elem(const Omega_h::Reals& coords,
-                        const Omega_h::LOs& faces2nodes, const int id)
+                        const Omega_h::LOs& elems2nodes, const int id)
 {
-  const auto elm_verts = Omega_h::gather_verts<3>(faces2nodes, id);
+  const auto elm_verts = Omega_h::gather_verts<Dim + 1>(elems2nodes, id);
 
-  const Omega_h::Matrix<2, 3> elm_vert_coords =
-    Omega_h::gather_vectors<3, 2>(coords, elm_verts);
+  const Omega_h::Matrix<Dim, Dim + 1> elm_vert_coords =
+    Omega_h::gather_vectors<Dim + 1, Dim>(coords, elm_verts);
 
-  r3d::Few<r3d::Vector<2>, 3> r3d_vector;
-  for (int i = 0; i < 3; ++i) {
-    r3d_vector[i][0] = elm_vert_coords[i][0];
-    r3d_vector[i][1] = elm_vert_coords[i][1];
+  r3d::Few<r3d::Vector<Dim>, Dim + 1> r3d_vector;
+  for (int i = 0; i < Dim + 1; ++i) {
+    for (int d = 0; d < Dim; ++d) {
+      r3d_vector[i][d] = elm_vert_coords[i][d];
+    }
   }
 
   return r3d_vector;
@@ -78,11 +88,13 @@ public:
    * @param is_count_only If true, only counts intersections; if false, also
    * fills tgt2src_indices.
    *
-   * @note This method assumes 2D linear triangles and uses
-   * `r3d::intersect_simplices` for geometric intersection.
+   * @note Templated on spatial dimension `Dim`: linear triangles (Dim==2) or
+   * linear tetrahedra (Dim==3), using `r3d::intersect_simplices` for geometric
+   * intersection.
    *
    * @see r3d::intersect_simplices, intersectTargets
    */
+  template <int Dim>
   void adjBasedIntersectSearch(const Omega_h::LOs& tgt2src_offsets,
                                Omega_h::Write<Omega_h::LO>& nIntersections,
                                Omega_h::Write<Omega_h::LO>& tgt2src_indices,

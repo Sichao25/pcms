@@ -7,8 +7,23 @@
 #include <Omega_h_library.hpp>
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_reduce.hpp>
-#define MAX_SIZE_QUEUE 500
-#define MAX_SIZE_TRACK 800
+#include "pcms/configuration.h"
+// Per-thread BFS ring-buffer capacities for the adjacency-based intersection
+// search. Sized for 3D: a target tetrahedron can overlap many more source
+// elements than a 2D triangle, and the visited set additionally holds the
+// non-intersecting neighbors probed along the way. These are on-stack arrays,
+// so raising them raises per-thread stack usage; lower them for device (GPU)
+// builds via the PCMS_INTERSECTION_{QUEUE,TRACK}_SIZE CMake cache variables,
+// which flow in through pcms/configuration.h. The fallbacks below apply only if
+// the configured header is unavailable (e.g. a header-only consumer).
+#ifndef PCMS_INTERSECTION_QUEUE_SIZE
+#define PCMS_INTERSECTION_QUEUE_SIZE 1024
+#endif
+#ifndef PCMS_INTERSECTION_TRACK_SIZE
+#define PCMS_INTERSECTION_TRACK_SIZE 2048
+#endif
+#define MAX_SIZE_QUEUE PCMS_INTERSECTION_QUEUE_SIZE
+#define MAX_SIZE_TRACK PCMS_INTERSECTION_TRACK_SIZE
 
 namespace pcms
 {
