@@ -51,9 +51,8 @@ public:
         const auto first = elm * numPtsPerElem;
         const auto last = first + numPtsPerElem;
         for (auto pt = first; pt < last; pt++) {
-        // FIXME better way to fill? pass kokkos::subview to getValues?
-          Kokkos::Array<MeshField::Real, FieldElement::MeshEntDim>
-            localCoord;
+          // FIXME better way to fill? pass kokkos::subview to getValues?
+          Kokkos::Array<MeshField::Real, FieldElement::MeshEntDim> localCoord;
           for (auto i = 0; i < localCoord.size(); i++) {
             localCoord[i] = p(pt, i);
           }
