@@ -105,7 +105,7 @@ jobs:
       with:
         repo-name: 'meshFields-openmpi'
         repo-path: 'SCOREC/meshFields'
-        repo-ref: 'b1482bbba288df210784b2345eae08e34faabdc4'
+        repo-ref: 'b9984520c20f73955a3b4e25e4907780b91d430f'
         cache: true
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
                   -DCMAKE_C_COMPILER=`which mpicc`
