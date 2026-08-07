@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_array_ops.hpp>
+#include <PyOmega_h_numpy_transform.hpp>
 #include <pcms/field/evaluator/mls_interpolation.hpp>
 #include <pcms/localization/adj_search.hpp>
 #include <pcms/utility/mesh_geometry.h>
@@ -47,7 +48,7 @@ py::array_t<double> map_entity_field_to_vertices_average(
 
   // Convert numpy array to Omega_h array
   auto entity_field_omega_h =
-    numpy_to_omega_h_read<Omega_h::Real>(entity_field_values);
+    Omega_h::numpy_to_omega_h_read<Omega_h::Real>(entity_field_values);
 
   // Initialize vertex field and count arrays
   Omega_h::Write<Omega_h::Real> vertex_field_values(nverts, 0.0);
@@ -74,7 +75,7 @@ py::array_t<double> map_entity_field_to_vertices_average(
       }
     });
 
-  return omega_h_read_to_numpy(Omega_h::read(vertex_field_values));
+  return Omega_h::omega_h_read_to_numpy(Omega_h::read(vertex_field_values));
 }
 
 // Map entity field to vertices using MLS interpolation
@@ -89,7 +90,7 @@ py::array_t<double> map_entity_field_to_vertices_mls(
   // Compute source coordinates (entity centroids) and flatten
   auto centroids_flat = compute_entity_centroids(mesh, entity_dim);
   auto source_coordinates =
-    numpy_to_omega_h_read<Omega_h::Real>(centroids_flat);
+    Omega_h::numpy_to_omega_h_read<Omega_h::Real>(centroids_flat);
 
   // Get target coordinates (vertex coordinates)
   auto target_coordinates = mesh.coords();
@@ -113,7 +114,7 @@ py::array_t<double> map_entity_field_to_vertices_mls(
 
   // Convert entity field values to Omega_h array
   auto entity_field_omega_h =
-    numpy_to_omega_h_read<Omega_h::Real>(entity_field_values);
+    Omega_h::numpy_to_omega_h_read<Omega_h::Real>(entity_field_values);
 
   // Call MLS interpolation
   auto interpolated_values = pcms::mls_interpolation(
@@ -123,7 +124,7 @@ py::array_t<double> map_entity_field_to_vertices_mls(
     5.0   // decay_factor
   );
 
-  return omega_h_read_to_numpy(Omega_h::Reals(interpolated_values));
+  return Omega_h::omega_h_read_to_numpy(Omega_h::Reals(interpolated_values));
 }
 
 void bind_mesh_utilities_module(py::module& m)
