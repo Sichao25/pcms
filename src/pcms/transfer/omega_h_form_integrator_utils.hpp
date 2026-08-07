@@ -254,7 +254,7 @@ OMEGA_H_INLINE void ForEachIntersectionSubtriangle(
 struct IntegrationData
 {
   Kokkos::View<MeshField::Vector2*> bary_coords; // barycentric coordinates
-  Kokkos::View<Omega_h::Real*> weights; // quadrature weights
+  Kokkos::View<Omega_h::Real*> weights;          // quadrature weights
 
   explicit IntegrationData(int order)
   {
