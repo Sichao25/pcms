@@ -53,13 +53,8 @@ public:
                                 Kokkos::View<LO*> offsets) const override
   {
     auto self = const_cast<MeshFieldBackendImpl<T, Dim, Order>*>(this);
-#if MeshFields_VERSION < 10000
-    return self->mesh_field_.triangleLocalPointEval(localCoords, offsets,
-                                                    shape_field_);
-#else
     return self->mesh_field_.triangleLocalPointEval(localCoords, offsets,
                                                     shape_field_.field);
-#endif
   }
 
   void SetData(Rank1View<const T, DeviceMemorySpace> data, size_t num_nodes,
@@ -71,11 +66,7 @@ public:
       mesh_.nents(dim), KOKKOS_CLASS_LAMBDA(size_t ent) {
         for (size_t n = 0; n < num_nodes; ++n) {
           for (size_t c = 0; c < num_components; ++c) {
-#if MeshFields_VERSION < 10000
-            shape_field_(ent, n, c, topo) =
-#else
             shape_field_.field(ent, n, c, topo) =
-#endif
               data[ent * stride + n * num_components + c];
           }
         }
@@ -92,11 +83,7 @@ public:
         for (size_t n = 0; n < num_nodes; ++n) {
           for (size_t c = 0; c < num_components; ++c) {
             data[ent * stride + n * num_components + c] =
-#if MeshFields_VERSION < 10000
-              shape_field_(ent, n, c, topo);
-#else
               shape_field_.field(ent, n, c, topo);
-#endif
           }
         }
       });
@@ -253,11 +240,7 @@ struct FillCoordinatesAndIndicesFunctor
     const auto owner_idx = owning_elem_ids_(i);
     LO count = Kokkos::atomic_sub_fetch(&elem_counts_(owner_idx), 1);
     LO index = offsets_(owner_idx) + count - 1;
-#if MeshFields_VERSION < 10000
-    for (int j = 0; j < (dim_ + 1); ++j) {
-#else
     for (int j = 0; j < dim_; ++j) {
-#endif
       coordinates_(index, j) = coord[j];
     }
     indices_(index) = i;
@@ -421,14 +404,9 @@ struct FillCoordinatesDeviceFunctor
                                    global_coords_(orig_idx, 1)};
     const auto local =
       Omega_h::barycentric_from_global<2, 2>(point, vertex_coords);
-#if MeshFields_VERSION < 10000
-    for (int j = 0; j < (dim_ + 1); ++j)
-      coordinates_(index, j) = local[j];
-#else
     for (int j = 0; j < dim_; ++j) {
       coordinates_(index, j) = local[j];
     }
-#endif
     indices_(index) = orig_idx;
   }
 };
@@ -517,13 +495,8 @@ struct MeshFieldsAdapter2LocalizationHint
     }
 
     offsets_ = Kokkos::View<LO*, HostMemorySpace>("offsets", mesh.nelems() + 1);
-#if MeshFields_VERSION < 10000
-    coordinates_ = Kokkos::View<Real**, HostMemorySpace>(
-      "coordinates", num_valid_, mesh.dim() + 1);
-#else
     coordinates_ = Kokkos::View<Real**, HostMemorySpace>(
       "coordinates", num_valid_, mesh.dim());
-#endif
     indices_ = Kokkos::View<LO*, HostMemorySpace>("indices", num_valid_);
 
     if (num_missing_ > 0) {
@@ -565,14 +538,9 @@ struct MeshFieldsAdapter2LocalizationHint
                                      global_coords(orig_idx, 1)};
       const auto local =
         Omega_h::barycentric_from_global<2, 2>(point, vertex_coords);
-#if MeshFields_VERSION < 10000
-      for (int j = 0; j < (mesh.dim() + 1); ++j)
-        coordinates_(index, j) = local[j];
-#else
       for (int j = 0; j < mesh.dim(); ++j) {
         coordinates_(index, j) = local[j];
       }
-#endif
       indices_(index) = static_cast<LO>(orig_idx);
     }
 
@@ -665,13 +633,8 @@ struct MeshFieldsAdapter2LocalizationHint
       set_final_functor);
 
     // Step 6: Fill coordinates and indices on device
-#if MeshFields_VERSION < 10000
-    coordinates_d_ =
-      Kokkos::View<Real**>("coordinates_d", num_valid_, mesh.dim() + 1);
-#else
     coordinates_d_ =
       Kokkos::View<Real**>("coordinates_d", num_valid_, mesh.dim());
-#endif
     indices_d_ = Kokkos::View<LO*>("indices_d", num_valid_);
     const auto tris2verts = mesh.ask_elem_verts();
     const auto mesh_coords = mesh.coords();
@@ -692,13 +655,8 @@ struct MeshFieldsAdapter2LocalizationHint
 
     // Create host mirrors for compatibility (lazy copy - only if needed)
     offsets_ = Kokkos::create_mirror_view(offsets_d_);
-#if MeshFields_VERSION < 10000
-    coordinates_ = Kokkos::View<Real**, HostMemorySpace>(
-      "coordinates_", num_valid_, mesh.dim() + 1);
-#else
     coordinates_ = Kokkos::View<Real**, HostMemorySpace>(
       "coordinates_", num_valid_, mesh.dim());
-#endif
     DeepCopyMismatchLayouts(coordinates_, coordinates_d_);
     indices_ = Kokkos::create_mirror_view(indices_d_);
     if (num_missing_ > 0) {

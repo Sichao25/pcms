@@ -73,27 +73,16 @@ inline void CheckOmegaHScalarLagrangeLayout(
 }
 
 [[nodiscard]] OMEGA_H_INLINE Omega_h::Vector<2> GlobalFromBarycentric(
-#if MeshFields_VERSION < 10000
-  const MeshField::Vector3& barycentric_coord,
-#else
   const MeshField::Vector2& barycentric_coord,
-#endif
   const Omega_h::Few<Omega_h::Vector<2>, 3>& verts_coord)
 {
   Omega_h::Vector<2> real_coords = {0.0, 0.0};
-#if MeshFields_VERSION < 10000
-  for (int i = 0; i < 3; ++i) {
-    real_coords[0] += barycentric_coord[i] * verts_coord[i][0];
-    real_coords[1] += barycentric_coord[i] * verts_coord[i][1];
-  }
-#else
   const Omega_h::Real xi3 = 1.0 - barycentric_coord[0] - barycentric_coord[1];
   const Omega_h::Real xi[3] = {barycentric_coord[0], barycentric_coord[1], xi3};
   for (int i = 0; i < 3; ++i) {
     real_coords[0] += xi[i] * verts_coord[i][0];
     real_coords[1] += xi[i] * verts_coord[i][1];
   }
-#endif
   return real_coords;
 }
 
@@ -264,11 +253,7 @@ OMEGA_H_INLINE void ForEachIntersectionSubtriangle(
 // source_order + target_order), which are only known at construction.
 struct IntegrationData
 {
-#if MeshFields_VERSION < 10000
-  Kokkos::View<MeshField::Vector3*> bary_coords; // barycentric coordinates
-#else
   Kokkos::View<MeshField::Vector2*> bary_coords; // barycentric coordinates
-#endif
   Kokkos::View<Omega_h::Real*> weights; // quadrature weights
 
   explicit IntegrationData(int order)
@@ -276,11 +261,7 @@ struct IntegrationData
     auto ip_vec = MeshField::getIntegrationPoints<MeshField::Triangle>(order);
     const std::size_t num_ip = ip_vec.size();
 
-#if MeshFields_VERSION < 10000
-    bary_coords = Kokkos::View<MeshField::Vector3*>("bary_coords", num_ip);
-#else
     bary_coords = Kokkos::View<MeshField::Vector2*>("bary_coords", num_ip);
-#endif
     weights = Kokkos::View<Omega_h::Real*>("weights", num_ip);
 
     auto bary_coords_host = Kokkos::create_mirror_view(bary_coords);
