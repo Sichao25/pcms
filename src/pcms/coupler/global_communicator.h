@@ -32,14 +32,13 @@ public:
     comm_.SetCommParams(VarName, msg_size);
     comm_.Send(msg, mode);
   }
-  std::vector<T> Receive(std::string VarName, size_t msg_size,
-                         Mode mode = Mode::Synchronous)
+  void Receive(T* destination, std::string VarName, size_t msg_size,
+               Mode mode = Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(channel_.InReceiveCommunicationPhase());
     comm_.SetCommParams(VarName, msg_size);
-    auto data = comm_.Recv(mode);
-    return data;
+    comm_.Recv(destination, msg_size, mode);
   }
 
 private:

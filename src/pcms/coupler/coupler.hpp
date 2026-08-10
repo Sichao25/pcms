@@ -42,14 +42,8 @@ public:
   void Receive(redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
-
-    auto received = comm_.Receive(
-      variable_name_, static_cast<std::size_t>(data_.extent(0)), mode);
-
-    PCMS_ALWAYS_ASSERT(received.size() ==
-                       static_cast<std::size_t>(data_.extent(0)));
-
-    std::copy(received.begin(), received.end(), data_.data_handle());
+    comm_.Receive(data_.data_handle(), variable_name_,
+                  static_cast<std::size_t>(data_.extent(0)), mode);
   }
 
 private:
