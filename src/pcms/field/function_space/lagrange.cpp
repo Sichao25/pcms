@@ -54,7 +54,7 @@ void ValidateLagrangeWrappedFieldData(const FieldLayout& layout,
 } // namespace
 
 LagrangeFunctionSpace::LagrangeFunctionSpace(
-  std::shared_ptr<const FieldLayout> layout,
+  Key, std::shared_ptr<const FieldLayout> layout,
   std::function<FieldDataVariant(Type, FieldMetadata)> create_field_data_fn,
   std::shared_ptr<FieldEvaluatorFactory<Real>> evaluator_factory) noexcept
   : layout_(std::move(layout)),
@@ -63,10 +63,10 @@ LagrangeFunctionSpace::LagrangeFunctionSpace(
 {
 }
 
-LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
+std::shared_ptr<LagrangeFunctionSpace> LagrangeFunctionSpace::FromMesh(
   Omega_h::Mesh& mesh, int order, int num_components,
   CoordinateSystem coordinate_system, std::string global_id_name,
-  Backend backend)
+  Backend backend, std::string layout_name)
 {
   // https://github.com/SCOREC/meshFields/issues/88
   if (backend == Backend::MeshFields && order == 0) {
@@ -89,10 +89,11 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
     auto mesh_layout = std::make_shared<MeshFieldsAdapterLayout>(
       mesh, nodes_per_dim, num_components, coordinate_system,
       std::move(global_id_name));
+    mesh_layout->SetName(layout_name);
     auto eval_factory =
       std::make_shared<MeshFieldsEvaluatorFactory<Real>>(mesh_layout);
-    return LagrangeFunctionSpace(
-      mesh_layout,
+    return std::make_shared<LagrangeFunctionSpace>(
+      Key{}, mesh_layout,
       [mesh_layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
         if (t == Type::Float) {
           if constexpr (std::is_same_v<MeshField::Real4, float> ||
@@ -126,10 +127,11 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
   }
   auto layout = std::make_shared<OmegaHLagrangeLayout>(
     mesh, order, num_components, coordinate_system, std::move(global_id_name));
+  layout->SetName(std::move(layout_name));
   auto eval_factory =
     std::make_shared<OmegaHLagrangeEvaluatorFactory<Real>>(layout);
-  return LagrangeFunctionSpace(
-    layout,
+  return std::make_shared<LagrangeFunctionSpace>(
+    Key{}, layout,
     [layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
       return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
         using T = typename decltype(tag)::type;
@@ -143,10 +145,10 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
     std::move(eval_factory));
 }
 
-LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
+std::shared_ptr<LagrangeFunctionSpace> LagrangeFunctionSpace::FromMesh(
   Omega_h::Mesh& mesh, int order, int num_components,
   CoordinateSystem coordinate_system, Omega_h::Read<Omega_h::I8> owned_mask,
-  std::string global_id_name, Backend backend)
+  std::string global_id_name, Backend backend, std::string layout_name)
 {
   if (backend == Backend::MeshFields) {
     throw pcms_error(
@@ -161,10 +163,11 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
   auto layout = std::make_shared<OmegaHLagrangeLayout>(
     mesh, order, num_components, coordinate_system, std::move(owned_mask),
     std::move(global_id_name));
+  layout->SetName(std::move(layout_name));
   auto eval_factory =
     std::make_shared<OmegaHLagrangeEvaluatorFactory<Real>>(layout);
-  return LagrangeFunctionSpace(
-    layout,
+  return std::make_shared<LagrangeFunctionSpace>(
+    Key{}, layout,
     [layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
       return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
         using T = typename decltype(tag)::type;
@@ -178,9 +181,9 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromMesh(
     std::move(eval_factory));
 }
 
-LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
+std::shared_ptr<LagrangeFunctionSpace> LagrangeFunctionSpace::FromUniformGrid(
   const UniformGrid<2>& grid, int num_components,
-  CoordinateSystem coordinate_system, int order)
+  CoordinateSystem coordinate_system, int order, std::string layout_name)
 {
   if (order != 0 && order != 1) {
     throw std::invalid_argument("LagrangeFunctionSpace::FromUniformGrid: only "
@@ -188,10 +191,11 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
   }
   auto ug_layout = std::make_shared<UniformGridFieldLayout<2>>(
     grid, num_components, coordinate_system, order);
+  ug_layout->SetName(std::move(layout_name));
   auto eval_factory =
     std::make_shared<UniformGridEvaluatorFactory<2>>(ug_layout);
-  return LagrangeFunctionSpace(
-    ug_layout,
+  return std::make_shared<LagrangeFunctionSpace>(
+    Key{}, ug_layout,
     [ug_layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
       return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
         using T = typename decltype(tag)::type;
@@ -205,9 +209,9 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
     std::move(eval_factory));
 }
 
-LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
+std::shared_ptr<LagrangeFunctionSpace> LagrangeFunctionSpace::FromUniformGrid(
   const UniformGrid<3>& grid, int num_components,
-  CoordinateSystem coordinate_system, int order)
+  CoordinateSystem coordinate_system, int order, std::string layout_name)
 {
   if (order != 0 && order != 1) {
     throw std::invalid_argument("LagrangeFunctionSpace::FromUniformGrid: only "
@@ -215,10 +219,11 @@ LagrangeFunctionSpace LagrangeFunctionSpace::FromUniformGrid(
   }
   auto ug_layout = std::make_shared<UniformGridFieldLayout<3>>(
     grid, num_components, coordinate_system, order);
+  ug_layout->SetName(std::move(layout_name));
   auto eval_factory =
     std::make_shared<UniformGridEvaluatorFactory<3>>(ug_layout);
-  return LagrangeFunctionSpace(
-    ug_layout,
+  return std::make_shared<LagrangeFunctionSpace>(
+    Key{}, ug_layout,
     [ug_layout](Type t, FieldMetadata metadata) -> FieldDataVariant {
       return apply_to_type(t, [&](auto tag) -> FieldDataVariant {
         using T = typename decltype(tag)::type;
@@ -251,8 +256,7 @@ FieldVariant LagrangeFunctionSpace::CreateFieldImpl(
     [this](auto&& fd) -> FieldVariant {
       using FD = std::decay_t<decltype(fd)>;
       using T = typename FD::element_type::value_type;
-      return WrapField<T>(layout_, std::forward<decltype(fd)>(fd),
-                          evaluator_factory_);
+      return WrapField<T>(layout_, std::forward<decltype(fd)>(fd));
     },
     std::move(field_data));
 }
@@ -269,8 +273,7 @@ FieldVariant LagrangeFunctionSpace::CreateFieldImpl(FieldDataVariant data) const
           "LagrangeFunctionSpace: int8_t is not a supported field type");
       } else {
         ValidateLagrangeWrappedFieldData(*layout_, *fd);
-        return WrapField<T>(layout_, std::forward<decltype(fd)>(fd),
-                            evaluator_factory_);
+        return WrapField<T>(layout_, std::forward<decltype(fd)>(fd));
       }
     },
     std::move(data));

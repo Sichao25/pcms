@@ -70,6 +70,12 @@ struct arr_trait<std::array<T, N>>
   using type = T;
 };
 
+template <typename T, size_t N>
+struct arr_trait<Kokkos::Array<T, N>>
+{
+  using type = T;
+};
+
 template <typename T>
 using element_type_t = typename arr_trait<T, HasValueType<T>::value>::type;
 

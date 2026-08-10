@@ -65,8 +65,8 @@ LO GetOwningElementId(Omega_h::Mesh& mesh, int mesh_dim, int entity_dim,
 KOKKOS_INLINE_FUNCTION
 AABBox<2> triangle_bbox(const Omega_h::Matrix<2, 3>& coords)
 {
-  std::array<Real, 2> max{coords(0, 0), coords(1, 0)};
-  std::array<Real, 2> min{coords(0, 0), coords(1, 0)};
+  Kokkos::Array<Real, 2> max{coords(0, 0), coords(1, 0)};
+  Kokkos::Array<Real, 2> min{coords(0, 0), coords(1, 0)};
   for (int i = 1; i < 3; ++i) {
     max[0] = std::fmax(max[0], coords(0, i));
     max[1] = std::fmax(max[1], coords(1, i));
@@ -185,7 +185,7 @@ template <int dim>
   // each dimension has a pair of opposing "walls"
   // 2D: { [left, right], [top, bottom] } -> { left, right, top, bottom }
   // 3D: { [left, right], [top, bottom], [front, back] } -> { left, ..., back }
-  std::array<Real, dim * 2ul> bbox_walls{};
+  Kokkos::Array<Real, dim * 2ul> bbox_walls{};
   for (int i = 0; i < dim; i++) {
     bbox_walls[i * 2] = bbox.center[i] - bbox.half_width[i];
     bbox_walls[i * 2 + 1] = bbox.center[i] + bbox.half_width[i];
@@ -751,8 +751,8 @@ GridPointSearch3D::GridPointSearch3D(Omega_h::Mesh& mesh, LO Nx, LO Ny, LO Nz,
   auto mesh_bbox = Omega_h::get_bounding_box<3>(&mesh);
   auto grid_h = Kokkos::create_mirror_view(grid_);
 
-  std::array<Real, DIM> edge_lengths{};
-  std::array<Real, DIM> bot_left{};
+  Kokkos::Array<Real, DIM> edge_lengths{};
+  Kokkos::Array<Real, DIM> bot_left{};
 
   for (int i = 0; i < DIM; ++i) {
     edge_lengths[i] = mesh_bbox.max[i] - mesh_bbox.min[i];

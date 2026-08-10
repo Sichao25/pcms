@@ -4,7 +4,8 @@
 #include "Omega_h_vector.hpp"
 #include "Omega_h_bbox.hpp"
 #include "Omega_h_mesh.hpp"
-#include <numeric>
+#include <Kokkos_Array.hpp>
+#include <array>
 namespace pcms
 {
 
@@ -12,15 +13,17 @@ template <unsigned dim>
 struct UniformGrid
 {
   // Make private?
-  std::array<Real, dim> edge_length;
-  std::array<Real, dim> bot_left;
-  std::array<LO, dim> divisions;
+  Kokkos::Array<Real, dim> edge_length;
+  Kokkos::Array<Real, dim> bot_left;
+  Kokkos::Array<LO, dim> divisions;
 
 public:
   [[nodiscard]] LO GetNumCells() const
   {
-    return std::accumulate(divisions.begin(), divisions.end(), 1,
-                           std::multiplies<LO>{});
+    LO total = 1;
+    for (std::size_t i = 0; i < dim; ++i)
+      total *= divisions[i];
+    return total;
   }
   /// return the grid cell ID that the input point is inside or closest to if
   /// the point lies outside
@@ -30,13 +33,13 @@ public:
   [[nodiscard]] KOKKOS_INLINE_FUNCTION LO
   ClosestCellID(const Omega_h::Vector<dim>& point) const
   {
-    std::array<Real, dim> distance_within_grid;
+    Kokkos::Array<Real, dim> distance_within_grid;
 
     for (size_t i = 0; i < dim; ++i) {
       distance_within_grid[i] = point[i] - bot_left[i];
     }
 
-    std::array<LO, dim> indexes;
+    Kokkos::Array<LO, dim> indexes;
 
     for (auto& index : indexes) {
       index = -1;
@@ -86,14 +89,14 @@ public:
     return true;
   }
 
-  [[nodiscard]] KOKKOS_INLINE_FUNCTION std::array<LO, dim> GetDimensionedIndex(
-    LO idx) const
+  [[nodiscard]] KOKKOS_INLINE_FUNCTION Kokkos::Array<LO, dim>
+  GetDimensionedIndex(LO idx) const
   {
     LO stride = 1;
-    for (std::size_t i = 0; i < divisions.size() - 1; ++i) {
+    for (std::size_t i = 0; i < dim - 1; ++i) {
       stride *= divisions[i];
     }
-    std::array<LO, dim> result;
+    Kokkos::Array<LO, dim> result;
 
     for (size_t i = 0; i < dim; ++i) {
       result[i] = idx / stride;
@@ -105,7 +108,7 @@ public:
   }
 
   [[nodiscard]] KOKKOS_INLINE_FUNCTION LO
-  GetCellIndex(std::array<LO, dim> dimensionedIndex) const
+  GetCellIndex(Kokkos::Array<LO, dim> dimensionedIndex) const
   {
     // note that the indexes refer to row/columns which have the opposite order
     // of the coordinates i.e. x,y
@@ -124,9 +127,9 @@ public:
 
 private:
   template <typename T, std::size_t N>
-  KOKKOS_INLINE_FUNCTION static void reverse(std::array<T, N>& arr)
+  KOKKOS_INLINE_FUNCTION static void reverse(Kokkos::Array<T, N>& arr)
   {
-    for (size_t i = 0, j = arr.size() - 1; i < j; ++i, --j) {
+    for (size_t i = 0, j = N - 1; i < j; ++i, --j) {
       auto temp = arr[i];
       arr[i] = arr[j];
       arr[j] = temp;
@@ -158,16 +161,18 @@ UniformGrid<dim> CreateUniformGridFromMesh(Omega_h::Mesh& mesh,
   auto bbox = Omega_h::get_bounding_box<dim>(&mesh);
 
   // Calculate edge lengths and bottom-left corner
-  std::array<Real, dim> edge_length;
-  std::array<Real, dim> bot_left;
+  Kokkos::Array<Real, dim> edge_length;
+  Kokkos::Array<Real, dim> bot_left;
+  Kokkos::Array<LO, dim> divs;
 
   for (unsigned i = 0; i < dim; ++i) {
     bot_left[i] = bbox.min[i];
     edge_length[i] = bbox.max[i] - bbox.min[i];
+    divs[i] = divisions[i];
   }
 
   return UniformGrid<dim>{
-    .edge_length = edge_length, .bot_left = bot_left, .divisions = divisions};
+    .edge_length = edge_length, .bot_left = bot_left, .divisions = divs};
 }
 
 /**
@@ -187,7 +192,8 @@ UniformGrid<dim> CreateUniformGridFromMesh(Omega_h::Mesh& mesh,
                                            LO cells_per_dim)
 {
   std::array<LO, dim> divisions;
-  divisions.fill(cells_per_dim);
+  for (unsigned i = 0; i < dim; ++i)
+    divisions[i] = cells_per_dim;
   return CreateUniformGridFromMesh<dim>(mesh, divisions);
 }
 
