@@ -34,16 +34,13 @@ public:
   void Send(redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
-
-    comm_.Send(data_.data_handle(), variable_name_,
-               static_cast<std::size_t>(data_.extent(0)), mode);
+    comm_.Send(data_, variable_name_, mode);
   }
 
   void Receive(redev::Mode mode = redev::Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
-    comm_.Receive(data_.data_handle(), variable_name_,
-                  static_cast<std::size_t>(data_.extent(0)), mode);
+    comm_.Receive(data_, variable_name_, mode);
   }
 
 private:
@@ -162,7 +159,7 @@ public:
   // ownership; it uses the registered reference for subsequent send and receive
   // operations.
   template <typename T>
-  DataHandle<T> AddData(std::string name, std::vector<T>& data,
+  DataHandle<T> AddData(std::string name, Rank1View<T, HostMemorySpace> data,
                         MPI_Comm mpi_comm);
   template <typename T>
   FunctionHandle<T> AddFunction(Function<T>&& function,
@@ -294,15 +291,14 @@ private:
 };
 
 template <typename T>
-DataHandle<T> Application::AddData(std::string name, std::vector<T>& data,
+DataHandle<T> Application::AddData(std::string name,
+                                   Rank1View<T, HostMemorySpace> data,
                                    MPI_Comm mpi_comm)
 {
   PCMS_FUNCTION_TIMER;
-  auto data_view = make_array_view(data);
   auto [it, inserted] = global_data_interfaces_.try_emplace(
-    name, std::in_place_type<GlobalDataInterface<T>>, name, data_view, mpi_comm,
+    name, std::in_place_type<GlobalDataInterface<T>>, name, data, mpi_comm,
     channel_);
-
   if (!inserted) {
     throw pcms_error("Global data interface with this name already exists");
   }

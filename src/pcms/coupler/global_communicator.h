@@ -24,21 +24,23 @@ public:
   GlobalCommunicator(GlobalCommunicator&&) = default;
   GlobalCommunicator& operator=(GlobalCommunicator&&) = default;
 
-  void Send(T* msg, std::string VarName, size_t msg_size,
+  void Send(Rank1View<T, HostMemorySpace> msg, std::string VarName,
             Mode mode = Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(channel_.InSendCommunicationPhase());
+    auto msg_size = static_cast<std::size_t>(msg.extent(0));
     comm_.SetCommParams(VarName, msg_size);
-    comm_.Send(msg, mode);
+    comm_.Send(msg.data_handle(), mode);
   }
-  void Receive(T* destination, std::string VarName, size_t msg_size,
+  void Receive(Rank1View<T, HostMemorySpace> destination, std::string VarName,
                Mode mode = Mode::Synchronous)
   {
     PCMS_FUNCTION_TIMER;
     PCMS_ALWAYS_ASSERT(channel_.InReceiveCommunicationPhase());
+    auto msg_size = static_cast<std::size_t>(destination.extent(0));
     comm_.SetCommParams(VarName, msg_size);
-    comm_.Recv(destination, msg_size, mode);
+    comm_.Recv(destination.data_handle(), msg_size, mode);
   }
 
 private:

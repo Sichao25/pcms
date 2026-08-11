@@ -13,7 +13,9 @@ void xgc_delta_f(MPI_Comm comm)
   pcms::Coupler coupler("proxy_couple", comm, false, {});
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_delta_f");
 
-  std::vector<pcms::GO> mean(1);
+  std::vector<pcms::GO> mean_storage(1);
+  auto mean = pcms::make_array_view(mean_storage);
+
   app->AddData<pcms::GO>("mean", mean, comm);
 
   mean[0] = 16;
@@ -39,7 +41,8 @@ void xgc_total_f(MPI_Comm comm)
   pcms::Coupler coupler("proxy_couple", comm, false, {});
   pcms::Application* app = coupler.AddApplication("proxy_couple_xgc_total_f");
 
-  std::vector<pcms::GO> mean(1);
+  std::vector<pcms::GO> mean_storage(1);
+  auto mean = pcms::make_array_view(mean_storage);
   app->AddData<pcms::GO>("mean", mean, comm);
 
   do {
@@ -69,7 +72,8 @@ void xgc_coupler(MPI_Comm comm)
   auto* total_f = cpl.AddApplication("proxy_couple_xgc_total_f");
   auto* delta_f = cpl.AddApplication("proxy_couple_xgc_delta_f");
 
-  std::vector<pcms::GO> mean(1);
+  std::vector<pcms::GO> mean_storage(1);
+  auto mean = pcms::make_array_view(mean_storage);
   total_f->AddData<pcms::GO>("mean", mean, comm);
   delta_f->AddData<pcms::GO>("mean", mean, comm);
 
@@ -80,7 +84,6 @@ void xgc_coupler(MPI_Comm comm)
       delta_f->EndReceivePhase();
       printf("delta Received mean:%ld\n", mean[0]);
       mean[0] = mean[0] / 2;
-      const auto msg_size = mean.size();
       total_f->BeginSendPhase();
       total_f->SendData("mean");
       total_f->EndSendPhase();
