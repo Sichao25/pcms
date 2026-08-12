@@ -54,6 +54,20 @@ GalerkinProjectionSolver::GalerkinProjectionSolver(
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = KSPSetOperators(ksp_, A, A);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  if (mass_integrator.IsDiagonal()) {
+    // Jacobi preconditioning applies inv(diag(A)), which for a diagonal
+    // matrix is exactly inv(A). Pairing it with KSPPREONLY therefore gives
+    // the exact solution in a single application — no Krylov iterations, no
+    // factorization, no convergence tolerance in play. Command line options
+    // can still override via KSPSetFromOptions below.
+    ierr = KSPSetType(ksp_, KSPPREONLY);
+    CHKERRABORT(PETSC_COMM_WORLD, ierr);
+    PC pc = nullptr;
+    ierr = KSPGetPC(ksp_, &pc);
+    CHKERRABORT(PETSC_COMM_WORLD, ierr);
+    ierr = PCSetType(pc, PCJACOBI);
+    CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  }
   ierr = KSPSetFromOptions(ksp_);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = KSPSetUp(ksp_);

@@ -4,6 +4,7 @@
 #include <Omega_h_for.hpp>
 #include <Omega_h_library.hpp>
 #include <Omega_h_mesh.hpp>
+#include <Omega_h_shape.hpp>
 #include <pcms/field/function_space/lagrange.h>
 #include <pcms/field/layout/omega_h_lagrange.h>
 #include <pcms/transfer/mass_matrix_integrator.hpp>
@@ -164,6 +165,108 @@ TEST_CASE("OmegaHMassIntegrator: row sums match lumped mass",
   // Total == area of domain == 1.
   CHECK(grand_total == Catch::Approx(1.0).epsilon(1e-10));
   // mat is owned by integrator; no MatDestroy here.
+}
+
+TEST_CASE("OmegaHMassIntegrator: lumped diagonal equals consistent row sums",
+          "[mass_integrator]")
+{
+  // Row-sum lumping: M_L(i,i) = sum_j M_C(i,j) = integral(N_i dx), all
+  // off-diagonal entries zero. The trace equals the domain area.
+  Omega_h::Library lib;
+  auto mesh = BuildUnitSquare(lib);
+
+  auto space = pcms::LagrangeFunctionSpace::FromMesh(
+    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::Backend::OmegaH);
+
+  const auto layout =
+    std::dynamic_pointer_cast<const pcms::OmegaHLagrangeLayout>(
+      space->GetLayout());
+  const auto& gids = layout->GetGidsHost();
+  const int nverts = mesh.nverts();
+
+  auto consistent = pcms::BuildOmegaHMassIntegrator(*space);
+  auto lumped =
+    pcms::BuildOmegaHMassIntegrator(*space, pcms::MassMatrixType::Lumped);
+  CHECK_FALSE(consistent->IsDiagonal());
+  CHECK(lumped->IsDiagonal());
+  Mat consistent_mat = consistent->GetMatrix();
+  Mat lumped_mat = lumped->GetMatrix();
+
+  pcms::Real trace = 0.0;
+  for (int v = 0; v < nverts; ++v) {
+    const PetscInt row = static_cast<PetscInt>(gids[v]);
+    pcms::Real row_sum = 0.0;
+    for (int u = 0; u < nverts; ++u) {
+      PetscInt r = row;
+      PetscInt c = static_cast<PetscInt>(gids[u]);
+      PetscScalar val = 0.0;
+      MatGetValues(consistent_mat, 1, &r, 1, &c, &val);
+      row_sum += static_cast<pcms::Real>(val);
+
+      PetscScalar lumped_val = 0.0;
+      MatGetValues(lumped_mat, 1, &r, 1, &c, &lumped_val);
+      CAPTURE(v, u, row_sum, lumped_val);
+      if (r == c) {
+        trace += static_cast<pcms::Real>(lumped_val);
+      } else {
+        CHECK(static_cast<pcms::Real>(lumped_val) ==
+              Catch::Approx(0.0).margin(1e-14));
+      }
+    }
+    PetscInt r = row;
+    PetscScalar diag = 0.0;
+    MatGetValues(lumped_mat, 1, &r, 1, &r, &diag);
+    CAPTURE(v, row_sum, diag);
+    CHECK(static_cast<pcms::Real>(diag) ==
+          Catch::Approx(row_sum).epsilon(1e-12));
+  }
+
+  // Trace == area of domain == 1.
+  CHECK(trace == Catch::Approx(1.0).epsilon(1e-10));
+  // matrices are owned by the integrators; no MatDestroy here.
+}
+
+TEST_CASE("OmegaHMassIntegrator: P0 lumped equals consistent",
+          "[mass_integrator]")
+{
+  // P0 basis functions have disjoint support, so the consistent mass matrix
+  // is already diagonal (M_ee = area(e)) and lumping is a no-op.
+  Omega_h::Library lib;
+  auto mesh = BuildUnitSquare(lib);
+
+  auto space = pcms::LagrangeFunctionSpace::FromMesh(
+    mesh, 0, 1, pcms::CoordinateSystem::Cartesian, "global",
+    pcms::LagrangeFunctionSpace::Backend::OmegaH);
+
+  auto consistent = pcms::BuildOmegaHMassIntegrator(*space);
+  auto lumped =
+    pcms::BuildOmegaHMassIntegrator(*space, pcms::MassMatrixType::Lumped);
+  CHECK(consistent->IsDiagonal());
+  CHECK(lumped->IsDiagonal());
+  Mat consistent_mat = consistent->GetMatrix();
+  Mat lumped_mat = lumped->GetMatrix();
+
+  const auto elem_areas = Omega_h::measure_elements_real(&mesh);
+  const auto elem_areas_h = Omega_h::HostRead<Omega_h::Real>(elem_areas);
+  const auto layout =
+    std::dynamic_pointer_cast<const pcms::OmegaHLagrangeLayout>(
+      space->GetLayout());
+  const auto& gids = layout->GetGidsHost();
+
+  for (int e = 0; e < mesh.nelems(); ++e) {
+    PetscInt r = static_cast<PetscInt>(gids[e]);
+    PetscScalar consistent_val = 0.0;
+    PetscScalar lumped_val = 0.0;
+    MatGetValues(consistent_mat, 1, &r, 1, &r, &consistent_val);
+    MatGetValues(lumped_mat, 1, &r, 1, &r, &lumped_val);
+    CAPTURE(e, elem_areas_h[e]);
+    CHECK(static_cast<pcms::Real>(consistent_val) ==
+          Catch::Approx(elem_areas_h[e]).epsilon(1e-12));
+    CHECK(static_cast<pcms::Real>(lumped_val) ==
+          Catch::Approx(elem_areas_h[e]).epsilon(1e-12));
+  }
+  // matrices are owned by the integrators; no MatDestroy here.
 }
 
 TEST_CASE("OmegaHMassIntegrator: rejects invalid layouts", "[mass_integrator]")

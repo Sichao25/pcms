@@ -6,6 +6,7 @@
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/point_evaluator.h"
 #include "pcms/transfer/interpolator.h"
+#include "pcms/transfer/mass_matrix_type.hpp"
 #include "pcms/transfer/monte_carlo_sampling.hpp"
 #include "pcms/transfer/transfer_operator.hpp"
 #include <cstdint>
@@ -37,11 +38,11 @@ class OmegaHMonteCarloRHSIntegrator;
 class OmegaHControlVariateProjection : public TransferOperator<Real>
 {
 public:
-  OmegaHControlVariateProjection(const FunctionSpace& source_space,
-                                 const FunctionSpace& target_space,
-                                 int samples_per_element,
-                                 MonteCarloSampling sampling,
-                                 uint64_t seed = 8675309);
+  OmegaHControlVariateProjection(
+    const FunctionSpace& source_space, const FunctionSpace& target_space,
+    int samples_per_element, MonteCarloSampling sampling,
+    uint64_t seed = 8675309,
+    MassMatrixType mass_matrix_type = MassMatrixType::Consistent);
 
   // Defined in the .cpp where GalerkinProjectionSolver is a complete type.
   ~OmegaHControlVariateProjection() override;
