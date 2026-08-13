@@ -56,6 +56,8 @@ GalerkinProjectionSolver::GalerkinProjectionSolver(
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = KSPSetFromOptions(ksp_);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  ierr = KSPSetTolerances(ksp_, 1e-14, 1e-14, PETSC_DEFAULT, PETSC_DEFAULT);
+  CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = KSPSetUp(ksp_);
   CHKERRABORT(PETSC_COMM_WORLD, ierr);
 }
