@@ -174,3 +174,109 @@ TEST_CASE("OmegaHControlVariateProjection: reduces error vs plain Monte Carlo",
   CAPTURE(mc_error, cv_error);
   CHECK(cv_error < mc_error);
 }
+
+// ---------------------------------------------------------------------------
+// 3D Monte Carlo RHS integrator
+// ---------------------------------------------------------------------------
+
+
+Omega_h::Mesh BuildUnitCube(Omega_h::Library& lib, int n)
+{
+  return Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1.0, 1.0, 1.0, n, n,
+                            n);
+}
+
+
+TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): sample points lie inside the "
+          "unit cube",
+          "[mc_rhs_integrator][3d]")
+{
+  //for  Dim=3 sample coordinates inside [0,1]^3 with correct count.
+  Omega_h::Library lib;
+  auto target_mesh = BuildUnitCube(lib, 1);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
+
+  const int samples_per_element = 16;
+  pcms::OmegaHMonteCarloRHSIntegrator integrator(
+    *target_space, samples_per_element,
+    pcms::MonteCarloSampling::UniformRandom);
+
+  const auto raw_coords = integrator.GetIntegrationPoints().GetValues();
+  REQUIRE(raw_coords.extent(1) == 3);
+
+  auto coords_h = pcms::test::CopyCoordinatesToHost(
+    raw_coords, static_cast<int>(raw_coords.extent(0)),
+    static_cast<int>(raw_coords.extent(1)));
+
+  REQUIRE(coords_h.extent(0) ==
+          static_cast<std::size_t>(target_mesh.nelems() * samples_per_element));
+
+  for (std::size_t i = 0; i < coords_h.extent(0); ++i) {
+    CAPTURE(i, coords_h(i, 0), coords_h(i, 1), coords_h(i, 2));
+    CHECK(coords_h(i, 0) >= -1e-12);
+    CHECK(coords_h(i, 0) <= 1.0 + 1e-12);
+    CHECK(coords_h(i, 1) >= -1e-12);
+    CHECK(coords_h(i, 1) <= 1.0 + 1e-12);
+    CHECK(coords_h(i, 2) >= -1e-12);
+    CHECK(coords_h(i, 2) <= 1.0 + 1e-12);
+  }
+}
+
+TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): constant field integrates "
+          "exactly",
+          "[mc_rhs_integrator][3d]")
+{
+  // if f=c => VecSum(b) = c * volume = c * 1 (P1 partition of unity).
+  Omega_h::Library lib;
+  auto source_mesh = BuildUnitCube(lib, 1);
+  auto target_mesh = BuildUnitCube(lib, 1);
+  auto source_space = pcms::test::MakeP1Space(source_mesh);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
+
+  auto source_field = source_space->CreateFunction<pcms::Real>();
+  pcms::test::SetField(
+    source_field,
+    KOKKOS_LAMBDA(pcms::Real, pcms::Real, pcms::Real) { return 2.0; });
+
+  pcms::OmegaHMonteCarloRHSIntegrator integrator(
+    *target_space, /*samples_per_element=*/8,
+    pcms::MonteCarloSampling::UniformRandom);
+
+  pcms::test::EvaluateAndAssemble(integrator, source_space, source_field);
+
+  PetscScalar sum = 0.0;
+  VecSum(integrator.GetVector(), &sum);
+  CHECK(static_cast<pcms::Real>(sum) == Catch::Approx(2.0).margin(1e-12));
+}
+
+TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): constant projects to constant "
+          "via GalerkinProjectionSolver",
+          "[mc_rhs_integrator][3d]")
+{
+  // Purpose: MC RHS + mass + KSP for f=c must yield x=c at all vertices.
+  Omega_h::Library lib;
+  auto mesh = BuildUnitCube(lib, 1);
+  auto space = pcms::test::MakeP1Space(mesh);
+
+  auto source = space->CreateFunction<pcms::Real>();
+  pcms::test::SetField(
+    source, KOKKOS_LAMBDA(pcms::Real, pcms::Real, pcms::Real) { return 3.0; });
+
+  pcms::OmegaHMonteCarloRHSIntegrator rhs(
+    *space, /*samples_per_element=*/16,
+    pcms::MonteCarloSampling::UniformRandom);
+  pcms::OmegaHMassIntegrator mass(*space);
+  pcms::GalerkinProjectionSolver solver(mass, rhs);
+
+  auto evaluator = space->CreatePointEvaluator<pcms::Real>(
+    pcms::EvaluationRequest::FromCoordinates(rhs.GetIntegrationPoints()));
+
+  const auto x = solver.Solve(*evaluator, source);
+  const auto x_h = Omega_h::HostRead<Omega_h::Real>(x);
+
+  REQUIRE(static_cast<Omega_h::LO>(x_h.size()) == mesh.nverts());
+  for (Omega_h::LO i = 0; i < mesh.nverts(); ++i) {
+    CAPTURE(i, x_h[i]);
+    CHECK(x_h[i] == Catch::Approx(3.0).margin(1e-10));
+  }
+}
