@@ -114,3 +114,53 @@ TEST_CASE("OmegaHMassIntegrator (3D): P0 mass on reference tet equals volume",
   MatGetValues(mat, 1, &r, 1, &c, &got);
   CHECK(static_cast<pcms::Real>(got) == Catch::Approx(V).epsilon(1e-12));
 }
+
+
+TEST_CASE("OmegaHConservativeProjection (3D): same-mesh reference tet is "
+          "exact for constant and linear fields",
+          "[transfer][mesh_intersection][3d][analytic]")
+{
+  // Purpose: source == target == one tet. Intersection is trivial; P1 must
+  // reproduce constants/linears at vertices. If this fails, bug is in
+  // RHS/mass/Apply/KSP — not multi-tet clipping.
+  Omega_h::Library lib;
+  Omega_h::Mesh mesh = BuildReferenceTet(lib);
+  REQUIRE(mesh.nverts() == 4);
+  REQUIRE(mesh.nelems() == 1);
+  auto space = pcms::test::MakeP1Space(mesh);
+  auto source = space->CreateFunction<pcms::Real>();
+  auto target = space->CreateFunction<pcms::Real>();
+  pcms::OmegaHConservativeProjection projection(*space, *space);
+  SECTION("constant field")
+  {
+    const double c = 2.5;
+    pcms::test::SetField(
+      source, KOKKOS_LAMBDA(pcms::Real, pcms::Real, pcms::Real) { return c; });
+    projection.Apply(source, target);
+    const auto values =
+      pcms::FlattenToRank1View(target.GetDOFHolderDataHost());
+    REQUIRE(static_cast<Omega_h::LO>(values.size()) == 4);
+    for (Omega_h::LO i = 0; i < 4; ++i) {
+      CAPTURE(i, values[i]);
+      REQUIRE(values[i] == Catch::Approx(c).margin(1e-12));
+    }
+  }
+  SECTION("linear field")
+  {
+    pcms::test::SetField(
+      source, KOKKOS_LAMBDA(pcms::Real x, pcms::Real y, pcms::Real z) {
+        return 1.0 + x + 2.0 * y + 3.0 * z;
+      });
+    projection.Apply(source, target);
+    const auto values =
+      pcms::FlattenToRank1View(target.GetDOFHolderDataHost());
+    const auto coords_h = pcms::test::CopyCoordinatesToHost(
+      pcms::MakeConstRank2View(mesh.coords(), 3), mesh.nverts(), 3);
+    for (Omega_h::LO i = 0; i < 4; ++i) {
+      const double expected =
+        1.0 + coords_h(i, 0) + 2.0 * coords_h(i, 1) + 3.0 * coords_h(i, 2);
+      CAPTURE(i, expected, values[i]);
+      REQUIRE(values[i] == Catch::Approx(expected).margin(1e-12));
+    }
+  }
+}
