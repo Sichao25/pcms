@@ -289,7 +289,7 @@ jobs:
         export PYTHONPATH=${{ runner.temp }}/build-pcms/install/lib/python3.12/site-packages:$PYTHONPATH
         export PYTHONPATH=${{ runner.temp }}/build-omega_h/install/lib/python/dist-packages:$PYTHONPATH
         cd ${{ github.workspace }}
-        pytest
+        pytest -v --tb=short -p no:cacheprovider
 
     - name: Test PCMS Installation
       if: matrix.python_api == 'OFF'
