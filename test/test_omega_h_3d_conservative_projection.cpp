@@ -212,3 +212,4 @@ TEST_CASE("OmegaHControlVariateProjection (3D tets) is exact for target-space "
           Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
             .margin(1e-8));
 }
+
