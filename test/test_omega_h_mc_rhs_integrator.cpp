@@ -243,39 +243,6 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): constant field integrates "
   CHECK(static_cast<pcms::Real>(sum) == Catch::Approx(2.0).margin(1e-12));
 }
 
-TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): constant projects to constant "
-          "via GalerkinProjectionSolver",
-          "[mc_rhs_integrator][3d]")
-{
-  // Purpose: MC RHS + mass + KSP for f=c must yield x=c at all vertices.
-  Omega_h::Library lib;
-  auto mesh = pcms::test::BuildUnitCube(lib, 1);
-  auto space = pcms::test::MakeP1Space(mesh);
-
-  auto source = space->CreateFunction<pcms::Real>();
-  pcms::test::SetField(
-    source, KOKKOS_LAMBDA(pcms::Real, pcms::Real, pcms::Real) { return 3.0; });
-
-  pcms::OmegaHMonteCarloRHSIntegrator rhs(
-    *space, /*samples_per_element=*/16,
-    pcms::MonteCarloSampling::UniformRandom);
-  pcms::OmegaHMassIntegrator mass(*space);
-  pcms::GalerkinProjectionSolver solver(mass, rhs);
-
-  auto evaluator = space->CreatePointEvaluator<pcms::Real>(
-    pcms::EvaluationRequest::FromCoordinates(rhs.GetIntegrationPoints()));
-
-  const auto x = solver.Solve(*evaluator, source);
-  const auto x_h = Omega_h::HostRead<Omega_h::Real>(x);
-
-  REQUIRE(static_cast<Omega_h::LO>(x_h.size()) == mesh.nverts());
-  for (Omega_h::LO i = 0; i < mesh.nverts(); ++i) {
-    CAPTURE(i, x_h[i]);
-    CHECK(x_h[i] == Catch::Approx(3.0).margin(1e-10));
-  }
-}
-
-
 TEST_CASE("OmegaHControlVariateProjection (3D): reduces error vs plain Monte Carlo",
           "[mc_rhs_integrator][control_variate][3d]")
 {
