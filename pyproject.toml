@@ -10,7 +10,7 @@ version = "0.4.0"
 PCMS_ENABLE_Python = true
 
 [tool.pytest.ini_options]
-testpaths = ["pytests"]
+testpaths = ["test/python"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
