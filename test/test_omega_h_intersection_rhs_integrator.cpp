@@ -328,8 +328,8 @@ TEST_CASE("OmegaHIntersectionRHSIntegrator (3D): dual tets overlap is an "
   auto source_mesh = pcms::test::BuildTet(lib, Omega_h::Reals({
     1.0,  1.0,  1.0,
     1.0, -1.0, -1.0,
-   -1.0,  1.0, -1.0,
-   -1.0, -1.0,  1.0,
+   -1.0, -1.0, 1.0,
+   -1.0, 1.0,  -1.0,
   }));
   auto target_mesh = pcms::test::BuildTet(lib, Omega_h::Reals({
    -1.0, -1.0, -1.0,
