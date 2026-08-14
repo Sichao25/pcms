@@ -187,7 +187,7 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): sample points lie inside the "
 {
   //for  Dim=3 sample coordinates inside [0,1]^3 with correct count.
   Omega_h::Library lib;
-  auto target_mesh = BuildUnitCube(lib, 1);
+  auto target_mesh = pcms::test::BuildUnitCube(lib, 1);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
 
   const int samples_per_element = 16;
