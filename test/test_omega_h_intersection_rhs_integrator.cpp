@@ -317,3 +317,70 @@ TEST_CASE("OmegaHIntersectionRHSIntegrator (3D): constant load sums to c times "
   CHECK(static_cast<pcms::Real>(sum) ==
         Catch::Approx(c * overlap).margin(1e-12));
 }
+
+TEST_CASE("OmegaHIntersectionRHSIntegrator (3D): dual tets overlap is an "
+          "octahedron; load sums to integral over the intersection",
+          "[rhs_integrator][3d]")
+{
+  // Dual tets in the cube [-1,1]^3. Intersection = {|x|+|y|+|z| <= 1},
+  // volume 4/3.
+  Omega_h::Library lib;
+  auto source_mesh = pcms::test::BuildTet(lib, Omega_h::Reals({
+    1.0,  1.0,  1.0,
+    1.0, -1.0, -1.0,
+   -1.0,  1.0, -1.0,
+   -1.0, -1.0,  1.0,
+  }));
+  auto target_mesh = pcms::test::BuildTet(lib, Omega_h::Reals({
+   -1.0, -1.0, -1.0,
+   -1.0,  1.0,  1.0,
+    1.0, -1.0,  1.0,
+    1.0,  1.0, -1.0,
+  }));
+
+  auto source_space = pcms::test::MakeP1Space(source_mesh);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
+  auto integrator =
+    pcms::BuildOmegaHConservativeRHSIntegrator(*source_space, *target_space);
+
+  const auto raw_coords = integrator->GetIntegrationPoints().GetValues();
+  REQUIRE(raw_coords.extent(0) > 0);
+  auto coords_h = pcms::test::CopyCoordinatesToHost(
+    raw_coords, static_cast<int>(raw_coords.extent(0)),
+    static_cast<int>(raw_coords.extent(1)));
+  for (std::size_t i = 0; i < coords_h.extent(0); ++i) {
+    const double s =
+      std::abs(coords_h(i, 0)) + std::abs(coords_h(i, 1)) +
+      std::abs(coords_h(i, 2));
+    CAPTURE(i, coords_h(i, 0), coords_h(i, 1), coords_h(i, 2), s);
+    CHECK(s <= 1.0 + 1e-10);
+  }
+
+  SECTION("constant f=c => sum(b) = c * 4/3")
+  {
+    constexpr double c = 3.0;
+    auto source_field = source_space->CreateFunction<pcms::Real>();
+    pcms::test::SetField(
+      source_field,
+      KOKKOS_LAMBDA(pcms::Real, pcms::Real, pcms::Real) { return c; });
+    pcms::test::EvaluateAndAssemble(*integrator, source_space, source_field);
+    PetscScalar sum = 0.0;
+    VecSum(integrator->GetVector(), &sum);
+    CHECK(static_cast<pcms::Real>(sum) ==
+          Catch::Approx(c * 4.0 / 3.0).margin(1e-10));
+  }
+
+  SECTION("f=x+y+z => sum(b) = 0 by symmetry")
+  {
+    auto source_field = source_space->CreateFunction<pcms::Real>();
+    pcms::test::SetField(
+      source_field,
+      KOKKOS_LAMBDA(pcms::Real x, pcms::Real y, pcms::Real z) {
+        return x + y + z;
+      });
+    pcms::test::EvaluateAndAssemble(*integrator, source_space, source_field);
+    PetscScalar sum = 0.0;
+    VecSum(integrator->GetVector(), &sum);
+    CHECK(static_cast<pcms::Real>(sum) == Catch::Approx(0.0).margin(1e-10));
+  }
+}
