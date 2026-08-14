@@ -180,12 +180,6 @@ TEST_CASE("OmegaHControlVariateProjection: reduces error vs plain Monte Carlo",
 // ---------------------------------------------------------------------------
 
 
-Omega_h::Mesh BuildUnitCube(Omega_h::Library& lib, int n)
-{
-  return Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1.0, 1.0, 1.0, n, n,
-                            n);
-}
-
 
 TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): sample points lie inside the "
           "unit cube",
@@ -228,8 +222,8 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): constant field integrates "
 {
   // if f=c => VecSum(b) = c * volume = c * 1 (P1 partition of unity).
   Omega_h::Library lib;
-  auto source_mesh = BuildUnitCube(lib, 1);
-  auto target_mesh = BuildUnitCube(lib, 1);
+  auto source_mesh = pcms::test::BuildUnitCube(lib, 1);
+  auto target_mesh = pcms::test::BuildUnitCube(lib, 1);
   auto source_space = pcms::test::MakeP1Space(source_mesh);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
 
@@ -255,7 +249,7 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): constant projects to constant "
 {
   // Purpose: MC RHS + mass + KSP for f=c must yield x=c at all vertices.
   Omega_h::Library lib;
-  auto mesh = BuildUnitCube(lib, 1);
+  auto mesh = pcms::test::BuildUnitCube(lib, 1);
   auto space = pcms::test::MakeP1Space(mesh);
 
   auto source = space->CreateFunction<pcms::Real>();

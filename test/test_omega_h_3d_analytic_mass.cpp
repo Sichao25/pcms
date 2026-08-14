@@ -10,8 +10,6 @@
 #include "field_test_utils.h"
 #include <petscksp.h>
 
-namespace
-{
 
 // Reference corner tet:
 //   v0=(0,0,0), v1=(1,0,0), v2=(0,1,0), v3=(0,0,1)
@@ -20,40 +18,13 @@ namespace
 // P1 consistent mass on a tet:
 //   M_ij = V/20 * (1 + delta_ij)
 //        = 1/60 on diagonal, 1/120 off-diagonal.
-Omega_h::Mesh BuildReferenceTet(Omega_h::Library& lib)
-{
-  const Omega_h::Reals coords({
-    0.0, 0.0, 0.0, // v0
-    1.0, 0.0, 0.0, // v1
-    0.0, 1.0, 0.0, // v2
-    0.0, 0.0, 1.0  // v3
-  });
-  // One tet: vertices 0,1,2,3
-  const Omega_h::LOs ev2v({0, 1, 2, 3});
-
-  Omega_h::Mesh mesh(&lib);
-  Omega_h::build_from_elems_and_coords(&mesh, OMEGA_H_SIMPLEX, 3, ev2v, coords);
-
-  // Classification tags required by OmegaHLagrangeLayout / function space.
-  for (Omega_h::Int dim = 0; dim <= 3; ++dim) {
-    mesh.add_tag<Omega_h::I8>(
-      dim, "class_dim", 1,
-      Omega_h::Read<Omega_h::I8>(mesh.nents(dim), Omega_h::I8(dim)));
-    mesh.add_tag<Omega_h::ClassId>(
-      dim, "class_id", 1,
-      Omega_h::Read<Omega_h::ClassId>(mesh.nents(dim), Omega_h::ClassId(0)));
-  }
-  return mesh;
-}
-
-} // namespace
 
 TEST_CASE("OmegaHMassIntegrator (3D): P1 mass on reference tet matches "
           "analytic V/20*(1+delta)",
           "[mass_integrator][3d][analytic]")
 {
   Omega_h::Library lib;
-  auto mesh = BuildReferenceTet(lib);
+  auto mesh = pcms::test::BuildReferenceTet(lib);
   REQUIRE(mesh.dim() == 3);
   REQUIRE(mesh.nverts() == 4);
   REQUIRE(mesh.nelems() == 1);
@@ -89,7 +60,7 @@ TEST_CASE("OmegaHMassIntegrator (3D): P1 mass on reference tet matches "
             Catch::Approx(expected).epsilon(1e-12));
       row_sum += static_cast<pcms::Real>(got);
     }
-    // Row sum = ∫ λ_i = V/4
+    // Row sum =\int \lamda_i = V/4
     CHECK(row_sum == Catch::Approx(V / 4.0).epsilon(1e-12));
     grand_total += row_sum;
   }
@@ -101,7 +72,7 @@ TEST_CASE("OmegaHMassIntegrator (3D): P0 mass on reference tet equals volume",
           "[mass_integrator][3d][analytic]")
 {
   Omega_h::Library lib;
-  auto mesh = BuildReferenceTet(lib);
+  auto mesh = pcms::test::pcms::test::BuildReferenceTet(lib);
 
   constexpr pcms::Real V = 1.0 / 6.0;
 
@@ -125,7 +96,7 @@ TEST_CASE("OmegaHConservativeProjection (3D): same-mesh reference tet is "
   // reproduce constants/linears at vertices. If this fails, bug is in
   // RHS/mass/Apply/KSP — not multi-tet clipping.
   Omega_h::Library lib;
-  Omega_h::Mesh mesh = BuildReferenceTet(lib);
+  Omega_h::Mesh mesh = pcms::test::BuildReferenceTet(lib);
   REQUIRE(mesh.nverts() == 4);
   REQUIRE(mesh.nelems() == 1);
   auto space = pcms::test::MakeP1Space(mesh);
