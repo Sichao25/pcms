@@ -72,7 +72,7 @@ TEST_CASE("OmegaHMassIntegrator (3D): P0 mass on reference tet equals volume",
           "[mass_integrator][3d][analytic]")
 {
   Omega_h::Library lib;
-  auto mesh = pcms::test::pcms::test::BuildReferenceTet(lib);
+  auto mesh = pcms::test::BuildReferenceTet(lib);
 
   constexpr pcms::Real V = 1.0 / 6.0;
 
