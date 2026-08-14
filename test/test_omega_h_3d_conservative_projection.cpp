@@ -87,8 +87,8 @@ TEST_CASE("OmegaHConservativeProjection (3D tets) conserves the integral for a "
 {
   Omega_h::Library lib;
 
-  Omega_h::Mesh source_mesh = BuildUnitCube(lib, 2);
-  Omega_h::Mesh target_mesh = BuildUnitCube(lib, 1);
+  Omega_h::Mesh source_mesh = pcms::test::BuildUnitCube(lib, 2);
+  Omega_h::Mesh target_mesh = pcms::test::BuildUnitCube(lib, 1);
 
   auto source_space = pcms::test::MakeP1Space(source_mesh);
   auto target_space = pcms::test::MakeP0Space(target_mesh);
@@ -114,7 +114,7 @@ TEST_CASE("Copy transfer (3D tets) reproduces the source field",
           "[transfer][copy][3d]")
 {
   Omega_h::Library lib;
-  Omega_h::Mesh mesh = BuildUnitCube(lib, 2);
+  Omega_h::Mesh mesh = pcms::test::BuildUnitCube(lib, 2);
   auto space = pcms::test::MakeP1Space(mesh);
 
   auto source = space->CreateFunction<pcms::Real>();
@@ -142,8 +142,8 @@ TEST_CASE("Interpolation transfer (3D tets) reproduces a linear field",
           "[transfer][interpolation][3d]")
 {
   Omega_h::Library lib;
-  Omega_h::Mesh source_mesh = BuildUnitCube(lib, 2);
-  Omega_h::Mesh target_mesh = BuildUnitCube(lib, 3);
+  Omega_h::Mesh source_mesh = pcms::test::BuildUnitCube(lib, 2);
+  Omega_h::Mesh target_mesh = pcms::test::BuildUnitCube(lib, 3);
 
   auto source_space = pcms::test::MakeP1Space(source_mesh);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
@@ -180,8 +180,8 @@ TEST_CASE("OmegaHControlVariateProjection (3D tets) is exact for target-space "
 {
   Omega_h::Library lib;
 
-  Omega_h::Mesh source_mesh = BuildUnitCube(lib, 1);
-  Omega_h::Mesh target_mesh = BuildUnitCube(lib, 2);
+  Omega_h::Mesh source_mesh =pcms::test::BuildUnitCube(lib, 1);
+  Omega_h::Mesh target_mesh =pcms::test::BuildUnitCube(lib, 2);
 
   auto source_space = pcms::test::MakeP1Space(source_mesh);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
