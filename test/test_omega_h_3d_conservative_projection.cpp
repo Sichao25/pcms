@@ -16,19 +16,6 @@
 
 #include <vector>
 
-namespace
-{
-
-// Build a tetrahedral box mesh of [0,1]^3 at the given resolution. build_box
-// produces a classified simplex mesh, which is what the Omega_h Lagrange
-// function space requires.
-Omega_h::Mesh BuildUnitCube(Omega_h::Library& lib, int n)
-{
-  return Omega_h::build_box(lib.world(), OMEGA_H_SIMPLEX, 1.0, 1.0, 1.0, n, n,
-                            n);
-}
-
-} // namespace
 
 TEST_CASE("OmegaHConservativeProjection (3D tets) reproduces constant and "
           "linear fields",
@@ -37,8 +24,8 @@ TEST_CASE("OmegaHConservativeProjection (3D tets) reproduces constant and "
   Omega_h::Library lib;
 
   // Two independent tessellations of the same unit cube.
-  Omega_h::Mesh source_mesh = BuildUnitCube(lib, 1);
-  Omega_h::Mesh target_mesh = BuildUnitCube(lib, 2);
+  Omega_h::Mesh source_mesh = pcms::test::BuildUnitCube(lib, 1);
+  Omega_h::Mesh target_mesh = pcms::test::BuildUnitCube(lib, 2);
 
   auto source_space = pcms::test::MakeP1Space(source_mesh);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
