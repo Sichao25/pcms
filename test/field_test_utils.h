@@ -111,19 +111,25 @@ inline Omega_h::Mesh BuildUnitCube(Omega_h::Library& lib, int n)
                             n);
 }
 
+
+inline Omega_h::Mesh BuildTet(Omega_h::Library& lib, const Omega_h::Reals& coords)
+{
+
+  Omega_h::Mesh mesh(&lib);
+  const Omega_h::LOs ev2v = Omega_h::LOs({0, 1, 2, 3});
+  Omega_h::build_from_elems_and_coords(&mesh, OMEGA_H_SIMPLEX, 3, ev2v, coords);
+  AddDefaultClassification(mesh);
+  return mesh;
+}
+
+
 // Reference tet: (0,0,0), (1,0,0), (0,1,0), (0,0,1). Volume 1/6.
 // reversed=true swaps the last two verts so the signed volume is negative.
 inline Omega_h::Mesh BuildReferenceTet(Omega_h::Library& lib)
 {
-  const Omega_h::Reals coords({
+  return BuildTet(lib, Omega_h::Reals({
     0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-  });
-  const Omega_h::LOs ev2v = Omega_h::LOs({0, 1, 2, 3});
-
-  Omega_h::Mesh mesh(&lib);
-  Omega_h::build_from_elems_and_coords(&mesh, OMEGA_H_SIMPLEX, 3, ev2v, coords);
-  AddDefaultClassification(mesh);
-  return mesh;
+  }));
 }
 
 
