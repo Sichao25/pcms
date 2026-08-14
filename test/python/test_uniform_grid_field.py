@@ -37,8 +37,10 @@ class TestUniformGridField:
         )
         field = factory.create_field()
         data = np.arange(field.get_num_dof_holders(), dtype=np.float64)
+        expected_data = data.copy()
         field.set_dof_holder_data(data)
-        np.testing.assert_allclose(field.get_dof_holder_data(), data)
+        data.fill(-999.0)
+        np.testing.assert_allclose(field.get_dof_holder_data(), expected_data)
 
     def test_coordinates_2d(self):
         """Expose 2D DOF-holder coordinates through Field."""
@@ -91,8 +93,10 @@ class TestUniformGridField:
         assert coords.shape == (expected, 3)
 
         data = np.arange(expected, dtype=np.float64)
+        expected_data = data.copy()
         field.set_dof_holder_data(data)
-        np.testing.assert_allclose(field.get_dof_holder_data(), data)
+        data.fill(-999.0)
+        np.testing.assert_allclose(field.get_dof_holder_data(), expected_data)
 
     def test_field_evaluation(self):
         """Evaluate a uniform-grid field at explicit query points."""

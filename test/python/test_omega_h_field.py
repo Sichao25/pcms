@@ -39,8 +39,10 @@ class TestOmegaHField:
 
         ndata = field.get_num_dof_holders() * num_components
         test_data = np.arange(ndata, dtype=np.float64)
+        expected_data = test_data.copy()
         field.set_dof_holder_data(test_data)
-        np.testing.assert_allclose(field.get_dof_holder_data(), test_data)
+        test_data.fill(-999.0)
+        np.testing.assert_allclose(field.get_dof_holder_data(), expected_data)
 
     @pytest.mark.parametrize("dim, order, num_components", [
         (2, 1, 1), (2, 2, 1),
