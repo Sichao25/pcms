@@ -131,7 +131,7 @@ OmegaHMassIntegrator::OmegaHMassIntegrator(
     omf(mesh);
   auto coordField = omf.getCoordField();
   const auto [shp, map] = MeshField::Omegah::getTriangleElement<1>(mesh);
-  MeshField::FieldElement coordFe(mesh.nelems(), coordField, shp, map);
+  MeshField::FieldElement coordFe(mesh.nelems(), coordField.field, shp, map);
   auto elm_mass_dev = buildElementMassMatrix(mesh, coordFe);
 
   // Build COO sparsity pattern on device: each element contributes a 3x3 block.

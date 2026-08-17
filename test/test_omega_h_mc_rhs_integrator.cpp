@@ -17,69 +17,6 @@
 #include <vector>
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-namespace
-{
-
-// Build a unit-square 2D simplex mesh.
-//   diagonal=0: T0=(0,1,3), T1=(1,2,3)
-//   diagonal=1: T0=(0,1,2), T1=(0,2,3)
-Omega_h::Mesh BuildUnitSquare(Omega_h::Library& lib, int diagonal)
-{
-  const Omega_h::Reals coords({0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0});
-  Omega_h::LOs ev2v = (diagonal == 0) ? Omega_h::LOs({0, 1, 3, 1, 2, 3})
-                                      : Omega_h::LOs({0, 1, 2, 0, 2, 3});
-  Omega_h::Mesh mesh(&lib);
-  Omega_h::build_from_elems_and_coords(&mesh, OMEGA_H_SIMPLEX, 2, ev2v, coords);
-  mesh.add_tag<Omega_h::I8>(
-    0, "class_dim", 1,
-    Omega_h::Read<Omega_h::I8>(mesh.nverts(), Omega_h::I8(0)));
-  mesh.add_tag<Omega_h::ClassId>(
-    0, "class_id", 1,
-    Omega_h::Read<Omega_h::ClassId>(mesh.nverts(), Omega_h::ClassId(0)));
-  mesh.add_tag<Omega_h::I8>(
-    1, "class_dim", 1,
-    Omega_h::Read<Omega_h::I8>(mesh.nedges(), Omega_h::I8(1)));
-  mesh.add_tag<Omega_h::ClassId>(
-    1, "class_id", 1,
-    Omega_h::Read<Omega_h::ClassId>(mesh.nedges(), Omega_h::ClassId(0)));
-  mesh.add_tag<Omega_h::I8>(
-    2, "class_dim", 1,
-    Omega_h::Read<Omega_h::I8>(mesh.nelems(), Omega_h::I8(2)));
-  mesh.add_tag<Omega_h::ClassId>(
-    2, "class_id", 1,
-    Omega_h::Read<Omega_h::ClassId>(mesh.nelems(), Omega_h::ClassId(0)));
-  return mesh;
-}
-
-std::shared_ptr<pcms::LagrangeFunctionSpace> MakeP1Space(Omega_h::Mesh& mesh)
-{
-  return pcms::LagrangeFunctionSpace::FromMesh(
-    mesh, 1, 1, pcms::CoordinateSystem::Cartesian, "global",
-    pcms::LagrangeFunctionSpace::Backend::OmegaH);
-}
-
-// Evaluates source_field at the integrator's sample points and assembles.
-void EvaluateAndAssemble(
-  pcms::LinearFormIntegrator& integrator,
-  const std::shared_ptr<const pcms::FunctionSpace>& source_space,
-  const pcms::Field<pcms::Real>& source_field)
-{
-  const auto& pts = integrator.GetIntegrationPoints();
-  const std::size_t npts = pts.GetValues().extent(0);
-  auto evaluator = source_space->CreatePointEvaluator<pcms::Real>(
-    pcms::EvaluationRequest::FromCoordinates(pts));
-  Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace> sampled("sampled", npts,
-                                                              1);
-  evaluator->Evaluate(source_field, pcms::MakeRank2View(sampled));
-  integrator.Assemble(pcms::MakeConstRank2View(sampled));
-}
-
-} // namespace
-
-// ---------------------------------------------------------------------------
 // Monte Carlo RHS integrator
 // ---------------------------------------------------------------------------
 
@@ -87,20 +24,17 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator: sample points lie inside the domain",
           "[mc_rhs_integrator]")
 {
   Omega_h::Library lib;
-  auto target_mesh = BuildUnitSquare(lib, 0);
-  auto target_space = MakeP1Space(target_mesh);
+  auto target_mesh = pcms::test::BuildUnitSquare(lib, 0);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
 
   const int samples_per_element = 16;
   for (const auto sampling : {pcms::MonteCarloSampling::UniformRandom}) {
     pcms::OmegaHMonteCarloRHSIntegrator integrator(
       *target_space, samples_per_element, sampling);
     const auto raw_coords = integrator.GetIntegrationPoints().GetValues();
-    auto coords_view = Kokkos::View<const pcms::Real**, Kokkos::LayoutRight,
-                                    pcms::DeviceMemorySpace,
-                                    Kokkos::MemoryTraits<Kokkos::Unmanaged>>(
-      raw_coords.data_handle(), raw_coords.extent(0), raw_coords.extent(1));
-    auto coords_h =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coords_view);
+    auto coords_h = pcms::test::CopyCoordinatesToHost(
+      raw_coords, static_cast<int>(raw_coords.extent(0)),
+      static_cast<int>(raw_coords.extent(1)));
 
     REQUIRE(
       coords_h.extent(0) ==
@@ -121,10 +55,10 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator: constant field integrates exactly",
   // For f = c the estimator sums to c * |domain| for any sample placement,
   // because the P1 basis functions partition unity at every sample point.
   Omega_h::Library lib;
-  auto source_mesh = BuildUnitSquare(lib, 1);
-  auto target_mesh = BuildUnitSquare(lib, 0);
-  auto source_space = MakeP1Space(source_mesh);
-  auto target_space = MakeP1Space(target_mesh);
+  auto source_mesh = pcms::test::BuildUnitSquare(lib, 1);
+  auto target_mesh = pcms::test::BuildUnitSquare(lib, 0);
+  auto source_space = pcms::test::MakeP1Space(source_mesh);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
 
   auto source_field = source_space->CreateFunction<pcms::Real>();
   pcms::test::SetField(
@@ -132,7 +66,7 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator: constant field integrates exactly",
 
   for (const auto sampling : {pcms::MonteCarloSampling::UniformRandom}) {
     pcms::OmegaHMonteCarloRHSIntegrator integrator(*target_space, 8, sampling);
-    EvaluateAndAssemble(integrator, source_space, source_field);
+    pcms::test::EvaluateAndAssemble(integrator, source_space, source_field);
 
     PetscScalar sum = 0.0;
     VecSum(integrator.GetVector(), &sum);
@@ -155,10 +89,10 @@ TEST_CASE("OmegaHControlVariateProjection: exact for fields in the target "
   // That holds for any invertible mass matrix (delta = M^-1 0 = 0), so the
   // lumped variant must be exact here too.
   Omega_h::Library lib;
-  auto source_mesh = BuildUnitSquare(lib, 1);
-  auto target_mesh = BuildUnitSquare(lib, 0);
-  auto source_space = MakeP1Space(source_mesh);
-  auto target_space = MakeP1Space(target_mesh);
+  auto source_mesh = pcms::test::BuildUnitSquare(lib, 1);
+  auto target_mesh = pcms::test::BuildUnitSquare(lib, 0);
+  auto source_space = pcms::test::MakeP1Space(source_mesh);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
 
   auto source_field = source_space->CreateFunction<pcms::Real>();
   auto target_field = target_space->CreateFunction<pcms::Real>();
@@ -177,11 +111,11 @@ TEST_CASE("OmegaHControlVariateProjection: exact for fields in the target "
 
   const auto values =
     pcms::FlattenToRank1View(target_field.GetDOFHolderDataHost());
-  const auto coords_h = Omega_h::HostRead<Omega_h::Real>(target_mesh.coords());
+  const auto coords_h = pcms::test::CopyCoordinatesToHost(
+    pcms::MakeConstRank2View(target_mesh.coords(), 2), target_mesh.nverts(), 2);
   REQUIRE(static_cast<Omega_h::LO>(values.size()) == target_mesh.nverts());
   for (Omega_h::LO i = 0; i < target_mesh.nverts(); ++i) {
-    const double expected =
-      3.0 * coords_h[2 * i + 0] - coords_h[2 * i + 1] + 0.25;
+    const double expected = 3.0 * coords_h(i, 0) - coords_h(i, 1) + 0.25;
     CAPTURE(i, expected, values[i]);
     CHECK(values[i] == Catch::Approx(expected).margin(1e-9));
   }
@@ -195,10 +129,10 @@ TEST_CASE("OmegaHControlVariateProjection: reduces error vs plain Monte Carlo",
   // seeds the control-variate projection must be closer to the exact
   // (intersection-quadrature) projection than the plain Monte Carlo one.
   Omega_h::Library lib;
-  auto source_mesh = BuildUnitSquare(lib, 1);
-  auto target_mesh = BuildUnitSquare(lib, 0);
-  auto source_space = MakeP1Space(source_mesh);
-  auto target_space = MakeP1Space(target_mesh);
+  auto source_mesh = pcms::test::BuildUnitSquare(lib, 1);
+  auto target_mesh = pcms::test::BuildUnitSquare(lib, 0);
+  auto source_space = pcms::test::MakeP1Space(source_mesh);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
 
   auto source_field = source_space->CreateFunction<pcms::Real>();
   pcms::test::SetField(
