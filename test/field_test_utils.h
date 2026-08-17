@@ -43,7 +43,6 @@ KOKKOS_INLINE_FUNCTION Real linear_f(Real x, Real y)
   return x + 2.0 * y;
 }
 
-
 KOKKOS_INLINE_FUNCTION Real linear_f_3d(Real x, Real y)
 {
   return x + 2.0 * y;
@@ -111,8 +110,8 @@ inline Omega_h::Mesh BuildUnitCube(Omega_h::Library& lib, int n)
                             n);
 }
 
-
-inline Omega_h::Mesh BuildTet(Omega_h::Library& lib, const Omega_h::Reals& coords)
+inline Omega_h::Mesh BuildTet(Omega_h::Library& lib,
+                              const Omega_h::Reals& coords)
 {
 
   Omega_h::Mesh mesh(&lib);
@@ -122,16 +121,25 @@ inline Omega_h::Mesh BuildTet(Omega_h::Library& lib, const Omega_h::Reals& coord
   return mesh;
 }
 
-
 // Reference tet: (0,0,0), (1,0,0), (0,1,0), (0,0,1). Volume 1/6.
 // reversed=true swaps the last two verts so the signed volume is negative.
 inline Omega_h::Mesh BuildReferenceTet(Omega_h::Library& lib)
 {
   return BuildTet(lib, Omega_h::Reals({
-    0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-  }));
+                         0.0,
+                         0.0,
+                         0.0,
+                         1.0,
+                         0.0,
+                         0.0,
+                         0.0,
+                         1.0,
+                         0.0,
+                         0.0,
+                         0.0,
+                         1.0,
+                       }));
 }
-
 
 inline std::shared_ptr<LagrangeFunctionSpace> MakeP1Space(
   Omega_h::Mesh& mesh, const std::string& global_id_name = "global")

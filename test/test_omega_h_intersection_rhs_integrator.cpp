@@ -272,11 +272,19 @@ TEST_CASE("OmegaHIntersectionRHSIntegrator (3D): constant load sums to c times "
   Omega_h::Library lib;
   auto source_mesh = pcms::test::BuildReferenceTet(lib);
   auto target_mesh = pcms::test::BuildTet(lib, Omega_h::Reals({
-                                                1.0, 0.0, 0.0,
-                                                0.5, 0.0, 0.0,
-                                                0.5, 0.5, 0.0,
-                                                0.5, 0.0, 0.5,
-                                              }));
+                                                 1.0,
+                                                 0.0,
+                                                 0.0,
+                                                 0.5,
+                                                 0.0,
+                                                 0.0,
+                                                 0.5,
+                                                 0.5,
+                                                 0.0,
+                                                 0.5,
+                                                 0.0,
+                                                 0.5,
+                                               }));
 
   REQUIRE(source_mesh.nelems() == 1);
   REQUIRE(target_mesh.nelems() == 1);
@@ -326,17 +334,33 @@ TEST_CASE("OmegaHIntersectionRHSIntegrator (3D): dual tets overlap is an "
   // volume 4/3.
   Omega_h::Library lib;
   auto source_mesh = pcms::test::BuildTet(lib, Omega_h::Reals({
-    1.0,  1.0,  1.0,
-    1.0, -1.0, -1.0,
-   -1.0, -1.0, 1.0,
-   -1.0, 1.0,  -1.0,
-  }));
+                                                 1.0,
+                                                 1.0,
+                                                 1.0,
+                                                 1.0,
+                                                 -1.0,
+                                                 -1.0,
+                                                 -1.0,
+                                                 -1.0,
+                                                 1.0,
+                                                 -1.0,
+                                                 1.0,
+                                                 -1.0,
+                                               }));
   auto target_mesh = pcms::test::BuildTet(lib, Omega_h::Reals({
-   -1.0, -1.0, -1.0,
-   -1.0,  1.0,  1.0,
-    1.0, -1.0,  1.0,
-    1.0,  1.0, -1.0,
-  }));
+                                                 -1.0,
+                                                 -1.0,
+                                                 -1.0,
+                                                 -1.0,
+                                                 1.0,
+                                                 1.0,
+                                                 1.0,
+                                                 -1.0,
+                                                 1.0,
+                                                 1.0,
+                                                 1.0,
+                                                 -1.0,
+                                               }));
 
   auto source_space = pcms::test::MakeP1Space(source_mesh);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
@@ -349,9 +373,8 @@ TEST_CASE("OmegaHIntersectionRHSIntegrator (3D): dual tets overlap is an "
     raw_coords, static_cast<int>(raw_coords.extent(0)),
     static_cast<int>(raw_coords.extent(1)));
   for (std::size_t i = 0; i < coords_h.extent(0); ++i) {
-    const double s =
-      std::abs(coords_h(i, 0)) + std::abs(coords_h(i, 1)) +
-      std::abs(coords_h(i, 2));
+    const double s = std::abs(coords_h(i, 0)) + std::abs(coords_h(i, 1)) +
+                     std::abs(coords_h(i, 2));
     CAPTURE(i, coords_h(i, 0), coords_h(i, 1), coords_h(i, 2), s);
     CHECK(s <= 1.0 + 1e-10);
   }
@@ -374,8 +397,7 @@ TEST_CASE("OmegaHIntersectionRHSIntegrator (3D): dual tets overlap is an "
   {
     auto source_field = source_space->CreateFunction<pcms::Real>();
     pcms::test::SetField(
-      source_field,
-      KOKKOS_LAMBDA(pcms::Real x, pcms::Real y, pcms::Real z) {
+      source_field, KOKKOS_LAMBDA(pcms::Real x, pcms::Real y, pcms::Real z) {
         return x + y + z;
       });
     pcms::test::EvaluateAndAssemble(*integrator, source_space, source_field);

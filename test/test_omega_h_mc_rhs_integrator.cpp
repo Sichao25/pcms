@@ -179,13 +179,11 @@ TEST_CASE("OmegaHControlVariateProjection: reduces error vs plain Monte Carlo",
 // 3D Monte Carlo RHS integrator
 // ---------------------------------------------------------------------------
 
-
-
 TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): sample points lie inside the "
           "unit cube",
           "[mc_rhs_integrator][3d]")
 {
-  //for  Dim=3 sample coordinates inside [0,1]^3 with correct count.
+  // for  Dim=3 sample coordinates inside [0,1]^3 with correct count.
   Omega_h::Library lib;
   auto target_mesh = pcms::test::BuildUnitCube(lib, 1);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
@@ -243,8 +241,9 @@ TEST_CASE("OmegaHMonteCarloRHSIntegrator (3D): constant field integrates "
   CHECK(static_cast<pcms::Real>(sum) == Catch::Approx(2.0).margin(1e-12));
 }
 
-TEST_CASE("OmegaHControlVariateProjection (3D): reduces error vs plain Monte Carlo",
-          "[mc_rhs_integrator][control_variate][3d]")
+TEST_CASE(
+  "OmegaHControlVariateProjection (3D): reduces error vs plain Monte Carlo",
+  "[mc_rhs_integrator][control_variate][3d]")
 {
   Omega_h::Library lib;
   auto source_mesh = pcms::test::BuildUnitCube(lib, 1);

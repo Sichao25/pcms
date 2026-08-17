@@ -16,7 +16,6 @@
 
 #include <vector>
 
-
 TEST_CASE("OmegaHConservativeProjection (3D tets) reproduces constant and "
           "linear fields",
           "[transfer][mesh_intersection][3d]")
@@ -180,8 +179,8 @@ TEST_CASE("OmegaHControlVariateProjection (3D tets) is exact for target-space "
 {
   Omega_h::Library lib;
 
-  Omega_h::Mesh source_mesh =pcms::test::BuildUnitCube(lib, 1);
-  Omega_h::Mesh target_mesh =pcms::test::BuildUnitCube(lib, 2);
+  Omega_h::Mesh source_mesh = pcms::test::BuildUnitCube(lib, 1);
+  Omega_h::Mesh target_mesh = pcms::test::BuildUnitCube(lib, 2);
 
   auto source_space = pcms::test::MakeP1Space(source_mesh);
   auto target_space = pcms::test::MakeP1Space(target_mesh);
@@ -212,4 +211,3 @@ TEST_CASE("OmegaHControlVariateProjection (3D tets) is exact for target-space "
           Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
             .margin(1e-8));
 }
-
