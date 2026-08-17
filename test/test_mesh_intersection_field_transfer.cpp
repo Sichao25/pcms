@@ -13,7 +13,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
 
 namespace
 {
@@ -34,10 +33,9 @@ void AddSparseVertexGlobalIds(Omega_h::Mesh& mesh)
 
 } // namespace
 
-// Fields that already live in the target order-1 space (constants and affine
-// functions) must be reproduced exactly by the L2 projection, and the integral
-// must be conserved. These properties hold without any reference solver, so
-// they pin down correctness on their own.
+// Fields that are in the target order-1 space (constants and affine
+// functions) should be reproduced exactly by the L2 projection, and the
+// integral must be conserved.
 TEST_CASE("OmegaHConservativeProjection reproduces constant and linear fields",
           "[transfer][mesh_intersection]")
 {
@@ -99,13 +97,6 @@ TEST_CASE("OmegaHConservativeProjection reproduces constant and linear fields",
   }
 }
 
-// For a field that does not live in the target space the projection is not an
-// interpolation, but conservation of the integral is the defining property of
-// the conservative (Galerkin) projection and must still hold exactly — for
-// the lumped mass matrix too, since its row sums (and hence the discrete
-// integral identity) match the consistent matrix. This also exercises a
-// second Apply with a different source field to confirm the cached
-// integrators/evaluator/factorization are reused without stale state.
 TEST_CASE("OmegaHConservativeProjection conserves the integral",
           "[transfer][mesh_intersection]")
 {
@@ -149,14 +140,9 @@ TEST_CASE("OmegaHConservativeProjection conserves the integral",
             .margin(1e-12));
 }
 
-// Row-sum lumping keeps constants exact (the lumped diagonal is exactly the
-// row sum, so M_L c = M_C c for constant c) and keeps the integral conserved,
-// but it is no longer a true L2 projection: linear fields are smeared toward
-// patch averages instead of being reproduced nodally. The error bound below
-// guards against the mass_matrix_type option being silently dropped anywhere
-// between the operator ctor and the solver.
-TEST_CASE("OmegaHConservativeProjection with lumped mass reproduces constants "
-          "but not linears",
+// Row-sum lumping preserves constants and integral. It also bounds the values.
+TEST_CASE("OmegaHConservativeProjection with lumped mass reproduces constants, "
+          "not linears, and stays bounded",
           "[transfer][mesh_intersection]")
 {
   Omega_h::Library lib;
@@ -191,7 +177,8 @@ TEST_CASE("OmegaHConservativeProjection with lumped mass reproduces constants "
       REQUIRE(target_values[i] == Catch::Approx(c).margin(1e-10));
     }
     REQUIRE(pcms::test::IntegrateP1Field(target_mesh, target) ==
-            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source)).margin(1e-10));
+            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
+              .margin(1e-10));
   }
 
   SECTION("linear field conserves the integral but is not nodally exact")
@@ -202,7 +189,8 @@ TEST_CASE("OmegaHConservativeProjection with lumped mass reproduces constants "
     projection.Apply(source, target);
 
     REQUIRE(pcms::test::IntegrateP1Field(target_mesh, target) ==
-            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source)).margin(1e-9));
+            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
+              .margin(1e-9));
 
     // On this mesh the lumped solution at the corner vertices is the
     // phi-weighted patch average of x + y, which is off by 0.5 — far above
@@ -219,6 +207,26 @@ TEST_CASE("OmegaHConservativeProjection with lumped mass reproduces constants "
       max_err = std::max(max_err, std::abs(target_values[i] - expected));
     }
     CHECK(max_err > 1e-3);
+
+    pcms::test::RequireBoundedBy(target, source);
+  }
+
+  SECTION("hat function stays inside source field range")
+  {
+    // A hat centered on v0: nodal values (1, 0, 0, 0).
+    // This function can cause overshoot/undershoot with
+    // L2 projection
+    pcms::test::SetField(
+      source, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) {
+        return (1.0 - x) * (1.0 - y);
+      });
+
+    projection.Apply(source, target);
+
+    pcms::test::RequireBoundedBy(target, source);
+    REQUIRE(pcms::test::IntegrateP1Field(target_mesh, target) ==
+            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
+              .margin(1e-9));
   }
 }
 
