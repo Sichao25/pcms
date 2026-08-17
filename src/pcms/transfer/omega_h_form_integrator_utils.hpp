@@ -7,6 +7,7 @@
 #include "pcms/utility/assert.h"
 #include <MeshField_Integrate.hpp>
 #include <MeshField_Shape.hpp>
+#include <MeshField_Config.hpp>
 #include <Omega_h_shape.hpp>
 #include <Kokkos_MathematicalFunctions.hpp>
 
@@ -422,9 +423,17 @@ struct IntegrationData
     auto bary_coords_host = Kokkos::create_mirror_view(bary_coords);
     auto weights_host = Kokkos::create_mirror_view(weights);
     for (std::size_t i = 0; i < num_ip; ++i) {
-      for (int d = 0; d < Dim + 1; ++d) {
-        bary_coords_host(i, d) = ip_vec[i].param[d];
+      // MeshField returns points in reduced parametric coordinates: only the
+      // first Dim barycentric components are stored, with the last implied by
+      // the partition of unity. Expand to the full Dim+1 barycentric form
+      // consumed by GlobalFromBarycentric.
+      Omega_h::Real last = 1.0;
+      for (int d = 0; d < Dim; ++d) {
+        const Omega_h::Real xi = ip_vec[i].param[d];
+        bary_coords_host(i, d) = xi;
+        last -= xi;
       }
+      bary_coords_host(i, Dim) = last;
       weights_host(i) = ip_vec[i].weight;
     }
     Kokkos::deep_copy(bary_coords, bary_coords_host);

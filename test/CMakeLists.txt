@@ -96,6 +96,37 @@ if(PCMS_ENABLE_OMEGA_H)
       ${d3d16p}
       ignored)
   endif()
+  add_exe(test_GDI)
+  tri_mpi_test(
+          TESTNAME
+          test_GDI
+          TIMEOUT
+          20
+          NAME1
+          app
+          EXE1
+          ./test_GDI
+          PROCS1
+          1
+          ARGS1
+          1
+          NAME2
+          rdv
+          EXE2
+          ./test_GDI
+          PROCS2
+          1
+          ARGS2
+          -1
+          NAME3
+          app
+          EXE3
+          ./test_GDI
+          PROCS3
+          1
+          ARGS3
+          0
+  )
 
   set(d3d8p ${PCMS_TEST_DATA_DIR}/d3d/d3d-full_9k_sfc_p8.osh/)
   add_exe(test_twoClientOverlap)
@@ -380,7 +411,7 @@ if(Catch2_FOUND)
       APPEND
       PCMS_UNIT_TEST_SOURCES
       test_error_handling.cpp
-      test_eqdsk.cpp
+            test_eqdsk.cpp
       test_uniform_grid.cpp
       test_field_evaluation.cpp
       test_field_interpolation.cpp
@@ -402,7 +433,6 @@ if(Catch2_FOUND)
       test_omega_h_lagrange_field.cpp
       test_point_evaluator.cpp)
   endif()
-
   if(PCMS_ENABLE_MESHFIELDS)
     list(APPEND PCMS_UNIT_TEST_SOURCES
       test_omega_h_form_integrator_utils.cpp)
@@ -431,15 +461,6 @@ if(Catch2_FOUND)
   if(PCMS_ENABLE_PETSC)
     target_link_libraries(unit_tests PRIVATE PETSc::PETSc)
   endif()
-
-  target_link_libraries(unit_tests PUBLIC 
-    Catch2::Catch2 
-    pcms::core
-    pcms_transfer
-    pcms_transfer
-  )
- 
- target_include_directories(unit_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
   add_executable(test_interpolation_on_ltx_mesh test_interpolation_on_ltx_mesh.cpp)
   target_link_libraries(test_interpolation_on_ltx_mesh PUBLIC Catch2::Catch2WithMain

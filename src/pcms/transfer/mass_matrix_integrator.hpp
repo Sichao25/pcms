@@ -3,6 +3,7 @@
 
 #include <KokkosController.hpp>
 #include <MeshField.hpp>
+#include <MeshField_Config.hpp>
 #include <MeshField_Element.hpp>
 #include <MeshField_Fail.hpp>
 #include <MeshField_For.hpp>
@@ -41,7 +42,7 @@ public:
     // std::cerr << " Number points per Elem : " << numPtsPerElem << "\n";
     assert(numPtsPerElem >= 1);
     const size_t ptDim = p.extent(1);
-    assert(ptDim == fe.MeshEntDim + 1);
+    assert(ptDim == fe.MeshEntDim);
     // Copy values needed in the kernel to avoid capturing host references
     // (mesh and fe are host objects and cannot be dereferenced on the device)
     const auto numElems = mesh.nelems();
@@ -54,8 +55,7 @@ public:
         const auto last = first + numPtsPerElem;
         for (auto pt = first; pt < last; pt++) {
           // FIXME better way to fill? pass kokkos::subview to getValues?
-          Kokkos::Array<MeshField::Real, FieldElement::MeshEntDim + 1>
-            localCoord;
+          Kokkos::Array<MeshField::Real, FieldElement::MeshEntDim> localCoord;
           for (auto i = 0; i < localCoord.size(); i++) {
             localCoord[i] = p(pt, i);
           }

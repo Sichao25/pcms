@@ -130,11 +130,11 @@ Mat BuildOmegaHMassMatrixImpl(Omega_h::Mesh& mesh,
   Kokkos::View<MeshField::Real*> elm_mass_dev;
   if constexpr (Dim == 3) {
     const auto [shp, map] = MeshField::Omegah::getTetrahedronElement<1>(mesh);
-    MeshField::FieldElement coordFe(mesh.nelems(), coordField, shp, map);
+    MeshField::FieldElement coordFe(mesh.nelems(), coordField.field, shp, map);
     elm_mass_dev = buildElementMassMatrix(mesh, coordFe);
   } else {
     const auto [shp, map] = MeshField::Omegah::getTriangleElement<1>(mesh);
-    MeshField::FieldElement coordFe(mesh.nelems(), coordField, shp, map);
+    MeshField::FieldElement coordFe(mesh.nelems(), coordField.field, shp, map);
     elm_mass_dev = buildElementMassMatrix(mesh, coordFe);
   }
 
