@@ -34,10 +34,10 @@ TEST_CASE("evaluate linear 2d omega_h_field")
 
   pcms::test::SetField(
     field.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
   pcms::test::CheckEvaluation(
     factory, field, pcms::test::StandardEvalCoords2D(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
 }
 
 #ifdef PCMS_ENABLE_MESHFIELDS
@@ -50,35 +50,11 @@ TEST_CASE("evaluate quadratic 2d meshfields_field")
     mesh, 2, 1, pcms::CoordinateSystem::Cartesian, "global",
     pcms::LagrangeFunctionSpace::Backend::MeshFields);
 
-  // Quadratic DOF holders span vertices and edge midpoints; set them inline.
-  const auto nverts = mesh.nents(0);
-  const auto nedges = mesh.nents(1);
-  auto mesh_coords = mesh.coords();
-  auto edge_verts = mesh.ask_verts_of(1);
-
-  Omega_h::Write<Real> test_f(nverts + nedges);
-  Omega_h::parallel_for(
-    nverts, OMEGA_H_LAMBDA(int i) {
-      test_f[i] = sin_f(mesh_coords[2 * static_cast<size_t>(i)],
-                        mesh_coords[2 * static_cast<size_t>(i) + 1]);
-    });
-  Omega_h::parallel_for(
-    nedges, OMEGA_H_LAMBDA(int i) {
-      auto ep = Omega_h::gather_verts<2>(edge_verts, i);
-      Real cx = (mesh_coords[2 * static_cast<size_t>(ep[0])] +
-                 mesh_coords[2 * static_cast<size_t>(ep[1])]) /
-                2;
-      Real cy = (mesh_coords[2 * static_cast<size_t>(ep[0]) + 1] +
-                 mesh_coords[2 * static_cast<size_t>(ep[1]) + 1]) /
-                2;
-      test_f[nverts + i] = sin_f(cx, cy);
-    });
-
-  Omega_h::HostWrite<Real> test_f_host(test_f);
+  // Quadratic DOF holders span vertices and edge midpoints; the layout's DOF
+  // coordinates cover both, so SetField samples sin_f at every holder.
   auto field = factory->CreateFunction<Real>();
-  field.GetData().SetDOFHolderDataHost(
-    pcms::Rank2View<const Real, pcms::HostMemorySpace>(test_f_host.data(),
-                                                       test_f_host.size(), 1));
+  pcms::test::SetField(
+    field, OMEGA_H_LAMBDA(Real x, Real y) { return sin_f(x, y); });
 
   pcms::test::CheckEvaluation(
     factory, field, kEvalCoords,

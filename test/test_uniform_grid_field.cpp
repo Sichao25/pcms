@@ -72,7 +72,7 @@ void VerifyUniformGridFieldValues(
       int vertex_id = j * (grid.divisions[0] + 1) + i;
       pcms::Real x = ug_coords.GetValues()(vertex_id, 0);
       pcms::Real y = ug_coords.GetValues()(vertex_id, 1);
-      pcms::Real expected = x + 2.0 * y;
+      pcms::Real expected = pcms::test::linear_f(x, y);
       pcms::Real actual = ug_field_data[vertex_id];
       REQUIRE(std::abs(expected - actual) <= 1e-10);
     }
@@ -151,21 +151,16 @@ TEST_CASE("UniformGrid order-0 field creation and evaluation")
   auto evaluator = eval_factory.CreatePointEvaluator(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  Kokkos::View<pcms::Real*, pcms::HostMemorySpace> results_host("results_host",
-                                                                4);
-  Kokkos::View<pcms::Real*, pcms::DeviceMemorySpace> results_device(
-    "results_device", 4);
-  using LayoutPolicy =
-    pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
-  pcms::Rank2View<pcms::Real, pcms::DeviceMemorySpace, LayoutPolicy> out(
-    results_device.data(), 4, 1);
-  evaluator->Evaluate(field, out);
-  Kokkos::deep_copy(results_host, results_device);
+  Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace> results_device(
+    "results_device", 4, 1);
+  evaluator->Evaluate(field, pcms::MakeRank2View(results_device));
+  auto results_host = Kokkos::create_mirror_view_and_copy(
+    pcms::HostMemorySpace(), results_device);
 
-  REQUIRE(results_host(0) == Catch::Approx(1.0));
-  REQUIRE(results_host(1) == Catch::Approx(2.0));
-  REQUIRE(results_host(2) == Catch::Approx(3.0));
-  REQUIRE(results_host(3) == Catch::Approx(4.0));
+  REQUIRE(results_host(0, 0) == Catch::Approx(1.0));
+  REQUIRE(results_host(1, 0) == Catch::Approx(2.0));
+  REQUIRE(results_host(2, 0) == Catch::Approx(3.0));
+  REQUIRE(results_host(3, 0) == Catch::Approx(4.0));
 }
 
 TEST_CASE("UniformGrid field data operations", "[uniform_grid_field]")
@@ -236,26 +231,21 @@ TEST_CASE("UniformGrid field evaluation - piecewise constant")
   auto evaluator = eval_factory.CreatePointEvaluator(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  Kokkos::View<pcms::Real*, pcms::HostMemorySpace> results_host("results_host",
-                                                                4);
-  Kokkos::View<pcms::Real*, pcms::DeviceMemorySpace> results_device(
-    "results_device", 4);
-  using LayoutPolicy =
-    pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
-  pcms::Rank2View<pcms::Real, pcms::DeviceMemorySpace, LayoutPolicy> out(
-    results_device.data(), 4, 1);
-  evaluator->Evaluate(field, out);
-  Kokkos::deep_copy(results_host, results_device);
+  Kokkos::View<pcms::Real**, pcms::DeviceMemorySpace> results_device(
+    "results_device", 4, 1);
+  evaluator->Evaluate(field, pcms::MakeRank2View(results_device));
+  auto results_host = Kokkos::create_mirror_view_and_copy(
+    pcms::HostMemorySpace(), results_device);
 
   // Check results - interpolated from vertices
   // Cell 0 center (2.5, 2.5): avg of v0,v1,v3,v4 = (1.0+1.5+2.0+2.5)/4 = 1.75
   // Cell 1 center (7.5, 2.5): avg of v1,v2,v4,v5 = (1.5+2.0+2.5+3.0)/4 = 2.25
   // Cell 2 center (2.5, 7.5): avg of v3,v4,v6,v7 = (2.0+2.5+3.0+3.5)/4 = 2.75
   // Cell 3 center (7.5, 7.5): avg of v4,v5,v7,v8 = (2.5+3.0+3.5+4.0)/4 = 3.25
-  REQUIRE(std::abs(results_host(0) - 1.75) < 1e-10);
-  REQUIRE(std::abs(results_host(1) - 2.25) < 1e-10);
-  REQUIRE(std::abs(results_host(2) - 2.75) < 1e-10);
-  REQUIRE(std::abs(results_host(3) - 3.25) < 1e-10);
+  REQUIRE(std::abs(results_host(0, 0) - 1.75) < 1e-10);
+  REQUIRE(std::abs(results_host(1, 0) - 2.25) < 1e-10);
+  REQUIRE(std::abs(results_host(2, 0) - 2.75) < 1e-10);
+  REQUIRE(std::abs(results_host(3, 0) - 3.25) < 1e-10);
 }
 
 TEST_CASE("UniformGrid field serialization")
@@ -328,8 +318,9 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto omega_h_field = omega_h_factory->CreateFunction<pcms::Real>();
   pcms::test::SetField(
-    omega_h_field,
-    OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) { return x + 2.0 * y; });
+    omega_h_field, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) {
+      return pcms::test::linear_f(x, y);
+    });
 
   pcms::UniformGrid<2> grid;
   grid.edge_length = {1.0, 1.0};
@@ -354,7 +345,7 @@ TEST_CASE("Transfer from OmegaH field to UniformGrid field")
   for (int i = 0; i < num_ug_nodes; ++i) {
     pcms::Real x = ug_coords_host(i, 0);
     pcms::Real y = ug_coords_host(i, 1);
-    pcms::Real expected = x + 2.0 * y;
+    pcms::Real expected = pcms::test::linear_f(x, y);
     REQUIRE(std::abs(transferred_data[i] - expected) < 1e-6);
   }
 }
@@ -641,8 +632,9 @@ TEST_CASE("UniformGrid workflow")
     mesh, 1, 1, pcms::CoordinateSystem::Cartesian);
   auto omega_h_field = omega_h_factory->CreateFunction<pcms::Real>();
   pcms::test::SetField(
-    omega_h_field,
-    OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) { return x + 2.0 * y; });
+    omega_h_field, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) {
+      return pcms::test::linear_f(x, y);
+    });
 
   auto ug_factory = pcms::LagrangeFunctionSpace::FromUniformGrid(
     grid, 1, pcms::CoordinateSystem::Cartesian);
@@ -658,23 +650,11 @@ TEST_CASE("UniformGrid workflow")
   auto ug_coords_host_view =
     pcms::test::CopyCoordinatesToHost(ug_coords_device_view, 25, 2);
 
-  auto ug_field_data_device = ug_field.GetDOFHolderData();
-  Kokkos::View<pcms::Real*, pcms::DeviceMemorySpace> ug_field_data_device_view(
-    "", 25);
-  Kokkos::parallel_for(
-    "CopyFieldDataToView", 25, KOKKOS_LAMBDA(int i) {
-      ug_field_data_device_view(i) = ug_field_data_device(i, 0);
-    });
-  auto ug_field_data_host_view =
-    Kokkos::View<pcms::Real*, pcms::HostMemorySpace>("", 25);
-  Kokkos::deep_copy(ug_field_data_host_view, ug_field_data_device_view);
-
-  pcms::Rank2View<const pcms::Real, pcms::HostMemorySpace> ug_coords(
-    ug_coords_host_view.data(), 25, 2);
   pcms::CoordinateView<pcms::HostMemorySpace> ug_coords_view(
-    pcms::CoordinateSystem::Cartesian, ug_coords);
-  pcms::Rank1View<const pcms::Real, pcms::HostMemorySpace> ug_field_data(
-    ug_field_data_host_view.data(), 25);
+    pcms::CoordinateSystem::Cartesian,
+    pcms::MakeConstRank2View(ug_coords_host_view));
+  const auto ug_field_data =
+    pcms::FlattenToRank1View(ug_field.GetDOFHolderDataHost());
   VerifyUniformGridFieldValues(grid, ug_coords_view, ug_field_data);
 
   VerifyMaskFieldValues(grid, mask_field);

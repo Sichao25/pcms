@@ -38,7 +38,7 @@ TEST_CASE("test_serial_svd")
 
   Kokkos::deep_copy(A_data, host_A_data);
 
-  Kokkos::View<double*> rhs_data("Device rhs data", row, column);
+  Kokkos::View<double*> rhs_data("Device rhs data", row);
   auto host_rhs_data = Kokkos::create_mirror_view(rhs_data);
 
   host_rhs_data(0) = 1.28571;
@@ -54,7 +54,7 @@ TEST_CASE("test_serial_svd")
   {
 
     Kokkos::View<double**> result("result", row, row);
-    Kokkos::View<double**> transpose_expected("result", row, row);
+    Kokkos::View<double**> transpose_expected("transpose_expected", row, row);
     Kokkos::deep_copy(result, 0.0);
     Kokkos::deep_copy(transpose_expected, 0.0);
     team_policy tp(1, Kokkos::AUTO);

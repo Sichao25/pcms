@@ -3,6 +3,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <Kokkos_Core.hpp>
+#include "pcms/configuration.h"
 #include "pcms/field/field.h"
 #include "pcms/field/field_data.h"
 #include "pcms/field/field_evaluator_factory.h"
@@ -11,10 +12,22 @@
 #include "pcms/field/out_of_bounds_policy.h"
 #include "pcms/coupler/field_serializer.h"
 #include "pcms/field/coordinate_system.h"
-#include "pcms/localization/adj_search.hpp"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/memory_spaces.h"
+#ifdef PCMS_ENABLE_OMEGA_H
+#include <Omega_h_build.hpp>
+#include <Omega_h_mesh.hpp>
+#include <Omega_h_shape.hpp>
+#include "pcms/field/function_space/lagrange.h"
+#include "pcms/localization/adj_search.hpp"
+#endif
+#if defined(PCMS_ENABLE_PETSC) && defined(PCMS_ENABLE_MESHFIELDS)
+#include "pcms/transfer/linear_form_integrator.hpp"
+#endif
 #include <cmath>
+#include <memory>
+#include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -34,6 +47,62 @@ KOKKOS_INLINE_FUNCTION Real linear_f(Real x, Real y)
 inline std::vector<Real> StandardEvalCoords2D()
 {
   return {0.1, 0.2, 0.5, 0.5, 0.7, 0.3, 0.9, 0.1, 0.2, 0.8};
+}
+
+// Points strictly outside a unit [0,1]^2 box mesh.
+inline std::vector<Real> StandardOutsideCoords2D()
+{
+  return {-0.5, 0.5, 1.5, 0.5, 0.5, -0.5, 0.5, 1.5};
+}
+
+#ifdef PCMS_ENABLE_OMEGA_H
+// Builds a unit-square 2D simplex mesh from the given element connectivity and
+// adds the geometric classification tags required to build an Omega_h-backed
+// Lagrange function space.
+inline Omega_h::Mesh BuildUnitSquare(Omega_h::Library& lib,
+                                     const Omega_h::LOs& ev2v)
+{
+  const Omega_h::Reals coords({
+    0.0, 0.0, // v0
+    1.0, 0.0, // v1
+    1.0, 1.0, // v2
+    0.0, 1.0  // v3
+  });
+  Omega_h::Mesh mesh(&lib);
+  Omega_h::build_from_elems_and_coords(&mesh, OMEGA_H_SIMPLEX, 2, ev2v, coords);
+  for (Omega_h::Int dim = 0; dim <= 2; ++dim) {
+    mesh.add_tag<Omega_h::I8>(
+      dim, "class_dim", 1,
+      Omega_h::Read<Omega_h::I8>(mesh.nents(dim), Omega_h::I8(dim)));
+    mesh.add_tag<Omega_h::ClassId>(
+      dim, "class_id", 1,
+      Omega_h::Read<Omega_h::ClassId>(mesh.nents(dim), Omega_h::ClassId(0)));
+  }
+  return mesh;
+}
+
+// Convenience overload: diagonal=0 splits the square along vertices (1,3),
+// diagonal=1 along (0,2).
+inline Omega_h::Mesh BuildUnitSquare(Omega_h::Library& lib, int diagonal)
+{
+  return BuildUnitSquare(lib, (diagonal == 0)
+                                ? Omega_h::LOs({0, 1, 3, 1, 2, 3})
+                                : Omega_h::LOs({0, 1, 2, 0, 2, 3}));
+}
+
+inline std::shared_ptr<LagrangeFunctionSpace> MakeP1Space(
+  Omega_h::Mesh& mesh, const std::string& global_id_name = "global")
+{
+  return LagrangeFunctionSpace::FromMesh(
+    mesh, 1, 1, CoordinateSystem::Cartesian, global_id_name,
+    LagrangeFunctionSpace::Backend::OmegaH);
+}
+
+inline std::shared_ptr<LagrangeFunctionSpace> MakeP0Space(Omega_h::Mesh& mesh)
+{
+  return LagrangeFunctionSpace::FromMesh(
+    mesh, 0, 1, CoordinateSystem::Cartesian, "global",
+    LagrangeFunctionSpace::Backend::OmegaH);
 }
 
 inline bool AreArraysEqualUnordered(
@@ -76,6 +145,40 @@ inline std::vector<Real> CopyOmegaHRealsToVector(const Omega_h::Reals& coords)
                            coords_read.data() + coords_read.size());
 }
 
+inline double IntegrateP0Field(Omega_h::Mesh& mesh, const Field<Real>& field)
+{
+  const auto values = FlattenToRank1View(field.GetDOFHolderDataHost());
+  const auto measures = Omega_h::measure_elements_real(&mesh);
+  const auto measures_h = Omega_h::HostRead<Omega_h::Real>(measures);
+
+  double integral = 0.0;
+  for (Omega_h::LO e = 0; e < mesh.nelems(); ++e) {
+    integral += measures_h[e] * values[e];
+  }
+  return integral;
+}
+
+inline double IntegrateP1Field(Omega_h::Mesh& mesh, const Field<Real>& field)
+{
+  const auto values = FlattenToRank1View(field.GetDOFHolderDataHost());
+  const auto measures = Omega_h::measure_elements_real(&mesh);
+  const auto measures_h = Omega_h::HostRead<Omega_h::Real>(measures);
+  const auto elem_verts_h =
+    Omega_h::HostRead<Omega_h::LO>(mesh.ask_elem_verts());
+  const int verts_per_elem = mesh.dim() + 1;
+
+  double integral = 0.0;
+  for (Omega_h::LO e = 0; e < mesh.nelems(); ++e) {
+    double avg = 0.0;
+    for (int k = 0; k < verts_per_elem; ++k) {
+      avg += values[elem_verts_h[verts_per_elem * e + k]];
+    }
+    integral += measures_h[e] * (avg / verts_per_elem);
+  }
+  return integral;
+}
+#endif // PCMS_ENABLE_OMEGA_H
+
 // Copy coordinates from device memory to a host view.
 // This handles potential layout mismatches between host and device memory
 // spaces.
@@ -86,14 +189,8 @@ inline Kokkos::View<const Real**, HostMemorySpace> CopyCoordinatesToHost(
   auto coords_view =
     Kokkos::View<Real**, HostMemorySpace>("coords_view", nents, dim);
   auto coords_view_device =
-    Kokkos::create_mirror(DeviceMemorySpace(), coords_view);
-  Kokkos::parallel_for(
-    "copy_coords_to_host_view", Kokkos::RangePolicy<>(0, nents),
-    KOKKOS_LAMBDA(int i) {
-      for (int d = 0; d < dim; ++d) {
-        coords_view_device(i, d) = coords_device(i, d);
-      }
-    });
+    Kokkos::create_mirror_view(DeviceMemorySpace(), coords_view);
+  ConvertMismatchLayoutView2D(coords_view_device, coords_device);
   Kokkos::deep_copy(coords_view, coords_view_device);
   return coords_view;
 }
@@ -122,44 +219,49 @@ inline std::vector<Real> EvaluateReferenceFunction(const std::vector<Real>& pts,
                            expected_host.data() + expected_host.extent(0));
 }
 
-template <typename MemorySpace, typename Func>
+template <typename DataView, typename CoordsView, typename Func>
 struct SetFieldFunctor
 {
-  Kokkos::View<Real*, MemorySpace> data;
-  Kokkos::View<Real* [2], MemorySpace> coords;
+  DataView data;
+  CoordsView coords;
   Func f;
 
-  SetFieldFunctor(Kokkos::View<Real*, MemorySpace> data_,
-                  Kokkos::View<Real* [2], MemorySpace> coords_, Func f_)
+  SetFieldFunctor(DataView data_, CoordsView coords_, Func f_)
     : data(data_), coords(coords_), f(f_)
   {
   }
 
   KOKKOS_INLINE_FUNCTION
-  void operator()(int i) const { data(i) = f(coords(i, 0), coords(i, 1)); }
+  void operator()(int i) const
+  {
+    if constexpr (std::is_invocable_v<Func, Real, Real, Real>) {
+      data(i) = f(coords(i, 0), coords(i, 1), coords(i, 2));
+    } else {
+      data(i) = f(coords(i, 0), coords(i, 1));
+    }
+  }
 };
 
-// Set scalar DOF data by sampling func at each DOF-holder coordinate.
+// Set scalar DOF data by sampling func at each DOF-holder coordinate. The
+// arity of func selects the spatial dimension: func(x, y) for 2D layouts,
+// func(x, y, z) for 3D.
 template <typename ExecutionSpace = DefaultExecutionSpace, typename Func>
 inline void SetField(const FieldLayout& layout, FieldData<Real>& field,
                      Func func)
 {
   using MemorySpace = typename ExecutionSpace::memory_space;
 
+  static_assert(std::is_invocable_v<Func, Real, Real> ||
+                  std::is_invocable_v<Func, Real, Real, Real>,
+                "SetField requires func(x, y) or func(x, y, z)");
+
   auto dof_coords = layout.GetDOFHolderCoordinates().GetValues();
   int n = static_cast<int>(dof_coords.extent(0));
-  Kokkos::View<Real* [2], MemorySpace> coords_device("coords_device", n);
-  Kokkos::parallel_for(
-    "field_test_utils_copy_coords", Kokkos::RangePolicy<ExecutionSpace>(0, n),
-    KOKKOS_LAMBDA(int i) {
-      coords_device(i, 0) = dof_coords(i, 0);
-      coords_device(i, 1) = dof_coords(i, 1);
-    });
 
   Kokkos::View<Real*, MemorySpace> data_device("data_device", n);
   Kokkos::parallel_for("field_test_utils_set_field",
                        Kokkos::RangePolicy<ExecutionSpace>(0, n),
-                       SetFieldFunctor{data_device, coords_device, func});
+                       SetFieldFunctor{data_device, dof_coords, func});
 
   auto data_host =
     Kokkos::create_mirror_view_and_copy(HostMemorySpace(), data_device);
@@ -253,12 +355,8 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
 {
   int n = static_cast<int>(pts.size()) / 2;
 
-  Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
-  using LayoutPolicy =
-    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out(out_device.data(), n, 1);
-  // Rank2View<Real, HostMemorySpace> out(eval.data(), n, 1);
-  evaluator.Evaluate(field, out);
+  Kokkos::View<Real**, DeviceMemorySpace> out_device("out_device", n, 1);
+  evaluator.Evaluate(field, MakeRank2View(out_device));
   auto out_host =
     Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
@@ -267,8 +365,8 @@ void CheckEvaluation(const PointEvaluator<Real>& evaluator,
   for (int i = 0; i < n; ++i) {
     INFO("Point " << i << " (" << pts[2 * static_cast<size_t>(i)] << ", "
                   << pts[2 * static_cast<size_t>(i) + 1] << ")"
-                  << " got=" << out_host(i) << " expected=" << expected[i]);
-    REQUIRE(out_host(i) == Catch::Approx(expected[i]).margin(abs_tol));
+                  << " got=" << out_host(i, 0) << " expected=" << expected[i]);
+    REQUIRE(out_host(i, 0) == Catch::Approx(expected[i]).margin(abs_tol));
   }
 }
 
@@ -295,16 +393,13 @@ inline void CheckFillMode(const PointEvaluator<Real>& evaluator,
 {
   int n = static_cast<int>(outside_pts.size()) / 2;
 
-  Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
-  using LayoutPolicy =
-    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out(out_device.data(), n, 1);
-  evaluator.Evaluate(field, out);
+  Kokkos::View<Real**, DeviceMemorySpace> out_device("out_device", n, 1);
+  evaluator.Evaluate(field, MakeRank2View(out_device));
   auto out_host =
     Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
   for (int i = 0; i < n; ++i) {
-    REQUIRE(out_host(i) == fill_value);
+    REQUIRE(out_host(i, 0) == fill_value);
   }
 }
 
@@ -339,11 +434,8 @@ void CheckEvaluationWithFill(const Factory& factory, const Field<Real>& field,
   auto evaluator = factory->template CreatePointEvaluator<Real>(
     EvaluationRequest::FromCoordinates(device_coords.coordinate_view, policy));
 
-  Kokkos::View<Real*, DeviceMemorySpace> out_device("out_device", n);
-  using LayoutPolicy =
-    pcms::detail::default_layout_for_memory_space_t<DeviceMemorySpace>;
-  Rank2View<Real, DeviceMemorySpace, LayoutPolicy> out(out_device.data(), n, 1);
-  evaluator->Evaluate(field, out);
+  Kokkos::View<Real**, DeviceMemorySpace> out_device("out_device", n, 1);
+  evaluator->Evaluate(field, MakeRank2View(out_device));
   auto out_host =
     Kokkos::create_mirror_view_and_copy(HostMemorySpace(), out_device);
 
@@ -352,15 +444,33 @@ void CheckEvaluationWithFill(const Factory& factory, const Field<Real>& field,
   for (int i = 0; i < n; ++i) {
     INFO("Point " << i << " (" << pts[2 * static_cast<size_t>(i)] << ", "
                   << pts[2 * static_cast<size_t>(i) + 1] << ")"
-                  << " got=" << out_host(i));
+                  << " got=" << out_host(i, 0));
     if (is_inside[i]) {
       INFO(" expected=" << expected[i]);
-      REQUIRE(out_host(i) == Catch::Approx(expected[i]).margin(abs_tol));
+      REQUIRE(out_host(i, 0) == Catch::Approx(expected[i]).margin(abs_tol));
     } else {
-      REQUIRE(out_host(i) == fill_value);
+      REQUIRE(out_host(i, 0) == fill_value);
     }
   }
 }
+
+#if defined(PCMS_ENABLE_PETSC) && defined(PCMS_ENABLE_MESHFIELDS)
+// Evaluates source_field at the integrator's sample points and assembles the
+// load vector.
+inline void EvaluateAndAssemble(
+  LinearFormIntegrator& integrator,
+  const std::shared_ptr<const FunctionSpace>& source_space,
+  const Field<Real>& source_field)
+{
+  const auto& pts = integrator.GetIntegrationPoints();
+  const std::size_t npts = pts.GetValues().extent(0);
+  auto evaluator = source_space->CreatePointEvaluator<Real>(
+    EvaluationRequest::FromCoordinates(pts));
+  Kokkos::View<Real**, DeviceMemorySpace> sampled("sampled", npts, 1);
+  evaluator->Evaluate(source_field, MakeRank2View(sampled));
+  integrator.Assemble(MakeConstRank2View(sampled));
+}
+#endif // PCMS_ENABLE_PETSC && PCMS_ENABLE_MESHFIELDS
 
 } // namespace pcms::test
 
