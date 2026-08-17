@@ -39,7 +39,7 @@ TEST_CASE("reverse classification")
   }
   auto vec = rc.Serialize();
   pcms::ReverseClassificationVertex rc_deserialized;
-  pcms::Rank1View<pcms::LO, pcms::HostMemorySpace> av{vec.data(), vec.size()};
+  auto av = pcms::make_array_view(vec);
   rc_deserialized.Deserialize(av);
   REQUIRE(rc_deserialized == rc);
 }

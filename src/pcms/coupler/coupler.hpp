@@ -11,10 +11,48 @@
 #include "pcms/utility/assert.h"
 #include "pcms/utility/common.h"
 #include "pcms/utility/profile.h"
+#include "pcms/coupler/global_communicator.h"
 #include <memory>
 
 namespace pcms
 {
+template <typename T>
+class GlobalDataInterface
+{
+public:
+  GlobalDataInterface(std::string name,
+                      Rank1View<T, pcms::HostMemorySpace> data,
+                      MPI_Comm mpi_comm, redev::Channel& channel)
+    : data_(data),
+      variable_name_(name),
+      mpi_comm_(mpi_comm),
+      comm_(name, mpi_comm_, channel)
+  {
+    PCMS_FUNCTION_TIMER;
+  }
+
+  void Send(redev::Mode mode = redev::Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    comm_.Send(data_, variable_name_, mode);
+  }
+
+  void Receive(redev::Mode mode = redev::Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    comm_.Receive(data_, variable_name_, mode);
+  }
+
+private:
+  Rank1View<T, pcms::HostMemorySpace> data_;
+  std::string variable_name_;
+  MPI_Comm mpi_comm_;
+  GlobalCommunicator<T> comm_;
+};
+using GlobalDataVariant =
+  std::variant<GlobalDataInterface<int8_t>, GlobalDataInterface<int32_t>,
+               GlobalDataInterface<int64_t>, GlobalDataInterface<float>,
+               GlobalDataInterface<double>>;
 
 class Application;
 
@@ -30,6 +68,21 @@ public:
   void Send(redev::Mode mode = redev::Mode::Synchronous) const;
   void Receive(redev::Mode mode = redev::Mode::Synchronous) const;
   [[nodiscard]] Field<T>& GetField() const;
+
+private:
+  Application* app_;
+  std::string name_;
+};
+template <typename T>
+class DataHandle
+{
+public:
+  DataHandle(Application* app, std::string name)
+    : app_(app), name_(std::move(name))
+  {
+  }
+  void Send(redev::Mode mode = redev::Mode::Synchronous) const;
+  void Receive(redev::Mode mode = redev::Mode::Synchronous) const;
 
   [[nodiscard]] const std::string& GetName() const noexcept { return name_; }
 
@@ -99,6 +152,16 @@ public:
   // Register a transferable field: like AddField but retains the function space
   // (via the stored Function) and returns a FunctionHandle usable in transfers.
   template <typename T>
+  FieldHandle<T> AddField(std::string name, Field<T>&& field,
+                          std::unique_ptr<FieldSerializer<T>> serializer,
+                          bool participates = true);
+  // Registers a reference to user-owned data. The Application does not take
+  // ownership; it uses the registered reference for subsequent send and receive
+  // operations.
+  template <typename T>
+  DataHandle<T> AddData(std::string name, Rank1View<T, HostMemorySpace> data,
+                        MPI_Comm mpi_comm);
+  template <typename T>
   FunctionHandle<T> AddFunction(Function<T>&& function,
                                 bool participates = true);
 
@@ -127,6 +190,25 @@ public:
       [mode](auto& field_communicator) { field_communicator->Receive(); },
       detail::find_or_error(name, field_communicators_));
   };
+  void SendData(const std::string& name,
+                redev::Mode mode = redev::Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    PCMS_ALWAYS_ASSERT(InSendPhase());
+
+    std::visit([mode](auto& data_interface) { data_interface.Send(mode); },
+               detail::find_or_error(name, global_data_interfaces_));
+  }
+
+  void ReceiveData(const std::string& name,
+                   redev::Mode mode = redev::Mode::Synchronous)
+  {
+    PCMS_FUNCTION_TIMER;
+    PCMS_ALWAYS_ASSERT(InReceivePhase());
+
+    std::visit([mode](auto& data_interface) { data_interface.Receive(mode); },
+               detail::find_or_error(name, global_data_interfaces_));
+  }
   [[nodiscard]] bool InSendPhase() const noexcept
   {
     PCMS_FUNCTION_TIMER;
@@ -205,7 +287,38 @@ private:
   std::map<std::string, std::unique_ptr<FieldLayoutCommunicator>>
     field_layout_communicators_;
   std::map<std::string, std::unique_ptr<OverlapMask>> layout_overlap_masks_;
+  std::map<std::string, GlobalDataVariant> global_data_interfaces_;
 };
+
+template <typename T>
+DataHandle<T> Application::AddData(std::string name,
+                                   Rank1View<T, HostMemorySpace> data,
+                                   MPI_Comm mpi_comm)
+{
+  PCMS_FUNCTION_TIMER;
+  auto [it, inserted] = global_data_interfaces_.try_emplace(
+    name, std::in_place_type<GlobalDataInterface<T>>, name, data, mpi_comm,
+    channel_);
+  if (!inserted) {
+    throw pcms_error("Global data interface with this name already exists");
+  }
+  return DataHandle<T>{this, std::move(name)};
+}
+
+template <typename T>
+void DataHandle<T>::Send(redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+
+  app_->SendData(name_, mode);
+}
+template <typename T>
+void DataHandle<T>::Receive(redev::Mode mode) const
+{
+  PCMS_ALWAYS_ASSERT(app_ != nullptr);
+
+  app_->ReceiveData(name_, mode);
+}
 
 class Coupler
 {

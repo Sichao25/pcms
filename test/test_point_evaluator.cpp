@@ -34,7 +34,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
   auto field_data = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field_data.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
@@ -44,7 +44,7 @@ TEST_CASE("PointEvaluator: OmegaH order-1 linear evaluation")
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   pcms::test::CheckEvaluation(
     *evaluator, field_data, pts,
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
 }
 
 // ============================================================================
@@ -67,45 +67,24 @@ TEST_CASE("PointEvaluator: same evaluator reused for two FieldData objects")
   // field_a: linear_f;  field_b: constant 42
   pcms::test::SetField(
     field_a.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
   pcms::test::SetField(
     field_b.GetData(), *factory->GetLayout(),
     OMEGA_H_LAMBDA(Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
-  int n = static_cast<int>(pts.size()) / 2;
   auto device_coords =
     pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
 
-  // Create the PointEvaluator once
+  // Create the PointEvaluator once and reuse it for both fields.
   auto evaluator = factory->CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_a_device("out_a", n);
-  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_b_device("out_b", n);
-  using LayoutPolicy =
-    pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
-  auto view_a = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(
-    out_a_device.data(), n, 1);
-  auto view_b = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(
-    out_b_device.data(), n, 1);
-
-  // Evaluate field_a then field_b with the same evaluator
-  evaluator->Evaluate(field_a, view_a);
-  evaluator->Evaluate(field_b, view_b);
-
-  auto out_a_host =
-    Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_a_device);
-  auto out_b_host =
-    Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_b_device);
-
-  for (int i = 0; i < n; ++i) {
-    Real x = pts[2 * static_cast<size_t>(i)],
-         y = pts[2 * static_cast<size_t>(i) + 1];
-    REQUIRE(out_a_host(i) ==
-            Catch::Approx(pcms::test::linear_f(x, y)).margin(1e-10));
-    REQUIRE(out_b_host(i) == Catch::Approx(42.0).margin(1e-10));
-  }
+  pcms::test::CheckEvaluation(
+    *evaluator, field_a, pts,
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
+  pcms::test::CheckEvaluation(
+    *evaluator, field_b, pts, OMEGA_H_LAMBDA(Real, Real) { return Real(42); });
 }
 
 // ============================================================================
@@ -125,11 +104,10 @@ TEST_CASE("PointEvaluator: OmegaH order-1 out-of-bounds fill")
   auto field_data = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field_data.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
 
   // Points clearly outside [0,1]^2
-  const std::vector<Real> outside_pts = {-0.5, 0.5,  1.5, 0.5,
-                                         0.5,  -0.5, 0.5, 1.5};
+  const auto outside_pts = pcms::test::StandardOutsideCoords2D();
   auto device_coords = pcms::test::CreateDeviceCoordinateView(
     outside_pts, CoordinateSystem::Cartesian);
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
@@ -158,7 +136,7 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
   auto field_data = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field_data.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
   auto device_coords =
@@ -167,7 +145,8 @@ TEST_CASE("PointEvaluator: UniformGrid order-1 linear evaluation")
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   pcms::test::CheckEvaluation(
     *evaluator, field_data, pts,
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; }, 1e-8);
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); },
+    1e-8);
 }
 
 TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
@@ -184,7 +163,7 @@ TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
   auto field_data = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field_data.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
   auto device_coords =
@@ -193,7 +172,8 @@ TEST_CASE("PointEvaluator: SplineFunctionSpace uniform-grid evaluation")
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   pcms::test::CheckEvaluation(
     *evaluator, field_data, pts,
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; }, 1e-8);
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); },
+    1e-8);
 }
 
 // ============================================================================
@@ -308,7 +288,7 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
   auto field_data = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field_data.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
   int n = static_cast<int>(pts.size()) / 2;
@@ -318,7 +298,7 @@ TEST_CASE("PointEvaluator: MeshFields order-1 linear evaluation")
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
   pcms::test::CheckEvaluation(
     *evaluator, field_data, pts,
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
 }
 
 TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
@@ -334,10 +314,9 @@ TEST_CASE("PointEvaluator: MeshFields out-of-bounds fill")
   auto field_data = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field_data.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
 
-  const std::vector<Real> outside_pts = {-0.5, 0.5,  1.5, 0.5,
-                                         0.5,  -0.5, 0.5, 1.5};
+  const auto outside_pts = pcms::test::StandardOutsideCoords2D();
   auto device_coords = pcms::test::CreateDeviceCoordinateView(
     outside_pts, CoordinateSystem::Cartesian);
   pcms::OutOfBoundsPolicy policy{pcms::OutOfBoundsMode::FILL, -999.0};
@@ -362,43 +341,24 @@ TEST_CASE(
   auto field_b = factory->CreateFunction<Real>();
   pcms::test::SetField(
     field_a.GetData(), *factory->GetLayout(),
-    OMEGA_H_LAMBDA(Real x, Real y) { return x + 2.0 * y; });
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
   pcms::test::SetField(
     field_b.GetData(), *factory->GetLayout(),
     OMEGA_H_LAMBDA(Real, Real) { return Real(42); });
 
   auto pts = pcms::test::StandardEvalCoords2D();
-  int n = static_cast<int>(pts.size()) / 2;
   auto device_coords =
     pcms::test::CreateDeviceCoordinateView(pts, CoordinateSystem::Cartesian);
 
+  // Create the PointEvaluator once and reuse it for both fields.
   auto evaluator = factory->CreatePointEvaluator<Real>(
     pcms::EvaluationRequest::FromCoordinates(device_coords.coordinate_view));
 
-  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_a_device("out_a", n);
-  Kokkos::View<Real*, pcms::DeviceMemorySpace> out_b_device("out_b", n);
-  using LayoutPolicy =
-    pcms::detail::default_layout_for_memory_space_t<pcms::DeviceMemorySpace>;
-  auto view_a = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(
-    out_a_device.data(), n, 1);
-  auto view_b = pcms::Rank2View<Real, pcms::DeviceMemorySpace, LayoutPolicy>(
-    out_b_device.data(), n, 1);
-
-  evaluator->Evaluate(field_a, view_a);
-  evaluator->Evaluate(field_b, view_b);
-
-  auto out_a_host =
-    Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_a_device);
-  auto out_b_host =
-    Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), out_b_device);
-
-  for (int i = 0; i < n; ++i) {
-    Real x = pts[2 * static_cast<size_t>(i)],
-         y = pts[2 * static_cast<size_t>(i) + 1];
-    REQUIRE(out_a_host(i) ==
-            Catch::Approx(pcms::test::linear_f(x, y)).margin(1e-10));
-    REQUIRE(out_b_host(i) == Catch::Approx(42.0).margin(1e-10));
-  }
+  pcms::test::CheckEvaluation(
+    *evaluator, field_a, pts,
+    OMEGA_H_LAMBDA(Real x, Real y) { return pcms::test::linear_f(x, y); });
+  pcms::test::CheckEvaluation(
+    *evaluator, field_b, pts, OMEGA_H_LAMBDA(Real, Real) { return Real(42); });
 }
 
 TEST_CASE("LagrangeFunctionSpace: MeshFields rejects multi-component fields")
