@@ -29,6 +29,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 // Shared utilities for field tests that apply equally to MeshFields-backed
@@ -178,6 +179,38 @@ inline double IntegrateP1Field(Omega_h::Mesh& mesh, const Field<Real>& field)
   return integral;
 }
 #endif // PCMS_ENABLE_OMEGA_H
+
+// Min/max of an order-1 nodal field. For P1, nodal values are min/max
+inline std::pair<double, double> P1FieldRange(const Field<Real>& field)
+{
+  const auto values = FlattenToRank1View(field.GetDOFHolderData());
+  using MinMaxReducer = Kokkos::MinMax<double>;
+  using MinMaxValue = MinMaxReducer::value_type;
+
+  MinMaxValue range;
+  Kokkos::parallel_reduce(
+    static_cast<int>(values.size()),
+    KOKKOS_LAMBDA(const int i, MinMaxValue& update) {
+      const double value = static_cast<double>(values[i]);
+      if (value < update.min_val)
+        update.min_val = value;
+      if (value > update.max_val)
+        update.max_val = value;
+    },
+    MinMaxReducer(range));
+  return {range.min_val, range.max_val};
+}
+
+// Require that the target field stays within the range of the source field.
+inline void RequireBoundedBy(const Field<Real>& target,
+                             const Field<Real>& source, double tol = 1e-12)
+{
+  const auto src_range = P1FieldRange(source);
+  const auto tgt_range = P1FieldRange(target);
+  CAPTURE(src_range.first, src_range.second, tgt_range.first, tgt_range.second);
+  REQUIRE(tgt_range.first >= src_range.first - tol);
+  REQUIRE(tgt_range.second <= src_range.second + tol);
+}
 
 // Copy coordinates from device memory to a host view.
 // This handles potential layout mismatches between host and device memory

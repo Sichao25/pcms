@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_file.hpp>
 #include <Omega_h_library.hpp>
@@ -10,7 +11,8 @@
 #include <pcms/utility/mesh_geometry.h>
 #include "field_test_utils.h"
 
-#include <vector>
+#include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -31,10 +33,9 @@ void AddSparseVertexGlobalIds(Omega_h::Mesh& mesh)
 
 } // namespace
 
-// Fields that already live in the target order-1 space (constants and affine
-// functions) must be reproduced exactly by the L2 projection, and the integral
-// must be conserved. These properties hold without any reference solver, so
-// they pin down correctness on their own.
+// Fields that are in the target order-1 space (constants and affine
+// functions) should be reproduced exactly by the L2 projection, and the
+// integral must be conserved.
 TEST_CASE("OmegaHConservativeProjection reproduces constant and linear fields",
           "[transfer][mesh_intersection]")
 {
@@ -112,7 +113,12 @@ TEST_CASE("OmegaHConservativeProjection conserves the integral",
   auto source = source_space->CreateFunction<pcms::Real>();
   auto target = target_space->CreateFunction<pcms::Real>();
 
-  pcms::OmegaHConservativeProjection projection(*source_space, *target_space);
+  const auto mass_type =
+    GENERATE(pcms::MassMatrixType::Consistent, pcms::MassMatrixType::Lumped);
+  CAPTURE(static_cast<int>(mass_type));
+
+  pcms::OmegaHConservativeProjection projection(*source_space, *target_space,
+                                                mass_type);
 
   pcms::test::SetField(
     source, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) {
@@ -132,6 +138,96 @@ TEST_CASE("OmegaHConservativeProjection conserves the integral",
   REQUIRE(pcms::test::IntegrateP1Field(target_mesh, target) ==
           Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
             .margin(1e-12));
+}
+
+// Row-sum lumping preserves constants and integral. It also bounds the values.
+TEST_CASE("OmegaHConservativeProjection with lumped mass reproduces constants, "
+          "not linears, and stays bounded",
+          "[transfer][mesh_intersection]")
+{
+  Omega_h::Library lib;
+
+  Omega_h::Mesh source_mesh =
+    pcms::test::BuildUnitSquare(lib, Omega_h::LOs({0, 1, 2, 0, 2, 3}));
+  Omega_h::Mesh target_mesh =
+    pcms::test::BuildUnitSquare(lib, Omega_h::LOs({0, 1, 3, 1, 2, 3}));
+
+  auto source_space = pcms::test::MakeP1Space(source_mesh);
+  auto target_space = pcms::test::MakeP1Space(target_mesh);
+
+  auto source = source_space->CreateFunction<pcms::Real>();
+  auto target = target_space->CreateFunction<pcms::Real>();
+
+  pcms::OmegaHConservativeProjection projection(*source_space, *target_space,
+                                                pcms::MassMatrixType::Lumped);
+
+  SECTION("constant field is preserved and conserved")
+  {
+    const double c = 2.0;
+    pcms::test::SetField(
+      source, OMEGA_H_LAMBDA(pcms::Real, pcms::Real) { return c; });
+
+    projection.Apply(source, target);
+
+    const auto target_values =
+      pcms::FlattenToRank1View(target.GetDOFHolderDataHost());
+    REQUIRE(static_cast<Omega_h::LO>(target_values.size()) ==
+            target_mesh.nverts());
+    for (Omega_h::LO i = 0; i < target_mesh.nverts(); ++i) {
+      REQUIRE(target_values[i] == Catch::Approx(c).margin(1e-10));
+    }
+    REQUIRE(pcms::test::IntegrateP1Field(target_mesh, target) ==
+            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
+              .margin(1e-10));
+  }
+
+  SECTION("linear field conserves the integral but is not nodally exact")
+  {
+    pcms::test::SetField(
+      source, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) { return x + y; });
+
+    projection.Apply(source, target);
+
+    REQUIRE(pcms::test::IntegrateP1Field(target_mesh, target) ==
+            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
+              .margin(1e-9));
+
+    // On this mesh the lumped solution at the corner vertices is the
+    // phi-weighted patch average of x + y, which is off by 0.5 — far above
+    // solver tolerance. A consistent mass matrix reproduces the field to
+    // 1e-9 (see the exact-reproduction test above), so a large error here
+    // proves the lumped path was actually taken.
+    const auto target_values =
+      pcms::FlattenToRank1View(target.GetDOFHolderDataHost());
+    const auto tgt_coords_h =
+      Omega_h::HostRead<Omega_h::Real>(target_mesh.coords());
+    double max_err = 0.0;
+    for (Omega_h::LO i = 0; i < target_mesh.nverts(); ++i) {
+      const double expected = tgt_coords_h[2 * i + 0] + tgt_coords_h[2 * i + 1];
+      max_err = std::max(max_err, std::abs(target_values[i] - expected));
+    }
+    CHECK(max_err > 1e-3);
+
+    pcms::test::RequireBoundedBy(target, source);
+  }
+
+  SECTION("hat function stays inside source field range")
+  {
+    // A hat centered on v0: nodal values (1, 0, 0, 0).
+    // This function can cause overshoot/undershoot with
+    // L2 projection
+    pcms::test::SetField(
+      source, OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) {
+        return (1.0 - x) * (1.0 - y);
+      });
+
+    projection.Apply(source, target);
+
+    pcms::test::RequireBoundedBy(target, source);
+    REQUIRE(pcms::test::IntegrateP1Field(target_mesh, target) ==
+            Catch::Approx(pcms::test::IntegrateP1Field(source_mesh, source))
+              .margin(1e-9));
+  }
 }
 
 TEST_CASE("OmegaHConservativeProjection writes reordered target GIDs in local "
