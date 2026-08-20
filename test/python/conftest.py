@@ -14,7 +14,7 @@ def omega_h_lib():
     happens exactly once per test run.
     """
     lib = omega_h.OmegaHLibrary()
-    yield lib
+    return lib
 
 
 @pytest.fixture(scope="session")
