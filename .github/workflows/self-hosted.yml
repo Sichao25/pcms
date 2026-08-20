@@ -127,7 +127,7 @@ jobs:
           cmake --build $bdir -j 4
           ctest --test-dir $bdir --output-on-failure
 
-          export PYTHONPATH=$DEPENDENCY_DIR/${DEVICE_ARCH}/omega_h/install/lib64/python3.11/site-packages:$bdir/src/pcms/pythonapi:$PYTHONPATH
+          export PYTHONPATH=$DEPENDENCY_DIR/${DEVICE_ARCH}/omega_h/install/lib64/python./site-packages:$bdir/src/pcms/pythonapi:$PYTHONPATH
           export LD_LIBRARY_PATH=$DEPENDENCY_DIR/${DEVICE_ARCH}/omega_h/install/lib64:$LD_LIBRARY_PATH
           pytest -v -p no:cacheprovider ${{github.workspace}}/pcms_${{ github.event.id }}/test/python
 
