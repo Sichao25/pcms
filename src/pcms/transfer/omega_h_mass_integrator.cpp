@@ -58,12 +58,15 @@ void FillP0MassCoo(
 }
 
 // Fills the (Dim+1)x(Dim+1)-block COO sparsity pattern of a P1 (linear) mass
-// matrix: each element contributes a dense block coupling its vertex DOFs.
+// matrix: each element contributes a dense block coupling its vertex DOFs. When
+// lumped, every block entry is mapped onto the row's diagonal instead; PETSc's
+// COO assembly sums repeated indices, so the unmodified element values
+// accumulate into the row-sum lumped diagonal.
 template <int Dim>
 void FillP1MassCooPattern(
   int nelems, const Omega_h::LOs& elems2nodes,
   const Kokkos::View<const LO*, DeviceMemorySpace>& global_to_local,
-  const Kokkos::View<PetscInt*, DeviceMemorySpace>& coo_rows,
+  bool lumped, const Kokkos::View<PetscInt*, DeviceMemorySpace>& coo_rows,
   const Kokkos::View<PetscInt*, DeviceMemorySpace>& coo_cols)
 {
   constexpr int nv = Dim + 1;
@@ -73,8 +76,10 @@ void FillP1MassCooPattern(
       for (int i = 0; i < nv; ++i) {
         for (int j = 0; j < nv; ++j) {
           const int idx = e * (nv * nv) + i * nv + j;
-          coo_rows(idx) = static_cast<PetscInt>(global_to_local(verts[i]));
-          coo_cols(idx) = static_cast<PetscInt>(global_to_local(verts[j]));
+          const auto row = static_cast<PetscInt>(global_to_local(verts[i]));
+          coo_rows(idx) = row;
+          coo_cols(idx) =
+            lumped ? row : static_cast<PetscInt>(global_to_local(verts[j]));
         }
       }
     });
@@ -84,7 +89,8 @@ void FillP1MassCooPattern(
 // for Dim==2, tetrahedra for Dim==3) and returns the owned PETSc matrix.
 template <int Dim>
 Mat BuildOmegaHMassMatrixImpl(Omega_h::Mesh& mesh,
-                              const OmegaHLagrangeLayout& target_layout)
+                              const OmegaHLagrangeLayout& target_layout,
+                              MassMatrixType mass_type)
 {
   const auto global_to_local = target_layout.GetGlobalToLocalPermutation();
   const PetscInt num_dofs =
@@ -107,17 +113,17 @@ Mat BuildOmegaHMassMatrixImpl(Omega_h::Mesh& mesh,
                        coo_cols, vals);
 
     PetscErrorCode ierr =
-      createSeqAIJMat(PETSC_COMM_WORLD, num_dofs, num_dofs, 0, nullptr, &mat);
-    CHKERRABORT(PETSC_COMM_WORLD, ierr);
+      createSeqAIJMat(PETSC_COMM_SELF, num_dofs, num_dofs, 0, nullptr, &mat);
+    CHKERRABORT(PETSC_COMM_SELF, ierr);
     auto coo_rows_host =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_rows);
     auto coo_cols_host =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_cols);
     ierr = MatSetPreallocationCOO(mat, nnz, coo_rows_host.data(),
                                   coo_cols_host.data());
-    CHKERRABORT(PETSC_COMM_WORLD, ierr);
+    CHKERRABORT(PETSC_COMM_SELF, ierr);
     ierr = MatSetValuesCOO(mat, vals.data(), INSERT_VALUES);
-    CHKERRABORT(PETSC_COMM_WORLD, ierr);
+    CHKERRABORT(PETSC_COMM_SELF, ierr);
     return mat;
   }
 
@@ -146,48 +152,52 @@ Mat BuildOmegaHMassMatrixImpl(Omega_h::Mesh& mesh,
   const PetscInt nnz = static_cast<PetscInt>(nelems) * (nv * nv);
   Kokkos::View<PetscInt*, DeviceMemorySpace> coo_rows("mass_coo_rows", nnz);
   Kokkos::View<PetscInt*, DeviceMemorySpace> coo_cols("mass_coo_cols", nnz);
-  FillP1MassCooPattern<Dim>(nelems, elems2nodes, global_to_local, coo_rows,
+  FillP1MassCooPattern<Dim>(nelems, elems2nodes, global_to_local,
+                            mass_type == MassMatrixType::Lumped, coo_rows,
                             coo_cols);
 
   // Create sparse matrix, preallocate with COO pattern, then bulk-set values.
   // elm_mass_dev is in the same element-major order as coo_rows/coo_cols, so
   // it can be passed directly to MatSetValuesCOO — no host copy needed.
   PetscErrorCode ierr =
-    createSeqAIJMat(PETSC_COMM_WORLD, num_dofs, num_dofs, 0, nullptr, &mat);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+    createSeqAIJMat(PETSC_COMM_SELF, num_dofs, num_dofs, 0, nullptr, &mat);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
   auto coo_rows_host =
     Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_rows);
   auto coo_cols_host =
     Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, coo_cols);
   ierr = MatSetPreallocationCOO(mat, nnz, coo_rows_host.data(),
                                 coo_cols_host.data());
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
   ierr = MatSetValuesCOO(mat, elm_mass_dev.data(), INSERT_VALUES);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
   return mat;
 }
 
 } // namespace
 
-OmegaHMassIntegrator::OmegaHMassIntegrator(const FunctionSpace& target_space)
+OmegaHMassIntegrator::OmegaHMassIntegrator(const FunctionSpace& target_space,
+                                           MassMatrixType mass_type)
   : OmegaHMassIntegrator(std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(
                            target_space.GetLayout()),
-                         target_space.GetCoordinateSystem())
+                         target_space.GetCoordinateSystem(), mass_type)
 {
 }
 
 OmegaHMassIntegrator::OmegaHMassIntegrator(
   std::shared_ptr<const OmegaHLagrangeLayout> target_layout,
-  CoordinateSystem coordinate_system)
+  CoordinateSystem coordinate_system, MassMatrixType mass_type)
 {
   detail::CheckOmegaHScalarLagrangeLayout(coordinate_system, target_layout,
                                           "OmegaHMassIntegrator", "target");
 
   Omega_h::Mesh& mesh = target_layout->GetMesh();
+  diagonal_ =
+    target_layout->GetOrder() == 0 || mass_type == MassMatrixType::Lumped;
   if (mesh.dim() == 3) {
-    mat_ = BuildOmegaHMassMatrixImpl<3>(mesh, *target_layout);
+    mat_ = BuildOmegaHMassMatrixImpl<3>(mesh, *target_layout, mass_type);
   } else {
-    mat_ = BuildOmegaHMassMatrixImpl<2>(mesh, *target_layout);
+    mat_ = BuildOmegaHMassMatrixImpl<2>(mesh, *target_layout, mass_type);
   }
 }
 
@@ -203,10 +213,15 @@ Mat OmegaHMassIntegrator::GetMatrix() const noexcept
   return mat_;
 }
 
-std::unique_ptr<BilinearFormIntegrator> BuildOmegaHMassIntegrator(
-  const FunctionSpace& target_space)
+bool OmegaHMassIntegrator::IsDiagonal() const noexcept
 {
-  return std::make_unique<OmegaHMassIntegrator>(target_space);
+  return diagonal_;
+}
+
+std::unique_ptr<BilinearFormIntegrator> BuildOmegaHMassIntegrator(
+  const FunctionSpace& target_space, MassMatrixType mass_type)
+{
+  return std::make_unique<OmegaHMassIntegrator>(target_space, mass_type);
 }
 
 } // namespace pcms

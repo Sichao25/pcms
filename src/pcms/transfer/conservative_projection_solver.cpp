@@ -12,11 +12,11 @@ static Omega_h::Reals vecToOmegaHReals(Vec vec)
 {
   PetscInt n = 0;
   PetscErrorCode ierr = VecGetSize(vec, &n);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
 
   const PetscScalar* array = nullptr;
   ierr = VecGetArrayRead(vec, &array);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
 
   auto values_host = Omega_h::HostWrite<Omega_h::Real>(n);
   for (PetscInt i = 0; i < n; ++i) {
@@ -24,7 +24,7 @@ static Omega_h::Reals vecToOmegaHReals(Vec vec)
   }
 
   ierr = VecRestoreArrayRead(vec, &array);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
 
   return Omega_h::Reals(values_host);
 }
@@ -42,7 +42,7 @@ GalerkinProjectionSolver::GalerkinProjectionSolver(
 
   PetscInt m = 0, n = 0;
   PetscErrorCode ierr = MatGetSize(A, &m, &n);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
   nverts_ = m;
 
   const std::size_t num_pts =
@@ -50,16 +50,27 @@ GalerkinProjectionSolver::GalerkinProjectionSolver(
   sampled_values_ =
     Kokkos::View<Real**, DeviceMemorySpace>("rhs_sampled", num_pts, 1);
 
-  ierr = KSPCreate(PETSC_COMM_WORLD, &ksp_);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  ierr = KSPCreate(PETSC_COMM_SELF, &ksp_);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
   ierr = KSPSetOperators(ksp_, A, A);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
+  if (mass_integrator.IsDiagonal()) {
+    // Jacobi preconditioning applies inv(diag(A))
+    // with preonly this is the true inverse
+    ierr = KSPSetType(ksp_, KSPPREONLY);
+    CHKERRABORT(PETSC_COMM_SELF, ierr);
+    PC pc = nullptr;
+    ierr = KSPGetPC(ksp_, &pc);
+    CHKERRABORT(PETSC_COMM_SELF, ierr);
+    ierr = PCSetType(pc, PCJACOBI);
+    CHKERRABORT(PETSC_COMM_SELF, ierr);
+  }
   ierr = KSPSetFromOptions(ksp_);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
   ierr = KSPSetTolerances(ksp_, 1e-14, 1e-14, PETSC_DEFAULT, PETSC_DEFAULT);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
   ierr = KSPSetUp(ksp_);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
 }
 
 GalerkinProjectionSolver::~GalerkinProjectionSolver()
@@ -84,16 +95,16 @@ Omega_h::Reals GalerkinProjectionSolver::Solve(
   Vec rhs_vector = rhs_integrator_->GetVector();
 
   Vec solution = nullptr;
-  PetscErrorCode ierr = createSeqVec(PETSC_COMM_WORLD, nverts_, &solution);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  PetscErrorCode ierr = createSeqVec(PETSC_COMM_SELF, nverts_, &solution);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
 
   ierr = KSPSolve(ksp_, rhs_vector, solution);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
 
   auto result = vecToOmegaHReals(solution);
 
   ierr = VecDestroy(&solution);
-  CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  CHKERRABORT(PETSC_COMM_SELF, ierr);
 
   return result;
 }

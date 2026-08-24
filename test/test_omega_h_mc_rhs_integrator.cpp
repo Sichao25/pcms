@@ -1,5 +1,6 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <Omega_h_build.hpp>
 #include <Omega_h_library.hpp>
 #include <Omega_h_mesh.hpp>
@@ -85,6 +86,8 @@ TEST_CASE("OmegaHControlVariateProjection: exact for fields in the target "
   // For a globally linear field the control variate (target-space interpolant
   // of the source field) equals the source field, so the sampled residual is
   // identically zero and the projection is exact regardless of sample count.
+  // That holds for any invertible mass matrix (delta = M^-1 0 = 0), so the
+  // lumped variant must be exact here too.
   Omega_h::Library lib;
   auto source_mesh = pcms::test::BuildUnitSquare(lib, 1);
   auto target_mesh = pcms::test::BuildUnitSquare(lib, 0);
@@ -97,9 +100,13 @@ TEST_CASE("OmegaHControlVariateProjection: exact for fields in the target "
     source_field,
     OMEGA_H_LAMBDA(pcms::Real x, pcms::Real y) { return 3.0 * x - y + 0.25; });
 
+  const auto mass_type =
+    GENERATE(pcms::MassMatrixType::Consistent, pcms::MassMatrixType::Lumped);
+  CAPTURE(static_cast<int>(mass_type));
+
   pcms::OmegaHControlVariateProjection projection(
     *source_space, *target_space, /*samples_per_element=*/4,
-    pcms::MonteCarloSampling::UniformRandom);
+    pcms::MonteCarloSampling::UniformRandom, /*seed=*/8675309, mass_type);
   projection.Apply(source_field, target_field);
 
   const auto values =

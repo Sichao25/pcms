@@ -41,7 +41,8 @@ void CheckApplyCompatible(const Field<Real>& source, const Field<Real>& target,
 } // namespace
 
 OmegaHConservativeProjection::OmegaHConservativeProjection(
-  const FunctionSpace& source_space, const FunctionSpace& target_space)
+  const FunctionSpace& source_space, const FunctionSpace& target_space,
+  MassMatrixType mass_matrix_type)
   : source_layout_(std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(
       source_space.GetLayout())),
     target_layout_(std::dynamic_pointer_cast<const OmegaHLagrangeLayout>(
@@ -57,8 +58,8 @@ OmegaHConservativeProjection::OmegaHConservativeProjection(
 
   // Mass integrator is only needed to build the solver; PETSc reference-counts
   // the matrix so it remains alive inside the KSP after this scope ends.
-  OmegaHMassIntegrator mass_integrator(target_layout_,
-                                       target_space.GetCoordinateSystem());
+  OmegaHMassIntegrator mass_integrator(
+    target_layout_, target_space.GetCoordinateSystem(), mass_matrix_type);
   solver_ = std::make_unique<GalerkinProjectionSolver>(mass_integrator,
                                                        *rhs_integrator_);
   target_values_ = Kokkos::View<Real**, DeviceMemorySpace>(
