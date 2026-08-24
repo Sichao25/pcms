@@ -67,7 +67,7 @@ jobs:
       if: matrix.python_api == 'ON'
       run: |
         sudo apt-get install -yq python3 python3-pip python3-dev python3-pybind11 pybind11-dev
-        pip3 install numpy
+        pip3 install numpy pytest
 
     - uses: actions/checkout@v4
 
@@ -165,7 +165,7 @@ jobs:
       with:
         repo-name: 'redev'
         repo-path: 'SCOREC/redev'
-        repo-ref: 'ac09848a5f9b89493e8b679c9080b9efe5538376'
+        repo-ref: '1e4c876f786b420f060695ba2c1079447e975b69'
         cache: true
         cache-suffix: ${{ matrix.python_api == 'ON' && '-shared' || '' }}
         options: '-DCMAKE_CXX_COMPILER=`which mpicxx`
@@ -288,12 +288,8 @@ jobs:
       run: |
         export PYTHONPATH=${{ runner.temp }}/build-pcms/install/lib/python3.12/site-packages:$PYTHONPATH
         export PYTHONPATH=${{ runner.temp }}/build-omega_h/install/lib/python/dist-packages:$PYTHONPATH
-        cd ${{ github.workspace }}/src/pcms/pythonapi
-        python3 test_file_io.py
-        python3 test_omega_h_field.py
-        python3 test_uniform_grid_field.py
-        python3 test_field_copy.py
-        python3 test_mls_interpolation.py
+        cd ${{ github.workspace }}
+        pytest -v --tb=short -p no:cacheprovider
 
     - name: Test PCMS Installation
       if: matrix.python_api == 'OFF'

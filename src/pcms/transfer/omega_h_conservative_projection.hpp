@@ -4,6 +4,7 @@
 #include "pcms/field/function_space.h"
 #include "pcms/field/layout/omega_h_lagrange.h"
 #include "pcms/field/point_evaluator.h"
+#include "pcms/transfer/mass_matrix_type.hpp"
 #include "pcms/transfer/transfer_operator.hpp"
 #include <Kokkos_Core.hpp>
 #include <memory>
@@ -21,7 +22,10 @@ class OmegaHIntersectionRHSIntegrator;
 //   (OmegaHIntersectionRHSIntegrator).
 //   - Localizes integration points in the source mesh (PointEvaluator).
 //   - Assembles the target mass matrix and factors it via KSP
-//     (GalerkinProjectionSolver).
+//     (GalerkinProjectionSolver). With MassMatrixType::Lumped the mass
+//     matrix is row-sum lumped and the KSP degenerates to an exact diagonal
+//     scaling; conservation is unaffected, but linear fields are no longer
+//     reproduced exactly on order-1 targets.
 //
 // Apply() (per-call cost):
 //   - Evaluates the source field at the fixed integration points.
@@ -31,8 +35,9 @@ class OmegaHIntersectionRHSIntegrator;
 class OmegaHConservativeProjection : public TransferOperator<Real>
 {
 public:
-  OmegaHConservativeProjection(const FunctionSpace& source_space,
-                               const FunctionSpace& target_space);
+  OmegaHConservativeProjection(
+    const FunctionSpace& source_space, const FunctionSpace& target_space,
+    MassMatrixType mass_matrix_type = MassMatrixType::Consistent);
 
   // Defined in the .cpp where GalerkinProjectionSolver is a complete type.
   ~OmegaHConservativeProjection() override;

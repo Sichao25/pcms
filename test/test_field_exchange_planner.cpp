@@ -51,9 +51,7 @@ TEST_CASE("GID messages insert headers around compact field payloads",
     "gid_message",
     plan.msg_size + 2 * static_cast<std::size_t>(pcms::ent_offsets_len));
   pcms::GenericFieldExchangePlanner planner;
-  planner.FillGidMessage(layout, plan,
-                         pcms::Rank1View<pcms::GO, pcms::HostMemorySpace>(
-                           message.data(), message.size()));
+  planner.FillGidMessage(layout, plan, pcms::MakeRank1View(message));
 
   const pcms::GO expected[] = {
     0, 2, 2, 2, 2, 0, 2, 0, 2, 2, 2, 2, 1, 3,

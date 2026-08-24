@@ -14,6 +14,10 @@ public:
   // counting keeps the matrix alive until the KSP is destroyed).
   virtual Mat GetMatrix() const noexcept = 0;
 
+  // True when the assembled matrix is diagonal; lets solvers pick an exact
+  // one-application diagonal solve (e.g. preonly + Jacobi).
+  virtual bool IsDiagonal() const noexcept { return false; }
+
   virtual ~BilinearFormIntegrator() noexcept = default;
 };
 

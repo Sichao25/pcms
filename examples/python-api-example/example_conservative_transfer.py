@@ -216,7 +216,20 @@ def main(plot_path=None):
         report("mesh intersection (exact quadrature)", mi_target, target_mesh,
                target_coords, reference_values, source_integral)
 
-        # 3b. Monte Carlo (control-variate) conservative projection.
+        # 3b. Mesh-intersection projection with a row-sum lumped mass matrix.
+        #     The linear solve degenerates to an exact diagonal scaling; the
+        #     integral is still conserved exactly, but the max nodal error
+        #     grows relative to the consistent mass matrix.
+        lumped_target = target_space.create_field()
+        lumped_projection = pcms.OmegaHConservativeProjection(
+            source_space, target_space,
+            mass_matrix_type=pcms.MassMatrixType.Lumped,
+        )
+        lumped_projection.apply(source_field, lumped_target)
+        report("mesh intersection (lumped mass)", lumped_target, target_mesh,
+               target_coords, reference_values, source_integral)
+
+        # 3c. Monte Carlo (control-variate) conservative projection.
         mc_target = target_space.create_field()
         monte_carlo = pcms.OmegaHControlVariateProjection(
             source_space,

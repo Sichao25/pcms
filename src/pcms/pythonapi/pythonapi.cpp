@@ -39,7 +39,7 @@ PYBIND11_MODULE(pcms, m)
 {
 #if defined(PCMS_ENABLE_PETSC) && defined(PCMS_ENABLE_MESHFIELDS)
   // The conservative/Monte Carlo projection solvers build PETSc objects on
-  // PETSC_COMM_WORLD, so PETSc must be initialized before any of them are
+  // PETSC_COMM_SELF, so PETSc must be initialized before any of them are
   // constructed. Do it once at import time (PetscInitialize brings up MPI if it
   // is not already running) so callers never manage PETSc state by hand.
   //
