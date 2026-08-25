@@ -226,7 +226,8 @@ OMEGA_H_INLINE void ForEachIntersectionSubtriangleImpl(
       Omega_h::Real area =
         Kokkos::fabs(Omega_h::triangle_area_from_basis(basis));
 
-      const double eps_area = abs_tol + rel_tol * poly_area;
+      const double eps_area =
+        PCMS_INTERSECTION_ABS_TOL + PCMS_INTERSECTION_REL_TOL * poly_area;
       if (area <= eps_area) {
         continue;
       }
@@ -319,7 +320,8 @@ OMEGA_H_INLINE void ForEachIntersectionSubtetImpl(
       continue;
     }
     const double poly_vol = Kokkos::fabs(r3d::measure(poly));
-    const double eps_vol = abs_tol + rel_tol * poly_vol;
+    const double eps_vol =
+      PCMS_INTERSECTION_ABS_TOL + PCMS_INTERSECTION_REL_TOL * poly_vol;
 
     // Centroid of the (convex) intersection polyhedron: interior apex.
     Omega_h::Vector<3> apex = {0.0, 0.0, 0.0};

@@ -13,14 +13,6 @@
 
 namespace pcms
 {
-constexpr static double abs_tol = PCMS_INTERSECTION_ABS_TOL; /// abs tolerance
-constexpr static double rel_tol = PCMS_INTERSECTION_REL_TOL; /// rel tolerance
-
-// Upper bound on intersecting source elements recorded per target element.
-// Must not exceed the BFS queue capacity (MAX_SIZE_QUEUE); raised for 3D where
-// a single target tet can overlap many source tets.
-constexpr static int kMaxIntersectionsPerTarget = MAX_SIZE_QUEUE;
-
 // Gather the vertex coordinates of a simplex element (triangle for Dim==2,
 // tetrahedron for Dim==3) into an r3d simplex, ready for
 // r3d::intersect_simplices.

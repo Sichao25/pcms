@@ -94,11 +94,13 @@ void FindIntersections::adjBasedIntersectSearch(
             // If the visited buffer is full, skip this neighbor so the BFS
             // terminates. Without this, an unrecorded neighbor stays "not
             // visited" and is re-queued forever (infinite loop). Mirrors the
-            // guard in adj_search.cpp. Raise MAX_SIZE_TRACK if this fires.
+            // guard in adj_search.cpp. Raise PCMS_INTERSECTION_TRACK_SIZE if
+            // this fires.
             if (!visited.push_back(neighborElmId)) {
-              printf("ERROR: visited buffer full (MAX_SIZE_TRACK=%d) for "
+              printf("ERROR: visited buffer full "
+                     "(PCMS_INTERSECTION_TRACK_SIZE=%d) for "
                      "target %d; some intersections may be missed\n",
-                     MAX_SIZE_TRACK, id);
+                     PCMS_INTERSECTION_TRACK_SIZE, id);
               continue;
             }
             auto elm_vert_coords = get_vert_coords_of_elem<Dim>(
@@ -116,17 +118,18 @@ void FindIntersections::adjBasedIntersectSearch(
             auto current_src_elm_measure = src_elem_measures[neighborElmId];
             auto scale =
               Kokkos::fmax(current_tgt_elm_measure, current_src_elm_measure);
-            auto eps = Kokkos::fmax(abs_tol, rel_tol * scale);
+            auto eps = Kokkos::fmax(PCMS_INTERSECTION_ABS_TOL,
+                                    PCMS_INTERSECTION_REL_TOL * scale);
             // A valid intersection is a non-degenerate simplex-simplex overlap:
             // at least Dim+1 vertices (a polygon in 2D, a polyhedron in 3D).
             if (intersection.nverts >= Dim + 1 && intersected_measure >= eps) {
               count++;
 
               OMEGA_H_CHECK_PRINTF(
-                count < kMaxIntersectionsPerTarget,
+                count < PCMS_INTERSECTION_QUEUE_SIZE,
                 "intersection count for target %d reached the cap %d; raise "
-                "kMaxIntersectionsPerTarget/MAX_SIZE_QUEUE",
-                id, kMaxIntersectionsPerTarget);
+                "PCMS_INTERSECTION_QUEUE_SIZE",
+                id, PCMS_INTERSECTION_QUEUE_SIZE);
 
               queue.push_back(neighborElmId);
 

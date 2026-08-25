@@ -66,9 +66,9 @@ GalerkinProjectionSolver::GalerkinProjectionSolver(
     ierr = PCSetType(pc, PCJACOBI);
     CHKERRABORT(PETSC_COMM_SELF, ierr);
   }
-  ierr = KSPSetTolerances(ksp_, PCMS_PROJECTION_KSP_RTOL,
-                          PCMS_PROJECTION_KSP_ATOL, PETSC_DEFAULT,
-                          PETSC_DEFAULT);
+  ierr =
+    KSPSetTolerances(ksp_, PCMS_PROJECTION_KSP_RTOL, PCMS_PROJECTION_KSP_ATOL,
+                     PETSC_DEFAULT, PETSC_DEFAULT);
   CHKERRABORT(PETSC_COMM_SELF, ierr);
   ierr = KSPSetFromOptions(ksp_);
   CHKERRABORT(PETSC_COMM_SELF, ierr);

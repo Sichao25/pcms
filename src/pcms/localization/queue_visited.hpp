@@ -8,22 +8,6 @@
 #include <Omega_h_mesh.hpp>
 #include <Omega_h_reduce.hpp>
 #include "pcms/configuration.h"
-// Per-thread BFS ring-buffer capacities for the adjacency-based intersection
-// search. Sized for 3D: a target tetrahedron can overlap many more source
-// elements than a 2D triangle, and the visited set additionally holds the
-// non-intersecting neighbors probed along the way. These are on-stack arrays,
-// so raising them raises per-thread stack usage; lower them for device (GPU)
-// builds via the PCMS_INTERSECTION_{QUEUE,TRACK}_SIZE CMake cache variables,
-// which flow in through pcms/configuration.h. The fallbacks below apply only if
-// the configured header is unavailable (e.g. a header-only consumer).
-#ifndef PCMS_INTERSECTION_QUEUE_SIZE
-#define PCMS_INTERSECTION_QUEUE_SIZE 1024
-#endif
-#ifndef PCMS_INTERSECTION_TRACK_SIZE
-#define PCMS_INTERSECTION_TRACK_SIZE 2048
-#endif
-#define MAX_SIZE_QUEUE PCMS_INTERSECTION_QUEUE_SIZE
-#define MAX_SIZE_TRACK PCMS_INTERSECTION_TRACK_SIZE
 
 namespace pcms
 {
@@ -31,7 +15,7 @@ namespace pcms
 class Queue
 {
 private:
-  Omega_h::LO queue_array[MAX_SIZE_QUEUE];
+  Omega_h::LO queue_array[PCMS_INTERSECTION_QUEUE_SIZE];
   int first = 0, last = -1, count = 0;
 
 public:
@@ -60,7 +44,7 @@ public:
 class Track
 {
 private:
-  Omega_h::LO tracking_array[MAX_SIZE_TRACK];
+  Omega_h::LO tracking_array[PCMS_INTERSECTION_TRACK_SIZE];
   int first = 0, last = -1, count = 0;
 
 public:
@@ -83,11 +67,11 @@ public:
 OMEGA_H_INLINE
 void Queue::push_back(const int& item)
 {
-  if (count == MAX_SIZE_QUEUE) {
+  if (count == PCMS_INTERSECTION_QUEUE_SIZE) {
     printf("queue is full %d\n", count);
     return;
   }
-  last = (last + 1) % MAX_SIZE_QUEUE;
+  last = (last + 1) % PCMS_INTERSECTION_QUEUE_SIZE;
   queue_array[last] = item;
   count++;
 }
@@ -99,7 +83,7 @@ void Queue::pop_front()
     printf("queue is empty\n");
     return;
   }
-  first = (first + 1) % MAX_SIZE_QUEUE;
+  first = (first + 1) % PCMS_INTERSECTION_QUEUE_SIZE;
   count--;
 }
 
@@ -118,19 +102,19 @@ bool Queue::isEmpty() const
 OMEGA_H_INLINE
 bool Queue::isFull() const
 {
-  return count == MAX_SIZE_QUEUE;
+  return count == PCMS_INTERSECTION_QUEUE_SIZE;
 }
 
 OMEGA_H_INLINE
 bool Track::push_back(const int& item)
 {
-  if (count == MAX_SIZE_TRACK) {
+  if (count == PCMS_INTERSECTION_TRACK_SIZE) {
     // Visited buffer is full. Report failure so callers can stop expanding the
     // search; otherwise new vertices can never be marked visited and the BFS
     // re-queues them forever (infinite loop).
     return false;
   }
-  last = (last + 1) % MAX_SIZE_TRACK;
+  last = (last + 1) % PCMS_INTERSECTION_TRACK_SIZE;
   tracking_array[last] = item;
   count++;
   return true;
@@ -141,7 +125,7 @@ bool Track::notVisited(const int& item)
 {
   int id;
   for (int i = 0; i < count; ++i) {
-    id = (first + i) % MAX_SIZE_TRACK;
+    id = (first + i) % PCMS_INTERSECTION_TRACK_SIZE;
     if (tracking_array[id] == item) {
       return false;
     }
