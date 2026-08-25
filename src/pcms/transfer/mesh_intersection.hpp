@@ -1,6 +1,7 @@
 #ifndef PCMS_TRANSFER_MESH_INTERSECTION_HPP
 #define PCMS_TRANSFER_MESH_INTERSECTION_HPP
 
+#include <pcms/configuration.h>
 #include <pcms/localization/point_search.h>
 #include <pcms/localization/queue_visited.hpp>
 #include <Omega_h_fail.hpp>
@@ -12,8 +13,8 @@
 
 namespace pcms
 {
-constexpr static double abs_tol = 1e-18; /// abs tolerance
-constexpr static double rel_tol = 1e-12; /// rel tolerance
+constexpr static double abs_tol = PCMS_INTERSECTION_ABS_TOL; /// abs tolerance
+constexpr static double rel_tol = PCMS_INTERSECTION_REL_TOL; /// rel tolerance
 
 // Upper bound on intersecting source elements recorded per target element.
 // Must not exceed the BFS queue capacity (MAX_SIZE_QUEUE); raised for 3D where
