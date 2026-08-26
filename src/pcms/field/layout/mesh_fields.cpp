@@ -62,12 +62,10 @@ auto GetMeshFieldElement(Omega_h::Mesh& mesh)
   }
 }
 
-// Builds the global coordinates of every DOF holder from meshFields' element
-// definition.
 template <int Dim, int Order>
-void BuildDofHolderCoordsFromMeshField(Omega_h::Mesh& mesh,
-                                       Kokkos::View<Real**> holder_coords,
-                                       const std::array<int, 4>& nodes_per_dim)
+void BuildDofHolderCoordsFromMeshFieldImpl(
+  Omega_h::Mesh& mesh, Kokkos::View<Real**> holder_coords,
+  const std::array<int, 4>& nodes_per_dim)
 {
   const auto elem = GetMeshFieldElement<Dim, Order>(mesh);
 
@@ -131,6 +129,39 @@ void BuildDofHolderCoordsFromMeshField(Omega_h::Mesh& mesh,
           holder_coords(row, d) = X[d];
       }
     });
+}
+
+void BuildDofHolderCoordsFromMeshField(Omega_h::Mesh& mesh,
+                                       Kokkos::View<Real**> holder_coords,
+                                       const std::array<int, 4>& nodes_per_dim)
+{
+  int dim = mesh.dim();
+  int order = 0;
+  for (int i = 0; i <= dim; ++i) {
+    if (nodes_per_dim[i] == 1)
+      ++order;
+    else if (nodes_per_dim[i] != 0) {
+      std::cerr << "Unsupported" << std::endl;
+      std::abort();
+    }
+  }
+
+  if (dim == 2 && order == 1)
+    BuildDofHolderCoordsFromMeshFieldImpl<2, 1>(mesh, holder_coords,
+                                                nodes_per_dim);
+  else if (dim == 2 && order == 2)
+    BuildDofHolderCoordsFromMeshFieldImpl<2, 2>(mesh, holder_coords,
+                                                nodes_per_dim);
+  else if (dim == 3 && order == 1)
+    BuildDofHolderCoordsFromMeshFieldImpl<3, 1>(mesh, holder_coords,
+                                                nodes_per_dim);
+  else if (dim == 3 && order == 2)
+    BuildDofHolderCoordsFromMeshFieldImpl<3, 2>(mesh, holder_coords,
+                                                nodes_per_dim);
+  else {
+    std::cerr << "Unsupported element/order combination" << std::endl;
+    std::abort();
+  }
 }
 } // namespace
 
@@ -196,34 +227,7 @@ MeshFieldsAdapterLayout::MeshFieldsAdapterLayout(
     std::abort();
   }
 
-  // calculate the polynomial order of the field based on the nodes per
-  // dimension
-  int order = 0;
-  for (int i = 0; i <= mesh_.dim(); ++i) {
-    if (nodes_per_dim[i] == 1)
-      ++order;
-    else if (nodes_per_dim[i] != 0) {
-      std::cerr << "Unsupported" << std::endl;
-      std::abort();
-    }
-  }
-
-  if (mesh_.dim() == 2 && order == 1)
-    BuildDofHolderCoordsFromMeshField<2, 1>(mesh_, dof_holder_coords_,
-                                            nodes_per_dim);
-  else if (mesh_.dim() == 2 && order == 2)
-    BuildDofHolderCoordsFromMeshField<2, 2>(mesh_, dof_holder_coords_,
-                                            nodes_per_dim);
-  else if (mesh_.dim() == 3 && order == 1)
-    BuildDofHolderCoordsFromMeshField<3, 1>(mesh_, dof_holder_coords_,
-                                            nodes_per_dim);
-  else if (mesh_.dim() == 3 && order == 2)
-    BuildDofHolderCoordsFromMeshField<3, 2>(mesh_, dof_holder_coords_,
-                                            nodes_per_dim);
-  else {
-    std::cerr << "Unsupported element/order combination" << std::endl;
-    std::abort();
-  }
+  BuildDofHolderCoordsFromMeshField(mesh_, dof_holder_coords_, nodes_per_dim);
 
   size_t offset = 0;
   for (int i = 0; i <= mesh_.dim(); ++i) {
