@@ -17,7 +17,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      code-quality: write
 
     defaults:
       run:
@@ -313,21 +312,42 @@ jobs:
               --xml coverage-cpp.xml \
               --print-summary
 
-    - name: Upload coverage report
-      if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && matrix.python_api == 'ON'
-      uses: actions/upload-code-coverage@v1
+    - name: Print coverage report
+      if: matrix.coverage == 'ON'
+      run: |
+        python3 .github/scripts/coverage_report.py coverage.xml coverage-cpp.xml > /tmp/coverage-report.md
+        cat /tmp/coverage-report.md
+        cat /tmp/coverage-report.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Save PR number
+      if: github.event_name == 'pull_request' && matrix.coverage == 'ON'
+      run: |
+        mkdir -p pr-context
+        printf '%s' "${{ github.event.number }}" > pr-context/pr_number
+
+    - name: Upload PR number
+      if: github.event_name == 'pull_request' && matrix.coverage == 'ON'
+      uses: actions/upload-artifact@v4
       with:
-        file: coverage.xml
-        language: Python
-        label: code-coverage/pytest
+        name: pr-number
+        path: pr-context
+        retention-days: 1
+
+    - name: Upload Python coverage report
+      if: matrix.coverage == 'ON'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-python
+        path: coverage.xml
+        retention-days: 1
 
     - name: Upload C++ coverage report
-      if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && matrix.coverage == 'ON'
-      uses: actions/upload-code-coverage@v1
+      if: matrix.coverage == 'ON'
+      uses: actions/upload-artifact@v4
       with:
-        file: coverage-cpp.xml
-        language: cpp
-        label: code-coverage/cpp
+        name: coverage-cpp
+        path: coverage-cpp.xml
+        retention-days: 1
 
     - name: Test PCMS Installation
       if: matrix.python_api == 'OFF'
