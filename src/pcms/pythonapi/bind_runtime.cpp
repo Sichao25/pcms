@@ -1,6 +1,6 @@
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
-#include <stdexcept>
+#include "pcms/utility/assert.h"
 
 namespace pcms
 {
@@ -20,7 +20,7 @@ void initialize()
   MPI_Initialized(&is_initialized);
   if (!is_initialized) {
     if (MPI_Init(nullptr, nullptr) != MPI_SUCCESS) {
-      throw std::runtime_error("pcms: MPI_Init failed");
+      throw pcms_error("pcms: MPI_Init failed");
     }
     g_py_owns_mpi = true;
   }
