@@ -293,6 +293,11 @@ int OmegaHLagrangeLayout::GetDimension() const
   return mesh_.dim();
 }
 
+int OmegaHLagrangeLayout::GetDOFHolderEntityDim() const
+{
+  return EntityDimForOrder(order_, mesh_.dim());
+}
+
 Rank1View<const LO, HostMemorySpace>
 OmegaHLagrangeLayout::GetDOFHolderClassificationDimensionsHost() const
 {

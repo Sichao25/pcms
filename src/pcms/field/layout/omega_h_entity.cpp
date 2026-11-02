@@ -207,6 +207,11 @@ int OmegaHEntityLayout::GetDimension() const
   return dimension_;
 }
 
+int OmegaHEntityLayout::GetDOFHolderEntityDim() const
+{
+  return entity_dim_;
+}
+
 Rank1View<const LO, HostMemorySpace>
 OmegaHEntityLayout::GetDOFHolderClassificationDimensionsHost() const
 {

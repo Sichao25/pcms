@@ -169,6 +169,12 @@ public:
 
   virtual int GetDimension() const = 0;
 
+  // Entity dimension of the DOF holders (0 = vertex, ..., mesh dim = element),
+  // used for ghost synchronization. -1 means the layout cannot synchronize
+  // ghost values via a single mesh entity dimension (e.g. non-mesh or
+  // multi-dimension layouts).
+  virtual int GetDOFHolderEntityDim() const { return -1; }
+
   virtual Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensionsHost() const = 0;
 

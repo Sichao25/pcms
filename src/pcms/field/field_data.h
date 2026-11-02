@@ -23,9 +23,10 @@ public:
   // Valid until the field data is next written or destroyed.
   virtual Rank2View<const T, DeviceMemorySpace> GetOwnedValues() const = 0;
 
-  // Writes the owned values, then brings any other copies the backend keeps
-  // (ghosts, replicas on other ranks) up to date. Collective over the ranks
-  // that share those copies.
+  // Writes the local values, then brings any internal copies the backend
+  // keeps (e.g. replicas on other ranks) up to date. Ghost DOF holders are
+  // written as given; call Field::SynchronizeGhosts to overwrite them with
+  // their owners' values. Collective over the ranks that share those copies.
   virtual void SetOwnedValues(Rank2View<const T, DeviceMemorySpace> values) = 0;
 
   virtual ~DOFAccess() noexcept = default;
@@ -44,6 +45,10 @@ public:
 
   virtual const DOFAccess<T>* GetDOFAccess() const noexcept { return nullptr; }
   virtual DOFAccess<T>* GetDOFAccess() noexcept { return nullptr; }
+
+  // Synchronize ghost DOF-holder values from their owning ranks. A no-op for
+  // backends without ghosts.
+  virtual void SynchronizeGhosts() {}
 
   virtual ~FieldData() noexcept = default;
 };

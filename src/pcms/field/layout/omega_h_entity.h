@@ -38,6 +38,7 @@ public:
   [[nodiscard]] bool IsDistributed() const override;
   EntOffsetsArray GetEntOffsets() const override;
   int GetDimension() const override;
+  int GetDOFHolderEntityDim() const override;
 
   Rank1View<const LO, HostMemorySpace>
   GetDOFHolderClassificationDimensionsHost() const override;

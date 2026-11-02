@@ -109,6 +109,10 @@ public:
     RequireDOFAccess().SetOwnedValues(v);
   }
 
+  // Synchronize ghost DOF-holder values from their owning ranks. Collective;
+  // a no-op for non-distributed fields.
+  void SynchronizeGhosts() { data_->SynchronizeGhosts(); }
+
 protected:
   Field(std::string name, std::shared_ptr<const FieldLayout> layout,
         std::unique_ptr<FieldData<T>> data)

@@ -5,7 +5,10 @@
 #include "../field_layout.h"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/assert.h"
+#include <Omega_h_mesh.hpp>
+#include "pcms/discretization/discretization/omega_h.hpp"
 #include "pcms/utility/memory_spaces.h"
+#include "pcms/utility/omega_h_array_utils.h"
 #include <Kokkos_Core.hpp>
 #include <memory>
 #include <string>
@@ -50,6 +53,33 @@ public:
   void SetOwnedValues(Rank2View<const T, DeviceMemorySpace> values) override
   {
     CopyDeviceRank2ViewToDeviceView(device_data_, values);
+  }
+
+  void SynchronizeGhosts() override
+  {
+    auto* oh = dynamic_cast<const OmegaHDiscretization*>(
+      layout_->GetDiscretization().get());
+    if (!oh) {
+      return;
+    }
+    const int dim = layout_->GetDOFHolderEntityDim();
+    if (dim < 0) {
+      return;
+    }
+    const int nc = layout_->GetNumComponents();
+    const LO num_rows = static_cast<LO>(device_data_.extent(0));
+
+    // device_data_ may be component-major on device; flatten to dof-major
+    // order for Omega_h's sync_array, then scatter the synchronized values
+    // back.
+    Kokkos::View<T*, DeviceMemorySpace> flat("ghost_sync_flat",
+                                             static_cast<size_t>(num_rows) *
+                                               static_cast<size_t>(nc));
+    CopyDeviceRank2ViewToDeviceView(flat, MakeConstRank2View(device_data_));
+
+    SynchronizeOmegaHBlock<T>(oh->GetMesh(), dim, nc, flat);
+
+    CopyDeviceViewToRank2View<T>(device_data_, flat);
   }
 
 private:
