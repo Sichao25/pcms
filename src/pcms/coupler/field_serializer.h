@@ -40,7 +40,7 @@ public:
                    Rank1View<const LO, HostMemorySpace> permutation) const
   {
     const auto& layout = field.GetLayout();
-    const LO num_dof = layout.GetNumOwnedDofHolder();
+    const LO num_dof = layout.GetNumLocalDofHolder();
     const LO num_comp = layout.GetNumComponents();
     // We initialize with local data so that
     // data that doesn't get received from deserialized
@@ -48,7 +48,7 @@ public:
     // is to make Get/SetData operate over only part of the
     // arrays
     const auto current = field.GetDOFHolderDataHost().GetValues();
-    Kokkos::View<T*, HostMemorySpace> sorted("sorted", layout.OwnedSize());
+    Kokkos::View<T*, HostMemorySpace> sorted("sorted", layout.LocalSize());
     for (LO i = 0; i < num_dof; ++i) {
       for (LO c = 0; c < num_comp; ++c) {
         sorted[i * num_comp + c] = current(i, c);

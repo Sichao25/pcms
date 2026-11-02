@@ -42,10 +42,11 @@ public:
 
   [[nodiscard]] const std::string& GetName() const noexcept { return name_; }
 
-  // The DOF-holder accessors below read and write the values of the DOF
-  // holders this rank owns through the data's DOFAccess, and throw if the data
-  // has none (e.g. a field of an evaluation-only source). Writes synchronize
-  // the backend's other copies and are collective; see DOFAccess.
+  // The DOF-holder accessors below read and write the values of every local
+  // DOF holder (owned and ghost, shaped [GetNumLocalDofHolder()][component])
+  // through the data's DOFAccess, and throw if the data has none (e.g. a field
+  // of an evaluation-only source). Writes synchronize the backend's other
+  // copies and are collective; see DOFAccess.
 
   // Copies to the host unless device memory is host memory. The returned view
   // is valid until the next call or until the field is written or destroyed.
@@ -59,6 +60,25 @@ public:
   {
     return ValueView<const T, DeviceMemorySpace>(
       data_->GetValueBasis(), RequireDOFAccess().GetOwnedValues());
+  }
+
+  // Values of the owned (rank-exclusive) DOF holders only, compact and
+  // owned-indexed: row o holds local row layout.GetOwnedToLocal()(o). Equal to
+  // the local data when the layout's owned and local holders coincide. The
+  // returned view is valid until the next call or until the field is written
+  // or destroyed.
+  [[nodiscard]] ValueView<const T, HostMemorySpace> GetOwnedDOFHolderDataHost()
+    const
+  {
+    return ValueView<const T, HostMemorySpace>(data_->GetValueBasis(),
+                                               GatherOwnedHost());
+  }
+
+  [[nodiscard]] ValueView<const T, DeviceMemorySpace> GetOwnedDOFHolderData()
+    const
+  {
+    return ValueView<const T, DeviceMemorySpace>(data_->GetValueBasis(),
+                                                 GatherOwned());
   }
 
   void SetDOFHolderDataHost(ValueView<const T, HostMemorySpace> v)
@@ -108,13 +128,13 @@ protected:
 
   void CheckWriteExtents(size_t num_holders, size_t num_components) const
   {
-    if (num_holders != static_cast<size_t>(layout_->GetNumOwnedDofHolder()) ||
+    if (num_holders != static_cast<size_t>(layout_->GetNumLocalDofHolder()) ||
         num_components != static_cast<size_t>(layout_->GetNumComponents())) {
       throw std::invalid_argument(
         "Field::SetDOFHolderData: the written view is shaped [" +
         std::to_string(num_holders) + "][" + std::to_string(num_components) +
         "] but this field's layout is [" +
-        std::to_string(layout_->GetNumOwnedDofHolder()) + "][" +
+        std::to_string(layout_->GetNumLocalDofHolder()) + "][" +
         std::to_string(layout_->GetNumComponents()) + "]");
     }
   }
@@ -155,6 +175,42 @@ protected:
     }
   }
 
+  // Gathers the owned rows of the local values into a compact device array.
+  Rank2View<const T, DeviceMemorySpace> GatherOwned() const
+  {
+    const auto local = RequireDOFAccess().GetOwnedValues();
+    if (layout_->OwnedIsLocal()) {
+      return local;
+    }
+    const auto owned_to_local = layout_->GetOwnedToLocal();
+    owned_values_ = Kokkos::View<T**, DeviceMemorySpace>(
+      Kokkos::view_alloc(Kokkos::WithoutInitializing, "owned_values"),
+      owned_to_local.extent(0), local.extent(1));
+    GatherRows(local, owned_to_local, MakeRank2View(owned_values_));
+    return MakeConstRank2View(owned_values_);
+  }
+
+  // Host analogue of GatherOwned().
+  Rank2View<const T, HostMemorySpace> GatherOwnedHost() const
+  {
+    const auto local = OwnedValuesHost();
+    if (layout_->OwnedIsLocal()) {
+      return local;
+    }
+    const auto owned_to_local = layout_->GetOwnedToLocalHost();
+    const size_t num_owned = owned_to_local.extent(0);
+    const size_t num_comp = local.extent(1);
+    host_owned_values_ = Kokkos::View<T**, HostMemorySpace>(
+      Kokkos::view_alloc(Kokkos::WithoutInitializing, "owned_values_host"),
+      num_owned, num_comp);
+    for (size_t o = 0; o < num_owned; ++o) {
+      for (size_t c = 0; c < num_comp; ++c) {
+        host_owned_values_(o, c) = local(owned_to_local(o), c);
+      }
+    }
+    return MakeConstRank2View(host_owned_values_);
+  }
+
   void SetOwnedValuesFromHost(Rank2View<const T, HostMemorySpace> values)
   {
     if constexpr (std::is_same_v<HostMemorySpace, DeviceMemorySpace>) {
@@ -181,6 +237,10 @@ private:
   // Host copy backing GetDOFHolderDataHost when device memory is not host
   // memory.
   mutable Kokkos::View<T**, HostMemorySpace> host_values_;
+  // Compact owned copies backing GetOwnedDOFHolderData(Host) when the layout
+  // has ghost DOF holders.
+  mutable Kokkos::View<T**, DeviceMemorySpace> owned_values_;
+  mutable Kokkos::View<T**, HostMemorySpace> host_owned_values_;
 };
 
 // Function<T> is a Field that additionally knows its FunctionSpace, so it can

@@ -112,7 +112,7 @@ void FieldLayoutCommunicator::UpdateLayoutNull()
   // This rank exchanges nothing, but it still unpacks on receive (backends
   // that keep replicas synchronize them there), so every holder is unmapped.
   plan_.permutation = MakeUnmappedPermutation(
-    static_cast<size_t>(layout_.GetNumOwnedDofHolder()));
+    static_cast<size_t>(layout_.GetNumLocalDofHolder()));
   if (redev_.GetProcessType() == redev::ProcessType::Client) {
     channel_.BeginSendCommunicationPhase();
     channel_.EndSendCommunicationPhase();

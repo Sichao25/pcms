@@ -89,7 +89,7 @@ int XGCFieldLayout::GetNumComponents() const
   return 1;
 }
 
-LO XGCFieldLayout::GetNumOwnedDofHolder() const
+LO XGCFieldLayout::GetNumLocalDofHolder() const
 {
   return num_plane_nodes_;
 }
@@ -107,6 +107,11 @@ Rank1View<const bool, HostMemorySpace> XGCFieldLayout::GetOwnedHost() const
 GlobalIDView<HostMemorySpace> XGCFieldLayout::GetGidsHost() const
 {
   return make_const_array_view(gids_host_);
+}
+
+GlobalIDView<DeviceMemorySpace> XGCFieldLayout::GetGids() const
+{
+  return GlobalIDView<DeviceMemorySpace>(gids_.data(), gids_.size());
 }
 
 bool XGCFieldLayout::IsDistributed() const

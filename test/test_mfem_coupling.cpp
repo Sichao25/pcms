@@ -85,13 +85,13 @@ int RunClient(MPI_Comm comm)
   app->SetLayoutOverlapMask(
     LayoutName,
     std::make_unique<pcms::OverlapMask>(
-      static_cast<size_t>(layout->GetNumOwnedDofHolder()), overlap_view));
+      static_cast<size_t>(layout->GetNumLocalDofHolder()), overlap_view));
 
   auto handle = app->AddField(factory.CreateField<Real>(FieldName));
 
   // Seed the field so each vertex holds (gid + 1).
   auto gids = layout->GetGidsHost();
-  std::vector<Real> values(static_cast<size_t>(layout->GetNumOwnedDofHolder()));
+  std::vector<Real> values(static_cast<size_t>(layout->GetNumLocalDofHolder()));
   for (size_t v = 0; v < values.size(); ++v) {
     values[v] = ExpectedValue(gids[v]);
   }
@@ -121,7 +121,7 @@ int RunServer(MPI_Comm comm)
 
   FillField(
     handle.GetField(),
-    std::vector<Real>(static_cast<size_t>(layout->GetNumOwnedDofHolder()),
+    std::vector<Real>(static_cast<size_t>(layout->GetNumLocalDofHolder()),
                       OutsideOverlapSentinel));
 
   app->ReceivePhase([&]() { handle.Receive(); });

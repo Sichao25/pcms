@@ -59,7 +59,10 @@ void bind_create_field_module(py::module& m)
   py::class_<FieldLayout, std::shared_ptr<FieldLayout>>(
     m, "FieldLayout", "How a field's DOF holders are laid out")
     .def("get_num_components", &FieldLayout::GetNumComponents)
-    .def("get_num_owned_dof_holder", &FieldLayout::GetNumOwnedDofHolder)
+    .def("get_num_local_dof_holder", &FieldLayout::GetNumLocalDofHolder,
+         "Number of DOF holders on this rank (owned + ghost)")
+    .def("get_num_owned_dof_holder", &FieldLayout::GetNumOwnedDofHolder,
+         "Number of DOF holders this rank exclusively owns")
     .def("get_num_global_dof_holder", &FieldLayout::GetNumGlobalDofHolder)
     .def("get_dimension", &FieldLayout::GetDimension)
     .def("is_distributed", &FieldLayout::IsDistributed)
@@ -121,7 +124,7 @@ void bind_create_field_module(py::module& m)
       "set_dof_holder_data_unchecked",
       [](Field<Real>& self, const NumpyInput<Real>& data) {
         const auto& layout = self.GetLayout();
-        const LO num_dof_holders = layout.GetNumOwnedDofHolder();
+        const LO num_dof_holders = layout.GetNumLocalDofHolder();
         auto view =
           NumpyToHostComponentView<Real>(data, layout.GetNumComponents());
         if (view.extent(0) != static_cast<size_t>(num_dof_holders)) {

@@ -502,5 +502,20 @@ void CopyRank1ViewToDevice(Rank1View<T, DeviceMemorySpace> dest,
     KOKKOS_LAMBDA(LO i) { dest(i) = src_tmp_d(i); });
 }
 
+// dest(i, c) = src(rows(i), c) for every row i of dest, on the device.
+template <typename T>
+void GatherRows(Rank2View<const T, DeviceMemorySpace> src,
+                Kokkos::View<const LO*, DeviceMemorySpace> rows,
+                Rank2View<T, DeviceMemorySpace> dest)
+{
+  const size_t num_rows = dest.extent(0);
+  const size_t num_comp = dest.extent(1);
+  Kokkos::parallel_for(
+    "pcms::GatherRows",
+    Kokkos::MDRangePolicy<DeviceMemorySpace::execution_space, Kokkos::Rank<2>>(
+      {0, 0}, {num_rows, num_comp}),
+    KOKKOS_LAMBDA(size_t i, size_t c) { dest(i, c) = src(rows(i), c); });
+}
+
 } // namespace pcms
 #endif // PCMS_COUPLING_ARRAYS_H

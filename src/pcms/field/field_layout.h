@@ -18,6 +18,20 @@ using EntOffsetsArray = std::array<size_t, ent_offsets_len>;
 
 using ReversePartitionMap = std::map<pcms::LO, std::vector<pcms::LO>>;
 
+// Returns the mesh entity dimension for the DOF holder at local_index, based on
+// the entity-offset array: ent_offsets[d]..ent_offsets[d+1] is the range of DOF
+// indices belonging to mesh entity dimension d.
+inline int GetMeshEntityDim(LO local_index, const EntOffsetsArray& ent_offsets)
+{
+  for (int d = 0; d < ent_offsets_len - 1; ++d) {
+    if (local_index >= static_cast<LO>(ent_offsets[d]) &&
+        local_index < static_cast<LO>(ent_offsets[d + 1])) {
+      return d;
+    }
+  }
+  return ent_offsets_len - 1;
+}
+
 class FieldLayout
 {
 public:
@@ -33,13 +47,23 @@ public:
   // number of components
   int virtual GetNumComponents() const = 0;
 
-  // nodes for standard lagrange FEM
-  LO virtual GetNumOwnedDofHolder() const = 0;
+  // number of local DOF holders resident on this rank (owned + ghost)
+  LO virtual GetNumLocalDofHolder() const = 0;
+
+  // number of owned DOF holders (the subset this rank exclusively owns). For
+  // non-distributed layouts this equals the local count.
+  LO virtual GetNumOwnedDofHolder() const { return GetNumLocalDofHolder(); }
+
   GO virtual GetNumGlobalDofHolder() const = 0;
 
-  // size of buffer that needs to be allocated to represent the field
-  // # components * NumDOFHolder
-  LO OwnedSize() const { return GetNumComponents() * GetNumOwnedDofHolder(); };
+  // size of buffer needed to hold all local coefficients
+  // # components * NumLocalDofHolder
+  LO LocalSize() const { return GetNumComponents() * GetNumLocalDofHolder(); }
+
+  // size of buffer needed to hold owned coefficients
+  // # components * NumOwnedDofHolder
+  LO OwnedSize() const { return GetNumComponents() * GetNumOwnedDofHolder(); }
+
   GO GlobalSize() const
   {
     return GetNumComponents() * GetNumGlobalDofHolder();
@@ -47,6 +71,9 @@ public:
 
   virtual Rank1View<const bool, HostMemorySpace> GetOwnedHost() const = 0;
   virtual GlobalIDView<HostMemorySpace> GetGidsHost() const = 0;
+
+  // Device-resident global IDs for all local DOF holders.
+  virtual GlobalIDView<DeviceMemorySpace> GetGids() const = 0;
 
   // Maps each local DOF holder to its contiguous active index, ordered by GID
   // within each entity block. Components are not included in the permutation.
@@ -58,11 +85,37 @@ public:
   Kokkos::View<const LO*, DeviceMemorySpace> GetGlobalToLocalPermutation()
     const;
 
-  // returns true if the field layout is distributed
-  // if the field layout is distributed, the owned and global dofs are the same
+  // returns true if the field layout is distributed (holds ghost DOF holders in
+  // addition to the owned ones); owned and local counts then differ
   [[nodiscard]] virtual bool IsDistributed() const = 0;
 
   virtual EntOffsetsArray GetEntOffsets() const = 0;
+
+  // True when every local DOF holder is owned, so owned and local indexing
+  // coincide (always, for a non-distributed layout).
+  [[nodiscard]] bool OwnedIsLocal() const
+  {
+    return GetNumOwnedDofHolder() == GetNumLocalDofHolder();
+  }
+
+  // Entity offsets over the OWNED holders (owned-index order), derived from the
+  // local entity offsets and the owned->local permutation.
+  EntOffsetsArray GetOwnedEntOffsets() const
+  {
+    if (OwnedIsLocal()) {
+      return GetEntOffsets();
+    }
+    const auto owned_to_local = GetOwnedToLocalHost();
+    EntOffsetsArray offsets{};
+    offsets.fill(0);
+    for (size_t o = 0; o < owned_to_local.size(); ++o) {
+      const int d = GetMeshEntityDim(owned_to_local(o), GetEntOffsets());
+      for (size_t e = static_cast<size_t>(d) + 1; e < ent_offsets_len; ++e) {
+        offsets[e] += 1;
+      }
+    }
+    return offsets;
+  }
 
   [[nodiscard]] const std::shared_ptr<const CoordinateSystem>&
   GetCoordinateSystem() const
@@ -75,6 +128,44 @@ public:
   }
 
   virtual CoordinateView<DeviceMemorySpace> GetDOFHolderCoordinates() const = 0;
+
+  // Owned (rank-exclusive) global IDs, compact and owned-indexed. Defaults to
+  // the local array (owned == local for non-distributed layouts).
+  virtual GlobalIDView<HostMemorySpace> GetOwnedGidsHost() const
+  {
+    return GetGidsHost();
+  }
+
+  // Owned (rank-exclusive) global IDs, compact and owned-indexed, on device.
+  // Defaults to the local device array (owned == local for non-distributed
+  // layouts).
+  virtual GlobalIDView<DeviceMemorySpace> GetOwnedGids() const
+  {
+    return GetGids();
+  }
+
+  // Owned DOF-holder coordinates, compact and owned-indexed. Defaults to the
+  // local coordinates.
+  virtual CoordinateView<DeviceMemorySpace> GetOwnedDOFHolderCoordinates() const
+  {
+    return GetDOFHolderCoordinates();
+  }
+
+  // Maps owned index (0..GetNumOwnedDofHolder()-1) to its local index. An empty
+  // view means the identity map (owned == local). A distributed layout on a
+  // rank that owns nothing also returns an empty view, so callers that need to
+  // know whether owned == local must ask `OwnedIsLocal()`, not test for empty.
+  virtual Kokkos::View<const LO*, HostMemorySpace> GetOwnedToLocalHost() const
+  {
+    return {};
+  }
+
+  // Device analogue of GetOwnedToLocalHost(): maps owned index to its local
+  // index. An empty view means the identity map (owned == local).
+  virtual Kokkos::View<const LO*, DeviceMemorySpace> GetOwnedToLocal() const
+  {
+    return {};
+  }
 
   virtual int GetDimension() const = 0;
 
@@ -110,6 +201,71 @@ private:
   Kokkos::View<LO*, HostMemorySpace> global_to_local_host_;
   Kokkos::View<LO*, DeviceMemorySpace> global_to_local_;
 };
+
+// Compact "owned" (rank-exclusive) views derived from a layout's local arrays.
+struct OwnedLayoutData
+{
+  LO num_owned = 0;
+  Kokkos::View<LO*, HostMemorySpace> owned_to_local_host;
+  Kokkos::View<GO*, HostMemorySpace> owned_gids_host;
+  Kokkos::View<Real**, DeviceMemorySpace> owned_coords_2d;
+  Kokkos::View<LO*, DeviceMemorySpace> owned_to_local;
+  Kokkos::View<GO*, DeviceMemorySpace> owned_gids;
+};
+
+template <typename CoordsView>
+OwnedLayoutData BuildOwnedLayoutData(
+  Kokkos::View<const bool*, HostMemorySpace> owned,
+  GlobalIDView<HostMemorySpace> gids, const CoordsView& coords, int dim)
+{
+  const LO n_local = static_cast<LO>(owned.size());
+  OwnedLayoutData out;
+
+  out.num_owned = 0;
+  for (LO i = 0; i < n_local; ++i) {
+    if (owned(i)) {
+      ++out.num_owned;
+    }
+  }
+
+  out.owned_to_local_host =
+    Kokkos::View<LO*, HostMemorySpace>("owned_to_local", out.num_owned);
+  out.owned_gids_host =
+    Kokkos::View<GO*, HostMemorySpace>("owned_gids", out.num_owned);
+
+  LO o = 0;
+  for (LO i = 0; i < n_local; ++i) {
+    if (owned(i)) {
+      out.owned_to_local_host(o) = i;
+      out.owned_gids_host(o) = static_cast<GO>(gids(i));
+      ++o;
+    }
+  }
+
+  // Gather owned coordinates through a same-layout host mirror of the device
+  // destination, so the host/device layout mismatch doesn't break deep_copy.
+  out.owned_coords_2d =
+    Kokkos::View<Real**, DeviceMemorySpace>("owned_coords", out.num_owned, dim);
+  auto owned_coords_mirror = Kokkos::create_mirror_view(out.owned_coords_2d);
+  auto coords_host =
+    Kokkos::create_mirror_view_and_copy(HostMemorySpace(), coords);
+  for (LO j = 0; j < out.num_owned; ++j) {
+    const LO i = out.owned_to_local_host(j);
+    for (int d = 0; d < dim; ++d) {
+      owned_coords_mirror(j, d) = coords_host(i, d);
+    }
+  }
+  Kokkos::deep_copy(out.owned_coords_2d, owned_coords_mirror);
+
+  // Device-resident copies of the owned->local map and owned GIDs, for the
+  // device-side owned accessors.
+  out.owned_to_local = Kokkos::create_mirror_view_and_copy(
+    DeviceMemorySpace(), out.owned_to_local_host);
+  out.owned_gids = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(),
+                                                       out.owned_gids_host);
+
+  return out;
+}
 
 } // namespace pcms
 #endif // PCMS_FIELD_LAYOUT_H

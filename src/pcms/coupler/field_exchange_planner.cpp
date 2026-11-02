@@ -29,20 +29,6 @@ struct OutMsg
   redev::LOs offset;
 };
 
-// Returns the mesh entity dimension for DOF local_index based on the
-// entity offsets array.  ent_offsets[d]..ent_offsets[d+1] is the range of
-// DOF indices belonging to mesh entity dimension d.
-static int GetMeshEntityDim(LO local_index, const EntOffsetsArray& ent_offsets)
-{
-  for (int d = 0; d < ent_offsets_len - 1; ++d) {
-    if (local_index >= static_cast<LO>(ent_offsets[d]) &&
-        local_index < static_cast<LO>(ent_offsets[d + 1])) {
-      return d;
-    }
-  }
-  return ent_offsets_len - 1;
-}
-
 static size_t GetMessageBlockIndex(
   LO permutation_entry, Rank1View<const redev::LO, HostMemorySpace> offsets)
 {

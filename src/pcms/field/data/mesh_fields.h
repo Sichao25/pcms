@@ -52,7 +52,7 @@ public:
       basis_(std::move(basis)),
       mesh_field_(MakeMeshFieldBackend<T>(*layout_)),
       device_data_("meshfields_field_data_device",
-                   static_cast<size_t>(layout_->GetNumOwnedDofHolder()),
+                   static_cast<size_t>(layout_->GetNumLocalDofHolder()),
                    static_cast<size_t>(layout_->GetNumComponents()))
   {
     if (!mesh_field_) {

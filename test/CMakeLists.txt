@@ -34,6 +34,11 @@ if(PCMS_ENABLE_OMEGA_H)
       ${notRendezvous}
       ${cyclone1p})
   endif()
+  add_exe(test_distributed_layout)
+  if(HOST_NPROC GREATER_EQUAL 2)
+    mpi_test(test_distributed_layout_2p 2
+             $<TARGET_FILE:test_distributed_layout>)
+  endif()
   add_exe(test_ohClassPtn_appRibPtn)
   set(cyclone2p ${PCMS_TEST_DATA_DIR}/cyclone/23elements/2p.osh/)
   if(HOST_NPROC GREATER_EQUAL 4)

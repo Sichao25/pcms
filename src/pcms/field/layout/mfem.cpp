@@ -66,6 +66,8 @@ MFEMLayout::MFEMLayout(
     classification_ids_host_(v) = v;
   }
 
+  gids_ = Kokkos::create_mirror_view_and_copy(DeviceMemorySpace(), gids_host_);
+
   discretization_ = MakeVertexDiscretization(dim_, coords_host);
 }
 
@@ -86,7 +88,7 @@ int MFEMLayout::GetNumComponents() const
   return 1;
 }
 
-LO MFEMLayout::GetNumOwnedDofHolder() const
+LO MFEMLayout::GetNumLocalDofHolder() const
 {
   return static_cast<LO>(pmesh_.GetNV());
 }
@@ -106,6 +108,11 @@ GlobalIDView<HostMemorySpace> MFEMLayout::GetGidsHost() const
   return GlobalIDView<HostMemorySpace>(gids_host_.data(), gids_host_.size());
 }
 
+GlobalIDView<DeviceMemorySpace> MFEMLayout::GetGids() const
+{
+  return GlobalIDView<DeviceMemorySpace>(gids_.data(), gids_.size());
+}
+
 CoordinateView<DeviceMemorySpace> MFEMLayout::GetDOFHolderCoordinates() const
 {
   return CoordinateView<DeviceMemorySpace>{GetCoordinateSystem(),
@@ -121,7 +128,7 @@ EntOffsetsArray MFEMLayout::GetEntOffsets() const
 {
   EntOffsetsArray offsets{};
   offsets.fill(0);
-  const auto n = static_cast<size_t>(GetNumOwnedDofHolder());
+  const auto n = static_cast<size_t>(GetNumLocalDofHolder());
   for (int i = 1; i < ent_offsets_len; ++i) {
     offsets[i] = n;
   }

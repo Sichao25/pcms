@@ -28,7 +28,7 @@ public:
     : layout_(std::move(layout)),
       basis_(std::move(basis)),
       device_data_("simple_field_data_device",
-                   static_cast<size_t>(layout_->GetNumOwnedDofHolder()),
+                   static_cast<size_t>(layout_->GetNumLocalDofHolder()),
                    static_cast<size_t>(layout_->GetNumComponents()))
   {
   }

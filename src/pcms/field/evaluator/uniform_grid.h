@@ -131,7 +131,7 @@ public:
     int n_comp = layout_->GetNumComponents();
 
     PCMS_ALWAYS_ASSERT(dof_data.size() ==
-                       static_cast<size_t>(layout_->GetNumOwnedDofHolder() *
+                       static_cast<size_t>(layout_->GetNumLocalDofHolder() *
                                            layout_->GetNumComponents()));
 
     auto cell_indices = hint_.cell_indices_;
@@ -209,12 +209,12 @@ public:
       });
 
     RealMatView values_interp(
-      "values_interp", static_cast<size_t>(layout_->GetNumOwnedDofHolder()),
+      "values_interp", static_cast<size_t>(layout_->GetNumLocalDofHolder()),
       static_cast<size_t>(n_comp));
     Kokkos::parallel_for(
       "copy_dof_data_to_values_interp",
       Kokkos::MDRangePolicy<Kokkos::Rank<2>>(
-        {0, 0}, {static_cast<LO>(layout_->GetNumOwnedDofHolder()), n_comp}),
+        {0, 0}, {static_cast<LO>(layout_->GetNumLocalDofHolder()), n_comp}),
       KOKKOS_LAMBDA(const LO i, const int c) {
         values_interp(i, c) = dof_data(i, c);
       });

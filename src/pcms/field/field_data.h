@@ -11,9 +11,11 @@ namespace pcms
 {
 
 // DOFAccess<T> is the optional capability of field data whose values PCMS can
-// read and write directly: the values of the DOF holders this rank owns, shaped
-// [owned DOF holder][component] in the layout's order. Coupler exchanges and
-// transfer targets use it; evaluation never needs it.
+// read and write directly: the values of every local DOF holder (owned and
+// ghost), shaped [local DOF holder][component] in the layout's order. For a
+// layout without ghosts the local and owned holders coincide; Field gathers the
+// compact owned subset (see Field::GetOwnedDOFHolderData) when they differ.
+// Coupler exchanges and transfer targets use it; evaluation never needs it.
 template <typename T>
 class DOFAccess
 {
