@@ -57,22 +57,39 @@ struct OverlapMask
     }
   }
 
-  // Get the mask, evaluating the function against the layout if one was given
+  // Get the mask, evaluating the function against the layout if one was
+  // given. The exchange plan is owned-indexed, so the result has one entry per
+  // owned DOF holder. A mask stored per local DOF holder (e.g. from a
+  // classification function or an MFEM attribute) is gathered to the owned
+  // holders; one stored per owned holder is returned as is.
   Kokkos::View<const bool*, HostMemorySpace> GetMask(
     const FieldLayout& layout) const
   {
-    if (!in_overlap_func_) {
-      return is_overlap_;
+    Kokkos::View<const bool*, HostMemorySpace> mask = is_overlap_;
+    if (in_overlap_func_) {
+      auto class_dims = layout.GetDOFHolderClassificationDimensionsHost();
+      auto class_ids = layout.GetDOFHolderClassificationIdsHost();
+      Kokkos::View<bool*, HostMemorySpace> is_overlap("overlap_info",
+                                                      class_dims.size());
+      for (size_t i = 0; i < is_overlap.extent(0); ++i) {
+        is_overlap[i] =
+          static_cast<bool>(in_overlap_func_(class_dims[i], class_ids[i]));
+      }
+      mask = is_overlap;
     }
-    auto class_dims = layout.GetDOFHolderClassificationDimensionsHost();
-    auto class_ids = layout.GetDOFHolderClassificationIdsHost();
-    Kokkos::View<bool*, HostMemorySpace> is_overlap("overlap_info",
-                                                    class_dims.size());
-    for (size_t i = 0; i < is_overlap.extent(0); ++i) {
-      is_overlap[i] =
-        static_cast<bool>(in_overlap_func_(class_dims[i], class_ids[i]));
+    const auto num_owned = static_cast<size_t>(layout.GetNumOwnedDofHolder());
+    if (layout.OwnedIsLocal() || mask.extent(0) == num_owned) {
+      return mask;
     }
-    return is_overlap;
+    PCMS_ALWAYS_ASSERT(mask.extent(0) ==
+                       static_cast<size_t>(layout.GetNumLocalDofHolder()));
+    const auto owned_to_local = layout.GetOwnedToLocalHost();
+    Kokkos::View<bool*, HostMemorySpace> owned_mask("owned_overlap_info",
+                                                    num_owned);
+    for (size_t o = 0; o < num_owned; ++o) {
+      owned_mask[o] = mask[owned_to_local(o)];
+    }
+    return owned_mask;
   }
 };
 

@@ -26,7 +26,7 @@ FieldLayoutCommunicator::FieldLayoutCommunicator(
     planner_(std::move(planner)),
     overlap_mask_(overlap_mask ? std::make_unique<OverlapMask>(*overlap_mask)
                                : std::make_unique<OverlapMask>(
-                                   layout.GetGidsHost().size())),
+                                   layout.GetNumOwnedDofHolder())),
     own_mpi_comm_(own_mpi_comm)
 {
   gid_comm_ = channel.CreateComm<GO>(name_ + "_gids", mpi_comm_);
@@ -112,7 +112,7 @@ void FieldLayoutCommunicator::UpdateLayoutNull()
   // This rank exchanges nothing, but it still unpacks on receive (backends
   // that keep replicas synchronize them there), so every holder is unmapped.
   plan_.permutation = MakeUnmappedPermutation(
-    static_cast<size_t>(layout_.GetNumLocalDofHolder()));
+    static_cast<size_t>(layout_.GetNumOwnedDofHolder()));
   if (redev_.GetProcessType() == redev::ProcessType::Client) {
     channel_.BeginSendCommunicationPhase();
     channel_.EndSendCommunicationPhase();

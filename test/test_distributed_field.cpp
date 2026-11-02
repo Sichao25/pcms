@@ -3,16 +3,15 @@
 #include <Kokkos_Core.hpp>
 #include <Omega_h_build.hpp>
 
+#include "distributed_test_utils.h"
 #include "pcms/field/coordinate_systems/cartesian.hpp"
 #include "pcms/field/function_space/lagrange.h"
 #include "pcms/field/out_of_bounds_policy.h"
-#include "pcms/field/value_view.hpp"
 #include "pcms/utility/arrays.h"
 #include "pcms/utility/types.h"
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <type_traits>
 #include <vector>
 
@@ -85,17 +84,6 @@ void require(bool condition, const char* message)
   }
 }
 
-// Report `what` and abort every rank: a rank that just returned would leave
-// the others blocked in their next collective.
-[[noreturn]] void AbortAllRanks(const char* what) noexcept
-{
-  int rank = -1;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  std::fprintf(stderr, "[rank %d] uncaught exception: %s\n", rank, what);
-  MPI_Abort(MPI_COMM_WORLD, 1);
-  std::abort(); // MPI_Abort does not return, but is not declared noreturn
-}
-
 void check_distributed_evaluation(Omega_h::Mesh& mesh,
                                   const pcms::LagrangeFunctionSpace& space)
 {
@@ -118,10 +106,9 @@ void check_distributed_evaluation(Omega_h::Mesh& mesh,
   }
 
   auto field = space.CreateFunction<Real>();
-  field.SetDOFHolderDataHost(pcms::ValueView<const Real, pcms::HostMemorySpace>(
-    field.GetData().GetValueBasis(),
-    pcms::Rank2View<const Real, pcms::HostMemorySpace>(values.data(), n_local,
-                                                       1)));
+  field.SetDOFHolderDataHost(distributed_test::TagLike(
+    field, pcms::Rank2View<const Real, pcms::HostMemorySpace>(values.data(),
+                                                              n_local, 1)));
   field.SynchronizeGhosts();
 
   auto data =
@@ -158,9 +145,7 @@ void check_distributed_evaluation(Omega_h::Mesh& mesh,
   const LO n_points = n_elements;
   Kokkos::View<Real**, pcms::DeviceMemorySpace> result("result", n_points, 1);
   Kokkos::deep_copy(result, kUnresolved);
-  evaluator->Evaluate(
-    field, pcms::ValueView<Real, pcms::DeviceMemorySpace>(
-             field.GetData().GetValueBasis(), pcms::MakeRank2View(result)));
+  evaluator->Evaluate(field, distributed_test::TagLike(field, result));
   auto result_host =
     Kokkos::create_mirror_view_and_copy(pcms::HostMemorySpace(), result);
 
@@ -251,8 +236,8 @@ int main(int argc, char** argv)
     MPI_Finalize();
     return 0;
   } catch (const std::exception& e) {
-    AbortAllRanks(e.what());
+    distributed_test::AbortAllRanks(e.what());
   } catch (...) {
-    AbortAllRanks("unknown exception");
+    distributed_test::AbortAllRanks("unknown exception");
   }
 }
