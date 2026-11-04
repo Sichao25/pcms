@@ -43,9 +43,11 @@ public:
   [[nodiscard]] const std::string& GetName() const noexcept { return name_; }
 
   // The DOF-holder accessors below read and write the values of the DOF
-  // holders this rank owns through the data's DOFAccess, and throw if the data
-  // has none (e.g. a field of an evaluation-only source). Writes synchronize
-  // the backend's other copies and are collective; see DOFAccess.
+  // holders this rank owns, shaped [GetNumDofHolder()][component] in owned
+  // order, through the data's DOFAccess, and throw if the data has none (e.g.
+  // a field of an evaluation-only source). Writes synchronize the backend's
+  // other copies and are collective; see DOFAccess. Ghost copies are brought
+  // up to date by SynchronizeGhosts.
 
   // Copies to the host unless device memory is host memory. The returned view
   // is valid until the next call or until the field is written or destroyed.
@@ -89,6 +91,10 @@ public:
     RequireDOFAccess().SetOwnedValues(v);
   }
 
+  // Synchronize ghost DOF-holder values from their owning ranks. Collective;
+  // a no-op for non-distributed fields.
+  void SynchronizeGhosts() { data_->SynchronizeGhosts(); }
+
 protected:
   Field(std::string name, std::shared_ptr<const FieldLayout> layout,
         std::unique_ptr<FieldData<T>> data)
@@ -108,13 +114,13 @@ protected:
 
   void CheckWriteExtents(size_t num_holders, size_t num_components) const
   {
-    if (num_holders != static_cast<size_t>(layout_->GetNumOwnedDofHolder()) ||
+    if (num_holders != static_cast<size_t>(layout_->GetNumDofHolder()) ||
         num_components != static_cast<size_t>(layout_->GetNumComponents())) {
       throw std::invalid_argument(
         "Field::SetDOFHolderData: the written view is shaped [" +
         std::to_string(num_holders) + "][" + std::to_string(num_components) +
         "] but this field's layout is [" +
-        std::to_string(layout_->GetNumOwnedDofHolder()) + "][" +
+        std::to_string(layout_->GetNumDofHolder()) + "][" +
         std::to_string(layout_->GetNumComponents()) + "]");
     }
   }
